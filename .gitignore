@@ -1,0 +1,60 @@
+# Игнорируем только бинарники, которые пересобираются каждый раз
+*.exe
+*.pdb
+*.pdp
+*.spl
+*.spf
+*.sp2
+
+# === Visual Studio (C#) ===
+.vs/
+[Oo]bj/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.opendb
+Wscope.ini
+WscopeE.ini
+
+# === CCS Theia / Code Composer Studio (C) ===
+# Игнорируем папки конфигураций сборки (FLASH, RAM и т.д.)
+3ph_Inverter/CPU*/
+
+
+# Локальные настройки среды и кэш IDE
+.metadata/
+.theia/
+.vscode/
+.launches/
+.clangd/
+.settings/
+**/.jxbrowser.userdata/
+/3ph_Invertor/.cproject
+
+
+# === Артефакты сборки и временные файлы ===
+*.out
+*.map
+*.d
+*.obj
+*.lst
+*_linkInfo.xml
+*.log
+*.tmp
+*.cache
+*.bak
+
+
+
+# === Системные файлы ===
+.DS_Store
+Thumbs.db
+/bin/Debug/SPL/spl_data
+/bin/Debug/SPF/sp2_data
+/bin/Debug/SPF/spf_data
+bin/Wscope/WScope.ini
+bin/Wscope/WScopeE.ini
+/bin/Wscope/WScope.ini
+/bin/Wscope/WScopeE.ini

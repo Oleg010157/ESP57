@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>false</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AssemblyName>CanLogTool</AssemblyName>
+    <RootNamespace>CanLogTool</RootNamespace>
+  </PropertyGroup>
+</Project>

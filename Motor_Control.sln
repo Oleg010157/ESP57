@@ -1,0 +1,38 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.2.11430.68
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Motor_Control", "Motor_Control.csproj", "{0CBCC19A-D35C-493D-A04C-DE1AA7E31F0D}"
+	ProjectSection(ProjectDependencies) = postProject
+		{BF35B8F9-B6F7-F90A-5457-E974BC3C9A15} = {BF35B8F9-B6F7-F90A-5457-E974BC3C9A15}
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{3537401B-C0E4-41A1-9DE0-F6913D433285}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CanLogTool", "CanLogTool\CanLogTool.csproj", "{BF35B8F9-B6F7-F90A-5457-E974BC3C9A15}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0CBCC19A-D35C-493D-A04C-DE1AA7E31F0D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CBCC19A-D35C-493D-A04C-DE1AA7E31F0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CBCC19A-D35C-493D-A04C-DE1AA7E31F0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CBCC19A-D35C-493D-A04C-DE1AA7E31F0D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF35B8F9-B6F7-F90A-5457-E974BC3C9A15}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF35B8F9-B6F7-F90A-5457-E974BC3C9A15}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF35B8F9-B6F7-F90A-5457-E974BC3C9A15}.Release|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF35B8F9-B6F7-F90A-5457-E974BC3C9A15}.Release|Any CPU.Build.0 = Debug|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FF7D63FD-B111-44F7-8460-7DEE14878ACA}
+	EndGlobalSection
+EndGlobal
+
+
+

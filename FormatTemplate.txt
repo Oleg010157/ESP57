@@ -1,0 +1,22 @@
+// Шаблон форматирования для констант (пример: класс mflag)
+
+//Выполняю выравнивание по знаку = с минимальным возможным отступом (1 пробел после самого длинного имени в каждом классе), чтобы все знаки = были строго в одном столбце для //каждой группы констант.
+//public const uint Имя_константы = Значение; // комментарий
+
+// Пример:
+public const uint pwm_On        = Bit.Bit0;  // 0
+public const uint Vd_sat        = Bit.Bit1;  // 1
+public const uint Vq_sat        = Bit.Bit2;  // 2
+public const uint Id_sat        = Bit.Bit3;  // 3
+public const uint Iq_sat        = Bit.Bit4;  // 4
+public const uint Im_sat        = Bit.Bit5;  // 5
+public const uint Irpm_sat      = Bit.Bit6;  // 6
+public const uint kIqd          = Bit.Bit7;  // 7
+public const uint Urms_sat      = Bit.Bit8;  // 8
+public const uint epsi          = Bit.Bit9;  // 9
+public const uint emstep        = Bit.Bit10; // 10
+public const uint Im            = Bit.Bit11; // 11
+public const uint Ltest         = Bit.Bit12; // 12
+public const uint sMax_On       = Bit.Bit13; // 13
+public const uint sRPM          = Bit.Bit14; // 14
+public const uint Gen_Engine_SW = Bit.Bit15; // 15
