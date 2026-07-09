@@ -213,19 +213,19 @@ uint16_t readShiftRegister()
     uint16_t data = 0;
     uint16_t i;
     // Загрузка параллельных входов
-    GPIO_writePin(SH_LD_PIN, 0);
+ //   GPIO_writePin(SH_LD_PIN, 0);
 
     DEVICE_DELAY_US(10); // Небольшая задержка
-    GPIO_writePin(SH_LD_PIN, 1);
+//    GPIO_writePin(SH_LD_PIN, 1);
 
     // Считывание 16 бит (2 регистра)
     for ( i = 0; i < 16; i++)
     {
-        GPIO_writePin(SHR_CLOCK, 0);
+  //      GPIO_writePin(SHR_CLOCK, 0);
         DEVICE_DELAY_US(1);
         data <<= 1;
-        data |= GPIO_readPin(SHR_DATA);
-        GPIO_writePin(SHR_CLOCK, 1);
+ //       data |= GPIO_readPin(SHR_DATA);
+ //       GPIO_writePin(SHR_CLOCK, 1);
         DEVICE_DELAY_US(1);
     }
 

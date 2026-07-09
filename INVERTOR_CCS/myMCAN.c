@@ -3,7 +3,7 @@
 //
 // Include Files
 //
-#include "f28p55x_device.h"
+
 #include "inc/stw_dataTypes.h"
 #include "inc/stw_types.h"
 #include <string.h>
@@ -14,6 +14,8 @@
 #include "debug.h"
 #include "device.h"
 #include "driverlib.h"
+
+#include "f28p55x_device.h"
 #include "myDCAN.h"
 
 //

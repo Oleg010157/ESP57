@@ -10,7 +10,7 @@
 #define SPI_EEPROM_H_
 
 #include "myADC.h"
-#include "KSP/Errors.h"
+#include "Errors.h"
 
 //
 // Defines  EEPROM_ADDR

@@ -333,7 +333,6 @@
     </None>
     <Content Include="docs\About_Firmware_Window_Protocol_RU.txt" />
     <Content Include="docs\Rkf_Method_Protocol_RU.txt" />
-    <Content Include="empty_bitfield_driverlib\C2000Ware_local_patches.txt" />
     <Content Include="Git_Ежедневный_сценарий.txt" />
     <Content Include="Git_синхронизация_другой_ПК.txt" />
     <Content Include="Git_синхронизация_другой_ПК_коротко.txt" />
