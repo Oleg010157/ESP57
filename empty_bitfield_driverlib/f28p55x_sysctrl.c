@@ -334,7 +334,7 @@ void ServiceDog(void)
 //
 void DisableDog(void)
 {
-    volatile Uint16 temp;
+    volatile uint16_t temp;
 
     //
     // Grab the clock config first so we don't clobber it
@@ -351,8 +351,8 @@ void DisableDog(void)
 // Note: This function uses the DCC to check that the PLLRAWCLK is running at
 // the expected rate. The desirable DCC can be provided as a parameter.
 //
-void InitSysPll(Uint16 clock_source, Uint16 imult, Uint32 refdiv, Uint32 odiv,
-                 Uint16 divsel, Uint32 dccbase)
+void InitSysPll(uint16_t clock_source, uint16_t imult, Uint32 refdiv, Uint32 odiv,
+                 uint16_t divsel, Uint32 dccbase)
 {
     Uint32 timeout,temp_syspllmult, pllLockStatus;
     bool status;
@@ -550,7 +550,7 @@ void SysIntOsc2Sel(void)
 static void
 PollX1Counter(void)
 {
-    Uint16 loopCount = 0;
+    uint16_t loopCount = 0;
 
     //
     // Delay for 1 ms while the XTAL powers up
@@ -699,8 +699,8 @@ HALT()
 //
 //*****************************************************************************
 bool
-IsPLLValid(Uint32 base, Uint16 oscSource, Uint16 pllclk, Uint16 imult,
-           Uint16 odiv, Uint16 refdiv)
+IsPLLValid(Uint32 base, uint16_t oscSource, uint16_t pllclk, uint16_t imult,
+           uint16_t odiv, uint16_t refdiv)
 {
     float fclk1_0ratio;
     volatile struct DCC_REGS *DccRegs;

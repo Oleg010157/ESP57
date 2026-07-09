@@ -14,7 +14,6 @@ ORDERED_OBJS += \
 "./syscfg/device.obj" \
 "./syscfg/c2000ware_libraries.obj" \
 "./f28p55x_codestartbranch.obj" \
-"./empty_bitfield_driverlib_main.obj" \
 "./f28p55x_defaultisr.obj" \
 "./f28p55x_globalvariabledefs.obj" \
 "./f28p55x_gpio.obj" \
@@ -22,6 +21,20 @@ ORDERED_OBJS += \
 "./f28p55x_pievect.obj" \
 "./f28p55x_sysctrl.obj" \
 "./f28p55x_usdelay.obj" \
+"./main.obj" \
+"./myMCAN.obj" \
+"./KSP/CANA_UI.obj" \
+"./KSP/Errors.obj" \
+"./KSP/Functions.obj" \
+"./KSP/GET_freq.obj" \
+"./KSP/Kadr60.obj" \
+"./KSP/MBOX28.obj" \
+"./KSP/Main_ISR.obj" \
+"./KSP/MotorCalc.obj" \
+"./KSP/Power.obj" \
+"./KSP/REF_Kadr.obj" \
+"./KSP/main_Init.obj" \
+"./KSP/pwm_funcs.obj" \
 "../28p55x_generic_ram_lnk.cmd" \
 "C:/ti/C2000Ware_26_01_00_00/driverlib/f28p55x/driverlib/ccs/Debug/driverlib.lib" \
 "../f28p55x_headers_nonBIOS.cmd" \
@@ -36,7 +49,9 @@ RMDIR := RMDIR /S/Q
 # All of the sources participating in the build are defined here
 -include sources.mk
 -include subdir_vars.mk
+-include KSP/subdir_vars.mk
 -include subdir_rules.mk
+-include KSP/subdir_rules.mk
 -include objects.mk
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -140,15 +155,15 @@ all: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(GEN_CMDS)
 # Tool invocations
 empty_bitfield_driverlib.out: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(GEN_CMDS)
 	@echo 'C2000 Linker - building target: "$@"'
-	"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-c2000_25.11.1.LTS/bin/cl2000" -v28 -ml -mt --cla_support=cla2 --float_support=fpu32 --idiv_support=idiv0 --tmu_support=tmu1 --vcu_support=vcu2 -Ooff --fp_mode=relaxed --define=CPU1 --define=DUAL_HEADERS --diag_suppress=10063 --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"empty_bitfield_driverlib.map" --stack_size=0x100 --warn_sections -i"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-c2000_25.11.1.LTS/lib" -i"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-c2000_25.11.1.LTS/include" --reread_libs --diag_wrap=off --display_error_number --xml_link_info="empty_bitfield_driverlib_linkInfo.xml" --entry_point=code_start --rom_model -o "empty_bitfield_driverlib.out" $(ORDERED_OBJS)
+	"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-c2000_25.11.1.LTS/bin/cl2000" -v28 -ml -mt --cla_support=cla2 --float_support=fpu32 --idiv_support=idiv0 --tmu_support=tmu1 --vcu_support=vcu2 -Ooff --fp_mode=relaxed --define=CPU1 --define=_DUAL_HEADERS --diag_suppress=10063 --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"empty_bitfield_driverlib.map" --stack_size=0x100 --warn_sections -i"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-c2000_25.11.1.LTS/lib" -i"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-c2000_25.11.1.LTS/include" --reread_libs --diag_wrap=off --display_error_number --xml_link_info="empty_bitfield_driverlib_linkInfo.xml" --entry_point=code_start --rom_model -o "empty_bitfield_driverlib.out" $(ORDERED_OBJS)
 	@echo 'Finished building target: "$@"'
 	@echo ' '
 
 # Other Targets
 clean:
 	-$(RM) $(GEN_MISC_FILES__QUOTED)$(GEN_FILES__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) "syscfg\board.obj" "syscfg\device.obj" "syscfg\c2000ware_libraries.obj" "f28p55x_codestartbranch.obj" "empty_bitfield_driverlib_main.obj" "f28p55x_defaultisr.obj" "f28p55x_globalvariabledefs.obj" "f28p55x_gpio.obj" "f28p55x_piectrl.obj" "f28p55x_pievect.obj" "f28p55x_sysctrl.obj" "f28p55x_usdelay.obj" 
-	-$(RM) "syscfg\board.d" "syscfg\device.d" "syscfg\c2000ware_libraries.d" "empty_bitfield_driverlib_main.d" "f28p55x_defaultisr.d" "f28p55x_globalvariabledefs.d" "f28p55x_gpio.d" "f28p55x_piectrl.d" "f28p55x_pievect.d" "f28p55x_sysctrl.d" 
+	-$(RM) "syscfg\board.obj" "syscfg\device.obj" "syscfg\c2000ware_libraries.obj" "f28p55x_codestartbranch.obj" "f28p55x_defaultisr.obj" "f28p55x_globalvariabledefs.obj" "f28p55x_gpio.obj" "f28p55x_piectrl.obj" "f28p55x_pievect.obj" "f28p55x_sysctrl.obj" "f28p55x_usdelay.obj" "main.obj" "myMCAN.obj" "KSP\CANA_UI.obj" "KSP\Errors.obj" "KSP\Functions.obj" "KSP\GET_freq.obj" "KSP\Kadr60.obj" "KSP\MBOX28.obj" "KSP\Main_ISR.obj" "KSP\MotorCalc.obj" "KSP\Power.obj" "KSP\REF_Kadr.obj" "KSP\main_Init.obj" "KSP\pwm_funcs.obj" 
+	-$(RM) "syscfg\board.d" "syscfg\device.d" "syscfg\c2000ware_libraries.d" "f28p55x_defaultisr.d" "f28p55x_globalvariabledefs.d" "f28p55x_gpio.d" "f28p55x_piectrl.d" "f28p55x_pievect.d" "f28p55x_sysctrl.d" "main.d" "myMCAN.d" "KSP\CANA_UI.d" "KSP\Errors.d" "KSP\Functions.d" "KSP\GET_freq.d" "KSP\Kadr60.d" "KSP\MBOX28.d" "KSP\Main_ISR.d" "KSP\MotorCalc.d" "KSP\Power.d" "KSP\REF_Kadr.d" "KSP\main_Init.d" "KSP\pwm_funcs.d" 
 	-$(RM) "f28p55x_codestartbranch.d" "f28p55x_codestartbranch.d" "f28p55x_usdelay.d" 
 	-$(RMDIR) $(GEN_MISC_DIRS__QUOTED)
 	-@echo ' '

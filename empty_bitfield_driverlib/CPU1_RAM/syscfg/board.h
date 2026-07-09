@@ -59,46 +59,46 @@ extern "C"
 //*****************************************************************************
 
 //
-// MCANB -> myMCAN0 Pinmux
+// MCANB -> myMCANA Pinmux
 //
 //
 // MCANB_RX - GPIO Settings
 //
 #define GPIO_PIN_MCANB_RX 33
-#define myMCAN0_MCANRX_GPIO 33
-#define myMCAN0_MCANRX_PIN_CONFIG GPIO_33_MCANB_RX
+#define myMCANA_MCANRX_GPIO 33
+#define myMCANA_MCANRX_PIN_CONFIG GPIO_33_MCANB_RX
 //
 // MCANB_TX - GPIO Settings
 //
 #define GPIO_PIN_MCANB_TX 19
-#define myMCAN0_MCANTX_GPIO 19
-#define myMCAN0_MCANTX_PIN_CONFIG GPIO_19_MCANB_TX
+#define myMCANA_MCANTX_GPIO 19
+#define myMCANA_MCANTX_PIN_CONFIG GPIO_19_MCANB_TX
 
 //*****************************************************************************
 //
 // MCAN Configurations
 //
 //*****************************************************************************
-#define myMCAN0_BASE MCANB_DRIVER_BASE
+#define myMCANA_BASE MCANB_DRIVER_BASE
 //
 // Defines
 //
-#define myMCAN0_MCAN_STD_ID_FILTER_NUM          (1)
-#define myMCAN0_MCAN_EXT_ID_FILTER_NUM          (1)
-#define myMCAN0_MCAN_FIFO_0_NUM                 (0)
-#define myMCAN0_MCAN_FIFO_1_NUM                 (0)
-#define myMCAN0_MCAN_TX_BUFF_SIZE               (0)
-#define myMCAN0_MCAN_TX_EVENT_SIZE              (0)
+#define myMCANA_MCAN_STD_ID_FILTER_NUM          (1)
+#define myMCANA_MCAN_EXT_ID_FILTER_NUM          (1)
+#define myMCANA_MCAN_FIFO_0_NUM                 (0)
+#define myMCANA_MCAN_FIFO_1_NUM                 (0)
+#define myMCANA_MCAN_TX_BUFF_SIZE               (0)
+#define myMCANA_MCAN_TX_EVENT_SIZE              (0)
 
-#define myMCAN0_MCAN_STD_ID_FILT_START_ADDR     (0)
-#define myMCAN0_MCAN_EXT_ID_FILT_START_ADDR     (48)
-#define myMCAN0_MCAN_FIFO_0_START_ADDR          (548)
-#define myMCAN0_MCAN_FIFO_1_START_ADDR          (748)
-#define myMCAN0_MCAN_RX_BUFF_START_ADDR         (948)
-#define myMCAN0_MCAN_TX_BUFF_START_ADDR         (148)
-#define myMCAN0_MCAN_TX_EVENT_START_ADDR        (255)
+#define myMCANA_MCAN_STD_ID_FILT_START_ADDR     (0)
+#define myMCANA_MCAN_EXT_ID_FILT_START_ADDR     (48)
+#define myMCANA_MCAN_FIFO_0_START_ADDR          (548)
+#define myMCANA_MCAN_FIFO_1_START_ADDR          (748)
+#define myMCANA_MCAN_RX_BUFF_START_ADDR         (948)
+#define myMCANA_MCAN_TX_BUFF_START_ADDR         (148)
+#define myMCANA_MCAN_TX_EVENT_START_ADDR        (255)
 
-void myMCAN0_init();
+void myMCANA_init();
 
 //*****************************************************************************
 //

@@ -57,12 +57,16 @@ extern "C" {
 /**
  * \brief  This macro defines the Boolean that is used for True.
  */
+#ifndef SUCCESS
 #define SUCCESS                                        ((uint32_t) 1U)
+#endif
 
 /**
  * \brief  This macro defines the Boolean that is used for False.
  */
+#ifndef FAIL
 #define FAIL                                           ((uint32_t) 0U)
+#endif
 
 #define INVALID_PARAM                                   (-((int32_t) 1))
 

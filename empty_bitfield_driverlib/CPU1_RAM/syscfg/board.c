@@ -66,17 +66,17 @@ void PinMux_init()
 	//
 
 	//
-	// MCANB -> myMCAN0 Pinmux
+	// MCANB -> myMCANA Pinmux
 	//
-	GPIO_setPinConfig(myMCAN0_MCANRX_PIN_CONFIG);
+	GPIO_setPinConfig(myMCANA_MCANRX_PIN_CONFIG);
 	// AGPIO -> GPIO mode selected
 	GPIO_setAnalogMode(33, GPIO_ANALOG_DISABLED);
-	GPIO_setPadConfig(myMCAN0_MCANRX_GPIO, GPIO_PIN_TYPE_STD);
-	GPIO_setQualificationMode(myMCAN0_MCANRX_GPIO, GPIO_QUAL_ASYNC);
+	GPIO_setPadConfig(myMCANA_MCANRX_GPIO, GPIO_PIN_TYPE_STD);
+	GPIO_setQualificationMode(myMCANA_MCANRX_GPIO, GPIO_QUAL_ASYNC);
 
-	GPIO_setPinConfig(myMCAN0_MCANTX_PIN_CONFIG);
-	GPIO_setPadConfig(myMCAN0_MCANTX_GPIO, GPIO_PIN_TYPE_STD);
-	GPIO_setQualificationMode(myMCAN0_MCANTX_GPIO, GPIO_QUAL_ASYNC);
+	GPIO_setPinConfig(myMCANA_MCANTX_PIN_CONFIG);
+	GPIO_setPadConfig(myMCANA_MCANTX_GPIO, GPIO_PIN_TYPE_STD);
+	GPIO_setQualificationMode(myMCANA_MCANTX_GPIO, GPIO_QUAL_ASYNC);
 
 
 }
@@ -87,163 +87,163 @@ void PinMux_init()
 //
 //*****************************************************************************
 void MCAN_SYSCFG_init(){
-    myMCAN0_init();
+    myMCANA_init();
 }
 
-void myMCAN0_init(){
-    MCAN_RevisionId revid_myMCAN0;
-    MCAN_InitParams initParams_myMCAN0;
-    MCAN_MsgRAMConfigParams    msgRAMConfigParams_myMCAN0;
-    MCAN_BitTimingParams       bitTimes_myMCAN0;
+void myMCANA_init(){
+    MCAN_RevisionId revid_myMCANA;
+    MCAN_InitParams initParams_myMCANA;
+    MCAN_MsgRAMConfigParams    msgRAMConfigParams_myMCANA;
+    MCAN_BitTimingParams       bitTimes_myMCANA;
     //
     // Initialize MCAN Init parameters.
     //
-    initParams_myMCAN0.fdMode            = true;
-    initParams_myMCAN0.brsEnable         = true;
-    initParams_myMCAN0.txpEnable         = false;
-    initParams_myMCAN0.efbi              = false;
-    initParams_myMCAN0.pxhddisable       = false;
-    initParams_myMCAN0.darEnable         = false;
-    initParams_myMCAN0.wkupReqEnable     = false;
-    initParams_myMCAN0.autoWkupEnable    = false;
-    initParams_myMCAN0.emulationEnable   = false;
-    initParams_myMCAN0.tdcEnable         = false;
-    initParams_myMCAN0.wdcPreload        = 255;
+    initParams_myMCANA.fdMode            = true;
+    initParams_myMCANA.brsEnable         = true;
+    initParams_myMCANA.txpEnable         = false;
+    initParams_myMCANA.efbi              = false;
+    initParams_myMCANA.pxhddisable       = false;
+    initParams_myMCANA.darEnable         = false;
+    initParams_myMCANA.wkupReqEnable     = false;
+    initParams_myMCANA.autoWkupEnable    = false;
+    initParams_myMCANA.emulationEnable   = false;
+    initParams_myMCANA.tdcEnable         = false;
+    initParams_myMCANA.wdcPreload        = 255;
     //
     // Transmitter Delay Compensation parameters.
     //
-    initParams_myMCAN0.tdcConfig.tdcf    = 10;
-    initParams_myMCAN0.tdcConfig.tdco    = 6;
+    initParams_myMCANA.tdcConfig.tdcf    = 10;
+    initParams_myMCANA.tdcConfig.tdco    = 6;
     //
     // Initialize Message RAM Sections Configuration Parameters.
     //
-    msgRAMConfigParams_myMCAN0.flssa                = myMCAN0_MCAN_STD_ID_FILT_START_ADDR;
+    msgRAMConfigParams_myMCANA.flssa                = myMCANA_MCAN_STD_ID_FILT_START_ADDR;
     //
     // Standard ID Filter List Start Address.
     //
-    msgRAMConfigParams_myMCAN0.lss                  = myMCAN0_MCAN_STD_ID_FILTER_NUM;
+    msgRAMConfigParams_myMCANA.lss                  = myMCANA_MCAN_STD_ID_FILTER_NUM;
     //
     // List Size: Standard ID.
     //
-    msgRAMConfigParams_myMCAN0.flesa                = myMCAN0_MCAN_EXT_ID_FILT_START_ADDR;
+    msgRAMConfigParams_myMCANA.flesa                = myMCANA_MCAN_EXT_ID_FILT_START_ADDR;
     //
     // Extended ID Filter List Start Address.
     //
-    msgRAMConfigParams_myMCAN0.lse                  = myMCAN0_MCAN_EXT_ID_FILTER_NUM;
+    msgRAMConfigParams_myMCANA.lse                  = myMCANA_MCAN_EXT_ID_FILTER_NUM;
     //
     // List Size: Extended ID.
     //
-    msgRAMConfigParams_myMCAN0.txStartAddr          = myMCAN0_MCAN_TX_BUFF_START_ADDR;
+    msgRAMConfigParams_myMCANA.txStartAddr          = myMCANA_MCAN_TX_BUFF_START_ADDR;
     //
     // Tx Buffers Start Address.
     //
-    msgRAMConfigParams_myMCAN0.txBufNum             = myMCAN0_MCAN_TX_BUFF_SIZE;
+    msgRAMConfigParams_myMCANA.txBufNum             = myMCANA_MCAN_TX_BUFF_SIZE;
     //
     // Number of Dedicated Transmit Buffers.
     //
-    msgRAMConfigParams_myMCAN0.txFIFOSize           = 0;
-    msgRAMConfigParams_myMCAN0.txBufMode            = 0;
-    msgRAMConfigParams_myMCAN0.txBufElemSize        = 7;
+    msgRAMConfigParams_myMCANA.txFIFOSize           = 0;
+    msgRAMConfigParams_myMCANA.txBufMode            = 0;
+    msgRAMConfigParams_myMCANA.txBufElemSize        = 7;
     //
     // Tx Buffer Element Size.
     //
-    msgRAMConfigParams_myMCAN0.txEventFIFOStartAddr = myMCAN0_MCAN_TX_EVENT_START_ADDR;
+    msgRAMConfigParams_myMCANA.txEventFIFOStartAddr = myMCANA_MCAN_TX_EVENT_START_ADDR;
     //
     // Tx Event FIFO Start Address.
     //
-    msgRAMConfigParams_myMCAN0.txEventFIFOSize      = myMCAN0_MCAN_TX_EVENT_SIZE;
+    msgRAMConfigParams_myMCANA.txEventFIFOSize      = myMCANA_MCAN_TX_EVENT_SIZE;
     //
     // Event FIFO Size.
     //
-    msgRAMConfigParams_myMCAN0.txEventFIFOWaterMark = 0;
+    msgRAMConfigParams_myMCANA.txEventFIFOWaterMark = 0;
     //
     // Level for Tx Event FIFO watermark interrupt.
     //
-    msgRAMConfigParams_myMCAN0.rxFIFO0startAddr     = myMCAN0_MCAN_FIFO_0_START_ADDR;
+    msgRAMConfigParams_myMCANA.rxFIFO0startAddr     = myMCANA_MCAN_FIFO_0_START_ADDR;
     //
     // Rx FIFO0 Start Address.
     //
-    msgRAMConfigParams_myMCAN0.rxFIFO0size          = myMCAN0_MCAN_FIFO_0_NUM;
+    msgRAMConfigParams_myMCANA.rxFIFO0size          = myMCANA_MCAN_FIFO_0_NUM;
     //
     // Number of Rx FIFO elements.
     //
-    msgRAMConfigParams_myMCAN0.rxFIFO0waterMark     = 0; // Rx FIFO0 Watermark.
-    msgRAMConfigParams_myMCAN0.rxFIFO0OpMode        = 0;
-    msgRAMConfigParams_myMCAN0.rxFIFO1startAddr     = myMCAN0_MCAN_FIFO_1_START_ADDR;
+    msgRAMConfigParams_myMCANA.rxFIFO0waterMark     = 0; // Rx FIFO0 Watermark.
+    msgRAMConfigParams_myMCANA.rxFIFO0OpMode        = 0;
+    msgRAMConfigParams_myMCANA.rxFIFO1startAddr     = myMCANA_MCAN_FIFO_1_START_ADDR;
     //
     // Rx FIFO1 Start Address.
     //
-    msgRAMConfigParams_myMCAN0.rxFIFO1size          = myMCAN0_MCAN_FIFO_1_NUM;
+    msgRAMConfigParams_myMCANA.rxFIFO1size          = myMCANA_MCAN_FIFO_1_NUM;
     //
     // Number of Rx FIFO elements.
     //
-    msgRAMConfigParams_myMCAN0.rxFIFO1waterMark     = 0; // Level for Rx FIFO 1
+    msgRAMConfigParams_myMCANA.rxFIFO1waterMark     = 0; // Level for Rx FIFO 1
                                                   // watermark interrupt.
-    msgRAMConfigParams_myMCAN0.rxFIFO1OpMode        = 0; // FIFO blocking mode.
-    msgRAMConfigParams_myMCAN0.rxBufStartAddr       = myMCAN0_MCAN_RX_BUFF_START_ADDR;
+    msgRAMConfigParams_myMCANA.rxFIFO1OpMode        = 0; // FIFO blocking mode.
+    msgRAMConfigParams_myMCANA.rxBufStartAddr       = myMCANA_MCAN_RX_BUFF_START_ADDR;
     //
     // Rx Buffer Start Address.
     //
-    msgRAMConfigParams_myMCAN0.rxBufElemSize        = 7;
+    msgRAMConfigParams_myMCANA.rxBufElemSize        = 7;
     //
     // Rx Buffer Element Size.
     //
-    msgRAMConfigParams_myMCAN0.rxFIFO0ElemSize      = 7;
+    msgRAMConfigParams_myMCANA.rxFIFO0ElemSize      = 7;
     //
     // Rx FIFO0 Element Size.
     //
-    msgRAMConfigParams_myMCAN0.rxFIFO1ElemSize      = 7;
+    msgRAMConfigParams_myMCANA.rxFIFO1ElemSize      = 7;
     //
     // Rx FIFO1 Element Size.
     //
     //
     // Initialize bit timings.
     //
-    bitTimes_myMCAN0.nomRatePrescalar   = 7; // Nominal Baud Rate Pre-scaler.
-    bitTimes_myMCAN0.nomTimeSeg1        = 4; // Nominal Time segment before sample point.
-    bitTimes_myMCAN0.nomTimeSeg2        = 3; // Nominal Time segment after sample point.
-    bitTimes_myMCAN0.nomSynchJumpWidth  = 3; // Nominal (Re)Synchronization Jump Width Range.
-    bitTimes_myMCAN0.dataRatePrescalar  = 3; // Data Baud Rate Pre-scaler.
-    bitTimes_myMCAN0.dataTimeSeg1       = 4; // Data Time segment before sample point.
-    bitTimes_myMCAN0.dataTimeSeg2       = 3; // Data Time segment after sample point.
-    bitTimes_myMCAN0.dataSynchJumpWidth = 3; // Data (Re)Synchronization Jump Width.
+    bitTimes_myMCANA.nomRatePrescalar   = 7; // Nominal Baud Rate Pre-scaler.
+    bitTimes_myMCANA.nomTimeSeg1        = 4; // Nominal Time segment before sample point.
+    bitTimes_myMCANA.nomTimeSeg2        = 3; // Nominal Time segment after sample point.
+    bitTimes_myMCANA.nomSynchJumpWidth  = 3; // Nominal (Re)Synchronization Jump Width Range.
+    bitTimes_myMCANA.dataRatePrescalar  = 3; // Data Baud Rate Pre-scaler.
+    bitTimes_myMCANA.dataTimeSeg1       = 4; // Data Time segment before sample point.
+    bitTimes_myMCANA.dataTimeSeg2       = 3; // Data Time segment after sample point.
+    bitTimes_myMCANA.dataSynchJumpWidth = 3; // Data (Re)Synchronization Jump Width.
     //
     // Get MCANSS Revision ID.
     //
-    MCAN_getRevisionId(myMCAN0_BASE, &revid_myMCAN0);
+    MCAN_getRevisionId(myMCANA_BASE, &revid_myMCANA);
     //
     // Wait for Memory initialization to be completed.
     //
-    while(0 == MCAN_isMemInitDone(myMCAN0_BASE));
+    while(0 == MCAN_isMemInitDone(myMCANA_BASE));
     //
     // Put MCAN in SW initialization mode.
     //
-    MCAN_setOpMode(myMCAN0_BASE, MCAN_OPERATION_MODE_SW_INIT);
+    MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_SW_INIT);
     //
     // Wait till MCAN is not initialized.
     //
-    while (MCAN_OPERATION_MODE_SW_INIT != MCAN_getOpMode(myMCAN0_BASE));
+    while (MCAN_OPERATION_MODE_SW_INIT != MCAN_getOpMode(myMCANA_BASE));
     //
     // Initialize MCAN module.
     //
-    MCAN_init(myMCAN0_BASE, &initParams_myMCAN0);
+    MCAN_init(myMCANA_BASE, &initParams_myMCANA);
     //
     // Configure Bit timings.
     //
-    MCAN_setBitTime(myMCAN0_BASE, &bitTimes_myMCAN0);
+    MCAN_setBitTime(myMCANA_BASE, &bitTimes_myMCANA);
     //
     // Configure Message RAM Sections
     //
-    MCAN_msgRAMConfig(myMCAN0_BASE, &msgRAMConfigParams_myMCAN0);
+    MCAN_msgRAMConfig(myMCANA_BASE, &msgRAMConfigParams_myMCANA);
     //
     // Internal loopback mode
     //
-    MCAN_lpbkModeEnable(myMCAN0_BASE, MCAN_LPBK_MODE_EXTERNAL, true);
+    MCAN_lpbkModeEnable(myMCANA_BASE, MCAN_LPBK_MODE_EXTERNAL, true);
     //
     // Take MCAN out of the SW initialization mode
     //
-    MCAN_setOpMode(myMCAN0_BASE, MCAN_OPERATION_MODE_NORMAL);
-    while (MCAN_OPERATION_MODE_NORMAL != MCAN_getOpMode(myMCAN0_BASE));
+    MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_NORMAL);
+    while (MCAN_OPERATION_MODE_NORMAL != MCAN_getOpMode(myMCANA_BASE));
 }
 
 //*****************************************************************************

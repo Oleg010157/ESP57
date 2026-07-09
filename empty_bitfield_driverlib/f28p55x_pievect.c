@@ -282,7 +282,7 @@ const struct PIE_VECT_TABLE PieVectTableInit = {
 //
 void InitPieVectTable(void)
 {
-    Uint16 i;
+    uint16_t i;
     Uint32 *Source = (void *) &PieVectTableInit;
     Uint32 *Dest = (void *) &PieVectTable;
 

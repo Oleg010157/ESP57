@@ -1,0 +1,64 @@
+C2000Ware local patches memo
+Project: empty_bitfield_driverlib
+Repository: C:\Users\M4800\Desktop\P55_Work\K1
+Date: 2026-07-08
+C2000Ware version: 26_01_00_00
+Compiler: ti-cgt-c2000_25.11.1.LTS
+
+Goal
+Use mixed mode (driverlib + bitfield + _DUAL_HEADERS) without IDLE/SUCCESS/FAIL conflicts.
+
+Important
+Fixes are applied in the C2000Ware library files (installed SDK), not only in project files.
+
+Applied patch set
+
+Patch 1 (project local copy)
+File: empty_bitfield_driverlib\device\driverlib\cpu.h
+Reason: Macro IDLE conflicts with bitfield field/prototype names (f28p55x_lin.h, f28p55x_globalprototypes.h).
+Applied form:
+#ifndef _DUAL_HEADERS
+#ifndef IDLE
+#define IDLE   __asm(" IDLE")
+#endif
+#else
+#define IDLE_ASM __asm(" IDLE");
+#endif
+Verification:
+- No errors #41/#80/#91/#170 at lines linked to IDLE in f28p55x_lin.h / f28p55x_globalprototypes.h.
+
+Patch 2 (installed C2000Ware library)
+File: C:\ti\C2000Ware_26_01_00_00\driverlib\f28p55x\driverlib\inc\stw_types.h
+Reason: WARNING #48-D incompatible redefinition for SUCCESS/FAIL when f28p55x_device.h already defines them.
+Applied form:
+#ifndef SUCCESS
+#define SUCCESS                                        ((uint32_t) 1U)
+#endif
+#ifndef FAIL
+#define FAIL                                           ((uint32_t) 0U)
+#endif
+Backup:
+- C:\ti\C2000Ware_26_01_00_00\driverlib\f28p55x\driverlib\inc\stw_types.h.bak
+Verification:
+- No warning #48-D for SUCCESS/FAIL.
+
+Build settings notes
+- Keep include paths for both device_support headers and driverlib.
+- Keep --define=_DUAL_HEADERS.
+- Remove global preinclude of compat_dual_heders.h (or compat_dual_headers.h).
+- Remove compat_dual_heders.h from project files if present.
+- Optional suppression if needed: --diag_suppress=109 (TI bitfield style warning).
+
+Reapply checklist after C2000Ware update
+1) Confirm version path and file locations.
+2) Reapply Patch 1 in project local copy cpu.h.
+3) Reapply Patch 2 in installed C2000Ware stw_types.h.
+4) Verify preinclude list does not contain compat_dual_heders.h.
+5) Clean project.
+6) Rebuild and verify listed errors/warnings are gone.
+
+Change log
+- 2026-07-08: Initial memo created.
+- 2026-07-08: Updated for exact applied guards (_DUAL_HEADERS + DUAL_HEADERS) and preinclude cleanup.
+- 2026-07-08: Added explicit note that SUCCESS/FAIL fix is applied in installed C2000Ware library.
+- 2026-07-08: Patch 1 reverted to _DUAL_HEADERS-only condition; build define documented as _DUAL_HEADERS.

@@ -20,7 +20,7 @@ const mcan1          = mcan.addInstance();
 /**
  * Write custom configuration values to the imported modules.
  */
-mcan1.$name = "myMCAN0";
+mcan1.$name = "myMCANA";
 
 /**
  * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future

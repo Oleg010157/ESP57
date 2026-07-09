@@ -62,7 +62,7 @@ void
 InitGpio()
 {
     volatile Uint32 *gpioBaseAddr;
-    Uint16 regOffset;
+    uint16_t regOffset;
 
     //
     // Disable pin locks
@@ -112,11 +112,11 @@ InitGpio()
 // The appropriate parameters can be found in the pinout spreadsheet.
 //
 void
-GPIO_SetupPinMux(Uint16 gpioNumber, Uint16 cpu, Uint16 muxPosition)
+GPIO_SetupPinMux(uint16_t gpioNumber, uint16_t cpu, uint16_t muxPosition)
 {
     volatile Uint32 *gpioBaseAddr;
     volatile Uint32 *mux, *gmux, *csel;
-    Uint16 pin32, pin16, pin8;
+    uint16_t pin32, pin16, pin8;
 
     pin32 = gpioNumber % 32;
     pin16 = gpioNumber % 16;
@@ -196,7 +196,7 @@ GPIO_SetupPinMux(Uint16 gpioNumber, Uint16 cpu, Uint16 muxPosition)
 // the standard digital output.
 //
 void
-GPIO_SetupPinOptions(Uint16 gpioNumber, Uint16 output, Uint16 flags)
+GPIO_SetupPinOptions(uint16_t gpioNumber, uint16_t output, uint16_t flags)
 {
     volatile Uint32 *gpioBaseAddr;
     volatile Uint32 *dir, *pud, *inv, *odr, *qsel;
@@ -315,7 +315,7 @@ GPIO_SetupPinOptions(Uint16 gpioNumber, Uint16 output, Uint16 flags)
 // GPIO_LOCK   Lock the pin setup register bits for the specified pin
 //
 void
-GPIO_SetupLock(Uint16 gpioNumber, Uint16 flags)
+GPIO_SetupLock(uint16_t gpioNumber, uint16_t flags)
 {
     volatile Uint32 *gpioBaseAddr;
     volatile Uint32 *lock;
@@ -361,7 +361,7 @@ GPIO_SetupLock(Uint16 gpioNumber, Uint16 flags)
 // External interrupt setup
 //
 void
-GPIO_SetupXINT1Gpio(Uint16 gpioNumber)
+GPIO_SetupXINT1Gpio(uint16_t gpioNumber)
 {
     EALLOW;
     InputXbarRegs.INPUT4SELECT = gpioNumber;       // Set XINT1 source to GPIO-pin
@@ -369,7 +369,7 @@ GPIO_SetupXINT1Gpio(Uint16 gpioNumber)
 }
 
 void
-GPIO_SetupXINT2Gpio(Uint16 gpioNumber)
+GPIO_SetupXINT2Gpio(uint16_t gpioNumber)
 {
     EALLOW;
     InputXbarRegs.INPUT5SELECT = gpioNumber;       // Set XINT2 source to GPIO-pin
@@ -377,14 +377,14 @@ GPIO_SetupXINT2Gpio(Uint16 gpioNumber)
 }
 
 void
-GPIO_SetupXINT3Gpio(Uint16 gpioNumber)
+GPIO_SetupXINT3Gpio(uint16_t gpioNumber)
 {
     EALLOW;
     InputXbarRegs.INPUT6SELECT = gpioNumber;       // Set XINT3 source to GPIO-pin
     EDIS;
 }
 void
-GPIO_SetupXINT4Gpio(Uint16 gpioNumber)
+GPIO_SetupXINT4Gpio(uint16_t gpioNumber)
 {
     EALLOW;
     InputXbarRegs.INPUT13SELECT = gpioNumber;      // Set XINT4 source to GPIO-pin
@@ -392,7 +392,7 @@ GPIO_SetupXINT4Gpio(Uint16 gpioNumber)
 }
 
 void
-GPIO_SetupXINT5Gpio(Uint16 gpioNumber)
+GPIO_SetupXINT5Gpio(uint16_t gpioNumber)
 {
     EALLOW;
     InputXbarRegs.INPUT14SELECT = gpioNumber;     // Set XINT5 source to GPIO-pin
@@ -404,11 +404,11 @@ GPIO_SetupXINT5Gpio(Uint16 gpioNumber)
 // Note that this returns the actual state of the pin, not the state of the
 // output latch.
 //
-Uint16
-GPIO_ReadPin(Uint16 gpioNumber)
+uint16_t
+GPIO_ReadPin(uint16_t gpioNumber)
 {
     volatile Uint32 *gpioDataReg;
-    Uint16 pinVal;
+    uint16_t pinVal;
 
     gpioDataReg = (volatile Uint32 *)&GpioDataRegs + (gpioNumber/32)*GPY_DATA_OFFSET;
     pinVal = (gpioDataReg[GPYDAT] >> (gpioNumber % 32)) & 0x1;
@@ -420,7 +420,7 @@ GPIO_ReadPin(Uint16 gpioNumber)
 // GPIO_WritePin - Set the GPyDAT register bit for the specified pin.
 //
 void
-GPIO_WritePin(Uint16 gpioNumber, Uint16 outVal)
+GPIO_WritePin(uint16_t gpioNumber, uint16_t outVal)
 {
     volatile Uint32 *gpioDataReg;
     Uint32 pinMask;
