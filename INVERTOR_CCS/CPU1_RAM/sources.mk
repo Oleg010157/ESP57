@@ -120,4 +120,6 @@ GEN_OPTS__QUOTED :=
 SUBDIRS := \
 . \
 KSP \
+bitfield_source \
+my_Files \
 

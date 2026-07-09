@@ -56,6 +56,7 @@
                                     <listOptionValue value="${PROJECT_LOC}/../bin"/>
                                     <listOptionValue value="${CCS_PROJECT_DIR}/KSP"/>
                                     <listOptionValue value="${PROJECT_ROOT}/CLA"/>
+                                    <listOptionValue value="${PROJECT_LOC}/my_Files"/>
                                 </option>
                                 <option id="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEFINE.1600474946" superClass="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEFINE" valueType="definedSymbols">
                                     <listOptionValue value="${COM_TI_C2000WARE_SYMBOLS}"/>
@@ -113,7 +114,7 @@
                         </toolChain>
                     </folderInfo>
                     <sourceEntries>
-                        <entry excluding="CLA|empty_bitfield_driverlib_main.c|device|empty.syscfg|Debug.syscfg|targetConfigs/c2000.syscfg|device/driverlib|28p55x_generic_flash_lnk.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry excluding="CLA|device|Debug.syscfg|targetConfigs/c2000.syscfg|device/driverlib|28p55x_generic_flash_lnk.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
                     </sourceEntries>
                 </configuration>
             </storageModule>
@@ -431,6 +432,6 @@
         </cconfiguration>
     </storageModule>
     <storageModule moduleId="cdtBuildSystem" version="4.0.0">
-        <project id="empty_bitfield_driverlib.com.ti.ccstudio.buildDefinitions.C2000.ProjectType.651330648" name="C2000" projectType="com.ti.ccstudio.buildDefinitions.C2000.ProjectType"/>
+        <project id="invertor.com.ti.ccstudio.buildDefinitions.C2000.ProjectType.651330648" name="C2000" projectType="com.ti.ccstudio.buildDefinitions.C2000.ProjectType"/>
     </storageModule>
 </cproject>

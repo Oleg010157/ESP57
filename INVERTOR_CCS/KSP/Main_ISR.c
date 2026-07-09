@@ -9,6 +9,8 @@
 #include <math.h>
 
 #include "f28p55x_device.h"
+#include "driverlib.h"
+#include "device.h"
 
 #include "KSP.h"
 
@@ -16,6 +18,8 @@
 #include "myADC.h"
 #include "cla_shared.h"
 #include "myEPWM.h"
+#include "hw_memmap.h"
+#include "hw_types.h"
 #
 
 uint16_t          IsrTicker = 0; // счётчик PWM прерываний
@@ -104,17 +108,19 @@ void MainISR(void)
   //  if (SplMode == Spl_Fast)
   //      Send_FastKadr();
 
+    uint32_t txbrp = McanaRegs.MCAN_TXBRP.all;
+
     if (canaKadr.bit.F3_invertor == 1)
-        if ((CanaRegs.CAN_TXRQ_21 & CANA_f3_mask) == 0) // если завершена передача всех Mbox CANA_fastkadra
+        if ((txbrp & MCAN_f3_mask) == 0U) // если завершена передача всех Mbox CANA_fastkadra
             SPL_UI();
 
-    if (canaKadr.bit.F1_convertor == 1)                       // проверяем что есть запрос на передачу данных по CANA
-        if ((CanaRegs.CAN_TXRQ_21 & CANA_f1_mask) == 0)       // проверяем что 103 Mbox свободен для передачи
+    if (canaKadr.bit.F1_convertor == 1)                         // проверяем что есть запрос на передачу данных по CANA
+        if ((txbrp & MCAN_f1_mask) == 0U)                       // проверяем что 103 Mbox свободен для передачи
             Send_mbox(3, Idc_kod, Udc_kod, Vin_kod, IsrTicker); // загружаем данные в 3-ий Mbox
 
-    if (canaKadr.bit.F1_invertor == 1)                        // проверяем что есть запрос на передачу данных по CANA
-        if ((CanaRegs.CAN_TXRQ_21 & CANA_f1_mask) == 0)       // проверяем что 103 Mbox свободен для передачи
-            Send_mbox(3, Ia_kod, Ib_kod, Idc_kod, IsrTicker); // загружаем данные в 3-ий Mbox
+    if (canaKadr.bit.F1_invertor == 1)                          // проверяем что есть запрос на передачу данных по CANA
+        if ((txbrp & MCAN_f1_mask) == 0U)                       // проверяем что 103 Mbox свободен для передачи
+            Send_mbox(3, Ia_kod, Ib_kod, Idc_kod, IsrTicker);   // загружаем данные в 3-ий Mbox
 
     // DBG
     mainISR_Time = (EPwm7Regs.TBCTR - tim0M); // dbg время в 1/120 мкс

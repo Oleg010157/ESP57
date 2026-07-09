@@ -602,16 +602,16 @@ void MCAN_initAllTxBuffers(void)
 void Send_mbox(uint16_t bufNum, uint16_t d1, uint16_t d2, uint16_t d3, uint16_t d4)
 {
     if (bufNum >= MAX_TX_BUFFERS) return;
-    
+
     uint32_t addr = txPayloadAddr[bufNum];
     if (addr == 0) return;
-    
+
     // Только 2 записи данных
     HWREG(addr)      = ((uint32_t)d2 << 16) | d1;
     HWREG(addr + 4U) = ((uint32_t)d4 << 16) | d3;
-    
-    // Запрос передачи
-    MCAN_txBufAddReq(MCANA_DRIVER_BASE, bufNum);
+
+    // Запрос передачи через dedicated Tx Buffer
+    MCANARegs.TXBAR.all = (1UL << bufNum);
 }
 
 //
@@ -633,28 +633,28 @@ void SendAck(int d1, int d2, int d3, int cmd)
   cmdt[ilg] = cmd;
 
   if (ilg<60)  ilg++;
-    uint32_t txbrp = HW_RD_REG32(MCANA_DRIVER_BASE + MCAN_TXBRP);
-    
+    uint32_t txbrp = MCANARegs.TXBRP.all;
+
     // ⚡ Если буфер занят - считаем ОДИН раз
-    if (txbrp & 0x1)
+    if (txbrp & 0x1U)
     {
         txBuf0WaitCycles[ilg] = cmd;  // ← Событие: "буфер был занят"
-        
+
         // Ждём освобождения
         while (1)
         {
-            txbrp = HW_RD_REG32(MCANA_DRIVER_BASE + MCAN_TXBRP);
-            if ((txbrp & 0x1) == 0)  // Буфер свободен
+            txbrp = MCANARegs.TXBRP.all;
+            if ((txbrp & 0x1U) == 0U)  // Буфер свободен
                 break;
         }
     }
-    
+
     // Buffer свободен - отправляем ACK
     uint32_t addr = txPayloadAddr[0];
     HWREG(addr)      = ((uint32_t)d1 << 16) | cmd;
     HWREG(addr + 4U) = ((uint32_t)d3 << 16) | d2;
-    
-    MCAN_txBufAddReq(MCANA_DRIVER_BASE, 0);
+
+    MCANARegs.TXBAR.all = 1UL;
 }
 
 //
@@ -663,10 +663,10 @@ void SendAck(int d1, int d2, int d3, int cmd)
 void Send_mbox_FD(uint16_t bufNum, const uint8_t *data, uint16_t dataLen)
 {
     if (bufNum >= MAX_TX_BUFFERS) return;
-    
+
     uint32_t addr = txPayloadAddr[bufNum];
     if (addr == 0) return;
-    
+
     const uint32_t *data32 = (const uint32_t *)data;
     uint16_t numWords = (dataLen + 3) / 4;
     uint16_t i;
@@ -674,8 +674,8 @@ void Send_mbox_FD(uint16_t bufNum, const uint8_t *data, uint16_t dataLen)
     {
         HWREG(addr + (i * 4U)) = data32[i];
     }
-    
-    MCAN_txBufAddReq(MCANA_DRIVER_BASE, bufNum);
+
+    MCANARegs.TXBAR.all = (1UL << bufNum);
 }
 
 #endif // MCAN

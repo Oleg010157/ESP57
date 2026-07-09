@@ -16,22 +16,12 @@ LIB_SRCS += \
 C:/ti/C2000Ware_26_01_00_00/driverlib/f28p55x/driverlib/ccs/Debug/driverlib.lib 
 
 ASM_SRCS += \
-C:/ti/C2000Ware_26_01_00_00/device_support/f28p55x/common/source/f28p55x_codestartbranch.asm \
-../f28p55x_codestartbranch.asm \
-../f28p55x_usdelay.asm 
+C:/ti/C2000Ware_26_01_00_00/device_support/f28p55x/common/source/f28p55x_codestartbranch.asm 
 
 C_SRCS += \
 ./syscfg/board.c \
 ./syscfg/device.c \
-./syscfg/c2000ware_libraries.c \
-../f28p55x_defaultisr.c \
-../f28p55x_globalvariabledefs.c \
-../f28p55x_gpio.c \
-../f28p55x_piectrl.c \
-../f28p55x_pievect.c \
-../f28p55x_sysctrl.c \
-../main.c \
-../myMCAN.c 
+./syscfg/c2000ware_libraries.c 
 
 GEN_FILES += \
 ./syscfg/board.c \
@@ -46,15 +36,7 @@ GEN_MISC_DIRS += \
 C_DEPS += \
 ./syscfg/board.d \
 ./syscfg/device.d \
-./syscfg/c2000ware_libraries.d \
-./f28p55x_defaultisr.d \
-./f28p55x_globalvariabledefs.d \
-./f28p55x_gpio.d \
-./f28p55x_piectrl.d \
-./f28p55x_pievect.d \
-./f28p55x_sysctrl.d \
-./main.d \
-./myMCAN.d 
+./syscfg/c2000ware_libraries.d 
 
 GEN_OPTS += \
 ./syscfg/board.opt \
@@ -64,21 +46,10 @@ OBJS += \
 ./syscfg/board.obj \
 ./syscfg/device.obj \
 ./syscfg/c2000ware_libraries.obj \
-./f28p55x_codestartbranch.obj \
-./f28p55x_defaultisr.obj \
-./f28p55x_globalvariabledefs.obj \
-./f28p55x_gpio.obj \
-./f28p55x_piectrl.obj \
-./f28p55x_pievect.obj \
-./f28p55x_sysctrl.obj \
-./f28p55x_usdelay.obj \
-./main.obj \
-./myMCAN.obj 
+./f28p55x_codestartbranch.obj 
 
 ASM_DEPS += \
-./f28p55x_codestartbranch.d \
-./f28p55x_codestartbranch.d \
-./f28p55x_usdelay.d 
+./f28p55x_codestartbranch.d 
 
 GEN_MISC_FILES += \
 ./syscfg/board.h \
@@ -97,16 +68,7 @@ OBJS__QUOTED += \
 "syscfg\board.obj" \
 "syscfg\device.obj" \
 "syscfg\c2000ware_libraries.obj" \
-"f28p55x_codestartbranch.obj" \
-"f28p55x_defaultisr.obj" \
-"f28p55x_globalvariabledefs.obj" \
-"f28p55x_gpio.obj" \
-"f28p55x_piectrl.obj" \
-"f28p55x_pievect.obj" \
-"f28p55x_sysctrl.obj" \
-"f28p55x_usdelay.obj" \
-"main.obj" \
-"myMCAN.obj" 
+"f28p55x_codestartbranch.obj" 
 
 GEN_MISC_FILES__QUOTED += \
 "syscfg\board.h" \
@@ -121,15 +83,7 @@ GEN_MISC_FILES__QUOTED += \
 C_DEPS__QUOTED += \
 "syscfg\board.d" \
 "syscfg\device.d" \
-"syscfg\c2000ware_libraries.d" \
-"f28p55x_defaultisr.d" \
-"f28p55x_globalvariabledefs.d" \
-"f28p55x_gpio.d" \
-"f28p55x_piectrl.d" \
-"f28p55x_pievect.d" \
-"f28p55x_sysctrl.d" \
-"main.d" \
-"myMCAN.d" 
+"syscfg\c2000ware_libraries.d" 
 
 GEN_FILES__QUOTED += \
 "syscfg\board.c" \
@@ -139,9 +93,7 @@ GEN_FILES__QUOTED += \
 "syscfg\c2000ware_libraries.c" 
 
 ASM_DEPS__QUOTED += \
-"f28p55x_codestartbranch.d" \
-"f28p55x_codestartbranch.d" \
-"f28p55x_usdelay.d" 
+"f28p55x_codestartbranch.d" 
 
 SYSCFG_SRCS__QUOTED += \
 "../c2000.syscfg" 
@@ -149,19 +101,9 @@ SYSCFG_SRCS__QUOTED += \
 C_SRCS__QUOTED += \
 "./syscfg/board.c" \
 "./syscfg/device.c" \
-"./syscfg/c2000ware_libraries.c" \
-"../f28p55x_defaultisr.c" \
-"../f28p55x_globalvariabledefs.c" \
-"../f28p55x_gpio.c" \
-"../f28p55x_piectrl.c" \
-"../f28p55x_pievect.c" \
-"../f28p55x_sysctrl.c" \
-"../main.c" \
-"../myMCAN.c" 
+"./syscfg/c2000ware_libraries.c" 
 
 ASM_SRCS__QUOTED += \
-"C:/ti/C2000Ware_26_01_00_00/device_support/f28p55x/common/source/f28p55x_codestartbranch.asm" \
-"../f28p55x_codestartbranch.asm" \
-"../f28p55x_usdelay.asm" 
+"C:/ti/C2000Ware_26_01_00_00/device_support/f28p55x/common/source/f28p55x_codestartbranch.asm" 
 
 

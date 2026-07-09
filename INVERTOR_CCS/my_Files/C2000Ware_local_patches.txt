@@ -1,5 +1,5 @@
 C2000Ware local patches memo
-Project: empty_bitfield_driverlib
+Project: invertor
 Repository: C:\Users\M4800\Desktop\P55_Work\K1
 Date: 2026-07-08
 C2000Ware version: 26_01_00_00
@@ -14,7 +14,7 @@ Fixes are applied in the C2000Ware library files (installed SDK), not only in pr
 Applied patch set
 
 Patch 1 (project local copy)
-File: empty_bitfield_driverlib\device\driverlib\cpu.h
+File: invertor\device\driverlib\cpu.h
 Reason: Macro IDLE conflicts with bitfield field/prototype names (f28p55x_lin.h, f28p55x_globalprototypes.h).
 Applied form:
 #ifndef _DUAL_HEADERS

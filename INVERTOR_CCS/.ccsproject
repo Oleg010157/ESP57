@@ -6,8 +6,8 @@
 	<deviceFamily value="C2000"/>
 	<executableActions value=""/>
 	<createSlaveProjects value=""/>
-	<templateProperties value="id=empty_bitfield_driverlib.projectspec.empty_bitfield_driverlib"/>
-	<origin value="C:\ti\C2000Ware_26_01_00_00\device_support\f28p55x\examples\empty_projects\CCS\empty_bitfield_driverlib.projectspec"/>
+	<templateProperties value="id=invertor.projectspec.invertor"/>
+	<origin value="C:\ti\C2000Ware_26_01_00_00\device_support\f28p55x\examples\empty_projects\CCS\invertor.projectspec"/>
 	<filesToOpen value=""/>
 	<activeTargetConfiguration value="targetConfigs/TMS320F28P550SJ9_LaunchPad.ccxml"/>
 	<isTargetConfigurationManual value="true"/>
