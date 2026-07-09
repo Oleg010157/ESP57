@@ -1,8 +1,8 @@
 MEMORY
 {
    /* BEGIN is used for the "boot to SARAM" bootloader mode   */
-   BEGIN            : origin = 0x000000, length = 0x000002
-   BOOT_RSVD        : origin = 0x000002, length = 0x000126     /* Part of M0, BOOT rom will use this for stack */
+   BEGIN            : origin = 0x000000, length = 0x000004
+   BOOT_RSVD        : origin = 0x000004, length = 0x000124     /* Part of M0, BOOT rom will use this for stack */
    RAMM0            : origin = 0x000128, length = 0x0002D8
    RAMM1            : origin = 0x000400, length = 0x000400
    
@@ -45,19 +45,19 @@ MEMORY
 SECTIONS
 {
    codestart        : > BEGIN
-   .text            : >> RAMLS0 | RAMLS1 | RAMLS2 | RAMLS3
+    .text            : >> RAMLS2 | RAMLS3 | RAMLS4 | RAMLS5 | RAMLS6 | RAMLS7 | RAMLS8 | RAMLS9
    .cinit           : > RAMM0
    .switch          : > RAMM0
    .reset           : > RESET, TYPE = DSECT /* not used, */
 
    .stack           : > RAMM1
 #if defined(__TI_EABI__)
-   .bss             : > RAMLS5
-   .bss:output      : > RAMLS3
+   .bss             : >> RAMGS0 | RAMGS1 | RAMGS2 | RAMGS3
+   .bss:output      : > RAMGS1
    .init_array      : > RAMM0
-   .const           : > RAMLS5 | RAMLS6
-   .data            : > RAMLS5
-   .sysmem          : > RAMLS4
+   .const           : >> RAMGS2 | RAMGS3
+   .data            : >> RAMGS2 | RAMGS3
+   .sysmem          : > RAMGS3
 #else
    .pinit           : > RAMM0
    .ebss            : >> RAMLS5 | RAMLS6
@@ -70,6 +70,16 @@ SECTIONS
    ramgs2 : > RAMGS2
 
     .TI.ramfunc : {} > RAMM0
+
+    /* CLA specific sections */
+    Cla1Prog        : > RAMLS0
+    .scratchpad     : > RAMLS1
+    .bss_cla        : > RAMLS1
+    cla_shared      : > RAMLS1, ALIGN(4)
+    .const_cla      : > RAMLS2
+
+    Cla1ToCpuMsgRAM : > CLATOCPURAM
+    CpuToCla1MsgRAM : > CPUTOCLARAM
 
 }
 

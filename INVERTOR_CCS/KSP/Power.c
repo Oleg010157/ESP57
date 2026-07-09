@@ -668,37 +668,15 @@ void slip(motor *m)
  }
  */
 
-void change_TTimeT(int toothNum)
-{
-    extern float TTimeT;
-    extern Uint32 ImitConst;
-    extern float TthCf;
-    extern int Tooths;
-    const float k1 = 60.0f * 150e6f; // кол-во тиков процессора  при 1 об.мин и заданном кол-ве зубьев
-    const float k2 = 0.024f / 60.0f; // кол-во тиков процессора при 1 об.мин и заданном кол-ве зубьев
-    if (toothNum < 257)
-        Tooths = toothNum; // защита от переполнения буффера памяти
-    else
-        Tooths = 256;
-
-    TthCf = k2 * toothNum;
-    ImitConst = k1 / (float) toothNum;
-    TTimeT = ImitConst;
-}
 
 //--------------------------------------------------------------------------------------------------
 // держим Im to Im_ref за счёт изменения Urms
 void Im_reg(motor *m)
 {
     m->piIm.Ref = m->ref.Im;
-#if KSP_GEN
-  if (VTGen_On == 0)
-    m->piIm.Fbk =
-        m->park
-            .Im; // не обновляем во время импульса тока возбуждения генератора
-#else
+
     m->piIm.Fbk = m->clark.Im;
-#endif
+
 
     m->piIm.Fbk = m->clark.Im;
     m->piIm.Umax = c2p.Um_max;

@@ -610,7 +610,7 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             {
                 {
                     timeBasePeriod = data1 * 60;
-                    EPWM_setTimeBasePeriod(EPWM2_Iu_BASE, timeBasePeriod);
+                    EPWM_setTimeBasePeriod(myEPWM2_BASE, timeBasePeriod);
                     change_Tpwm();
                 }
             }
@@ -847,7 +847,7 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             SendAck(motor1.typeID.motID, 0, 0, cmd);
 
             change_motID(&motor1);
-            //      change_TTimeT(motor1.typeID.toothNum);
+           
 #if aci_fe
             ACIFE_CONST_CALC(&motor1);
 #endif
@@ -999,8 +999,7 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
                     data3 = 2;
                 }
 
-                //           change_TTimeT(data1); //нужно для правильного заполнения и вывода буфера данных по зубъям счётного диска
-            }
+                   }
 
             SendAck(mot28->typeID.toothNum, data2, data3, cmd);
             break;
@@ -1451,7 +1450,7 @@ void SendInfo(void)
     SendStr(sizeof(str2), (char *)&str2);
     SendStr(sizeof(str3), (char *)&str3);
     SendStr(sizeof(str4), (char *)&str4);
-    SendAck((int)(Bf & 0xFFFF), (int)(Bf >> 16) & 0xFFFF, (uint16_t)BoxesT, 32001);
+    SendAck((int)(Bf & 0xFFFF), (int)(Bf >> 16) & 0xFFFF, (uint16_t)BoxesF, 32001);
     SendAck(kuk1.all, kuk2.all, kuk3.all, 32002);
 }
 
@@ -1574,42 +1573,7 @@ void Gain_Selector(motor *m, int data1, int data2, int data3, uint16_t cmd)
     SendAck(iout, data2, m->mode.bit.umode, cmd);
 }
 
-bool myCAN_readMessage(uint32_t objID)
-{
-    bool status;
 
-    // Transfer the mbox RAM object to the  IF2 registers.  Mbox->IF2
-
-    HWREG_BP(myDCAN_BASE + CAN_O_IF2CMD) =
-        ((uint32_t)CAN_IF2CMD_DATA_A | (uint32_t)CAN_IF2CMD_DATA_B | (uint32_t)CAN_IF2CMD_CONTROL |
-         (objID & CAN_IF2CMD_MSG_NUM_M) | (uint32_t)CAN_IF2CMD_ARB);
-
-    // Wait for busy bit to clear
-
-    while ((HWREGH(myDCAN_BASE + CAN_O_IF2CMD) & CAN_IF2CMD_BUSY) == CAN_IF2CMD_BUSY)
-    {
-    }
-
-    if (CanaRegs.CAN_IF2MCTL.bit.NewDat)
-    {
-        rxA.all = CanaRegs.CAN_IF2DATA.all;
-        rxB.all = CanaRegs.CAN_IF2DATB.all;
-        status  = true;
-        //
-        // Now clear out the new data flag
-        HWREG_BP(myDCAN_BASE + CAN_O_IF2CMD) = ((uint32_t)CAN_IF2CMD_TXRQST | (objID & CAN_IF2CMD_MSG_NUM_M));
-        // Wait for busy bit to clear
-        while ((HWREGH(myDCAN_BASE + CAN_O_IF2CMD) & CAN_IF2CMD_BUSY) == CAN_IF2CMD_BUSY)
-        {
-        }
-    }
-    else
-    {
-        status = false;
-    }
-
-    return (status);
-}
 
 /****************************************************************************************************
  *  Функция Deselect_imit выключает имитацию данной ножки АЦП                                       *

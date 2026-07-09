@@ -189,10 +189,7 @@ void mcan_init(void) {
   GPIO_setPinConfig(DEVICE_GPIO_CFG_MCANRXA);
   GPIO_setPinConfig(DEVICE_GPIO_CFG_MCANTXA);
 
-  //
-  // Configure the divisor for the MCAN bit-clock
-  //
-  SysCtl_setMCANClk(SYSCTL_MCANCLK_DIV_3);
+  
 
   //
   // ISR Configuration.
@@ -611,7 +608,8 @@ void Send_mbox(uint16_t bufNum, uint16_t d1, uint16_t d2, uint16_t d3, uint16_t 
     HWREG(addr + 4U) = ((uint32_t)d4 << 16) | d3;
 
     // Запрос передачи через dedicated Tx Buffer
-    MCANARegs.TXBAR.all = (1UL << bufNum);
+ //   MCANARegs.TXBAR.all = (1UL << bufNum);
+     HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP) = (1UL << bufNum);
 }
 
 //
@@ -633,7 +631,9 @@ void SendAck(int d1, int d2, int d3, int cmd)
   cmdt[ilg] = cmd;
 
   if (ilg<60)  ilg++;
-    uint32_t txbrp = MCANARegs.TXBRP.all;
+   
+     uint32_t txbrp = HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP);
+ 
 
     // ⚡ Если буфер занят - считаем ОДИН раз
     if (txbrp & 0x1U)
@@ -643,7 +643,8 @@ void SendAck(int d1, int d2, int d3, int cmd)
         // Ждём освобождения
         while (1)
         {
-            txbrp = MCANARegs.TXBRP.all;
+           
+            txbrp = HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP);
             if ((txbrp & 0x1U) == 0U)  // Буфер свободен
                 break;
         }
@@ -653,8 +654,9 @@ void SendAck(int d1, int d2, int d3, int cmd)
     uint32_t addr = txPayloadAddr[0];
     HWREG(addr)      = ((uint32_t)d1 << 16) | cmd;
     HWREG(addr + 4U) = ((uint32_t)d3 << 16) | d2;
-
-    MCANARegs.TXBAR.all = 1UL;
+  
+    HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP) = 1UL;
+    
 }
 
 //
@@ -675,7 +677,7 @@ void Send_mbox_FD(uint16_t bufNum, const uint8_t *data, uint16_t dataLen)
         HWREG(addr + (i * 4U)) = data32[i];
     }
 
-    MCANARegs.TXBAR.all = (1UL << bufNum);
+    HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP) = (1UL << bufNum);
 }
 
 #endif // MCAN

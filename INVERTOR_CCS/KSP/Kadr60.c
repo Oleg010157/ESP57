@@ -67,7 +67,7 @@ void Send_kadr60() // заполняет область CANA Mbox значени
     switch (grup4)
     {
     case 0:
-        p1050 = Tooths;
+        p1050 = 1050;
         p1051 = rounding(stend.Ugen_rms * 10);
         p1052 = 1052;
         p1053 = 1053;

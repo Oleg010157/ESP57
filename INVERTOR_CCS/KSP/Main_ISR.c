@@ -8,19 +8,21 @@
 #include <stdbool.h>
 #include <math.h>
 
-#include "f28p55x_device.h"
-#include "driverlib.h"
-#include "device.h"
 
+#include "driverlib.h"
+//#include "device.h"
+#include "f28p55x_device.h"
 #include "KSP.h"
 
 #include "myDCAN.h"
 #include "myADC.h"
 #include "cla_shared.h"
 #include "myEPWM.h"
+
+#include "hw_mcanss.h"
 #include "hw_memmap.h"
 #include "hw_types.h"
-#
+
 
 uint16_t          IsrTicker = 0; // счётчик PWM прерываний
 uint16_t          cTicker   = 0; // счётчик PWM прерываний или периодов при калибровке
@@ -108,7 +110,8 @@ void MainISR(void)
   //  if (SplMode == Spl_Fast)
   //      Send_FastKadr();
 
-    uint32_t txbrp = McanaRegs.MCAN_TXBRP.all;
+ //   uint32_t txbrp = McanaRegs.MCAN_TXBRP;
+    uint32_t txbrp = HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP);
 
     if (canaKadr.bit.F3_invertor == 1)
         if ((txbrp & MCAN_f3_mask) == 0U) // если завершена передача всех Mbox CANA_fastkadra

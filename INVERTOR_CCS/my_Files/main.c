@@ -28,6 +28,7 @@
 #include "myEPWM.h"
 #include "main.h"
 #include "cla_shared.h"
+#include "SPI_EEPROM.h"
 
 
 
@@ -66,26 +67,23 @@ void CPU_TimersInit(void);
 void MainISR(void);
 void RMS(motor *m);
 
-//void CAN_DMA_FIFO_Init(void);
-//void DMA_updateAndProcess(void);
-#if MCAN
+
+#if MCANA
 void mcan_init(void);
-#else
-void CAN_IF3_DMA_init(void);
 #endif
 
 uint16_t          request_firmware_update = 0;
 extern void       app_request_firmware_update(void);
-volatile bool shift_phon = false;  // флаг семафор для вычислениий в фоне.
 
-extern SHR_Flags shrTrip;
+
+SHR_Flags shrTrip;
 //
 // Main
 //
 
 void main(void)
 {
-    Indecator_Config indecatorCfg;
+   
 
     //
     // Initialize device clock and peripherals
@@ -125,7 +123,7 @@ void main(void)
     timeBasePeriod = EPwm2Regs.TBPRD;
     change_Tpwm();
 
-    DacbRegs.DACVALS.bit.DACVALS = 200;
+
 
     motor1.typeID.pole_pair = 2;
     REF.speedRef            = 1500;
@@ -185,10 +183,8 @@ void main(void)
    // AnalogSubsysRegs.ADCDACLOOPBACK.all = ((Uint32)0xA5A5 << 16) | (1UL << 1);
    
 
-#if MCAN
+#if MCANA
     mcan_init();
-#else
-    CAN_IF3_DMA_init();
 #endif
 
     request_firmware_update = 0;
@@ -242,26 +238,13 @@ void main(void)
             CpuTimer0Regs.TCR.bit.TIF = 1; // clear flag
             cntT0++;
 
-            shift_phon = true;
-            shr.all    = Indecator_ReadShiftAndTask();
-            if (!shift_phon)
-            {
-                shr.all = shrTrip.all;
-            }
+          
 
             if (cntT0 == OneSecond) // события обрабатываемые каждую секунду
             {
                  Errors_CurrentErrorWindowTick();
 
-                if (cnt1sek < 3U)
-                {
-                    Indecator_SetChars('*', '*');
-                }
-                else 
-                {
-                    Indecator_UpdateErrorSequence();
-                }
-              
+           
 
                 TRIP_Clear();
 
@@ -278,7 +261,7 @@ void main(void)
             if (sbit.bit.connect) // проверяем что CAN is active
             {
                 // если завершена передача всех Mbox ref_kadra
-#if MCAN
+#if MCANA
                 // MCAN: читаем TX Buffer Request Pending регистр
                 uint32_t txbrp = HWREG(MCANA_DRIVER_BASE + MCAN_TXBRP);
                 if ((txbrp & ref_kadr_mask) == 0) // буферы свободны
@@ -304,7 +287,7 @@ void main(void)
             if (CpuTimer1Regs.TCR.bit.TIF == 1) // таймер1 отработал заданный период
             {
                 CpuTimer1Regs.TCR.bit.TIF = 1; // clear flag
-#if MCAN
+#if MCANA
                 // MCAN: читаем TX Buffer Request Pending регистр
                 uint32_t txbrp = HWREG(MCANA_DRIVER_BASE + MCAN_TXBRP);
                 if ((txbrp & kmask60) == 0) // буферы свободны
@@ -335,7 +318,7 @@ void main(void)
         // CAND вывод по 32-му MBOX
         // то есть не по таймеру не в REF и не в Kadr60
 
-#if MCAN
+#if MCANA
         {
             uint32_t txbrp = HWREG(MCANA_DRIVER_BASE + MCAN_TXBRP);
             if ((txbrp & BIT31) == 0)
@@ -366,12 +349,12 @@ void main(void)
                     goto end_336;
                 }
                 if ((Req_336 & 8) == 8)
-                    ADC_SendOffsets();   // Отправка таблицы АЦП
+  //                  ADC_SendOffsets();   // Отправка таблицы АЦП
                 Req_336 = Req_336 & ~8U; // сброс флага вывода лампочки
 
             end_336:;
             }
-#if MCAN
+#if MCANA
         } // закрытие блока MCAN
 #endif
 
