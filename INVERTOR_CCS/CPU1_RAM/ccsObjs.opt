@@ -26,8 +26,11 @@
 "./bitfield_source/f28p55x_usdelay.obj"
 "./my_Files/SPI_EEPROM.obj"
 "./my_Files/main.obj"
+"./my_Files/myADC.obj"
+"./my_Files/myEPWM.obj"
 "./my_Files/myMCAN.obj"
 "../28p55x_generic_ram_lnk.cmd"
 "C:/ti/C2000Ware_26_01_00_00/driverlib/f28p55x/driverlib/ccs/Debug/driverlib.lib"
 "../f28p55x_headers_nonBIOS.cmd"
+"../my_Files/Bootloader/FAPI_F28003x_EABI.lib"
 -llibc.a

@@ -30,8 +30,7 @@
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ApplicationIcon>tiicon.ico</ApplicationIcon>
-    <FileUpgradeFlags>
-    </FileUpgradeFlags>
+    <FileUpgradeFlags></FileUpgradeFlags>
     <OldToolsVersion>3.5</OldToolsVersion>
     <UpgradeBackupLocation />
     <IsWebBootstrapper>false</IsWebBootstrapper>
@@ -277,6 +276,50 @@
     <None Include="3ph_Inverter\EEPROM_Protocol.md" />
     <None Include="3ph_Inverter\Error_Protocol.md" />
     <None Include="3ph_Inverter\Indicator_Error_Display_Protocol.md" />
+    <None Include="bin\Debug\Bootloader_error.log" />
+    <None Include="bin\Debug\Bootloader_perf.log" />
+    <None Include="bin\Debug\Bootloader_trace.log" />
+    <None Include="bin\Debug\CanRxFiles\bit0.ini" />
+    <None Include="bin\Debug\CanRxFiles\bit1.ini" />
+    <None Include="bin\Debug\CanRxFiles\bit2.ini" />
+    <None Include="bin\Debug\CanRxFiles\bit3.ini" />
+    <None Include="bin\Debug\CanRxFiles\CURMOD.ini" />
+    <None Include="bin\Debug\CanRxFiles\KVU.ini" />
+    <None Include="bin\Debug\CanRxFiles\mSRD_EPS.ini" />
+    <None Include="bin\Debug\CanRxFiles\mSRD_EPS_2.ini" />
+    <None Include="bin\Debug\CanRxFiles\Power.ini" />
+    <None Include="bin\Debug\CanRxFiles\Resolver2.ini" />
+    <None Include="bin\Debug\CanRxFiles\SGT750.ini" />
+    <None Include="bin\Debug\CanRxFiles\SPL_FULL.ini" />
+    <None Include="bin\Debug\CanRxFiles\SPL_IGBT.ini" />
+    <None Include="bin\Debug\CanRxFiles\SPL_Power.ini" />
+    <None Include="bin\Debug\CanRxFiles\Yokogawa.ini" />
+    <None Include="bin\Debug\CanTxFiles\cmpss.ini" />
+    <None Include="bin\Debug\CanTxFiles\DeadTime.ini" />
+    <None Include="bin\Debug\CanTxFiles\kADC.ini" />
+    <None Include="bin\Debug\CanTxFiles\Kadr.ini" />
+    <None Include="bin\Debug\CanTxFiles\Offsets.ini" />
+    <None Include="bin\Debug\CanTxFiles\rg_fix.ini" />
+    <None Include="bin\Debug\CanTxFiles\STROB.ini" />
+    <None Include="bin\Debug\CanTxFiles\TPWM.ini" />
+    <None Include="bin\Debug\CanTxFiles\U_Delay.ini" />
+    <None Include="bin\Debug\ICDIBasic.exe.config" />
+    <None Include="bin\Wscope\F1_convertor.ini" />
+    <None Include="bin\Wscope\F1_DEBUG.ini" />
+    <None Include="bin\Wscope\F3_Dead.ini" />
+    <None Include="bin\Wscope\F3_Dead_Time.ini" />
+    <None Include="bin\Wscope\F3_DEBUG.ini" />
+    <None Include="bin\Wscope\F3_invertor.ini" />
+    <None Include="bin\Wscope\F3_pui.ini" />
+    <None Include="bin\Wscope\F3_ui.ini" />
+    <None Include="bin\Wscope\F5_ui_all.ini" />
+    <None Include="bin\Wscope\SPL_Power.ini" />
+    <None Include="bin\Wscope\SPL_Yokogawa.ini" />
+    <None Include="bin\Wscope\Tooth_1234.ini" />
+    <None Include="bin\Wscope\WScope.ini" />
+    <None Include="bin\Wscope\WScope2.ini" />
+    <None Include="bin\Wscope\WScopeE.ini" />
+    <None Include="bin\Wscope\WScopeF.ini" />
     <None Include="Bootloader\test_invalid_short.out" />
     <None Include="CanLogTools\IMPLEMENTATION.md" />
     <None Include="CanLogTools\IMPROVEMENTS_v2.md" />
@@ -326,10 +369,28 @@
     <Content Include="3ph_Inverter\core_temp_adcc.c" />
     <Content Include="3ph_Inverter\indecator.c" />
     <Content Include="3ph_Inverter\indecator.h" />
+    <Content Include="bin\Debug\AinTable.dll" />
+    <Content Include="bin\Debug\ButtonTable.dll" />
+    <Content Include="bin\Debug\CanTxFiles\Readme.txt" />
+    <Content Include="bin\Debug\EasyModbus.dll" />
+    <Content Include="bin\Debug\EthLogger.dll" />
+    <Content Include="bin\Debug\ExtendedDotNET.Controls.dll" />
+    <Content Include="bin\Debug\FuncBuilder.dll" />
+    <Content Include="bin\Debug\ICDIBasic.exe" />
+    <Content Include="bin\Debug\ICDIBasic.pdb" />
+    <Content Include="bin\Debug\MiscFuncs.dll" />
+    <Content Include="bin\Debug\Resources\dies.ico" />
+    <Content Include="bin\Debug\Resources\dies1.ico" />
+    <Content Include="bin\Debug\Resources\start.png" />
+    <Content Include="bin\Debug\Resources\stop.png" />
+    <Content Include="bin\Debug\ZedGraph.dll" />
+    <Content Include="bin\ErrorCodes.h" />
+    <Content Include="bin\F3_ui.h" />
+    <Content Include="bin\Wscope\WScope.exe" />
     <Content Include="B_Versija.txt" />
     <Content Include="CanLogTools\ACCURACY_SUMMARY.txt" />
-    <None Include="config_switch.h">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <None Include="bin\config_switch.h">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <Content Include="docs\About_Firmware_Window_Protocol_RU.txt" />
     <Content Include="docs\Rkf_Method_Protocol_RU.txt" />
@@ -396,7 +457,10 @@
       <Install>true</Install>
     </BootstrapperPackage>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="bin\Debug\SPL\" />
+    <Folder Include="bin\Release\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

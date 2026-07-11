@@ -64,9 +64,9 @@ extern "C"
 //
 // EPWM2_A - GPIO Settings
 //
-#define GPIO_PIN_EPWM2_A 230
-#define myEPWM1_EPWMA_GPIO 230
-#define myEPWM1_EPWMA_PIN_CONFIG GPIO_230_EPWM2_A
+#define GPIO_PIN_EPWM2_A 2
+#define myEPWM1_EPWMA_GPIO 2
+#define myEPWM1_EPWMA_PIN_CONFIG GPIO_2_EPWM2_A
 //
 // EPWM2_B - GPIO Settings
 //
@@ -91,20 +91,20 @@ extern "C"
 #define myEPWM2_EPWMB_PIN_CONFIG GPIO_226_EPWM1_B
 
 //
-// MCANB -> myMCANA Pinmux
+// MCANA -> myMCANA Pinmux
 //
 //
-// MCANB_RX - GPIO Settings
+// MCANA_RX - GPIO Settings
 //
-#define GPIO_PIN_MCANB_RX 33
-#define myMCANA_MCANRX_GPIO 33
-#define myMCANA_MCANRX_PIN_CONFIG GPIO_33_MCANB_RX
+#define GPIO_PIN_MCANA_RX 230
+#define myMCANA_MCANRX_GPIO 230
+#define myMCANA_MCANRX_PIN_CONFIG GPIO_230_MCANA_RX
 //
-// MCANB_TX - GPIO Settings
+// MCANA_TX - GPIO Settings
 //
-#define GPIO_PIN_MCANB_TX 19
-#define myMCANA_MCANTX_GPIO 19
-#define myMCANA_MCANTX_PIN_CONFIG GPIO_19_MCANB_TX
+#define GPIO_PIN_MCANA_TX 20
+#define myMCANA_MCANTX_GPIO 20
+#define myMCANA_MCANTX_PIN_CONFIG GPIO_20_MCANA_TX
 
 //
 // SPIA -> mySPIB Pinmux
@@ -171,7 +171,7 @@ extern "C"
 // MCAN Configurations
 //
 //*****************************************************************************
-#define myMCANA_BASE MCANB_DRIVER_BASE
+#define myMCANA_BASE MCANA_DRIVER_BASE
 //
 // Defines
 //

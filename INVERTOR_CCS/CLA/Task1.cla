@@ -55,7 +55,7 @@ __interrupt void Cla1Task1(void)
                 c.dutyControl = 0.05f;
         }
 
-        if (Udc_volt > 550.0f || c.prechargeTicks > c.prechargeLimit)
+        if ((Udc_volt > 550.0f) || (c.prechargeTicks > c.prechargeLimit))
         {
             c.State = STATE_RUN;
         }

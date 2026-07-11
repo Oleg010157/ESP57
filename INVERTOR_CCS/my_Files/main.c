@@ -76,7 +76,7 @@ uint16_t          request_firmware_update = 0;
 extern void       app_request_firmware_update(void);
 
 
-SHR_Flags shrTrip;
+extern SHR_Flags shrTrip;
 //
 // Main
 //
@@ -204,7 +204,7 @@ void main(void)
         // 3. Включение CAN загрузчика программы:
         if (request_firmware_update)
         {
-            app_request_firmware_update();
+ //           app_request_firmware_update();
             request_firmware_update = 0;
         }
 

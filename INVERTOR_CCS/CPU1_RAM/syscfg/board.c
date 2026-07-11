@@ -72,8 +72,6 @@ void PinMux_init()
 	// EPWM2 -> myEPWM1 Pinmux
 	//
 	GPIO_setPinConfig(myEPWM1_EPWMA_PIN_CONFIG);
-	// AGPIO -> GPIO mode selected
-	GPIO_setAnalogMode(230, GPIO_ANALOG_DISABLED);
 	GPIO_setPadConfig(myEPWM1_EPWMA_GPIO, GPIO_PIN_TYPE_STD);
 	GPIO_setQualificationMode(myEPWM1_EPWMA_GPIO, GPIO_QUAL_SYNC);
 
@@ -97,15 +95,17 @@ void PinMux_init()
 	GPIO_setQualificationMode(myEPWM2_EPWMB_GPIO, GPIO_QUAL_SYNC);
 
 	//
-	// MCANB -> myMCANA Pinmux
+	// MCANA -> myMCANA Pinmux
 	//
 	GPIO_setPinConfig(myMCANA_MCANRX_PIN_CONFIG);
 	// AGPIO -> GPIO mode selected
-	GPIO_setAnalogMode(33, GPIO_ANALOG_DISABLED);
+	GPIO_setAnalogMode(230, GPIO_ANALOG_DISABLED);
 	GPIO_setPadConfig(myMCANA_MCANRX_GPIO, GPIO_PIN_TYPE_STD);
 	GPIO_setQualificationMode(myMCANA_MCANRX_GPIO, GPIO_QUAL_ASYNC);
 
 	GPIO_setPinConfig(myMCANA_MCANTX_PIN_CONFIG);
+	// AGPIO -> GPIO mode selected
+	GPIO_setAnalogMode(20, GPIO_ANALOG_DISABLED);
 	GPIO_setPadConfig(myMCANA_MCANTX_GPIO, GPIO_PIN_TYPE_STD);
 	GPIO_setQualificationMode(myMCANA_MCANTX_GPIO, GPIO_QUAL_ASYNC);
 
@@ -329,7 +329,7 @@ void myMCANA_init(){
     bitTimes_myMCANA.nomTimeSeg1        = 4; // Nominal Time segment before sample point.
     bitTimes_myMCANA.nomTimeSeg2        = 3; // Nominal Time segment after sample point.
     bitTimes_myMCANA.nomSynchJumpWidth  = 3; // Nominal (Re)Synchronization Jump Width Range.
-    bitTimes_myMCANA.dataRatePrescalar  = 3; // Data Baud Rate Pre-scaler.
+    bitTimes_myMCANA.dataRatePrescalar  = 7; // Data Baud Rate Pre-scaler.
     bitTimes_myMCANA.dataTimeSeg1       = 4; // Data Time segment before sample point.
     bitTimes_myMCANA.dataTimeSeg2       = 3; // Data Time segment after sample point.
     bitTimes_myMCANA.dataSynchJumpWidth = 3; // Data (Re)Synchronization Jump Width.

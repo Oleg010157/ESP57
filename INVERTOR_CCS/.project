@@ -27,7 +27,7 @@
 	<variableList>
 		<variable>
 			<name>C2000WARE_COMMON_INCLUDE</name>
-			<value>$%7BC2000WARE_COMMON_INCLUDE%7D</value>
+			<value></value>
 		</variable>
 		<variable>
 			<name>C2000WARE_DLIB_ROOT</name>
@@ -40,6 +40,10 @@
 		<variable>
 			<name>C2000Ware_COMMON</name>
 			<value>$%7BCOM_TI_C2000WARE_INSTALL_DIR%7D/device_support/f28p55x/common/include</value>
+		</variable>
+		<variable>
+			<name>C2000Ware_LIBRARY</name>
+			<value>$%7BCOM_TI_C2000WARE_INSTALL_DIR%7D/libraries</value>
 		</variable>
 	</variableList>
 </projectDescription>

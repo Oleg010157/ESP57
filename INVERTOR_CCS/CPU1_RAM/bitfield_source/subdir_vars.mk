@@ -56,9 +56,6 @@ C_DEPS__QUOTED += \
 ASM_DEPS__QUOTED += \
 "bitfield_source\f28p55x_usdelay.d" 
 
-ASM_SRCS__QUOTED += \
-"../bitfield_source/f28p55x_usdelay.asm" 
-
 C_SRCS__QUOTED += \
 "../bitfield_source/f28p55x_defaultisr.c" \
 "../bitfield_source/f28p55x_globalvariabledefs.c" \
@@ -66,5 +63,8 @@ C_SRCS__QUOTED += \
 "../bitfield_source/f28p55x_piectrl.c" \
 "../bitfield_source/f28p55x_pievect.c" \
 "../bitfield_source/f28p55x_sysctrl.c" 
+
+ASM_SRCS__QUOTED += \
+"../bitfield_source/f28p55x_usdelay.asm" 
 
 

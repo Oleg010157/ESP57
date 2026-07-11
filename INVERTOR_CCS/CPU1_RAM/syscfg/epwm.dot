@@ -135,7 +135,7 @@ digraph {
 
  	epwm2_TB:epwm2_syncout -> SYNCOUT_EPWM2
 
-    epwm2_TZ:epwm2_tz_epwma_out:e -> A10, B1, C10, GPIO230
+    epwm2_TZ:epwm2_tz_epwma_out:e -> GPIO2
     epwm2_TZ:epwm2_tz_epwmb_out:e -> A6, D14, E14, GPIO228
        
     subgraph cluster_epwm1 {

@@ -13,8 +13,6 @@
 #include "board.h"
 #include "f28p55x_device.h"
 #include "SPI_EEPROM.h"
-#include "myADC.h"
-#include "Errors.h"
 
 //
 // Globals
