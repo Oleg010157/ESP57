@@ -53,6 +53,7 @@ void Board_init()
 	EPWM_init();
 	MCAN_SYSCFG_init();
 	SPI_init();
+	INTERRUPT_init();
 
 	EDIS;
 }
@@ -72,6 +73,8 @@ void PinMux_init()
 	// EPWM2 -> myEPWM1 Pinmux
 	//
 	GPIO_setPinConfig(myEPWM1_EPWMA_PIN_CONFIG);
+	// AGPIO -> GPIO mode selected
+	GPIO_setAnalogMode(230, GPIO_ANALOG_DISABLED);
 	GPIO_setPadConfig(myEPWM1_EPWMA_GPIO, GPIO_PIN_TYPE_STD);
 	GPIO_setQualificationMode(myEPWM1_EPWMA_GPIO, GPIO_QUAL_SYNC);
 
@@ -98,14 +101,10 @@ void PinMux_init()
 	// MCANA -> myMCANA Pinmux
 	//
 	GPIO_setPinConfig(myMCANA_MCANRX_PIN_CONFIG);
-	// AGPIO -> GPIO mode selected
-	GPIO_setAnalogMode(230, GPIO_ANALOG_DISABLED);
 	GPIO_setPadConfig(myMCANA_MCANRX_GPIO, GPIO_PIN_TYPE_STD);
 	GPIO_setQualificationMode(myMCANA_MCANRX_GPIO, GPIO_QUAL_ASYNC);
 
 	GPIO_setPinConfig(myMCANA_MCANTX_PIN_CONFIG);
-	// AGPIO -> GPIO mode selected
-	GPIO_setAnalogMode(20, GPIO_ANALOG_DISABLED);
 	GPIO_setPadConfig(myMCANA_MCANTX_GPIO, GPIO_PIN_TYPE_STD);
 	GPIO_setQualificationMode(myMCANA_MCANTX_GPIO, GPIO_QUAL_ASYNC);
 
@@ -209,6 +208,18 @@ void EPWM_init(){
 
 //*****************************************************************************
 //
+// INTERRUPT Configurations
+//
+//*****************************************************************************
+void INTERRUPT_init(){
+	
+	// Interrupt Settings for INT_myMCANA_0
+	// ISR need to be defined for the registered interrupts
+	Interrupt_register(INT_myMCANA_0, &INT_myMCANA_0_ISR);
+	Interrupt_enable(INT_myMCANA_0);
+}
+//*****************************************************************************
+//
 // MCAN Configurations
 //
 //*****************************************************************************
@@ -224,14 +235,14 @@ void myMCANA_init(){
     //
     // Initialize MCAN Init parameters.
     //
-    initParams_myMCANA.fdMode            = true;
-    initParams_myMCANA.brsEnable         = true;
+    initParams_myMCANA.fdMode            = false;
+    initParams_myMCANA.brsEnable         = false;
     initParams_myMCANA.txpEnable         = false;
     initParams_myMCANA.efbi              = false;
     initParams_myMCANA.pxhddisable       = false;
     initParams_myMCANA.darEnable         = false;
     initParams_myMCANA.wkupReqEnable     = false;
-    initParams_myMCANA.autoWkupEnable    = false;
+    initParams_myMCANA.autoWkupEnable    = true;
     initParams_myMCANA.emulationEnable   = false;
     initParams_myMCANA.tdcEnable         = false;
     initParams_myMCANA.wdcPreload        = 255;
@@ -364,12 +375,18 @@ void myMCANA_init(){
     //
     // Internal loopback mode
     //
-    MCAN_lpbkModeEnable(myMCANA_BASE, MCAN_LPBK_MODE_EXTERNAL, true);
+    MCAN_lpbkModeEnable(myMCANA_BASE, MCAN_LPBK_MODE_EXTERNAL, false);
     //
     // Take MCAN out of the SW initialization mode
     //
     MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_NORMAL);
     while (MCAN_OPERATION_MODE_NORMAL != MCAN_getOpMode(myMCANA_BASE));
+    //
+    // Enable MCAN Interrupts
+    //
+    MCAN_enableIntr(myMCANA_BASE, MCAN_INTR_MASK_ALL, 1U);
+    MCAN_selectIntrLine(myMCANA_BASE, MCAN_INTR_MASK_ALL, MCAN_INTR_LINE_NUM_0);
+    MCAN_enableIntrLine(myMCANA_BASE, MCAN_INTR_LINE_NUM_0, 1U);
 }
 
 //*****************************************************************************

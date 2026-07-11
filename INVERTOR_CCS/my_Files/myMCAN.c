@@ -17,24 +17,13 @@
 
 #include "f28p55x_device.h"
 #include "myDCAN.h"
+#include "board.h"
 
 //
 // Defines
 //
-#define MCAN_STD_ID_FILTER_NUM (1U)
-#define MCAN_EXT_ID_FILTER_NUM (0U)
-#define MCAN_FIFO_0_NUM (64U)
-#define MCAN_FIFO_0_ELEM_SIZE (MCAN_ELEM_SIZE_8BYTES)
-#define MCAN_FIFO_1_NUM (0U)
-#define MCAN_FIFO_1_ELEM_SIZE (MCAN_ELEM_SIZE_8BYTES)
-#define MCAN_RX_BUFF_NUM (0U)
-#define MCAN_RX_BUFF_ELEM_SIZE (MCAN_ELEM_SIZE_8BYTES)
-#define MCAN_TX_BUFF_SIZE (32U)
-#define MCAN_TX_FQ_SIZE (0U)
 #define MCAN_TX_BUFF_ELEM_SIZE (MCAN_ELEM_SIZE_8BYTES)
-#define MCAN_TX_EVENT_SIZE (0U)
-#define MCAN_EXT_ID_AND_MASK (0x1FFFFFFFU)
-#define MCAN_MSG_INT (0x81200)
+#define MCAN_TX_BUFF_START_ADDR (myMCANA_MCAN_TX_BUFF_START_ADDR)
 
 #define MCANSS_TX_BUFFER_ELEM_ID_SHIFT                           (0U)
 #define MCANSS_TX_BUFFER_ELEM_ID_MASK                            (0x1FFFFFFFU)
@@ -54,30 +43,6 @@
 #define MCANSS_TX_BUFFER_ELEM_EFC_MASK                           (0x00800000U)
 #define MCANSS_TX_BUFFER_ELEM_MM_SHIFT                           (24U)
 #define MCANSS_TX_BUFFER_ELEM_MM_MASK                            (0xFF000000U)
-
-//
-//  Defining Starting Addresses for Message RAM Sections,
-//  (Calculated from Macros based on User defined configuration above)
-//
-#define MCAN_STD_ID_FILT_START_ADDR (0x0U)
-#define MCAN_EXT_ID_FILT_START_ADDR                                            \
-  (MCAN_STD_ID_FILT_START_ADDR +                                               \
-   ((MCAN_STD_ID_FILTER_NUM * MCANSS_STD_ID_FILTER_SIZE_WORDS * 4U)))
-#define MCAN_FIFO_0_START_ADDR                                                 \
-  (MCAN_EXT_ID_FILT_START_ADDR +                                               \
-   ((MCAN_EXT_ID_FILTER_NUM * MCANSS_EXT_ID_FILTER_SIZE_WORDS * 4U)))
-#define MCAN_FIFO_1_START_ADDR                                                 \
-  (MCAN_FIFO_0_START_ADDR +                                                    \
-   (MCAN_getMsgObjSize(MCAN_FIFO_0_ELEM_SIZE) * 4U * MCAN_FIFO_0_NUM))
-#define MCAN_RX_BUFF_START_ADDR                                                \
-  (MCAN_FIFO_1_START_ADDR +                                                    \
-   (MCAN_getMsgObjSize(MCAN_FIFO_1_ELEM_SIZE) * 4U * MCAN_FIFO_1_NUM))
-#define MCAN_TX_BUFF_START_ADDR                                                \
-  (MCAN_RX_BUFF_START_ADDR +                                                   \
-   (MCAN_getMsgObjSize(MCAN_RX_BUFF_ELEM_SIZE) * 4U * MCAN_RX_BUFF_NUM))
-#define MCAN_TX_EVENT_START_ADDR                                               \
-  (MCAN_TX_BUFF_START_ADDR + (MCAN_getMsgObjSize(MCAN_TX_BUFF_ELEM_SIZE) *     \
-                              4U * (MCAN_TX_BUFF_SIZE + MCAN_TX_FQ_SIZE)))
 
 //
 // Global Variables.
@@ -101,22 +66,12 @@ static uint32_t g_fifo0ElemSize = 0U;
 // Function Prototype.
 //
 void MCAN_initAllTxBuffers(void);
-static void        MCANConfig(void);
 static void        MCANIntrConfig(void);
 __interrupt void   myMCAN_0_ISR(void);
 void               cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd);
 
-volatile uint32_t    mode = 0U;
-MCAN_TxBufElement    txMsg;
-MCAN_RxBufElement    rxMsg;
-MCAN_RxNewDataStatus newData;
-
-MCAN_RevisionId            revId;
-MCAN_InitParams            initParams;
-MCAN_ConfigParams          configParams;
-MCAN_MsgRAMConfigParams    msgRAMConfigParams;
-MCAN_StdMsgIDFilterElement stdFiltelem;
-MCAN_BitTimingParams       bitTimes;
+volatile uint32_t mode = 0U;
+MCAN_RxBufElement rxMsg;
 
 // ⚡ Вызвать один раз при инициализации
 void MCAN_cacheFifo0Params(uint32_t baseAddr)
@@ -174,281 +129,25 @@ static inline void MCAN_readMsgRamFast(uint32_t baseAddr,
 void mcan_init(void) {
 
   //
-  // Initialize device clock and peripherals
-  //
-  Device_init();
-
-  //
-  // Initialize GPIO and unlock the GPIO configuration registers
-  //
-  Device_initGPIO();
-
-  //
-  // Configuring the GPIOs for MCAN.
-  //
-  GPIO_setPinConfig(DEVICE_GPIO_CFG_MCANRXA);
-  GPIO_setPinConfig(DEVICE_GPIO_CFG_MCANTXA);
-
-  
-
-  //
   // ISR Configuration.
   //
   MCANIntrConfig();
 
- 
-  //
-  // Initialize message to transmit.
-  /*
-  txMsg.id = ((uint32_t)(0x2)) << 18U; // Identifier Value.
-  txMsg.rtr = 0U;                      // Transmit data frame.
-  txMsg.xtd = 0U;                      // 11-bit standard identifier.
-  txMsg.esi = 0U;   // ESI bit in CAN FD format depends only on error
-                    // passive flag.
-  txMsg.dlc = 8U;   // CAN + CAN FD: transmit frame has 0-8 data bytes.
-  txMsg.brs = 0U;   // CAN FD frames transmitted with bit rate
-                    // switching.
-  txMsg.fdf = 0U;   // Frame transmitted in CAN FD format.
-  txMsg.efc = 0U;   // Store Tx events.
-  txMsg.mm = 0xAAU; // Message Marker.
-*/
-  
-  //
-  // Configure MCAN.
-  //
-  MCANConfig();
- 
-  // Инициализация TX буферов (ДОБАВИТЬ)
+  // SysConfig already configured GPIO, Message RAM, filter, mode and bit timing.
   MCAN_initAllTxBuffers();
-  // ⚡ ДОБАВИТЬ: кэшируем параметры FIFO0
-  MCAN_cacheFifo0Params(MCANA_DRIVER_BASE);
-  //
-  // Enable Interrupts.
-  //
-  MCAN_enableIntr(MCANA_DRIVER_BASE, MCAN_INTR_MASK_ALL, 1U);
-  // 🛑 Отключаем TX Complete (TC) - не используем
-  MCAN_enableIntr(MCANA_DRIVER_BASE, MCAN_IR_TC_MASK, 0U);
-  //
-  // Select Interrupt Line.
-  //
-  MCAN_selectIntrLine(MCANA_DRIVER_BASE, MCAN_INTR_MASK_ALL,
+  MCAN_cacheFifo0Params(myMCANA_BASE);
+
+  MCAN_enableIntr(myMCANA_BASE, MCAN_INTR_MASK_ALL, 1U);
+  MCAN_enableIntr(myMCANA_BASE, MCAN_IR_TC_MASK, 0U);
+  MCAN_selectIntrLine(myMCANA_BASE, MCAN_INTR_MASK_ALL,
                       MCAN_INTR_LINE_NUM_0);
-
-  //
-  // Enable Interrupt Line.
-  //
-  MCAN_enableIntrLine(MCANA_DRIVER_BASE, MCAN_INTR_LINE_NUM_0, 1U);
-
-  //
-  // Enable Transmission interrupt.
-  //
- // MCAN_txBufTransIntrEnable(MCANA_DRIVER_BASE, 0U, 0U);
-
-  
- 
+  MCAN_enableIntrLine(myMCANA_BASE, MCAN_INTR_LINE_NUM_0, 1U);
 }
-
-//
-// This function will configure MCAN module.
-//
-static void MCANConfig(void) {
- 
-
-  //
-  //  Initializing all structs to zero to prevent stray values
-  //
-  memset(&initParams, 0, sizeof(initParams));
-  memset(&configParams, 0, sizeof(configParams));
-  memset(&msgRAMConfigParams, 0, sizeof(msgRAMConfigParams));
-  memset(&stdFiltelem, 0, sizeof(stdFiltelem));
-  memset(&bitTimes, 0, sizeof(bitTimes));
-
-  //
-  // Initialize MCAN Init parameters.
-  //
-  initParams.fdMode = 0x1U;          // FD operation enabled.
-  initParams.brsEnable = 0x0U;       // Bit rate switching for
-                                     // transmissions enabled.
-  initParams.txpEnable = 0x0U;       // Transmit pause disabled.
-  initParams.efbi = 0x0U;            // Edge filtering disabled.
-  initParams.pxhddisable = 0x0U;     // Protocol exception handling enabled
-  initParams.darEnable = 0x0U;       // Enable Automatic retransmission of
-                                     // messages not transmitted successfully
-  initParams.wkupReqEnable = 0x1U;   // Wakeup request is enabled.
-  initParams.autoWkupEnable = 0x1U;  // Auto-Wakeup is enabled.
-  initParams.emulationEnable = 0x0U; // Emulation/Debug Suspend is enabled.
-  initParams.tdcEnable = 0x1U;       // Transmitter Delay Compensation is
-                                     // enabled.
-  initParams.wdcPreload = 0xFFU;     // Start value of the Message RAM
-                                     // Watchdog Counter preload.
-
-  //
-  // Transmitter Delay Compensation parameters.
-  //
-  initParams.tdcConfig.tdcf = 0xAU;
-  initParams.tdcConfig.tdco = 0x6U;
-
-  //
-  // Initialize MCAN Config parameters.
-  //
-  configParams.monEnable = monEn;  // Bus Monitoring Mode is disabled
-  configParams.asmEnable = 0x0U;   // Normal CAN operation.
-  configParams.tsPrescalar = 0xFU; // Prescaler Value.
-  configParams.tsSelect = 0x0U;    // Timestamp counter value.
-  configParams.timeoutSelect = MCAN_TIMEOUT_SELECT_CONT;
-  // Time-out counter source select.
-  configParams.timeoutPreload = 0xFFFFU; // Start value of the Timeout
-                                         // Counter.
-  configParams.timeoutCntEnable = 0x0U;  // Time-out Counter is disabled.
-  configParams.filterConfig.rrfs = 0x0U; // Reject all remote frames with
-                                         // 29-bit extended IDs.
-  configParams.filterConfig.rrfe = 0x0U; // Reject all remote frames with
-                                         // 11-bit standard IDs.
-  configParams.filterConfig.anfe = 0x1U; // Accept in Rx FIFO 1.
-  configParams.filterConfig.anfs = 0x1U; // Accept in Rx FIFO 1.
-
-  //
-  // Initialize Message RAM Sections Configuration Parameters.
-  //
-  msgRAMConfigParams.flssa = MCAN_STD_ID_FILT_START_ADDR;
-  // Standard ID Filter List Start Address.
-  msgRAMConfigParams.lss = MCAN_STD_ID_FILTER_NUM;
-  // List Size: Standard ID.
-  msgRAMConfigParams.flesa = MCAN_EXT_ID_FILT_START_ADDR;
-  // Extended ID Filter List Start Address.
-  msgRAMConfigParams.lse = MCAN_EXT_ID_FILTER_NUM;
-  // List Size: Extended ID.
-  msgRAMConfigParams.txStartAddr = MCAN_TX_BUFF_START_ADDR;
-  // Tx Buffers Start Address.
-  msgRAMConfigParams.txBufNum = 32U; // MCAN_TX_BUFF_SIZE;
-  // Number of Dedicated Transmit Buffers.
-  msgRAMConfigParams.txFIFOSize = MCAN_TX_FQ_SIZE;
-  // Number of Tx FIFO or Tx Queue Elements
-  msgRAMConfigParams.txBufMode = 0U; // Tx FIFO operation
-  msgRAMConfigParams.txBufElemSize = MCAN_TX_BUFF_ELEM_SIZE;
-  // Tx Buffer Element Size.
-  msgRAMConfigParams.txEventFIFOStartAddr = 0; // MCAN_TX_EVENT_START_ADDR;
-  // Tx Event FIFO Start Address.
-  msgRAMConfigParams.txEventFIFOSize = 0; // MCAN_TX_BUFF_SIZE;
-  // Event FIFO Size.
-  msgRAMConfigParams.txEventFIFOWaterMark = 3U;
-  // Level for Tx Event FIFO watermark interrupt.
-  msgRAMConfigParams.rxFIFO0startAddr = MCAN_FIFO_0_START_ADDR;
-  // Rx FIFO0 Start Address.
-  msgRAMConfigParams.rxFIFO0size = MCAN_FIFO_0_NUM;
-  // Number of Rx FIFO elements.
-  msgRAMConfigParams.rxFIFO0waterMark = 3U; // Rx FIFO0 Watermark.
-  msgRAMConfigParams.rxFIFO0OpMode = 0U;    // FIFO blocking mode.
-
-  msgRAMConfigParams.rxFIFO1startAddr = MCAN_FIFO_1_START_ADDR;
-  // Rx FIFO1 Start Address.
-  msgRAMConfigParams.rxFIFO1size = MCAN_FIFO_1_NUM;
-  // Number of Rx FIFO elements.
-  msgRAMConfigParams.rxFIFO1waterMark = 3U; // Level for Rx FIFO 1
-                                            // watermark interrupt.
-  msgRAMConfigParams.rxFIFO1OpMode = 0U;    // FIFO blocking mode.
-
-  msgRAMConfigParams.rxBufStartAddr = 0; // MCAN_RX_BUFF_START_ADDR;
-  // Rx Buffer Start Address.
-  msgRAMConfigParams.rxBufElemSize = 0; // MCAN_RX_BUFF_ELEM_SIZE;
-  // Rx Buffer Element Size.
-  msgRAMConfigParams.rxFIFO0ElemSize = MCAN_FIFO_0_ELEM_SIZE;
-  // Rx FIFO0 Element Size.
-  msgRAMConfigParams.rxFIFO1ElemSize = MCAN_FIFO_1_ELEM_SIZE;
-  // Rx FIFO1 Element Size.
-
-  //
-  // Initialize Rx Buffer Configuration parameters.
-  //
-  stdFiltelem.sfec =  MCAN_STDFILTEC_FIFO0;             // Store in RX FIFO 0 if filter matches
-  stdFiltelem.sft = MCAN_STDFILT_RANGE; // Range filter from SFID1 to SFID2
-  stdFiltelem.sfid1 = 0x2U;             // Standard Filter ID 1.
-  stdFiltelem.sfid2 = 0x2U;             // Standard Filter ID 2.
-
-  //
-  // Initialize bit timings.  MCAN_clk = 40 MGz
-  //
-  bitTimes.nomRatePrescalar = 1U;  // Nominal Baud Rate Pre-scaler
-  bitTimes.nomTimeSeg1 = 9U;       // Nominal Time segment before SP
-  bitTimes.nomTimeSeg2 = 8U;       // Nominal Time segment after SP
-  bitTimes.nomSynchJumpWidth = 8U; // Nominal SJW
-
-  bitTimes.dataRatePrescalar = 1U;  // Data Baud Rate Pre-scaler
-  bitTimes.dataTimeSeg1 = 9U;       // Data Time segment before SP
-  bitTimes.dataTimeSeg2 = 8U;       // Data Time segment after SP
-  bitTimes.dataSynchJumpWidth = 8U; // Data SJW
-
-  //
-  // Get MCANSS Revision ID.
-  //
-  MCAN_getRevisionId(MCANA_DRIVER_BASE, &revId);
-
-  //
-  // Wait for Memory initialization to be completed.
-  //
-  while (FALSE == MCAN_isMemInitDone(MCANA_DRIVER_BASE))
-    ;
-
-  //
-  // Put MCAN in SW initialization mode.
-  //
-  MCAN_setOpMode(MCANA_DRIVER_BASE, MCAN_OPERATION_MODE_SW_INIT);
-
-  //
-  // Wait till MCAN is not initialized.
-  //
-  while (MCAN_OPERATION_MODE_SW_INIT != MCAN_getOpMode(MCANA_DRIVER_BASE))
-    ;
-
-  //
-  // Initialize MCAN module.
-  //
-  MCAN_init(MCANA_DRIVER_BASE, &initParams);
-
-  //
-  // Configure MCAN module.
-  //
-  MCAN_config(MCANA_DRIVER_BASE, &configParams);
-
-  //
-  // Configure Bit timings.
-  //
-  MCAN_setBitTime(MCANA_DRIVER_BASE, &bitTimes);
-
-  //
-  // Configure Message RAM Sections
-  //
-  MCAN_msgRAMConfig(MCANA_DRIVER_BASE, &msgRAMConfigParams);
-
-  //
-  // Configure Standard ID filter element
-  //
-  MCAN_addStdMsgIDFilter(MCANA_DRIVER_BASE, 0U, &stdFiltelem);
-
-  //
-  // Enable internal loopback mode
-  //
-  MCAN_lpbkModeEnable(MCANA_DRIVER_BASE, MCAN_LPBK_MODE_EXTERNAL, FALSE);
-
-  //
-  // Take MCAN out of the SW initialization mode
-  //
-  MCAN_setOpMode(MCANA_DRIVER_BASE, MCAN_OPERATION_MODE_NORMAL);
-
-  while (MCAN_OPERATION_MODE_NORMAL != MCAN_getOpMode(MCANA_DRIVER_BASE))
-    ;
-}
-
 
 static void MCANIntrConfig(void) {
 
-  Interrupt_initModule();
-  Interrupt_initVectorTable();
-
-  Interrupt_register(INT_MCANA_0, &myMCAN_0_ISR);
-  Interrupt_enable(INT_MCANA_0);
-
-  Interrupt_enableGlobal();
+//  Interrupt_register(INT_MCANA_0, &myMCAN_0_ISR);
+//  Interrupt_enable(INT_MCANA_0);
 }
 
 //
@@ -459,22 +158,22 @@ volatile uint32_t errorStatus = 0;
 volatile uint32_t intrStatus = 0;
  
 
-__interrupt void myMCAN_0_ISR(void) 
+__interrupt void INT_myMCANA_0_ISR(void) 
 {
     volatile uint16_t d1, d2, d3, cmd;
     uint32_t intrStatus;
     uint32_t reg, idx, level;
-    
+
    cana0 = EPwm7Regs.TBCTR;
-    
-    intrStatus = MCAN_getIntrStatus(MCANA_DRIVER_BASE);
-    
+
+    intrStatus = MCAN_getIntrStatus(myMCANA_BASE);
+
     // ⚡ Запретить MCAN прерывания
-    MCAN_enableIntr(MCANA_DRIVER_BASE, MCAN_INTR_MASK_ALL, 0U);
-    
+    MCAN_enableIntr(myMCANA_BASE, MCAN_INTR_MASK_ALL, 0U);
+
     // ⚡ Очистить статус MCAN
-    MCAN_clearIntrStatus(MCANA_DRIVER_BASE, intrStatus);
-    MCAN_clearInterrupt(MCANA_DRIVER_BASE, 0x1);
+    MCAN_clearIntrStatus(myMCANA_BASE, intrStatus);
+    MCAN_clearInterrupt(myMCANA_BASE, 0x1);
     
     // ⚡ Освобождаем для других прерываний
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP9);
@@ -493,17 +192,17 @@ __interrupt void myMCAN_0_ISR(void)
         
         while (1)
         {
-            reg = HW_RD_REG32(MCANA_DRIVER_BASE + MCAN_RXF0S);
+            reg = HW_RD_REG32(myMCANA_BASE + MCAN_RXF0S);
             idx = HW_GET_FIELD(reg, MCAN_RXF0S_F0GI);
             level = HW_GET_FIELD(reg, MCAN_RXF0S_F0FL);
-            
+
             if (level == 0)
                 break;
 
-      //      MCAN_readMsgRam(MCANA_DRIVER_BASE, MCAN_MEM_TYPE_FIFO, idx, 
+      //      MCAN_readMsgRam(myMCANA_BASE, MCAN_MEM_TYPE_FIFO, idx, 
       //                     MCAN_RX_FIFO_NUM_0, &rxMsg);
-            MCAN_readMsgRamFast(MCANA_DRIVER_BASE, idx, &rxMsg);
- 
+            MCAN_readMsgRamFast(myMCANA_BASE, idx, &rxMsg);
+
             cmd = (uint16_t)rxMsg.data[1] << 8 | rxMsg.data[0];
             d1  = (uint16_t)rxMsg.data[7] << 8 | rxMsg.data[6];
             d2  = (uint16_t)rxMsg.data[5] << 8 | rxMsg.data[4];
@@ -511,12 +210,12 @@ __interrupt void myMCAN_0_ISR(void)
 
             cmd_MBOX28(d1, d2, d3, cmd);
 
-            MCAN_writeRxFIFOAck(MCANA_DRIVER_BASE, MCAN_RX_FIFO_NUM_0, idx);
+            MCAN_writeRxFIFOAck(myMCANA_BASE, MCAN_RX_FIFO_NUM_0, idx);
         }
     }
     cana_Time = EPwm7Regs.TBCTR - cana0;
     // ⚡ ОПТ: Одна строка вместо двух - разрешить всё, кроме TX Complete
-    MCAN_enableIntr(MCANA_DRIVER_BASE, MCAN_INTR_MASK_ALL & ~MCAN_IR_TC_MASK, 1U);
+    MCAN_enableIntr(myMCANA_BASE, MCAN_INTR_MASK_ALL & ~MCAN_IR_TC_MASK, 1U);
     
    
 }
@@ -526,7 +225,7 @@ __interrupt void myMCAN_0_ISR(void)
 // Массив адресов payload для быстрого доступа
 // Индекс массива = TX Buffer Number (0-31)
 //
-#define MAX_TX_BUFFERS 32
+#define MAX_TX_BUFFERS myMCANA_MCAN_TX_BUFF_SIZE
 static uint32_t txPayloadAddr[MAX_TX_BUFFERS] = {0};
 
 volatile uint16_t cana0, cana_Time;
@@ -549,7 +248,7 @@ void MCAN_initTxBuffer(uint16_t bufNum, uint16_t msgId, uint16_t dlc, uint16_t b
     
     uint32_t elemSize = MCAN_getMsgObjSize(MCAN_TX_BUFF_ELEM_SIZE);
     uint32_t elemAddr = MCAN_TX_BUFF_START_ADDR + (bufNum * elemSize * 4U);
-    uint32_t baseAddr = MCANA_DRIVER_BASE + MCAN_MCAN_MSG_MEM;
+    uint32_t baseAddr = myMCANA_BASE + MCAN_MCAN_MSG_MEM;
     
     // Word 0: CAN Message ID - ИСПРАВЛЕНО!
     HWREG(baseAddr + elemAddr) = 
@@ -608,8 +307,7 @@ void Send_mbox(uint16_t bufNum, uint16_t d1, uint16_t d2, uint16_t d3, uint16_t 
     HWREG(addr + 4U) = ((uint32_t)d4 << 16) | d3;
 
     // Запрос передачи через dedicated Tx Buffer
- //   MCANARegs.TXBAR.all = (1UL << bufNum);
-     HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP) = (1UL << bufNum);
+    MCAN_txBufAddReq(myMCANA_BASE, bufNum);
 }
 
 //
@@ -631,9 +329,9 @@ void SendAck(int d1, int d2, int d3, int cmd)
   cmdt[ilg] = cmd;
 
   if (ilg<60)  ilg++;
-   
-     uint32_t txbrp = HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP);
- 
+
+     uint32_t txbrp = HWREG_BP(myMCANA_BASE + MCAN_TXBRP);
+
 
     // ⚡ Если буфер занят - считаем ОДИН раз
     if (txbrp & 0x1U)
@@ -643,8 +341,8 @@ void SendAck(int d1, int d2, int d3, int cmd)
         // Ждём освобождения
         while (1)
         {
-           
-            txbrp = HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP);
+
+            txbrp = HWREG_BP(myMCANA_BASE + MCAN_TXBRP);
             if ((txbrp & 0x1U) == 0U)  // Буфер свободен
                 break;
         }
@@ -654,9 +352,9 @@ void SendAck(int d1, int d2, int d3, int cmd)
     uint32_t addr = txPayloadAddr[0];
     HWREG(addr)      = ((uint32_t)d1 << 16) | cmd;
     HWREG(addr + 4U) = ((uint32_t)d3 << 16) | d2;
-  
-    HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP) = 1UL;
-    
+
+    MCAN_txBufAddReq(myMCANA_BASE, 0U);
+
 }
 
 //
@@ -677,7 +375,7 @@ void Send_mbox_FD(uint16_t bufNum, const uint8_t *data, uint16_t dataLen)
         HWREG(addr + (i * 4U)) = data32[i];
     }
 
-    HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP) = (1UL << bufNum);
+    MCAN_txBufAddReq(myMCANA_BASE, bufNum);
 }
 
 #endif // MCAN

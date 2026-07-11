@@ -64,9 +64,9 @@ extern "C"
 //
 // EPWM2_A - GPIO Settings
 //
-#define GPIO_PIN_EPWM2_A 2
-#define myEPWM1_EPWMA_GPIO 2
-#define myEPWM1_EPWMA_PIN_CONFIG GPIO_2_EPWM2_A
+#define GPIO_PIN_EPWM2_A 230
+#define myEPWM1_EPWMA_GPIO 230
+#define myEPWM1_EPWMA_PIN_CONFIG GPIO_230_EPWM2_A
 //
 // EPWM2_B - GPIO Settings
 //
@@ -96,15 +96,15 @@ extern "C"
 //
 // MCANA_RX - GPIO Settings
 //
-#define GPIO_PIN_MCANA_RX 230
-#define myMCANA_MCANRX_GPIO 230
-#define myMCANA_MCANRX_PIN_CONFIG GPIO_230_MCANA_RX
+#define GPIO_PIN_MCANA_RX 5
+#define myMCANA_MCANRX_GPIO 5
+#define myMCANA_MCANRX_PIN_CONFIG GPIO_5_MCANA_RX
 //
 // MCANA_TX - GPIO Settings
 //
-#define GPIO_PIN_MCANA_TX 20
-#define myMCANA_MCANTX_GPIO 20
-#define myMCANA_MCANTX_PIN_CONFIG GPIO_20_MCANA_TX
+#define GPIO_PIN_MCANA_TX 4
+#define myMCANA_MCANTX_GPIO 4
+#define myMCANA_MCANTX_PIN_CONFIG GPIO_4_MCANA_TX
 
 //
 // SPIA -> mySPIB Pinmux
@@ -168,6 +168,18 @@ extern "C"
 
 //*****************************************************************************
 //
+// INTERRUPT Configurations
+//
+//*****************************************************************************
+
+// Interrupt Settings for INT_myMCANA_0
+// ISR need to be defined for the registered interrupts
+#define INT_myMCANA_0 INT_MCANA_0
+#define INT_myMCANA_0_INTERRUPT_ACK_GROUP INTERRUPT_ACK_GROUP9
+extern __interrupt void INT_myMCANA_0_ISR(void);
+
+//*****************************************************************************
+//
 // MCAN Configurations
 //
 //*****************************************************************************
@@ -177,19 +189,20 @@ extern "C"
 //
 #define myMCANA_MCAN_STD_ID_FILTER_NUM          (1)
 #define myMCANA_MCAN_EXT_ID_FILTER_NUM          (1)
-#define myMCANA_MCAN_FIFO_0_NUM                 (0)
+#define myMCANA_MCAN_FIFO_0_NUM                 (16)
 #define myMCANA_MCAN_FIFO_1_NUM                 (0)
-#define myMCANA_MCAN_TX_BUFF_SIZE               (0)
+#define myMCANA_MCAN_TX_BUFF_SIZE               (32)
 #define myMCANA_MCAN_TX_EVENT_SIZE              (0)
 
 #define myMCANA_MCAN_STD_ID_FILT_START_ADDR     (0)
-#define myMCANA_MCAN_EXT_ID_FILT_START_ADDR     (48)
-#define myMCANA_MCAN_FIFO_0_START_ADDR          (548)
-#define myMCANA_MCAN_FIFO_1_START_ADDR          (748)
-#define myMCANA_MCAN_RX_BUFF_START_ADDR         (948)
-#define myMCANA_MCAN_TX_BUFF_START_ADDR         (148)
-#define myMCANA_MCAN_TX_EVENT_START_ADDR        (255)
+#define myMCANA_MCAN_EXT_ID_FILT_START_ADDR     (4)
+#define myMCANA_MCAN_FIFO_0_START_ADDR          (12)
+#define myMCANA_MCAN_FIFO_1_START_ADDR          (12)
+#define myMCANA_MCAN_RX_BUFF_START_ADDR         (12)
+#define myMCANA_MCAN_TX_BUFF_START_ADDR         (12)
+#define myMCANA_MCAN_TX_EVENT_START_ADDR        (12)
 
+#define myMCANA_MCAN_INTR_LINE_NUM_0_INT (MCAN_INTR_MASK_ALL)
 void myMCANA_init();
 
 //*****************************************************************************
@@ -221,6 +234,7 @@ void mySPIB_init();
 //*****************************************************************************
 void	Board_init();
 void	EPWM_init();
+void	INTERRUPT_init();
 void	MCAN_SYSCFG_init();
 void	SPI_init();
 void	SYNC_init();

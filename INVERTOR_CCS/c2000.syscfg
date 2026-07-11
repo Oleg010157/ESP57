@@ -32,8 +32,24 @@ epwm1.$name = "myEPWM1";
 
 epwm2.$name = "myEPWM2";
 
-mcan1.$name             = "myMCANA";
-mcan1.dataRatePrescalar = 7;
+mcan1.$name                    = "myMCANA";
+mcan1.dataRatePrescalar        = 7;
+mcan1.useCalcStartingAddress   = true;
+mcan1.txBufNum                 = 32;
+mcan1.rxFIFO0size              = 16;
+mcan1.autoWkupEnable           = true;
+mcan1.enableInterrupt          = true;
+mcan1.interruptFlags           = ["MCAN_INTR_MASK_ALL"];
+mcan1.interruptLine            = ["MCAN_INTR_LINE_NUM_0"];
+mcan1.registerInterruptLine0   = true;
+mcan1.fdMode                   = false;
+mcan1.brsEnable                = false;
+mcan1.loopbackMode             = false;
+mcan1.interruptLine0Flag       = ["MCAN_INTR_MASK_ALL"];
+mcan1.mcan.$assign             = "MCANA";
+mcan1.mcan.mcan_rxPin.$assign  = "GPIO5";
+mcan1.mcan.mcan_txPin.$assign  = "GPIO4";
+mcan1.mcanInt0.enableInterrupt = true;
 
 spi1.$name          = "mySPIB";
 spi1.picoQual.$name = "myGPIOQUAL0";
@@ -46,17 +62,14 @@ spi1.pteQual.$name  = "myGPIOQUAL3";
  * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
  * re-solve from scratch.
  */
-epwm1.epwm.$suggestSolution            = "EPWM2";
-epwm1.epwm.epwm_aPin.$suggestSolution  = "GPIO2";
-epwm1.epwm.epwm_bPin.$suggestSolution  = "A6, D14, E14, GPIO228";
-epwm2.epwm.$suggestSolution            = "EPWM1";
-epwm2.epwm.epwm_aPin.$suggestSolution  = "GPIO0";
-epwm2.epwm.epwm_bPin.$suggestSolution  = "B2, C6, E12, GPIO226";
-mcan1.mcan.$suggestSolution            = "MCANA";
-mcan1.mcan.mcan_rxPin.$suggestSolution = "A10, B1, C10, GPIO230";
-mcan1.mcan.mcan_txPin.$suggestSolution = "A17, B17, C17, GPIO20";
-spi1.spi.$suggestSolution              = "SPIA";
-spi1.spi.spi_picoPin.$suggestSolution  = "A2, B6, C9, PGA1_INP, GPIO224";
-spi1.spi.spi_pociPin.$suggestSolution  = "A19, B19, C19, GPIO13";
-spi1.spi.spi_clkPin.$suggestSolution   = "A20, B20, C20, GPIO12";
-spi1.spi.spi_ptePin.$suggestSolution   = "A24, D0, E0, GPIO11";
+epwm1.epwm.$suggestSolution           = "EPWM2";
+epwm1.epwm.epwm_aPin.$suggestSolution = "A10, B1, C10, GPIO230";
+epwm1.epwm.epwm_bPin.$suggestSolution = "A6, D14, E14, GPIO228";
+epwm2.epwm.$suggestSolution           = "EPWM1";
+epwm2.epwm.epwm_aPin.$suggestSolution = "GPIO0";
+epwm2.epwm.epwm_bPin.$suggestSolution = "B2, C6, E12, GPIO226";
+spi1.spi.$suggestSolution             = "SPIA";
+spi1.spi.spi_picoPin.$suggestSolution = "A2, B6, C9, PGA1_INP, GPIO224";
+spi1.spi.spi_pociPin.$suggestSolution = "A19, B19, C19, GPIO13";
+spi1.spi.spi_clkPin.$suggestSolution  = "A20, B20, C20, GPIO12";
+spi1.spi.spi_ptePin.$suggestSolution  = "A24, D0, E0, GPIO11";
