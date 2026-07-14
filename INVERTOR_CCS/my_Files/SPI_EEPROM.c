@@ -53,7 +53,7 @@ void spi_saveToEEPROM(uint32_t base, uint16_t cmd, uint16_t address, uint16_t *t
     HWREGH(base + SPI_O_TXBUF) = WREN;
 
     // ожидаем завершения передачи команды WREN:
-    while (SPI_getRxFIFOStatus(base) < 1)
+  //  while (SPI_getRxFIFOStatus(base) < 1)
     {
     }
 
@@ -387,7 +387,7 @@ void EEprom_write_words(uint32_t base, uint16_t cmd, uint16_t address, uint16_t 
         CS_LOW;
         HWREGH(base + SPI_O_TXBUF) = WREN;
         // ожидаем завершения передачи команды WREN:
-        while (SPI_getRxFIFOStatus(base) < 1U)
+     //   while (SPI_getRxFIFOStatus(base) < 1U)
         {
         }
         CS_HIGH;
@@ -405,7 +405,7 @@ void EEprom_write_words(uint32_t base, uint16_t cmd, uint16_t address, uint16_t 
 
         rxsts = SPI_getRxFIFOStatus(base);
         // ожидаем завершения передачи массива данных:
-        while (SPI_getRxFIFOStatus(base) < (chunkWords + 2U)) // +2 с учётом cmd+address
+     //   while (SPI_getRxFIFOStatus(base) < (chunkWords + 2U)) // +2 с учётом cmd+address
         {
         }
 

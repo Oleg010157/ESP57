@@ -69,7 +69,9 @@ void RMS(motor *m);
 
 
 #if MCANA
-void mcan_init(void);
+//void mcan_init(void);
+
+//MCAN_start(myMCANA_BASE); // Запуск самого модуля CAN в работу
 #endif
 
 uint16_t          request_firmware_update = 0;
@@ -108,7 +110,7 @@ void main(void)
 
     Board_init();
 
-  
+ 
 
     // теперь корректируем порядок для CLA
     //   MEMCFG_init();   // назначаем LS‑банки CLA
@@ -122,13 +124,6 @@ void main(void)
 
     timeBasePeriod = EPwm2Regs.TBPRD;
     change_Tpwm();
-
-
-
-    motor1.typeID.pole_pair = 2;
-    REF.speedRef            = 1500;
-    motor1.ref.gain         = 900;
-    c2p.Um_max              = 70;
 
     TRIP_Clear();
     XbarRegs.XBARCLR1.all = 0xffffffff;
@@ -149,15 +144,15 @@ void main(void)
     offsets = offsets_default;
     kadc    = kadc_default;
 
-    EEprom_read_words(SPIB_BASE, READ0, offsets_addr, &offsets.Ia, (uint16_t)(sizeof(offsets)));
-    EEprom_read_words(SPIB_BASE, READ0, kadc_addr, &kadc.Ia, (uint16_t)(sizeof(kadc)));
-    EEprom_read_words(SPIB_BASE, READ0, errors_history_addr, (uint16_t *)&ErrHistory[0], (uint16_t)(sizeof(ErrHistory) / sizeof(uint16_t)));
+ //   EEprom_read_words(SPIB_BASE, READ0, offsets_addr, &offsets.Ia, (uint16_t)(sizeof(offsets)));
+ //   EEprom_read_words(SPIB_BASE, READ0, kadc_addr, &kadc.Ia, (uint16_t)(sizeof(kadc)));
+ //   EEprom_read_words(SPIB_BASE, READ0, errors_history_addr, (uint16_t *)&ErrHistory[0], (uint16_t)(sizeof(ErrHistory) / sizeof(uint16_t)));
     ErrHistory_ClearPending();
 
     {
         uint16_t sessionId = 0U;
 
-        EEprom_read_words(SPIB_BASE, READ0, session_id_addr, &sessionId, 1U);
+  //      EEprom_read_words(SPIB_BASE, READ0, session_id_addr, &sessionId, 1U);
 
         sessionId++;
 
@@ -184,7 +179,7 @@ void main(void)
    
 
 #if MCANA
-    mcan_init();
+//    mcan_init();
 #endif
 
     request_firmware_update = 0;

@@ -230,6 +230,7 @@ void MCAN_SYSCFG_init(){
 void myMCANA_init(){
     MCAN_RevisionId revid_myMCANA;
     MCAN_InitParams initParams_myMCANA;
+    MCAN_StdMsgIDFilterElement stdFiltelem_myMCANA;
     MCAN_MsgRAMConfigParams    msgRAMConfigParams_myMCANA;
     MCAN_BitTimingParams       bitTimes_myMCANA;
     //
@@ -242,7 +243,7 @@ void myMCANA_init(){
     initParams_myMCANA.pxhddisable       = false;
     initParams_myMCANA.darEnable         = false;
     initParams_myMCANA.wkupReqEnable     = false;
-    initParams_myMCANA.autoWkupEnable    = true;
+    initParams_myMCANA.autoWkupEnable    = false;
     initParams_myMCANA.emulationEnable   = false;
     initParams_myMCANA.tdcEnable         = false;
     initParams_myMCANA.wdcPreload        = 255;
@@ -280,7 +281,7 @@ void myMCANA_init(){
     //
     msgRAMConfigParams_myMCANA.txFIFOSize           = 0;
     msgRAMConfigParams_myMCANA.txBufMode            = 0;
-    msgRAMConfigParams_myMCANA.txBufElemSize        = 7;
+    msgRAMConfigParams_myMCANA.txBufElemSize        = 0;
     //
     // Tx Buffer Element Size.
     //
@@ -305,7 +306,7 @@ void myMCANA_init(){
     // Number of Rx FIFO elements.
     //
     msgRAMConfigParams_myMCANA.rxFIFO0waterMark     = 0; // Rx FIFO0 Watermark.
-    msgRAMConfigParams_myMCANA.rxFIFO0OpMode        = 0;
+    msgRAMConfigParams_myMCANA.rxFIFO0OpMode        = 1;
     msgRAMConfigParams_myMCANA.rxFIFO1startAddr     = myMCANA_MCAN_FIFO_1_START_ADDR;
     //
     // Rx FIFO1 Start Address.
@@ -316,16 +317,16 @@ void myMCANA_init(){
     //
     msgRAMConfigParams_myMCANA.rxFIFO1waterMark     = 0; // Level for Rx FIFO 1
                                                   // watermark interrupt.
-    msgRAMConfigParams_myMCANA.rxFIFO1OpMode        = 0; // FIFO blocking mode.
+    msgRAMConfigParams_myMCANA.rxFIFO1OpMode        = 1; // FIFO blocking mode.
     msgRAMConfigParams_myMCANA.rxBufStartAddr       = myMCANA_MCAN_RX_BUFF_START_ADDR;
     //
     // Rx Buffer Start Address.
     //
-    msgRAMConfigParams_myMCANA.rxBufElemSize        = 7;
+    msgRAMConfigParams_myMCANA.rxBufElemSize        = 0;
     //
     // Rx Buffer Element Size.
     //
-    msgRAMConfigParams_myMCANA.rxFIFO0ElemSize      = 7;
+    msgRAMConfigParams_myMCANA.rxFIFO0ElemSize      = 0;
     //
     // Rx FIFO0 Element Size.
     //
@@ -336,14 +337,14 @@ void myMCANA_init(){
     //
     // Initialize bit timings.
     //
-    bitTimes_myMCANA.nomRatePrescalar   = 7; // Nominal Baud Rate Pre-scaler.
-    bitTimes_myMCANA.nomTimeSeg1        = 4; // Nominal Time segment before sample point.
-    bitTimes_myMCANA.nomTimeSeg2        = 3; // Nominal Time segment after sample point.
-    bitTimes_myMCANA.nomSynchJumpWidth  = 3; // Nominal (Re)Synchronization Jump Width Range.
-    bitTimes_myMCANA.dataRatePrescalar  = 7; // Data Baud Rate Pre-scaler.
-    bitTimes_myMCANA.dataTimeSeg1       = 4; // Data Time segment before sample point.
-    bitTimes_myMCANA.dataTimeSeg2       = 3; // Data Time segment after sample point.
-    bitTimes_myMCANA.dataSynchJumpWidth = 3; // Data (Re)Synchronization Jump Width.
+    bitTimes_myMCANA.nomRatePrescalar   = 1; // Nominal Baud Rate Pre-scaler.
+    bitTimes_myMCANA.nomTimeSeg1        = 11; // Nominal Time segment before sample point.
+    bitTimes_myMCANA.nomTimeSeg2        = 11; // Nominal Time segment after sample point.
+    bitTimes_myMCANA.nomSynchJumpWidth  = 10; // Nominal (Re)Synchronization Jump Width Range.
+    bitTimes_myMCANA.dataRatePrescalar  = 1; // Data Baud Rate Pre-scaler.
+    bitTimes_myMCANA.dataTimeSeg1       = 11; // Data Time segment before sample point.
+    bitTimes_myMCANA.dataTimeSeg2       = 11; // Data Time segment after sample point.
+    bitTimes_myMCANA.dataSynchJumpWidth = 10; // Data (Re)Synchronization Jump Width.
     //
     // Get MCANSS Revision ID.
     //
@@ -372,6 +373,16 @@ void myMCANA_init(){
     // Configure Message RAM Sections
     //
     MCAN_msgRAMConfig(myMCANA_BASE, &msgRAMConfigParams_myMCANA);
+
+    stdFiltelem_myMCANA.sft = MCAN_STDFILT_RANGE;
+    stdFiltelem_myMCANA.sfec = MCAN_STDFILTEC_FIFO0;
+    stdFiltelem_myMCANA.sfid1 = 2;
+    stdFiltelem_myMCANA.sfid2 = 2;
+
+    //
+    // Configure Standard ID filter element 1
+    //
+    MCAN_addStdMsgIDFilter(myMCANA_BASE, 1U, &stdFiltelem_myMCANA);
     //
     // Internal loopback mode
     //
@@ -384,8 +395,8 @@ void myMCANA_init(){
     //
     // Enable MCAN Interrupts
     //
-    MCAN_enableIntr(myMCANA_BASE, MCAN_INTR_MASK_ALL, 1U);
-    MCAN_selectIntrLine(myMCANA_BASE, MCAN_INTR_MASK_ALL, MCAN_INTR_LINE_NUM_0);
+    MCAN_enableIntr(myMCANA_BASE, MCAN_IR_RF0N_MASK, 1U);
+    MCAN_selectIntrLine(myMCANA_BASE, MCAN_IR_RF0N_MASK, MCAN_INTR_LINE_NUM_0);
     MCAN_enableIntrLine(myMCANA_BASE, MCAN_INTR_LINE_NUM_0, 1U);
 }
 

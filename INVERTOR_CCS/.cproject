@@ -123,7 +123,7 @@
                         </toolChain>
                     </folderInfo>
                     <sourceEntries>
-                        <entry excluding="Debug.syscfg|my_Files/Bootloader/app_boot_request.c|my_Files/Bootloader/can_bootloader.c|device|targetConfigs/c2000.syscfg|device/driverlib|28p55x_generic_flash_lnk.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry excluding="my_Files/myMCANA.c|Debug.syscfg|my_Files/Bootloader/app_boot_request.c|my_Files/Bootloader/can_bootloader.c|device|targetConfigs/c2000.syscfg|device/driverlib|28p55x_generic_flash_lnk.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
                     </sourceEntries>
                 </configuration>
             </storageModule>

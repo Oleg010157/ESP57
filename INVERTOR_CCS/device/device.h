@@ -190,11 +190,10 @@ extern "C"
 //
 // MCANA
 //
-#define DEVICE_GPIO_PIN_MCANTXA    31U               // GPIO number for MCANTXA
-#define DEVICE_GPIO_PIN_MCANRXA    30U               // GPIO number for MCANRXA
-#define DEVICE_GPIO_CFG_MCANRXA    GPIO_30_MCANA_RX  // "pinConfig" for MCANA RX
-#define DEVICE_GPIO_CFG_MCANTXA    GPIO_31_MCANA_TX  // "pinConfig" for MCANA TX
-
+#define DEVICE_GPIO_PIN_MCANRXA     5U                  // GPIO number for MCANA RX
+#define DEVICE_GPIO_PIN_MCANTXA     4U                  // GPIO number for MCANA TX
+#define DEVICE_GPIO_CFG_MCANRXA     GPIO_5_MCANA_RX     // "pinConfig" for MCANA RX
+#define DEVICE_GPIO_CFG_MCANTXA     GPIO_4_MCANA_TX     // "pinConfig" for MCANA TX
 //
 // MCANB
 //
