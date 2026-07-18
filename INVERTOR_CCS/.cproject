@@ -63,7 +63,6 @@
                                     <listOptionValue value="${COM_TI_C2000WARE_INSTALL_DIR}/libraries/math/CLAmath/c28/include"/>
                                     <listOptionValue value="${C2000Ware_LIBRARY}/flash_api/f28p55x/include/FlashAPI"/>
                                     <listOptionValue value="${C2000Ware_LIBRARY}/flash_api/f28p55x/include/FlashAPI/Constants"/>
-                                    <listOptionValue value="C200WARE_COMMON_INCLUDE"/>
                                 </option>
                                 <option id="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEFINE.1600474946" superClass="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEFINE" valueType="definedSymbols">
                                     <listOptionValue value="${COM_TI_C2000WARE_SYMBOLS}"/>
@@ -125,7 +124,7 @@
                         </toolChain>
                     </folderInfo>
                     <sourceEntries>
-                        <entry excluding="driverlib|Debug.syscfg|my_Files/Bootloader/app_boot_request.c|my_Files/Bootloader/can_bootloader.c|targetConfigs/c2000.syscfg|28p55x_generic_flash_lnk.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry excluding="bitfield_source/f28p55x_usdelay.asm|driverlib|Debug.syscfg|my_Files/Bootloader/app_boot_request.c|my_Files/Bootloader/can_bootloader.c|targetConfigs/c2000.syscfg|28p55x_generic_flash_lnk.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
                     </sourceEntries>
                 </configuration>
             </storageModule>

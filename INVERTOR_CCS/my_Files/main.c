@@ -109,6 +109,26 @@ void main(void)
     //
 
     Board_init();
+
+ // 1. Вход в режим конфигурации
+ MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_SW_INIT);
+ while (MCAN_OPERATION_MODE_SW_INIT != MCAN_getOpMode(myMCANA_BASE));
+
+// 3. Формируем маску для полного Reject
+uint32_t gfcVal = 0U;
+
+gfcVal |= (0x3U << 4); // ANFS = 11 (Reject non-matching Standard frames)
+gfcVal |= (0x3U << 2); // ANFE = 11 (Reject non-matching Extended frames)
+gfcVal |= (0x1U << 1); // RRFS = 1  (Reject Standard Remote frames)
+gfcVal |= (0x1U << 0); // RRFE = 1  (Reject Extended Remote frames)
+
+// Запись в регистр глобального фильтра
+HWREG(myMCANA_BASE + MCAN_GFC) = gfcVal;
+
+// 4. Выход из режима конфигурации в рабочий режим
+MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_NORMAL);
+while (MCAN_OPERATION_MODE_NORMAL != MCAN_getOpMode(myMCANA_BASE));
+
    
     // теперь корректируем порядок для CLA
     //   MEMCFG_init();   // назначаем LS‑банки CLA

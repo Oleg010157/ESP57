@@ -1,4 +1,3 @@
-
 #ifdef __clang__
 #define __TMS320C28XX__ 1
 #endif
@@ -40,15 +39,16 @@ __interrupt void INT_myMCANA_0_ISR(void)
     uint32_t reg, idx, level;
     
    cana0 = EPwm7Regs.TBCTR;
+    mcanRxCount++;
     
-    intrStatus = MCAN_getIntrStatus(MCANA_DRIVER_BASE);
+    intrStatus = MCAN_getIntrStatus(myMCANA_BASE);
     
     // ⚡ Запретить MCAN прерывания
-    MCAN_enableIntr(MCANA_DRIVER_BASE, MCAN_INTR_MASK_ALL, 0U);
+    MCAN_enableIntr(myMCANA_BASE, MCAN_INTR_MASK_ALL, 0U);
     
     // ⚡ Очистить статус MCAN
-    MCAN_clearIntrStatus(MCANA_DRIVER_BASE, intrStatus);
-    MCAN_clearInterrupt(MCANA_DRIVER_BASE, 0x1);
+    MCAN_clearIntrStatus(myMCANA_BASE, intrStatus);
+    MCAN_clearInterrupt(myMCANA_BASE, 0x1);
     
     // ⚡ Освобождаем для других прерываний
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP9);
@@ -63,11 +63,11 @@ __interrupt void INT_myMCANA_0_ISR(void)
     // FIFO0 обработка
     if (intrStatus & MCAN_IR_RF0N_MASK) 
     {
-        mcanRxCount++;
+       
 
         while (1)
         {
-            reg = HW_RD_REG32(MCANA_DRIVER_BASE + MCAN_RXF0S);
+            reg = HW_RD_REG32(myMCANA_BASE + MCAN_RXF0S);
             // По-простому извлекаем Get Index (маска 0x3F00, сдвиг на 8 бит вправо)
             idx = (reg & MCAN_RXF0S_F0GI_M) >> MCAN_RXF0S_F0GI_S;
 
@@ -77,9 +77,9 @@ __interrupt void INT_myMCANA_0_ISR(void)
             if (level == 0)
                 break;
 
-            //      MCAN_readMsgRam(MCANA_DRIVER_BASE, MCAN_MEM_TYPE_FIFO, idx,
-            //                     MCAN_RX_FIFO_NUM_0, &rxMsg);
-            MCAN_readMsgRamFast(MCANA_DRIVER_BASE, idx, &rxMsg);
+                  MCAN_readMsgRam(myMCANA_BASE, MCAN_MEM_TYPE_FIFO, idx,
+                                 MCAN_RX_FIFO_NUM_0, &rxMsg);
+       //     MCAN_readMsgRamFast(myMCANA_BASE, idx, &rxMsg);
 
             cmd = (uint16_t)rxMsg.data[1] << 8 | rxMsg.data[0];
             d1  = (uint16_t)rxMsg.data[7] << 8 | rxMsg.data[6];
@@ -88,12 +88,13 @@ __interrupt void INT_myMCANA_0_ISR(void)
 
             cmd_MBOX28(d1, d2, d3, cmd);
 
-            MCAN_writeRxFIFOAck(MCANA_DRIVER_BASE, MCAN_RX_FIFO_NUM_0, idx);
+            MCAN_writeRxFIFOAck(myMCANA_BASE, MCAN_RX_FIFO_NUM_0, idx);
         }
     }
     cana_Time = EPwm7Regs.TBCTR - cana0;
     // ⚡ ОПТ: Одна строка вместо двух - разрешить всё, кроме TX Complete
-    MCAN_enableIntr(MCANA_DRIVER_BASE, MCAN_INTR_MASK_ALL & ~MCAN_IR_TC_MASK, 1U);
+ //   MCAN_enableIntr(myMCANA_BASE, MCAN_INTR_MASK_ALL & ~MCAN_IR_TC_MASK, 1U);
+ MCAN_enableIntr(myMCANA_BASE, MCAN_IR_RF0N_MASK, 1U);
     
    
 }
@@ -123,17 +124,13 @@ void Send_mbox(uint16_t bufNum, uint16_t d1, uint16_t d2, uint16_t d3, uint16_t 
     uint32_t addr = txPayloadAddr[bufNum];
     if (addr == 0) return;
 
+    // Только 2 записи данных
     HWREG(addr)      = ((uint32_t)d2 << 16) | d1;
     HWREG(addr + 4U) = ((uint32_t)d4 << 16) | d3;
 
-    MCAN_txBufAddReq(MCANA_DRIVER_BASE, bufNum);  // было myMCANA_BASE
+    // Запрос передачи через dedicated Tx Buffer
+    MCAN_txBufAddReq(myMCANA_BASE, bufNum);
 }
-
-
-//
-// Массив адресов payload для быстрого доступа
-// Индекс массива = TX Buffer Number (0-31)
-//
 
 
 //
@@ -154,7 +151,7 @@ void MCAN_initTxBuffer(uint16_t bufNum, uint16_t msgId, uint16_t dlc, uint16_t b
     
     uint32_t elemSize = MCAN_getMsgObjSize(MCAN_TX_BUFF_ELEM_SIZE);
     uint32_t elemAddr = MCAN_TX_BUFF_START_ADDR + (bufNum * elemSize * 4U);
-    uint32_t baseAddr = MCANA_DRIVER_BASE + MCAN_MCAN_MSG_MEM;
+    uint32_t baseAddr = myMCANA_BASE + MCAN_MCAN_MSG_MEM;
     
     // Word 0: CAN Message ID - ИСПРАВЛЕНО!
     HWREG(baseAddr + elemAddr) = 
@@ -180,7 +177,7 @@ void MCAN_initTxBuffer(uint16_t bufNum, uint16_t msgId, uint16_t dlc, uint16_t b
 //
 void MCAN_initAllTxBuffers(void)
 {
-    // Буфер 0: ACK (msgId=2)
+    // Буфер 0: ACK (msgId=1)
     MCAN_initTxBuffer(0, 1, 8, 0, 0);
 
     // Буфер 1: Flags (msgId=100)
@@ -200,19 +197,16 @@ void MCAN_initAllTxBuffers(void)
 
 
 //
-// SendAck - всегда буфер 0
-
-//
-// SendAck - всегда буфер 0
+// SendAck - всегда буфер 0, ID = 1 (см. MCAN_initAllTxBuffers)
 //
 void SendAck(int d1, int d2, int d3, int cmd)
 {
-    uint32_t txbrp = HW_RD_REG32(MCANA_DRIVER_BASE + MCAN_TXBRP);
+    uint32_t txbrp = HW_RD_REG32(myMCANA_BASE + MCAN_TXBRP);
 
     // Если буфер занят - ждём освобождения
     while (txbrp & 0x1)
     {
-        txbrp = HW_RD_REG32(MCANA_DRIVER_BASE + MCAN_TXBRP);
+        txbrp = HW_RD_REG32(myMCANA_BASE + MCAN_TXBRP);
     }
 
     // Buffer свободен - отправляем ACK
@@ -220,7 +214,7 @@ void SendAck(int d1, int d2, int d3, int cmd)
     HWREG(addr)      = ((uint32_t)d1 << 16) | cmd;
     HWREG(addr + 4U) = ((uint32_t)d3 << 16) | d2;
 
-    MCAN_txBufAddReq(MCANA_DRIVER_BASE, 0);
+    MCAN_txBufAddReq(myMCANA_BASE, 0);
 }
 
 //
@@ -241,10 +235,7 @@ void Send_mbox_FD(uint16_t bufNum, const uint8_t *data, uint16_t dataLen)
         HWREG(addr + (i * 4U)) = data32[i];
     }
     
-    MCAN_txBufAddReq(MCANA_DRIVER_BASE, bufNum);
+    MCAN_txBufAddReq(myMCANA_BASE, bufNum);
 }
 
 #endif // MCANA
-
-
-
