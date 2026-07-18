@@ -5,27 +5,27 @@
 SHELL = cmd.exe
 
 # Each subdirectory must supply rules for building sources it contributes
-build-672311158: ../c2000.syscfg
+build-507990870: ../C2000.syscfg
 	@echo 'SysConfig - building file: "$<"'
-	"C:/ti/ccs2100/ccs/utils/sysconfig_1.28.0/sysconfig_cli.bat" -s "C:/ti/C2000Ware_26_01_00_00/.metadata/sdk.json" -d "F28P55x" -p "100PZ" -r "F28P55x_100PZ" --script "C:/Users/M4800/Desktop/P55_Work/K1/INVERTOR_CCS/c2000.syscfg" -o "syscfg" --compiler ccs
+	"C:/ti/ccs2100/ccs/utils/sysconfig_1.28.0/sysconfig_cli.bat" -s "C:/ti/C2000Ware_26_01_00_00/.metadata/sdk.json" -d "F28P55x" -p "100PZ" -r "F28P55x_100PZ" --script "C:/Users/M4800/Desktop/P55_Work/K1/INVERTOR_CCS/C2000.syscfg" -o "syscfg" --compiler ccs
 	@echo 'Finished building: "$<"'
 	@echo ' '
 
-syscfg/board.c: build-672311158 ../c2000.syscfg
-syscfg/board.h: build-672311158
-syscfg/board.cmd.genlibs: build-672311158
-syscfg/board.opt: build-672311158
-syscfg/board.json: build-672311158
-syscfg/pinmux.csv: build-672311158
-syscfg/epwm.dot: build-672311158
-syscfg/device.c: build-672311158
-syscfg/device.h: build-672311158
-syscfg/c2000ware_libraries.cmd.genlibs: build-672311158
-syscfg/c2000ware_libraries.opt: build-672311158
-syscfg/c2000ware_libraries.c: build-672311158
-syscfg/c2000ware_libraries.h: build-672311158
-syscfg/clocktree.h: build-672311158
-syscfg: build-672311158
+syscfg/board.c: build-507990870 ../C2000.syscfg
+syscfg/board.h: build-507990870
+syscfg/board.cmd.genlibs: build-507990870
+syscfg/board.opt: build-507990870
+syscfg/board.json: build-507990870
+syscfg/pinmux.csv: build-507990870
+syscfg/epwm.dot: build-507990870
+syscfg/device.c: build-507990870
+syscfg/device.h: build-507990870
+syscfg/c2000ware_libraries.cmd.genlibs: build-507990870
+syscfg/c2000ware_libraries.opt: build-507990870
+syscfg/c2000ware_libraries.c: build-507990870
+syscfg/c2000ware_libraries.h: build-507990870
+syscfg/clocktree.h: build-507990870
+syscfg: build-507990870
 
 syscfg/%.obj: ./syscfg/%.c $(GEN_OPTS) | $(GEN_FILES) $(GEN_MISC_FILES)
 	@echo 'C2000 Compiler - building file: "$<"'

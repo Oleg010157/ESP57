@@ -1,12 +1,12 @@
 /*
- * myMCAN.h
+ * myMCANA.h
  *
  *  Created on: 21.01.2026
  *      Author: Oleg Pavlovsky
  */
 
-#ifndef MYMCAN_H_
-#define MYMCAN_H_
+#ifndef MYMCANA_H_
+#define MYMCANA_H_
 
 //
 // Defines
@@ -69,5 +69,5 @@
   (MCAN_TX_BUFF_START_ADDR + (MCAN_getMsgObjSize(MCAN_TX_BUFF_ELEM_SIZE) *     \
                               4U * (MCAN_TX_BUFF_SIZE + MCAN_TX_FQ_SIZE)))
 
-#endif /* MYMCAN_H_ */
+#endif /* MYMCANA_H_ */
 

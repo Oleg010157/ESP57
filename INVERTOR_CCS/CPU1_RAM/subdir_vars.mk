@@ -10,7 +10,7 @@ CMD_SRCS += \
 ../f28p55x_headers_nonBIOS.cmd 
 
 SYSCFG_SRCS += \
-../c2000.syscfg 
+../C2000.syscfg 
 
 LIB_SRCS += \
 C:/ti/C2000Ware_26_01_00_00/driverlib/f28p55x/driverlib/ccs/Debug/driverlib.lib 
@@ -98,7 +98,7 @@ ASM_DEPS__QUOTED += \
 "f28p55x_codestartbranch.d" 
 
 SYSCFG_SRCS__QUOTED += \
-"../c2000.syscfg" 
+"../C2000.syscfg" 
 
 C_SRCS__QUOTED += \
 "./syscfg/board.c" \

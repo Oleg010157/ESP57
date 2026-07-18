@@ -109,15 +109,14 @@ void main(void)
     //
 
     Board_init();
-
- 
-
+   
     // теперь корректируем порядок для CLA
     //   MEMCFG_init();   // назначаем LS‑банки CLA
     //   CLA_init();      // копируем код и константы в RAM, настраиваем
 
     IGBT1_Disable();
     IGBT2_Disable();
+    
     SysCtl_enablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);
 
     Interrupt_enable(INT_EPWM2);

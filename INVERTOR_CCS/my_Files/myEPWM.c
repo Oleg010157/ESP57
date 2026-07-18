@@ -10,7 +10,7 @@
 #include "f28p55x_pie_defines.h"
 #include "myEPWM.h"
 #include "KSP.h"
-
+#include "interrupt.h"
 
 union XBARFLG1_REG xbarFlg1;
 union ErrorFlags overload;

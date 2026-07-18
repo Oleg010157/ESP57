@@ -200,7 +200,7 @@ extern __interrupt void INT_myMCANA_0_ISR(void);
 #define myMCANA_MCAN_FIFO_1_START_ADDR          (52)
 #define myMCANA_MCAN_RX_BUFF_START_ADDR         (52)
 #define myMCANA_MCAN_TX_BUFF_START_ADDR         (52)
-#define myMCANA_MCAN_TX_EVENT_START_ADDR        (564)
+#define myMCANA_MCAN_TX_EVENT_START_ADDR        (52)
 
 #define myMCANA_MCAN_INTR_LINE_NUM_0_INT (MCAN_IR_RF0N_MASK)
 void myMCANA_init();

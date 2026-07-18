@@ -19,6 +19,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>driverlib</name>
+			<type>2</type>
+			<locationURI>C2000WARE_DLIB_ROOT</locationURI>
+		</link>
+		<link>
 			<name>driverlib.lib</name>
 			<type>1</type>
 			<locationURI>COM_TI_C2000WARE_INSTALL_DIR/driverlib/f28p55x/driverlib/ccs/Debug/driverlib.lib</locationURI>
