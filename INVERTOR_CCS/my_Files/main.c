@@ -26,6 +26,7 @@
 
 #include "myADC.h"
 #include "myDCAN.h"
+#include "myMCAN.h"
 
 #include "myEPWM.h"
 #include "main.h"
@@ -219,6 +220,7 @@ while(MCAN_OPERATION_MODE_NORMAL != MCAN_getOpMode(myMCANA_BASE));
 
 #if MCANA
 //    mcan_init();
+MCAN_initAllTxBuffers();
 #endif
 
     request_firmware_update = 0;

@@ -11,7 +11,7 @@
 #include "board.h" // Обязательно подключите, чтобы функция видела myMCANA_BASE
 #include "f28p55x_device.h"
 #include "f28p55x_pie_defines.h"
-#include "myMCANA.h"
+//#include "myMCANA.h"
 
 #include "hw_mcan.h" // Обязательно должен быть подключен для макросов смещений
 #include "mcan.h"
@@ -156,7 +156,7 @@ void MCAN_initTxBuffer(uint16_t bufNum, uint16_t msgId, uint16_t dlc, uint16_t b
     if (!fdf) brs = 0;
     
     uint32_t elemSize = MCAN_getMsgObjSize(MCAN_TX_BUFF_ELEM_SIZE);
-    uint32_t elemAddr = MCAN_TX_BUFF_START_ADDR + (bufNum * elemSize * 4U);
+    uint32_t elemAddr = myMCANA_MCAN_TX_BUFF_START_ADDR + (bufNum * elemSize * 4U);
     uint32_t baseAddr = myMCANA_BASE + MCAN_MCAN_MSG_MEM;
     
     // Word 0: CAN Message ID - ИСПРАВЛЕНО!

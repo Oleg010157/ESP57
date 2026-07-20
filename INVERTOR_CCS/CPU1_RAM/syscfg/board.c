@@ -240,12 +240,12 @@ void myMCANA_init(){
     initParams_myMCANA.fdMode            = false;
     initParams_myMCANA.brsEnable         = false;
     initParams_myMCANA.txpEnable         = false;
-    initParams_myMCANA.efbi              = false;
+    initParams_myMCANA.efbi              = true;
     initParams_myMCANA.pxhddisable       = false;
-    initParams_myMCANA.darEnable         = false;
+    initParams_myMCANA.darEnable         = true;
     initParams_myMCANA.wkupReqEnable     = false;
     initParams_myMCANA.autoWkupEnable    = false;
-    initParams_myMCANA.emulationEnable   = false;
+    initParams_myMCANA.emulationEnable   = true;
     initParams_myMCANA.tdcEnable         = true;
     initParams_myMCANA.wdcPreload        = 255;
     //

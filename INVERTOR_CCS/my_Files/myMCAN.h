@@ -9,6 +9,34 @@
 #define MYMCAN_H_
 
 //
+// Element size selector для Tx Buffer (не зависит от конкретного инстанса,
+// используется только как параметр для MCAN_getMsgObjSize())
+//
+#define MCAN_TX_BUFF_ELEM_SIZE (MCAN_ELEM_SIZE_8BYTES)
+
+//
+// Tx Buffer Element — смещения и маски полей (Word 0 / Word 1)
+//
+#define MCANSS_TX_BUFFER_ELEM_ID_SHIFT                           (0U)
+#define MCANSS_TX_BUFFER_ELEM_ID_MASK                            (0x1FFFFFFFU)
+#define MCANSS_TX_BUFFER_ELEM_RTR_SHIFT                          (29U)
+#define MCANSS_TX_BUFFER_ELEM_RTR_MASK                           (0x20000000U)
+#define MCANSS_TX_BUFFER_ELEM_XTD_SHIFT                          (30U)
+#define MCANSS_TX_BUFFER_ELEM_XTD_MASK                           (0x40000000U)
+#define MCANSS_TX_BUFFER_ELEM_ESI_SHIFT                          (31U)
+#define MCANSS_TX_BUFFER_ELEM_ESI_MASK                           (0x80000000U)
+#define MCANSS_TX_BUFFER_ELEM_DLC_SHIFT                          (16U)
+#define MCANSS_TX_BUFFER_ELEM_DLC_MASK                           (0x000F0000U)
+#define MCANSS_TX_BUFFER_ELEM_BRS_SHIFT                          (20U)
+#define MCANSS_TX_BUFFER_ELEM_BRS_MASK                           (0x00100000U)
+#define MCANSS_TX_BUFFER_ELEM_FDF_SHIFT                          (21U)
+#define MCANSS_TX_BUFFER_ELEM_FDF_MASK                           (0x00200000U)
+#define MCANSS_TX_BUFFER_ELEM_EFC_SHIFT                          (23U)
+#define MCANSS_TX_BUFFER_ELEM_EFC_MASK                           (0x00800000U)
+#define MCANSS_TX_BUFFER_ELEM_MM_SHIFT                           (24U)
+#define MCANSS_TX_BUFFER_ELEM_MM_MASK                            (0xFF000000U)
+
+//
 // Function Prototype.
 //
 void MCAN_initAllTxBuffers(void);
