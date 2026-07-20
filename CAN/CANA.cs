@@ -223,7 +223,10 @@ namespace ICDIBasic
             }
 
             _re = new AutoResetEvent(false);
-            
+            // f_clock = 80 МГц (Аппаратная частота самого адаптера PCAN)
+            // Итоговая скорость в линии: 1 Мбит/с (nom) и 2 Мбит/с (data), точка сэмплирования 80%, чтобы идеально совпадать с инвертором
+            var fdBitrate = "f_clock=80000000,nom_brp=1,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,data_brp=1,data_tseg1=31,data_tseg2=8,data_sjw=8";
+
             try
             {
                 uint iBuffer;
@@ -234,7 +237,7 @@ namespace ICDIBasic
                     if (stsResult != TPCANStatus.PCAN_ERROR_OK) continue;
                     if (iBuffer != PCANBasic.PCAN_CHANNEL_AVAILABLE) continue;
 
-                    stsResult = PCANBasic.Initialize(t, TPCANBaudrate.PCAN_BAUD_1M);
+                    stsResult = PCANBasic.InitializeFD(t, fdBitrate);
                     if (stsResult != TPCANStatus.PCAN_ERROR_OK)
                     {
                         // логировать stsResult при необходимости и пробовать следующий канал
@@ -261,7 +264,7 @@ namespace ICDIBasic
                 if (Ch == 0) return false;
 
                 // инициализация найденного канала
-                stsResult = PCANBasic.Initialize(Ch, TPCANBaudrate.PCAN_BAUD_1M);
+                stsResult = PCANBasic.InitializeFD(Ch, fdBitrate);
                 if (stsResult != TPCANStatus.PCAN_ERROR_OK) return false;
 
                 // корректное получение дескриптора события для SetValue (без усечения на x64)
@@ -319,28 +322,30 @@ namespace ICDIBasic
 
                 do
                 {
-                    stsResult = PCANBasic.Read(Ch, out var canMsg, out TPCANTimestamp ts);
+                    stsResult = PCANBasic.ReadFD(Ch, out var canMsg, out ulong ts);
                     if (stsResult != TPCANStatus.PCAN_ERROR_OK) continue;
 
+                    var classicMsg = PcanFdMessageConverter.ToClassic(canMsg);
+
                     // If this is a bootloader response (MCU -> PC ID 0x32), enqueue for waiting callers
-                    if (canMsg.ID == 0x32)
+                    if (classicMsg.ID == 0x32)
                     {
                         // Normalize to 8 bytes and extract first 16-bit word
-                        var len = canMsg.LEN;
-                        byte b0 = len > 0 ? canMsg.DATA[0] : (byte)0;
-                        byte b1 = len > 1 ? canMsg.DATA[1] : (byte)0;
+                        var len = classicMsg.LEN;
+                        byte b0 = len > 0 ? classicMsg.DATA[0] : (byte)0;
+                        byte b1 = len > 1 ? classicMsg.DATA[1] : (byte)0;
                         ushort bootVal = (ushort)(b0 | (b1 << 8));
                         _bootRespQueue.Enqueue(bootVal);
                         _bootRespEvent.Set();
                         continue;
                     }
 
-                    if (canMsg.ID == 1)
+                    if (classicMsg.ID == 1)
                     {
                         // Normalize to 8 bytes: some UIs send DLC=2 etc. — pad with zeros.
-                        var len = canMsg.LEN;
+                        var len = classicMsg.LEN;
                         byte[] data8 = new byte[8];
-                        for (int i = 0; i < 8; i++) data8[i] = (i < len) ? canMsg.DATA[i] : (byte)0;
+                        for (int i = 0; i < 8; i++) data8[i] = (i < len) ? classicMsg.DATA[i] : (byte)0;
 
                         ushort cmd = BitConverter.ToUInt16(new[] { data8[0], data8[1] }, 0);
                         ushort d1 = BitConverter.ToUInt16(new[] { data8[2], data8[3] }, 0);
@@ -360,7 +365,7 @@ namespace ICDIBasic
 
                     try
                     {
-                        CAN_RxData(canMsg);
+                        CAN_RxData(classicMsg);
                     }
                     catch
                     {

@@ -1396,12 +1396,12 @@ namespace ICDIBasic
             ushort d2u = unchecked((ushort)d2);
             ushort d3u = unchecked((ushort)d3);
 
-            var txMsg = new TPCANMsg
+            var txMsg = new TPCANMsgFD
             {
-                DATA = new byte[8],
+                DATA = new byte[64],
                 ID = 2,
-                LEN = 8,
-                MSGTYPE = TPCANMessageType.PCAN_MESSAGE_STANDARD
+                DLC = 8,
+                MSGTYPE = TPCANMessageType.PCAN_MESSAGE_FD | TPCANMessageType.PCAN_MESSAGE_BRS
             };
 
             // Упаковка данных (Little-Endian)
@@ -1414,7 +1414,7 @@ namespace ICDIBasic
             txMsg.DATA[6] = (byte)(d1u & 0xFF);
             txMsg.DATA[7] = (byte)((d1u >> 8) & 0xFF);
 
-            var result = PCANBasic.Write(Ch, ref txMsg);
+            var result = PCANBasic.WriteFD(Ch, ref txMsg);
             if (result != TPCANStatus.PCAN_ERROR_OK)
             {
                 MessageBox.Show(GetFormatedError(result));

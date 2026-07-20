@@ -30,7 +30,8 @@
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ApplicationIcon>tiicon.ico</ApplicationIcon>
-    <FileUpgradeFlags></FileUpgradeFlags>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
     <OldToolsVersion>3.5</OldToolsVersion>
     <UpgradeBackupLocation />
     <IsWebBootstrapper>false</IsWebBootstrapper>
@@ -109,6 +110,7 @@
     <Compile Include="CanUiLogger.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="CAN\PcanFdMessageConverter.cs" />
     <Compile Include="Class1.cs" />
     <Compile Include="Form_imitation1.Designer.cs">
       <AutoGen>True</AutoGen>

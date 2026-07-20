@@ -11,7 +11,7 @@
 #include "board.h" // Обязательно подключите, чтобы функция видела myMCANA_BASE
 #include "f28p55x_device.h"
 #include "f28p55x_pie_defines.h"
-//#include "myMCANA.h"
+
 
 #include "hw_mcan.h" // Обязательно должен быть подключен для макросов смещений
 #include "mcan.h"
@@ -31,6 +31,8 @@ volatile uint32_t    mode = 0U;
 MCAN_TxBufElement    txMsg;
 MCAN_RxBufElement    rxMsg;
 MCAN_RxNewDataStatus newData;
+
+static uint32_t txPayloadAddr[myMCANA_MCAN_TX_BUFF_SIZE] = {0};
 
 __interrupt void INT_myMCANA_0_ISR(void) 
 {
@@ -63,33 +65,31 @@ __interrupt void INT_myMCANA_0_ISR(void)
     // FIFO0 обработка
     if (intrStatus & MCAN_IR_RF0N_MASK) 
     {
-       
 
-        while (1)
-        {
-            reg = HW_RD_REG32(myMCANA_BASE + MCAN_RXF0S);
-            // По-простому извлекаем Get Index (маска 0x3F00, сдвиг на 8 бит вправо)
-            idx = (reg & MCAN_RXF0S_F0GI_M) >> MCAN_RXF0S_F0GI_S;
+      while (1) {
+        reg = HW_RD_REG32(myMCANA_BASE + MCAN_RXF0S);
+        // По-простому извлекаем Get Index (маска 0x3F00, сдвиг на 8 бит вправо)
+        idx = (reg & MCAN_RXF0S_F0GI_M) >> MCAN_RXF0S_F0GI_S;
 
-            // По-простому извлекаем Fill Level (маска 0x7F, сдвиг на 0 бит вправо)
-            level = (reg & MCAN_RXF0S_F0FL_M) >> MCAN_RXF0S_F0FL_S;
+        // По-простому извлекаем Fill Level (маска 0x7F, сдвиг на 0 бит вправо)
+        level = (reg & MCAN_RXF0S_F0FL_M) >> MCAN_RXF0S_F0FL_S;
 
-            if (level == 0)
-                break;
+        if (level == 0)
+          break;
 
-                  MCAN_readMsgRam(myMCANA_BASE, MCAN_MEM_TYPE_FIFO, idx,
-                                 MCAN_RX_FIFO_NUM_0, &rxMsg);
-       //     MCAN_readMsgRamFast(myMCANA_BASE, idx, &rxMsg);
+        MCAN_readMsgRam(myMCANA_BASE, MCAN_MEM_TYPE_FIFO, idx,
+                        MCAN_RX_FIFO_NUM_0, &rxMsg);
+        //       MCAN_readMsgRamFast(myMCANA_BASE, idx, &rxMsg);
 
-            cmd = (uint16_t)rxMsg.data[1] << 8 | rxMsg.data[0];
-            d1  = (uint16_t)rxMsg.data[7] << 8 | rxMsg.data[6];
-            d2  = (uint16_t)rxMsg.data[5] << 8 | rxMsg.data[4];
-            d3  = (uint16_t)rxMsg.data[3] << 8 | rxMsg.data[2];
+        cmd = (uint16_t)rxMsg.data[1] << 8 | rxMsg.data[0];
+        d1 = (uint16_t)rxMsg.data[7] << 8 | rxMsg.data[6];
+        d2 = (uint16_t)rxMsg.data[5] << 8 | rxMsg.data[4];
+        d3 = (uint16_t)rxMsg.data[3] << 8 | rxMsg.data[2];
 
-            cmd_MBOX28(d1, d2, d3, cmd);
+        cmd_MBOX28(d1, d2, d3, cmd);
 
-            MCAN_writeRxFIFOAck(myMCANA_BASE, MCAN_RX_FIFO_NUM_0, idx);
-        }
+        MCAN_writeRxFIFOAck(myMCANA_BASE, MCAN_RX_FIFO_NUM_0, idx);
+      }
     }
     cana_Time = EPwm7Regs.TBCTR - cana0;
     // ⚡ ОПТ: Одна строка вместо двух - разрешить всё, кроме TX Complete
@@ -107,15 +107,11 @@ __interrupt void INT_myMCANA_0_ISR(void)
 
 
 //
-// SendAck - всегда буфер 0
-//
-
-//
 // Массив адресов payload для быстрого доступа
 // Индекс массива = TX Buffer Number (0-31)
 //
 
-static uint32_t txPayloadAddr[myMCANA_MCAN_TX_BUFF_SIZE] = {0};
+
 
 
 
