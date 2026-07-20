@@ -93,8 +93,14 @@ __interrupt void INT_myMCANA_0_ISR(void)
     }
     cana_Time = EPwm7Regs.TBCTR - cana0;
     // ⚡ ОПТ: Одна строка вместо двух - разрешить всё, кроме TX Complete
- //   MCAN_enableIntr(myMCANA_BASE, MCAN_INTR_MASK_ALL & ~MCAN_IR_TC_MASK, 1U);
- MCAN_enableIntr(myMCANA_BASE, MCAN_IR_RF0N_MASK, 1U);
+    MCAN_enableIntr(myMCANA_BASE, MCAN_INTR_MASK_ALL & ~MCAN_IR_TC_MASK, 1U);
+ //MCAN_enableIntr(myMCANA_BASE, MCAN_IR_RF0N_MASK, 1U);
+ // Правильное включение прерывания по новому сообщению в FIFO 0
+//MCAN_enableIntr(myMCANA_BASE, MCAN_INTR_SRC_RX_FIFO0_NEW_MSG, 1U);
+// ⚡ Корректный ОПТ: Разрешаем всё, кроме TX Complete через правильные макросы DriverLib
+//MCAN_enableIntr(myMCANA_BASE, MCAN_INTR_SRC_ALL & ~MCAN_INTR_SRC_TRANS_COMPLETE, 1U);
+
+
     
    
 }

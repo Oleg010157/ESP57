@@ -5,7 +5,9 @@
 //  TITLE:   Test Example for 3phase inverter
 
 // #############################################################################
-
+#ifdef __clang__
+#define __TMS320C28XX__ 1
+#endif
 //
 // Included Files
 //
@@ -13,7 +15,7 @@
 
 #include "driverlib.h"
 #include "device.h"
-
+#include <hw_mcan.h>
 
 
 // bitfield include
@@ -82,7 +84,7 @@ extern SHR_Flags shrTrip;
 //
 // Main
 //
-
+//MCAN_GlobalFiltConfig filterConfig;
 void main(void)
 {
    
@@ -109,25 +111,43 @@ void main(void)
     //
 
     Board_init();
+/*
+filterConfig.anfe = 0;
+filterConfig.anfs = 0;
+filterConfig.rrfe = 1;
+filterConfig.rrfs = 1;
 
- // 1. Вход в режим конфигурации
- MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_SW_INIT);
- while (MCAN_OPERATION_MODE_SW_INIT != MCAN_getOpMode(myMCANA_BASE));
+// 2. Запрашиваем режим инициализации MCAN (INIT = 1)
+MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_SW_INIT);
 
-// 3. Формируем маску для полного Reject
-uint32_t gfcVal = 0U;
+// 3. Ждем подтверждения входа в режим инициализации
+while(MCAN_OPERATION_MODE_SW_INIT != MCAN_getOpMode(myMCANA_BASE));
 
-gfcVal |= (0x3U << 4); // ANFS = 11 (Reject non-matching Standard frames)
-gfcVal |= (0x3U << 2); // ANFE = 11 (Reject non-matching Extended frames)
-gfcVal |= (0x1U << 1); // RRFS = 1  (Reject Standard Remote frames)
-gfcVal |= (0x1U << 0); // RRFE = 1  (Reject Extended Remote frames)
+// 4. Взводим CCE = 1 
+ HW_WR_FIELD32(myMCANA_BASE + MCAN_CCCR, MCAN_CCCR_CCE, 0x1U);
 
-// Запись в регистр глобального фильтра
-HWREG(myMCANA_BASE + MCAN_GFC) = gfcVal;
+// 5. Прописываем Reject (0x3F) в GFC
+ // Configure Global Filter 
+    HW_WR_FIELD32(myMCANA_BASE + MCAN_GFC,
+                  MCAN_GFC_RRFE,
+                  filterConfig.rrfe);
+    HW_WR_FIELD32(myMCANA_BASE + MCAN_GFC,
+                  MCAN_GFC_RRFS,
+                  filterConfig.rrfs);
+    HW_WR_FIELD32(myMCANA_BASE + MCAN_GFC,
+                  MCAN_GFC_ANFE,
+                  filterConfig.anfe);
+    HW_WR_FIELD32(myMCANA_BASE + MCAN_GFC,
+                  MCAN_GFC_ANFS,
+                  filterConfig.anfs);
 
-// 4. Выход из режима конфигурации в рабочий режим
+// 6. Закрываем защиту (сбрасываем CCE)
+//HWREG_BP(myMCANA_BASE + MCAN_O_CCCR*2) &= ~MCAN_CCCR_CCE;
+
+// 7. Возвращаем MCAN в нормальный рабочий режим
 MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_NORMAL);
-while (MCAN_OPERATION_MODE_NORMAL != MCAN_getOpMode(myMCANA_BASE));
+while(MCAN_OPERATION_MODE_NORMAL != MCAN_getOpMode(myMCANA_BASE));
+*/
 
    
     // теперь корректируем порядок для CLA

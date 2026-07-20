@@ -191,7 +191,7 @@ extern __interrupt void INT_myMCANA_0_ISR(void);
 #define myMCANA_MCAN_EXT_ID_FILTER_NUM          (0)
 #define myMCANA_MCAN_FIFO_0_NUM                 (3)
 #define myMCANA_MCAN_FIFO_1_NUM                 (0)
-#define myMCANA_MCAN_TX_BUFF_SIZE               (32)
+#define myMCANA_MCAN_TX_BUFF_SIZE               (16)
 #define myMCANA_MCAN_TX_EVENT_SIZE              (0)
 
 #define myMCANA_MCAN_STD_ID_FILT_START_ADDR     (0)
@@ -200,7 +200,7 @@ extern __interrupt void INT_myMCANA_0_ISR(void);
 #define myMCANA_MCAN_FIFO_1_START_ADDR          (52)
 #define myMCANA_MCAN_RX_BUFF_START_ADDR         (52)
 #define myMCANA_MCAN_TX_BUFF_START_ADDR         (52)
-#define myMCANA_MCAN_TX_EVENT_START_ADDR        (52)
+#define myMCANA_MCAN_TX_EVENT_START_ADDR        (308)
 
 #define myMCANA_MCAN_INTR_LINE_NUM_0_INT (MCAN_IR_RF0N_MASK)
 void myMCANA_init();

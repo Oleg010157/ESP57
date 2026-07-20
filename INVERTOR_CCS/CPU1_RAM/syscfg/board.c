@@ -230,6 +230,7 @@ void MCAN_SYSCFG_init(){
 void myMCANA_init(){
     MCAN_RevisionId revid_myMCANA;
     MCAN_InitParams initParams_myMCANA;
+    MCAN_ConfigParams configParams_myMCANA;
     MCAN_StdMsgIDFilterElement stdFiltelem_myMCANA;
     MCAN_MsgRAMConfigParams    msgRAMConfigParams_myMCANA;
     MCAN_BitTimingParams       bitTimes_myMCANA;
@@ -245,13 +246,27 @@ void myMCANA_init(){
     initParams_myMCANA.wkupReqEnable     = false;
     initParams_myMCANA.autoWkupEnable    = false;
     initParams_myMCANA.emulationEnable   = false;
-    initParams_myMCANA.tdcEnable         = false;
+    initParams_myMCANA.tdcEnable         = true;
     initParams_myMCANA.wdcPreload        = 255;
     //
     // Transmitter Delay Compensation parameters.
     //
     initParams_myMCANA.tdcConfig.tdcf    = 10;
     initParams_myMCANA.tdcConfig.tdco    = 6;
+    //
+    // Initialize MCAN Config parameters.
+    //
+    configParams_myMCANA.monEnable         = false;
+    configParams_myMCANA.asmEnable         = false;
+    configParams_myMCANA.tsPrescalar       = 15;
+    configParams_myMCANA.tsSelect          = 0;
+    configParams_myMCANA.timeoutSelect     = MCAN_TIMEOUT_SELECT_RX_FIFO0;
+    configParams_myMCANA.timeoutPreload    = 65535;
+    configParams_myMCANA.timeoutCntEnable  = false;
+    configParams_myMCANA.filterConfig.rrfs = true;
+    configParams_myMCANA.filterConfig.rrfe = true;
+    configParams_myMCANA.filterConfig.anfe = 2;
+    configParams_myMCANA.filterConfig.anfs = 2;
     //
     // Initialize Message RAM Sections Configuration Parameters.
     //
@@ -366,6 +381,10 @@ void myMCANA_init(){
     //
     MCAN_init(myMCANA_BASE, &initParams_myMCANA);
     //
+    // Configure MCAN module.
+    //
+    MCAN_config(myMCANA_BASE, &configParams_myMCANA);
+    //
     // Configure Bit timings.
     //
     MCAN_setBitTime(myMCANA_BASE, &bitTimes_myMCANA);
@@ -380,9 +399,9 @@ void myMCANA_init(){
     stdFiltelem_myMCANA.sfid2 = 2;
 
     //
-    // Configure Standard ID filter element 1
+    // Configure Standard ID filter element 0
     //
-    MCAN_addStdMsgIDFilter(myMCANA_BASE, 1U, &stdFiltelem_myMCANA);
+    MCAN_addStdMsgIDFilter(myMCANA_BASE, 0U, &stdFiltelem_myMCANA);
     //
     // Internal loopback mode
     //
