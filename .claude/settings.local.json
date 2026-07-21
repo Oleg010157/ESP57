@@ -5,15 +5,9 @@
       "Read(//C/ti/ccs2100/C2000Ware_26_01_00_00/**)",
       "Read(//C/ti/f29h85x-sdk_1_02_01_00/**)",
       "Read(//C/ti/ccs2100/ccs/utils/sysconfig_1.28.0/**)",
-      "Read(//C/ti/C2000Ware_26_01_00_00/**)",
-      "mcp__ccs-debug",
-      "mcp__ccs-project",
-      "mcp__ccs-sysconfig",
-      "mcp__ccs-serial"
+      "Read(//C/ti/C2000Ware_26_01_00_00/**)"
     ],
-    "ask": [
-      "mcp__ccs-project__changeSysConfigVersion"
-    ]
+    "ask": []
   },
   "env": {
     "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1"

@@ -26,7 +26,7 @@ const spi1           = spi.addInstance();
  * Write custom configuration values to the imported modules.
  */
 const divider4       = system.clockTree["MCANACLKDIV"];
-divider4.divideValue = 3;
+divider4.divideValue = 1;
 
 epwm1.$name                  = "myEPWM1";
 epwm1.epwm.$assign           = "EPWM2";
@@ -38,18 +38,13 @@ epwm2.epwm.$assign           = "EPWM1";
 epwm2.epwm.epwm_aPin.$assign = "GPIO0";
 epwm2.epwm.epwm_bPin.$assign = "B2, C6, E12, GPIO226";
 
-mcan1.brsEnable                = false;
 mcan1.loopbackMode             = false;
 mcan1.enableInterrupt          = true;
 mcan1.interruptLine            = ["MCAN_INTR_LINE_NUM_0"];
 mcan1.registerInterruptLine0   = true;
-mcan1.nomRatePrescalar         = 1;
 mcan1.nomTimeSeg1              = 11;
 mcan1.nomTimeSeg2              = 11;
 mcan1.nomSynchJumpWidth        = 10;
-mcan1.dataTimeSeg1             = 11;
-mcan1.dataTimeSeg2             = 11;
-mcan1.dataSynchJumpWidth       = 10;
 mcan1.rxBufElemSize            = "0";
 mcan1.txBufElemSize            = "0";
 mcan1.rxFIFO0OpMode            = "1";
@@ -74,7 +69,11 @@ mcan1.useCalcStartingAddress   = true;
 mcan1.emulationEnable          = true;
 mcan1.darEnable                = true;
 mcan1.efbi                     = true;
-mcan1.dataRatePrescalar        = 0;
+mcan1.nomRatePrescalar         = 5;
+mcan1.dataRatePrescalar        = 2;
+mcan1.dataTimeSeg1             = 11;
+mcan1.dataTimeSeg2             = 11;
+mcan1.dataSynchJumpWidth       = 10;
 mcan1.mcan.$assign             = "MCANA";
 mcan1.mcan.mcan_rxPin.$assign  = "GPIO5";
 mcan1.mcan.mcan_txPin.$assign  = "GPIO4";

@@ -238,7 +238,7 @@ void myMCANA_init(){
     // Initialize MCAN Init parameters.
     //
     initParams_myMCANA.fdMode            = true;
-    initParams_myMCANA.brsEnable         = false;
+    initParams_myMCANA.brsEnable         = true;
     initParams_myMCANA.txpEnable         = false;
     initParams_myMCANA.efbi              = true;
     initParams_myMCANA.pxhddisable       = false;
@@ -352,11 +352,11 @@ void myMCANA_init(){
     //
     // Initialize bit timings.
     //
-    bitTimes_myMCANA.nomRatePrescalar   = 1; // Nominal Baud Rate Pre-scaler.
+    bitTimes_myMCANA.nomRatePrescalar   = 5; // Nominal Baud Rate Pre-scaler.
     bitTimes_myMCANA.nomTimeSeg1        = 11; // Nominal Time segment before sample point.
     bitTimes_myMCANA.nomTimeSeg2        = 11; // Nominal Time segment after sample point.
     bitTimes_myMCANA.nomSynchJumpWidth  = 10; // Nominal (Re)Synchronization Jump Width Range.
-    bitTimes_myMCANA.dataRatePrescalar  = 0; // Data Baud Rate Pre-scaler.
+    bitTimes_myMCANA.dataRatePrescalar  = 2; // Data Baud Rate Pre-scaler.
     bitTimes_myMCANA.dataTimeSeg1       = 11; // Data Time segment before sample point.
     bitTimes_myMCANA.dataTimeSeg2       = 11; // Data Time segment after sample point.
     bitTimes_myMCANA.dataSynchJumpWidth = 10; // Data (Re)Synchronization Jump Width.
