@@ -283,7 +283,7 @@ void Send_kadr60() // заполняет область CANA Mbox значени
     d2 = 2;        //motor1.Ia;
     d3 = 3;        //motor1.Ib;
     d4 = ++K60cnt; //   !!!!  в конец кадра
-    Send_mbox(31, d1, d2, d3, d4);
+    Send_mbox(14, d1, d2, d3, d4);
 #endif
 
 //BIT32  MsgID = 132  32-ый  Mbox для передачи кодов ошибок в фоне.

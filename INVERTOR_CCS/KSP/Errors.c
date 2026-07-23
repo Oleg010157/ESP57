@@ -190,14 +190,14 @@ void SendErrs(void)
         if (ErrBuff[err_number].Word != 0 || ErrBuff[err_number + 1].Word != 0)
         // посылаем слово с установленной ошибкой
         {
-            Send_mbox(32, err_number, ErrBuff[err_number].Word, ErrBuff[err_number + 1].Word, 32010);
+            Send_mbox(15, err_number, ErrBuff[err_number].Word, ErrBuff[err_number + 1].Word, 32010);
         }
         err_number = err_number + 2;
     }
     else // err_number >= ERR_BUFF_SIZE
     {
         err_number = 0;
-        Send_mbox(32, 32011, 32011, 32011, 32011);
+        Send_mbox(15, 32011, 32011, 32011, 32011);
         Req_336 = Req_336 & 0xfffd; // сброс флага вывода в фоне кодов из буффера ошибок
     }
 }

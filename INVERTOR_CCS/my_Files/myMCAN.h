@@ -12,7 +12,7 @@
 // Element size selector для Tx Buffer (не зависит от конкретного инстанса,
 // используется только как параметр для MCAN_getMsgObjSize())
 //
-#define MCAN_TX_BUFF_ELEM_SIZE (MCAN_ELEM_SIZE_8BYTES)
+#define MCAN_TX_BUFF_ELEM_SIZE (MCAN_ELEM_SIZE_64BYTES)
 
 //
 // Tx Buffer Element — смещения и маски полей (Word 0 / Word 1)
@@ -40,6 +40,11 @@
 // Function Prototype.
 //
 void MCAN_initAllTxBuffers(void);
+
+// Довключает то, что SysConfig не генерирует для второй линии прерываний MCAN:
+// маршрутизацию BO/EP/PED/TCF на MCAN_INTR_LINE_NUM_1 и сам выход линии 1.
+// Без этого INT_myMCANA_1_ISR зарегистрирован в PIE, но никогда не вызывается.
+void MCAN_enableLine1Routing(void);
 
 void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd);
 

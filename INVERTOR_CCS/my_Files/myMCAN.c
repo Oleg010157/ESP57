@@ -116,7 +116,7 @@ __interrupt void INT_myMCANA_0_ISR(void)
 
 
 //
-// Прямая отправка через номер буфера
+// Стандартный CAN. Прямая отправка через номер буфера
 // bufNum - номер TX буфера (0-31)
 //
 void Send_mbox(uint16_t bufNum, uint16_t d1, uint16_t d2, uint16_t d3, uint16_t d4)
@@ -177,41 +177,52 @@ void MCAN_initTxBuffer(uint16_t bufNum, uint16_t msgId, uint16_t dlc, uint16_t b
 //
 // Инициализация всех используемых TX буферов
 //
+// TX-секция Message RAM переведена на 64-байтные элементы (SysConfig txBufElemSize=64,
+// myMCAN.h MCAN_TX_BUFF_ELEM_SIZE). Размер хранения элемента != длина кадра: мелкие кадры
+// (ACK, 131, 132, fast) по-прежнему шлются с DLC=8, просто занимают 64-байтные слоты.
+//
+// Медленная телеметрия консолидирована: 8 прежних кадров (100,101,102,106,107,109,118,116)
+// = 32 слова = ровно 64 байта -> ОДИН кадр ID 140, DLC=15 (64 байта FD+BRS), буфер 6.
+// Заполняется в send_REF_kadr() (REF_Kadr.c) через Send_mbox_FD и разбирается в UI
+// (Parse140 -> существующие ProcessFrame100..118).
+//
+// Приоритет M_CAN = по наименьшему Message ID. ACK=1 (высший), fast=103/104/110, ошибки=131/132,
+// консолидированный медленный=140 (низший) -> большой 64-байтный кадр не задерживает остальные.
+//
 void MCAN_initAllTxBuffers(void)
 {
-    // Буфер 0: ACK (msgId=1)
-    MCAN_initTxBuffer(0, 1, 8, 0, 0);
-
-    // Буфер 1: Flags (msgId=100)
-    MCAN_initTxBuffer(6, 100, 8, 0, 0);
-
-    // Буфер 2: Data 101 (msgId=101)
-    MCAN_initTxBuffer(7, 101, 8, 0, 0);
-
-    // Буфер 3: Data 102 (msgId=102)
-    MCAN_initTxBuffer(8, 102, 8, 0, 0);
-
-    MCAN_initTxBuffer(10, 106, 8, 0, 0);
-    MCAN_initTxBuffer(11, 107, 8, 0, 0);
-    MCAN_initTxBuffer(12, 118, 8, 0, 0);
-    MCAN_initTxBuffer(13, 116, 8, 0, 0);
+    //                 buf, msgId, dlc, brs, fdf
+    MCAN_initTxBuffer(  0,   1,     8,   1,   1);  // ACK
+    MCAN_initTxBuffer(  3, 103,     8,   1,   1);  // fast: Ia,Ib,Idc,Udc (после EPWM)
+    MCAN_initTxBuffer(  4, 104,     8,   1,   1);  // fast: Va,Vb,Idc,Udc
+    MCAN_initTxBuffer(  5, 110,     8,   1,   1);  // fast: Vin, индекс модуляции
+    MCAN_initTxBuffer(  6, 140,    15,   1,   1);  // консолидированный медленный кадр (64 байта)
+    MCAN_initTxBuffer( 14, 131,     8,   1,   1);  // Kadr60: K60cnt
+    MCAN_initTxBuffer( 15, 132,     8,   1,   1);  // Errors/main
 }
 
 
-//
-// SendAck - всегда буфер 0, ID = 1 (см. MCAN_initAllTxBuffers)
-//
+
+volatile bool txCancelPending = false; // выставляется в SendAck, снимается в ISR по TCF
+
 void SendAck(int d1, int d2, int d3, int cmd)
 {
     uint32_t txbrp = HW_RD_REG32(myMCANA_BASE + MCAN_TXBRP);
+    uint32_t timeout = 100000;
 
-    // Если буфер занят - ждём освобождения
-    while (txbrp & 0x1)
+    while ((txbrp & 0x1) && (--timeout))
     {
         txbrp = HW_RD_REG32(myMCANA_BASE + MCAN_TXBRP);
     }
 
-    // Buffer свободен - отправляем ACK
+    if (timeout == 0)
+    {
+        // буфер не освободился штатно — просим железо отменить зависший запрос
+        MCAN_txBufCancellationReq(myMCANA_BASE, 0);
+        txCancelPending = true;
+        return; // следующий вызов SendAck уже увидит свободный буфер (или снова таймаут, если узел в Bus Off)
+    }
+
     uint32_t addr = txPayloadAddr[0];
     HWREG(addr)      = ((uint32_t)d1 << 16) | cmd;
     HWREG(addr + 4U) = ((uint32_t)d3 << 16) | d2;
@@ -219,25 +230,83 @@ void SendAck(int d1, int d2, int d3, int cmd)
     MCAN_txBufAddReq(myMCANA_BASE, 0);
 }
 
+
+
+
+
+
 //
-// CAN FD версия
+// CAN FD версия (задел на payload > 8 байт).
 //
-void Send_mbox_FD(uint16_t bufNum, const uint8_t *data, uint16_t dataLen)
+// C28x: байт = 16 бит, поэтому НЕЛЬЗЯ приводить массив к (uint32_t*) — это склеит два
+// 16-битных "байтовых" слова в одно 32-битное и обнулит половину payload. Принимаем массив
+// 16-битных слов и пакуем ПО ДВА в каждое 32-битное слово Message RAM (как Send_mbox/SendAck).
+//
+// numWords — число 16-битных слов полезных данных (8 байт = 4 слова).
+// Для реального payload > 8 байт: увеличить txBufElemSize в SysConfig и задать FD-DLC
+// (dlc 9..15 = 12..64 байт) в MCAN_initTxBuffer для соответствующего буфера.
+//
+void Send_mbox_FD(uint16_t bufNum, const uint16_t *w, uint16_t numWords)
 {
     if (bufNum >= myMCANA_MCAN_TX_BUFF_SIZE) return;
-    
+
     uint32_t addr = txPayloadAddr[bufNum];
     if (addr == 0) return;
-    
-    const uint32_t *data32 = (const uint32_t *)data;
-    uint16_t numWords = (dataLen + 3) / 4;
+
     uint16_t i;
-    for ( i = 0; i < numWords; i++)
+    uint16_t pairs = (numWords + 1U) / 2U;
+    for (i = 0; i < pairs; i++)
     {
-        HWREG(addr + (i * 4U)) = data32[i];
+        HWREG(addr + (i * 4U)) =
+            ((uint32_t)w[(2U * i) + 1U] << 16) | (uint32_t)(w[2U * i] & 0xFFFFU);
     }
-    
+
     MCAN_txBufAddReq(myMCANA_BASE, bufNum);
 }
+
+__interrupt void INT_myMCANA_1_ISR(void)
+{
+    uint32_t status = MCAN_getIntrStatus(myMCANA_BASE);
+
+    if (status & MCAN_INTR_SRC_TRANS_CANCEL_FINISH)
+    {
+        txCancelPending = false;
+    }
+
+    if (status & MCAN_INTR_SRC_BUS_OFF_STATUS)
+    {
+        MCAN_ProtocolStatus ps;
+        MCAN_getProtocolStatus(myMCANA_BASE, &ps);
+        if (ps.busOffStatus)
+        {
+            // Bus-Off recovery по Bosch M_CAN: аппаратно INIT уже выставлен при входе
+            // в Bus-Off, программно достаточно снять CCCR.INIT — после этого модуль
+            // сам ждёт 128 x 11 подряд рецессивных бит и возвращается на шину.
+            MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_NORMAL);
+        }
+    }
+
+    // обязательно очищаем ТОЛЬКО обработанные флаги
+    MCAN_clearIntrStatus(myMCANA_BASE, status);
+
+    // Освобождаем группу PIE для обеих линий MCANA (INT_myMCANA_0/1 сидят в одной группе) —
+    // без этого следующее прерывание в группе (в т.ч. приём в line0) не придёт.
+    Interrupt_clearACKGroup(INT_myMCANA_1_INTERRUPT_ACK_GROUP);
+}
+
+//
+// SysConfig для MCAN генерирует регистрацию INT_myMCANA_1 в PIE (board.c), но НЕ
+// генерирует маршрутизацию источников на саму линию 1 внутри периферии MCAN —
+// без этих двух вызовов линия 1 физически никогда не поднимется, и
+// INT_myMCANA_1_ISR не выполнится ни разу. Вызывать один раз после Board_init().
+//
+void MCAN_enableLine1Routing(void)
+{
+    MCAN_selectIntrLine(myMCANA_BASE,
+                         MCAN_IR_BO_MASK | MCAN_IR_EP_MASK | MCAN_IR_PED_MASK | MCAN_IR_TCF_MASK,
+                         MCAN_INTR_LINE_NUM_1);
+    MCAN_enableIntrLine(myMCANA_BASE, MCAN_INTR_LINE_NUM_1, 1U);
+}
+
 
 #endif // MCANA

@@ -8,7 +8,7 @@
 #ifndef FUNCTIONS_H_
 #define FUNCTIONS_H_
 
-#define mSecond(msec) (Uint32)(120000*msec) // ������ ��� CPU Timers � �������������
+#define mSecond(msec) (Uint32)(150000*msec) //  CPU Timers 
 
 extern uint16_t Deadband;
 extern int satFlag;  // ���������� ������� ��������� �������� ���������

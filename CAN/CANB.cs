@@ -94,19 +94,23 @@ namespace ICDIBasic
                     out iBuffer,
                     sizeof(uint));
 
-                // проверяем состояние канала PCAN_USBBUS что адаптор подключен к компу и не инициализирован 
+                // проверяем состояние канала PCAN_USBBUS что адаптор подключен к компу и не инициализирован
 
                 if (stsResult != TPCANStatus.PCAN_ERROR_OK || iBuffer != PCANBasic.PCAN_CHANNEL_AVAILABLE) continue;
 
-                if (iBuffer != PCANBasic.PCAN_CHANNEL_OCCUPIED) PCANBasic.Initialize(_mHandlesArray[i], TPCANBaudrate.PCAN_BAUD_1M);
+                PCANBasic.Initialize(_mHandlesArray[i], TPCANBaudrate.PCAN_BAUD_1M);
 
                 if (CAN_Get_ID((byte)_mHandlesArray[i]).Equals(CanBId))
                 {
                     canb_usbchanel = (byte)_mHandlesArray[i];
-                    //                  PCANBasic.Initialize(canb_usbchanel, TPCANBaudrate.PCAN_BAUD_1M );
                     _canOk = true;
-                    return true; // соответствующий адаптер найден и инициализирован -> возврат в вызывающию прогу. 
+                    return true; // соответствующий адаптер найден и инициализирован -> возврат в вызывающию прогу.
                 }
+
+                // Канал не наш — обязательно освобождаем, иначе он останется висеть
+                // инициализированным в classic 1M и другой адаптер (например CAN A/FD)
+                // на этом физическом канале не сможет корректно переинициализироваться в FD.
+                PCANBasic.Uninitialize(_mHandlesArray[i]);
             }
 
             _canOk = false;

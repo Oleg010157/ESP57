@@ -754,7 +754,7 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             }
 
             SendAck(REF.speedRef, data2, sharpMode.bits.rpm_Mode, cmd);
-
+            break;
         case 73: // приём sAbs
             if (data2 == 3333)
             {

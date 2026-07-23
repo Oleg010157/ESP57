@@ -44,7 +44,14 @@ namespace ICDIBasic
             CanA_Ok = false;
             CanaM_TextChanged(this, null);
 
-            if (CanI())
+            var connected = CanI();
+            if (!connected)
+            {
+                Thread.Sleep(300);
+                connected = CanI();
+            }
+
+            if (connected)
             {
                 _canaM.BackColor = Color.Yellow;
             }
@@ -243,15 +250,16 @@ namespace ICDIBasic
             // var fdBitrate = "f_clock=80000000,nom_brp=1,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,data_brp=1,data_tseg1=63,data_tseg2=16,data_sjw=16";
 
             // 2 Мбит/с: 1 Мбит/с арбитраж / 2 Мбит/с данные (Sample Point 80%) --
-            var fdBitrate = "f_clock=80000000,nom_brp=1,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,data_brp=1,data_tseg1=31,data_tseg2=8,data_sjw=8";
-
-        //    var fdBitrate = "f_clock=150000000,nom_brp=6,nom_tseg1=12,nom_tseg2=12,nom_sjw=11,data_brp=3,data_tseg1=12,data_tseg2=12,data_sjw=10";
+           // var fdBitrate = "f_clock=80000000,nom_brp=1,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,data_brp=1,data_tseg1=31,data_tseg2=8,data_sjw=8";
 
             // 4 Мбит/с: 1 Мбит/с арбитраж / 4 Мбит/с данные (Sample Point 80%) --
-            // var fdBitrate = "f_clock=80000000,nom_brp=1,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,data_brp=1,data_tseg1=15,data_tseg2=4,data_sjw=4";
+        //     var fdBitrate = "f_clock=80000000,nom_brp=1,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,data_brp=1,data_tseg1=15,data_tseg2=4,data_sjw=4";
 
             // 5 Мбит/с 1 Мбит/с арбитраж / 5 Мбит/с данные (Sample Point 75%) --
-            //      var fdBitrate = "f_clock=80000000,nom_brp=1,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,data_brp=1,data_tseg1=11,data_tseg2=4,data_sjw=4";
+            //    var fdBitrate = "f_clock=80000000,nom_brp=1,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,data_brp=1,data_tseg1=11,data_tseg2=4,data_sjw=4";
+
+            // 2.5 Мбит/с: 1 Мбит/с арбитраж / 2.5 Мбит/с данные (SP 75%) -- 80/(1*32)=2.5 Мбит/с
+                  var fdBitrate = "f_clock=80000000,nom_brp=1,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,data_brp=1,data_tseg1=23,data_tseg2=8,data_sjw=4";
             // f_clock=150 МГц (эквивалентный прескалер), nom (SP=52%): tseg1=12, tseg2=12, sjw=11 | data (SP=53.3%): tseg1=7, tseg2=7, sjw=6
             //     var fdBitrate = "f_clock=150000000,nom_brp=6,nom_tseg1=12,nom_tseg2=12,nom_sjw=11,data_brp=2,data_tseg1=7,data_tseg2=7,data_sjw=6";
             //  8 Мбит/с: 1 Мбит/с арбитраж / 8 Мбит/с данные (Sample Point 80%) --
@@ -265,12 +273,13 @@ namespace ICDIBasic
                 {
                     stsResult = PCANBasic.GetValue(t, TPCANParameter.PCAN_CHANNEL_CONDITION, out iBuffer, sizeof(uint));
                     if (stsResult != TPCANStatus.PCAN_ERROR_OK) continue;
+                    System.Diagnostics.Debug.WriteLine($"[PCAN] ch={t} cond={iBuffer} (1=AVAILABLE,2=OCCUPIED,0=UNAVAIL)");
                     if (iBuffer != PCANBasic.PCAN_CHANNEL_AVAILABLE) continue;
 
                     stsResult = PCANBasic.InitializeFD(t, fdBitrate);
                     if (stsResult != TPCANStatus.PCAN_ERROR_OK)
                     {
-                        // логировать stsResult при необходимости и пробовать следующий канал
+                        System.Diagnostics.Debug.WriteLine($"[PCAN] InitializeFD ch={t} error: {stsResult} (0x{(uint)stsResult:X8})");
                         continue;
                     }
 
@@ -281,6 +290,7 @@ namespace ICDIBasic
                         PCANBasic.Uninitialize(t);
                         continue;
                     }
+                    System.Diagnostics.Debug.WriteLine($"[PCAN] ch={t} DeviceID={iBuffer} (0x{iBuffer:X2}), CanAId={CanAId} (0x{CanAId:X2})");
                     if (iBuffer == CanAId)
                     {
                         PCANBasic.Uninitialize(t);
@@ -291,7 +301,11 @@ namespace ICDIBasic
                 }
 
                 // проверяем, найден ли канал
-                if (Ch == 0) return false;
+                if (Ch == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("[PCAN] Канал не найден (Ch==0 после поиска)");
+                    return false;
+                }
 
                 // инициализация найденного канала
                 stsResult = PCANBasic.InitializeFD(Ch, fdBitrate);
@@ -354,6 +368,16 @@ namespace ICDIBasic
                 {
                     stsResult = PCANBasic.ReadFD(Ch, out var canMsg, out ulong ts);
                     if (stsResult != TPCANStatus.PCAN_ERROR_OK) continue;
+
+                    // Консолидированный медленный кадр (64 байта) — разбираем напрямую из FD-структуры,
+                    // минуя 8-байтный ToClassic. 8 блоков x 4 слова -> существующие ProcessFrameXXX.
+                    // Вызываем во вторичном потоке, как CAN_RxData/Kadr60Rx (ProcessFrame сами делают
+                    // BeginInvoke для UI-части).
+                    if (canMsg.ID == 140)
+                    {
+                        try { Parse140(canMsg); } catch { /* ignored */ }
+                        continue;
+                    }
 
                     var classicMsg = PcanFdMessageConverter.ToClassic(canMsg);
 

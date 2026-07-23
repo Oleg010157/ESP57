@@ -178,6 +178,12 @@ extern "C"
 #define INT_myMCANA_0_INTERRUPT_ACK_GROUP INTERRUPT_ACK_GROUP9
 extern __interrupt void INT_myMCANA_0_ISR(void);
 
+// Interrupt Settings for INT_myMCANA_1
+// ISR need to be defined for the registered interrupts
+#define INT_myMCANA_1 INT_MCANA_1
+#define INT_myMCANA_1_INTERRUPT_ACK_GROUP INTERRUPT_ACK_GROUP9
+extern __interrupt void INT_myMCANA_1_ISR(void);
+
 //*****************************************************************************
 //
 // MCAN Configurations
@@ -200,7 +206,7 @@ extern __interrupt void INT_myMCANA_0_ISR(void);
 #define myMCANA_MCAN_FIFO_1_START_ADDR          (52)
 #define myMCANA_MCAN_RX_BUFF_START_ADDR         (52)
 #define myMCANA_MCAN_TX_BUFF_START_ADDR         (52)
-#define myMCANA_MCAN_TX_EVENT_START_ADDR        (308)
+#define myMCANA_MCAN_TX_EVENT_START_ADDR        (1204)
 
 #define myMCANA_MCAN_INTR_LINE_NUM_0_INT (MCAN_IR_RF0N_MASK)
 void myMCANA_init();

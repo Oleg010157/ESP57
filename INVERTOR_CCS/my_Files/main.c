@@ -61,7 +61,7 @@ float32_t Urms = 100;
 
 uint16_t cntT0   = 0;  // счётчик времени таймера Т0
 uint16_t cnt1sek = 0;  // счётчик секунд
-#define OneSecond 10u  // кол-во cntT0 равное 1 секунде
+#define OneSecond 20u  // кол-во cntT0 равное 1 секунде
 #define TenSecond 200u // кол-во cntT0 равное 10 секундам
 
 void IparkToUrms(motor *m);
@@ -112,48 +112,6 @@ void main(void)
     //
 
     Board_init();
-/*
-filterConfig.anfe = 0;
-filterConfig.anfs = 0;
-filterConfig.rrfe = 1;
-filterConfig.rrfs = 1;
-
-// 2. Запрашиваем режим инициализации MCAN (INIT = 1)
-MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_SW_INIT);
-
-// 3. Ждем подтверждения входа в режим инициализации
-while(MCAN_OPERATION_MODE_SW_INIT != MCAN_getOpMode(myMCANA_BASE));
-
-// 4. Взводим CCE = 1 
- HW_WR_FIELD32(myMCANA_BASE + MCAN_CCCR, MCAN_CCCR_CCE, 0x1U);
-
-// 5. Прописываем Reject (0x3F) в GFC
- // Configure Global Filter 
-    HW_WR_FIELD32(myMCANA_BASE + MCAN_GFC,
-                  MCAN_GFC_RRFE,
-                  filterConfig.rrfe);
-    HW_WR_FIELD32(myMCANA_BASE + MCAN_GFC,
-                  MCAN_GFC_RRFS,
-                  filterConfig.rrfs);
-    HW_WR_FIELD32(myMCANA_BASE + MCAN_GFC,
-                  MCAN_GFC_ANFE,
-                  filterConfig.anfe);
-    HW_WR_FIELD32(myMCANA_BASE + MCAN_GFC,
-                  MCAN_GFC_ANFS,
-                  filterConfig.anfs);
-
-// 6. Закрываем защиту (сбрасываем CCE)
-//HWREG_BP(myMCANA_BASE + MCAN_O_CCCR*2) &= ~MCAN_CCCR_CCE;
-
-// 7. Возвращаем MCAN в нормальный рабочий режим
-MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_NORMAL);
-while(MCAN_OPERATION_MODE_NORMAL != MCAN_getOpMode(myMCANA_BASE));
-*/
-
-   
-    // теперь корректируем порядок для CLA
-    //   MEMCFG_init();   // назначаем LS‑банки CLA
-    //   CLA_init();      // копируем код и константы в RAM, настраиваем
 
     IGBT1_Disable();
     IGBT2_Disable();
@@ -211,16 +169,10 @@ while(MCAN_OPERATION_MODE_NORMAL != MCAN_getOpMode(myMCANA_BASE));
 
     CLA_shared_Init();
 
-    // Предположим, что KEY = 0xA
-    // Допустим, ENLB2ADCB — это бит 1 (см. TRM для точного смещения)
-    //AnalogSubsysRegs.ADCDACLOOPBACK.bit.KEY = 0xA5A5;
-    //AnalogSubsysRegs.ADCDACLOOPBACK.bit.ENLB2ADCB = 1;
-   // AnalogSubsysRegs.ADCDACLOOPBACK.all = ((Uint32)0xA5A5 << 16) | (1UL << 1);
-   
-
 #if MCANA
 //    mcan_init();
 MCAN_initAllTxBuffers();
+MCAN_enableLine1Routing();
 #endif
 
     request_firmware_update = 0;
@@ -289,7 +241,7 @@ MCAN_initAllTxBuffers();
                     CheckLamp--;
                 }
               
-
+ //               SendAck(10, 12, 13, 14);  // dbg
                 cntT0 = 0;
                 cnt1sek++;
             }
@@ -365,7 +317,7 @@ MCAN_initAllTxBuffers();
                 uint16_t b = CheckLamp + CheckLamp0;
                 if ((Req_336 & 1) == 1)
                 {
-                    Send_mbox(32, 0, 0, b, 32012);
+                    Send_mbox(15, 0, 0, b, 32012);
                     Req_336 = Req_336 & ~1U; // сброс признака наличия ошибок
 
                     goto end_336;

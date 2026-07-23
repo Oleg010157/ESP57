@@ -48,6 +48,14 @@ void send_REF_kadr()
 {
     uint16_t d1, d2, d3, d4;
 
+    // Консолидированный медленный кадр: 8 блоков x 4 слова = 32 слова = 64 байта.
+    // Каждый блок пишется в свой срез tele[] вместо отдельного Send_mbox; в конце — один
+    // Send_mbox_FD(6, ...). Порядок блоков = порядок исполнения ниже (100,101,102,106,107,
+    // 109,118,116). Нулевая инициализация: если какой-то #if-блок выключен, его слот = 0.
+    // d1..d4 намеренно остаются общими локальными — перенос значений между блоками сохранён
+    // как в исходном коде (некоторые case задают не все d1..d3).
+    uint16_t tele[32] = {0};
+
     //100 -------------------------------------------------------------------------
 #if (ref_kadr_mask & BIT5) == BIT5    // Отправляем ошибки и флаги
   
@@ -56,8 +64,8 @@ void send_REF_kadr()
     d3 = shr.all;
     d4 = shrTrip.all;
     shrTrip.all = 0xFFFF; // сбрасываем флаги аварийнного отключения
-    Send_mbox(6, d1, d2, d3, d4);
-     
+    tele[0] = d1; tele[1] = d2; tele[2] = d3; tele[3] = d4;   // блок 0 -> ID 100
+
 #endif
 
 // 101 MsgID -В этом кадре в UI выводятся медленные параметры DC-DC конвертора  ----------------------------------------------------------------
@@ -94,7 +102,7 @@ void send_REF_kadr()
         P101Kadr = -1;
         break;
     }
-    Send_mbox(7, d1, d2, d3, d4);
+    tele[4] = d1; tele[5] = d2; tele[6] = d3; tele[7] = d4;   // блок 1 -> ID 101 (цикл P101Kadr)
 
 #endif //  if (ref_kadr_mask & BIT6)==BIT6
 
@@ -136,7 +144,7 @@ void send_REF_kadr()
         break;
 
     }
-    Send_mbox(8, d1, d2, d3, d4);
+    tele[8] = d1; tele[9] = d2; tele[10] = d3; tele[11] = d4; // блок 2 -> ID 102 (цикл P102Kadr)
 
 #endif //  if (ref_kadr_mask & BIT7)==BIT7
 
@@ -170,7 +178,7 @@ void send_REF_kadr()
         P106Kadr = -1;
         break;
     }
-    Send_mbox(10, d1, d2, d3, d4);
+    tele[12] = d1; tele[13] = d2; tele[14] = d3; tele[15] = d4; // блок 3 -> ID 106 (цикл P106Kadr)
 #endif
 
     // 107  MsgID -------------------------------------------------------------
@@ -181,7 +189,7 @@ void send_REF_kadr()
     d3 = rounding(motor2.ramp.ref * 0.02f); // заданная частота поля статора speedRef+sAbsfref1;
     d4 = rounding(motor2.freq * 5);  // фактическая частота поля
 
-    Send_mbox(9, d1, d2, d3, d4);
+    tele[16] = d1; tele[17] = d2; tele[18] = d3; tele[19] = d4; // блок 4 -> ID 107 (частоты поля)
 
 #endif
 //BIT9   MsgID = 115  10-ый  Mbox для передачи кодов ошибок в фоне.
@@ -193,7 +201,7 @@ void send_REF_kadr()
     d2 = (uint16_t) (motor2.ipark.gain * 1000 + 0.5); //выходное результирующее значение индекса модуляции напряжения;
     d3 = motor1.flag.all;
     d4 = motor2.flag.all;
-    Send_mbox(11, d1, d2, d3, d4);
+    tele[20] = d1; tele[21] = d2; tele[22] = d3; tele[23] = d4; // блок 5 -> ID 109 (gain/flags)
 #endif
 
 
@@ -209,7 +217,7 @@ void send_REF_kadr()
         d2 = f118L.u16.Hi;
         d3 = f118H.u16.Low;
         d4 = f118H.u16.Hi;
-        Send_mbox(12, d1, d2, d3, d4);
+        tele[24] = d1; tele[25] = d2; tele[26] = d3; tele[27] = d4; // блок 6 -> ID 118 (мощность)
     }
 #endif
 
@@ -271,9 +279,12 @@ void send_REF_kadr()
         break;
     } //switch (P16Kadr)
 
-    Send_mbox(13, d1, d2, d3, d4);
-    
+    tele[28] = d1; tele[29] = d2; tele[30] = d3; tele[31] = d4; // блок 7 -> ID 116 (цикл P16Kadr)
+
 #endif
+
+    // Один запрос передачи заполненного 64-байтного кадра (ID 140, буфер 6).
+    Send_mbox_FD(6, tele, 32);
 
 } // end  send_REF_kadr()
 

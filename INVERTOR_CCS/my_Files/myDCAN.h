@@ -139,6 +139,10 @@ void send_REF_kadr();
 void CAN_rxFIFOread(void);
 void SendViaIF1(uint32_t base, uint32_t mailbox, const uint16_t *data);
 void Send_mbox(uint16_t ObjID, uint16_t d1, uint16_t d2, uint16_t d3, uint16_t d4);
+// Отправка кадра произвольной длины (>8 байт) одним запросом. w — массив 16-битных слов,
+// numWords — их число (8 байт = 4 слова, 64 байта = 32 слова). Пакует по 2 слова в 32-битное
+// слово Message RAM (C28x: байт = 16 бит). Один MCAN_txBufAddReq в конце.
+void Send_mbox_FD(uint16_t bufNum, const uint16_t *w, uint16_t numWords);
 void SendAck(int d1, int d2, int d3, int cmd);
 void CAN_configureIF3ForMailbox1(void);
 

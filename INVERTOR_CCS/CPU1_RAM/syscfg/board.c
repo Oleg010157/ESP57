@@ -217,6 +217,11 @@ void INTERRUPT_init(){
 	// ISR need to be defined for the registered interrupts
 	Interrupt_register(INT_myMCANA_0, &INT_myMCANA_0_ISR);
 	Interrupt_enable(INT_myMCANA_0);
+	
+	// Interrupt Settings for INT_myMCANA_1
+	// ISR need to be defined for the registered interrupts
+	Interrupt_register(INT_myMCANA_1, &INT_myMCANA_1_ISR);
+	Interrupt_enable(INT_myMCANA_1);
 }
 //*****************************************************************************
 //
@@ -239,7 +244,7 @@ void myMCANA_init(){
     //
     initParams_myMCANA.fdMode            = true;
     initParams_myMCANA.brsEnable         = true;
-    initParams_myMCANA.txpEnable         = false;
+    initParams_myMCANA.txpEnable         = true;
     initParams_myMCANA.efbi              = true;
     initParams_myMCANA.pxhddisable       = false;
     initParams_myMCANA.darEnable         = true;
@@ -252,7 +257,7 @@ void myMCANA_init(){
     // Transmitter Delay Compensation parameters.
     //
     initParams_myMCANA.tdcConfig.tdcf    = 10;
-    initParams_myMCANA.tdcConfig.tdco    = 6;
+    initParams_myMCANA.tdcConfig.tdco    = 29;
     //
     // Initialize MCAN Config parameters.
     //
@@ -296,7 +301,7 @@ void myMCANA_init(){
     //
     msgRAMConfigParams_myMCANA.txFIFOSize           = 0;
     msgRAMConfigParams_myMCANA.txBufMode            = 0;
-    msgRAMConfigParams_myMCANA.txBufElemSize        = 0;
+    msgRAMConfigParams_myMCANA.txBufElemSize        = 7;
     //
     // Tx Buffer Element Size.
     //
@@ -353,13 +358,13 @@ void myMCANA_init(){
     // Initialize bit timings.
     //
     bitTimes_myMCANA.nomRatePrescalar   = 5; // Nominal Baud Rate Pre-scaler.
-    bitTimes_myMCANA.nomTimeSeg1        = 11; // Nominal Time segment before sample point.
-    bitTimes_myMCANA.nomTimeSeg2        = 11; // Nominal Time segment after sample point.
-    bitTimes_myMCANA.nomSynchJumpWidth  = 10; // Nominal (Re)Synchronization Jump Width Range.
-    bitTimes_myMCANA.dataRatePrescalar  = 2; // Data Baud Rate Pre-scaler.
-    bitTimes_myMCANA.dataTimeSeg1       = 11; // Data Time segment before sample point.
-    bitTimes_myMCANA.dataTimeSeg2       = 11; // Data Time segment after sample point.
-    bitTimes_myMCANA.dataSynchJumpWidth = 10; // Data (Re)Synchronization Jump Width.
+    bitTimes_myMCANA.nomTimeSeg1        = 17; // Nominal Time segment before sample point.
+    bitTimes_myMCANA.nomTimeSeg2        = 5; // Nominal Time segment after sample point.
+    bitTimes_myMCANA.nomSynchJumpWidth  = 4; // Nominal (Re)Synchronization Jump Width Range.
+    bitTimes_myMCANA.dataRatePrescalar  = 1; // Data Baud Rate Pre-scaler.
+    bitTimes_myMCANA.dataTimeSeg1       = 21; // Data Time segment before sample point.
+    bitTimes_myMCANA.dataTimeSeg2       = 6; // Data Time segment after sample point.
+    bitTimes_myMCANA.dataSynchJumpWidth = 5; // Data (Re)Synchronization Jump Width.
     //
     // Get MCANSS Revision ID.
     //
@@ -414,7 +419,7 @@ void myMCANA_init(){
     //
     // Enable MCAN Interrupts
     //
-    MCAN_enableIntr(myMCANA_BASE, MCAN_IR_RF0N_MASK, 1U);
+    MCAN_enableIntr(myMCANA_BASE, MCAN_IR_BO_MASK|MCAN_IR_EP_MASK|MCAN_IR_PED_MASK|MCAN_IR_RF0N_MASK|MCAN_IR_TCF_MASK, 1U);
     MCAN_selectIntrLine(myMCANA_BASE, MCAN_IR_RF0N_MASK, MCAN_INTR_LINE_NUM_0);
     MCAN_enableIntrLine(myMCANA_BASE, MCAN_INTR_LINE_NUM_0, 1U);
 }

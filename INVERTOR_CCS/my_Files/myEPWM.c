@@ -160,6 +160,7 @@ void CMPSS_BackgroundCheck(void)
         RegisterSessionEvent(cmp1H_Ib);
     }
  
+
 }
 
 void TRIP_Clear(void)
