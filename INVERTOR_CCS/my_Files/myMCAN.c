@@ -196,7 +196,7 @@ void MCAN_initAllTxBuffers(void)
     MCAN_initTxBuffer(  3, 103,     8,   1,   1);  // fast: Ia,Ib,Idc,Udc (после EPWM)
     MCAN_initTxBuffer(  4, 104,     8,   1,   1);  // fast: Va,Vb,Idc,Udc
     MCAN_initTxBuffer(  5, 110,     8,   1,   1);  // fast: Vin, индекс модуляции
-    MCAN_initTxBuffer(  6, 140,    15,   1,   1);  // консолидированный медленный кадр (64 байта)
+    MCAN_initTxBuffer(  6, 140,    15,   1,   1);  // консолидированный REF кадр (64 байта)
     MCAN_initTxBuffer( 14, 131,     8,   1,   1);  // Kadr60: K60cnt
     MCAN_initTxBuffer( 15, 132,     8,   1,   1);  // Errors/main
 }
@@ -253,12 +253,14 @@ void Send_mbox_FD(uint16_t bufNum, const uint16_t *w, uint16_t numWords)
     uint32_t addr = txPayloadAddr[bufNum];
     if (addr == 0) return;
 
+    // Пакуем по 2 слова (16 бит) в каждое 32-битное слово Message RAM.
+    // numWords предполагается чётным (64 байта = 32 слова). Прямой цикл без промежуточных
+    // переменных — надёжнее по кодогенерации C28x.
     uint16_t i;
-    uint16_t pairs = (numWords + 1U) / 2U;
-    for (i = 0; i < pairs; i++)
+    for (i = 0; i < numWords; i += 2U)
     {
-        HWREG(addr + (i * 4U)) =
-            ((uint32_t)w[(2U * i) + 1U] << 16) | (uint32_t)(w[2U * i] & 0xFFFFU);
+        HWREG(addr) = ((uint32_t)w[i + 1U] << 16) | (uint32_t)w[i];
+        addr += 4U;
     }
 
     MCAN_txBufAddReq(myMCANA_BASE, bufNum);

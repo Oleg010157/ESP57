@@ -4,7 +4,6 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Windows.Forms;
 using static EasyModbus.ModbusClient;
 using static ICDIBasic.Form1;
@@ -158,11 +157,8 @@ namespace ICDIBasic
             ProcessFrame116(W(28), W(29), W(30), W(31), (short)W(28), (short)W(29), (short)W(30));
         }
 
-        #region Frame Processors with AggressiveInlining
+        #region Frame Processors
 
-        // ✅ Этот атрибут указывает JIT компилятору вставить код прямо в вызывающую функцию
-        // Результат: нет overhead вызова функции, полная оптимизация
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame100(ushort u1, ushort u2, ushort u3, ushort u4, TPCANMsg msg)
         {
             ccs.overload = u1;
@@ -177,7 +173,6 @@ namespace ICDIBasic
             ShowOverLoadErrors(u4);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame101(ushort u1, ushort u2, ushort u3, ushort u4, short s1, short s2, short s3)
         {
             switch (u4)
@@ -211,7 +206,6 @@ namespace ICDIBasic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame102(ushort u1, ushort u2, ushort u3, ushort u4, short s1, short s2, short s3)
         {
             switch (u4)
@@ -244,7 +238,6 @@ namespace ICDIBasic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame103(short s1, short s2, short s3, short s4, ushort u4)
         {
             if (!spl_running) return;
@@ -268,7 +261,6 @@ namespace ICDIBasic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame104(short s1, short s2, short s3, short s4)
         {
             if (spl_running && f2kadrName == "F3_invertor")
@@ -285,7 +277,6 @@ namespace ICDIBasic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame105(short s1, short s2, short s3, short s4, ushort u2, ushort u3, ushort u4, ushort grup4)
         {
             switch (grup4)
@@ -314,7 +305,6 @@ namespace ICDIBasic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame106(short s1, short s2, short s3, short s4, ushort u4)
         {
             switch (u4)
@@ -336,7 +326,6 @@ namespace ICDIBasic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame107(short s1, short s2, short s3, short s4)
         {
             ccs.f1_ref = s1;
@@ -345,7 +334,6 @@ namespace ICDIBasic
             ccs.f2_act = M2.ccs.freq = s4;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame108(ushort u1, ushort u2, ushort u3, ushort u4)
         {
             ccs.P8Kadr = u1;
@@ -372,7 +360,6 @@ namespace ICDIBasic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame109(ushort u1, ushort u2, ushort u3, ushort u4)
         {
             M1.ccs.gain = u1;
@@ -381,7 +368,6 @@ namespace ICDIBasic
             M2.ccs.flags = u4;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame110(short s1, short s2, short s3, short s4, ushort u2, ushort u3, ushort u4)
         {
            
@@ -394,7 +380,6 @@ namespace ICDIBasic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame111(short s1, short s2, short s3, short s4)
         {
             ccs.EPSv1 = s1;
@@ -403,7 +388,6 @@ namespace ICDIBasic
             ccs.EPSi2 = s4;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame112(short s1, short s2, short s3, short s4)
         {
             ccs.piR_Out = s1;
@@ -412,14 +396,12 @@ namespace ICDIBasic
             M1.ccs.Ia_av = s4;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame114(ushort u2, ushort u3)
         {
             ccs.ToothCnt = u2;
             ccs.IsrTicker = u3;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame115(ushort u1, ushort u2, ushort u3, ushort u4, short s3)
         {
             switch (u4)
@@ -470,7 +452,6 @@ namespace ICDIBasic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame116(ushort u1, ushort u2, ushort u3, ushort u4, short s1, short s2, short s3)
         {
             switch (u4)
@@ -529,7 +510,6 @@ namespace ICDIBasic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame117(short s1, short s2, short s3, short s4)
         {
             M1.ccs.slip_abs = s1;
@@ -540,7 +520,6 @@ namespace ICDIBasic
             ccs.Pa_stend = s4;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame118(short s1, short s2, short s3, short s4)
         {
             _regBuffer[0] = s1;
@@ -554,7 +533,6 @@ namespace ICDIBasic
             M2.ccs.mPabcF = M2.ccs.mPabcF * 0.95 + M2.ccs.mPabc * 0.05;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame119(short s1, short s2, short s3, short s4)
         {
             M1.ccs.Vd = s1;
@@ -563,7 +541,6 @@ namespace ICDIBasic
             M2.ccs.Vq = s4;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame120(short s1, ushort u2, ushort u4)
         {
             M2.ccs.IpVd = s1;
@@ -578,7 +555,6 @@ namespace ICDIBasic
             ccs.f9_tooths = u4;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame121(short s1, short s2, short s3, short s4)
         {
             VdRef = s1;
@@ -587,7 +563,6 @@ namespace ICDIBasic
             RpmOut = s4;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame122(short s1, short s2, short s3, short s4)
         {
             ccs.QEP2_pr = s1;
@@ -600,7 +575,6 @@ namespace ICDIBasic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame123(short s1, short s2, short s3, ushort u4)
         {
             ccs.pk1_Id = M1.ccs.Id = s1;
@@ -608,7 +582,6 @@ namespace ICDIBasic
             ccs.pk1_cos = M1.ccs.Dcos = s3;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame124(short s1, short s2, short s3, ushort u4)
         {
             ccs.pk2_Id = M2.ccs.Id = s1;
@@ -617,7 +590,6 @@ namespace ICDIBasic
             M2.ccs.c_ImF = u4;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame125(short s2, short s3, short s4)
         {
             ccs.pk1_Pz = s2;
@@ -625,7 +597,6 @@ namespace ICDIBasic
             ccs.pk1_fui = s4;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame126(short s1, short s2, short s3, short s4)
         {
             ccs.pk2_Pa = s1;
@@ -634,7 +605,6 @@ namespace ICDIBasic
             ccs.pk2_fui = s4;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame127(short s1, short s2, short s3, short s4)
         {
             ccs.QEP1_pr = s1;
@@ -647,7 +617,6 @@ namespace ICDIBasic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame131(short s1, short s2, short s3, ushort u4)
         {
             M1.ccs.We = s1;
@@ -656,7 +625,6 @@ namespace ICDIBasic
             ccs.k60Cnt = u4;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessFrame132(ushort u1, ushort u2, ushort u3, ushort u4)
         {
             if (u4 == 32012)
@@ -698,12 +666,10 @@ namespace ICDIBasic
             UpdateControlColor((mbits.revers & bits) != 0, m.Revers.Checked, m.Revers);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateControlColor(bool deviceState, bool uiState, Control control)
         {
             control.BackColor = (deviceState == uiState) ? Color.Empty : Color.Yellow;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void sbit_check()
         {
             ushort sbit_val = ccs.sbit;
@@ -724,7 +690,6 @@ namespace ICDIBasic
             UpdateBitCheckColor(btnStartStop, (sbit_val & sbit.Pusk) != 0, btnStartStop.Text == @"Стоп");
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateBitCheckColor(Control control, bool deviceState, bool uiState)
         {
             control.BackColor = (deviceState == uiState) ? Color.Empty : Color.Yellow;
@@ -760,7 +725,6 @@ namespace ICDIBasic
             UpdateModeColor(y.modeH, y.modeH_kod, umode);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateModeColor(Control control, int deviceCode, int uiCode)
         {
             control.BackColor = (deviceCode == uiCode) ? Color.Empty : Color.Yellow;

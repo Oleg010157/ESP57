@@ -46,150 +46,139 @@ const uint16_t *msgData;
 
 void send_REF_kadr()
 {
-    uint16_t d1, d2, d3, d4;
-
     // Консолидированный медленный кадр: 8 блоков x 4 слова = 32 слова = 64 байта.
-    // Каждый блок пишется в свой срез tele[] вместо отдельного Send_mbox; в конце — один
-    // Send_mbox_FD(6, ...). Порядок блоков = порядок исполнения ниже (100,101,102,106,107,
-    // 109,118,116). Нулевая инициализация: если какой-то #if-блок выключен, его слот = 0.
-    // d1..d4 намеренно остаются общими локальными — перенос значений между блоками сохранён
-    // как в исходном коде (некоторые case задают не все d1..d3).
+    // Пишем НАПРЯМУЮ в tele[] (без общих d1..d4) — исключён перенос "остатка" между блоками.
+    // Незаданные в конкретном case поля остаются 0 (массив обнулён). В конце — один
+    // Send_mbox_FD(6, ...). Порядок блоков: 100,101,102,106,107,109,118,116.
     uint16_t tele[32] = {0};
 
     //100 -------------------------------------------------------------------------
 #if (ref_kadr_mask & BIT5) == BIT5    // Отправляем ошибки и флаги
   
-    d1 = overload.all; 
-    d2 = motor2.error.all; //ccs.u16.u2;
-    d3 = shr.all;
-    d4 = shrTrip.all;
-    shrTrip.all = 0xFFFF; // сбрасываем флаги аварийнного отключения
-    tele[0] = d1; tele[1] = d2; tele[2] = d3; tele[3] = d4;   // блок 0 -> ID 100
+    tele[0] = overload.all;
+    tele[1] = motor2.error.all;
+    tele[2] = shr.all;
+    tele[3] = shrTrip.all;
+    shrTrip.all = 0xFFFF; // сбрасываем флаги аварийнного отключения  // блок 0 -> ID 100
 
 #endif
 
 // 101 MsgID -В этом кадре в UI выводятся медленные параметры DC-DC конвертора  ----------------------------------------------------------------
 #if (ref_kadr_mask & BIT6)==BIT6
 
-    d4 = ++P101Kadr;
+    tele[7] = ++P101Kadr;                                    // блок 1 -> ID 101 (цикл P101Kadr)
 
     switch (P101Kadr)
     {
     case 0:
-        d1 = rounding(cla.Ia_rf * 100);
-        d2 = rounding(cla.Ib_rf * 100);
-        d3 = rounding(cla.Ic_rf * 100);
+        tele[4] = rounding(cla.Ia_rf * 100);
+        tele[5] = rounding(cla.Ib_rf * 100);
+        tele[6] = rounding(cla.Ic_rf * 100);
         break;
     case 1:
-        d1 = (uint16_t) (cla.Ia_rms * 100 + 0.5);
-        d2 = (uint16_t) (cla.Ib_rms * 100 + 0.5);
-        d3 = (uint16_t) (cla.Ic_rms * 100 + 0.5);
+        tele[4] = (uint16_t) (cla.Ia_rms * 100 + 0.5);
+        tele[5] = (uint16_t) (cla.Ib_rms * 100 + 0.5);
+        tele[6] = (uint16_t) (cla.Ic_rms * 100 + 0.5);
         break;
     case 2:
-        d1 = rounding(Vin_volt * 100);
-        d2 = (uint16_t) (Vin_rf *100);
-        d3 = (uint16_t) (motor1.mSabc + 0.5);
+        tele[4] = rounding(Vin_volt * 100);
+        tele[5] = (uint16_t) (Vin_rf *100);
+        tele[6] = (uint16_t) (motor1.mSabc + 0.5);
         break;
     case 3:
-        d1 = rounding(Udc_volt * 10); 
-        d2 = rounding(Udc_rf * 10);
-        d3 = (uint16_t) (motor2.clark.Um * 10 + 0.5);
+        tele[4] = rounding(Udc_volt * 10);
+        tele[5] = rounding(Udc_rf * 10);
+        tele[6] = (uint16_t) (motor2.clark.Um * 10 + 0.5);
         break;
     case 4:
-        d1 = rounding(Idc_amp * 10);
-        d2 = rounding(Idc_rf * 10);
-        d3 = rounding(Idc_rms * 10);
+        tele[4] = rounding(Idc_amp * 10);
+        tele[5] = rounding(Idc_rf * 10);
+        tele[6] = rounding(Idc_rms * 10);
         P101Kadr = -1;
         break;
     }
-    tele[4] = d1; tele[5] = d2; tele[6] = d3; tele[7] = d4;   // блок 1 -> ID 101 (цикл P101Kadr)
 
 #endif //  if (ref_kadr_mask & BIT6)==BIT6
 
 // 102  MsgID ------------------------------------------------------------------------------------
 #if (ref_kadr_mask & BIT7)==BIT7
 
-    d4 = ++P102Kadr;
-    switch (d4)
+    tele[11] = ++P102Kadr;                                   // блок 2 -> ID 102 (цикл P102Kadr)
+    switch (P102Kadr)
     {
     case 0:
-        d1 = rounding(cla.Ia_rf * 100);
-        d2 = rounding(cla.Ib_rf * 100);
-        d3 = rounding(cla.Ic_rf * 100);
+        tele[8]  = rounding(cla.Ia_rf * 100);
+        tele[9]  = rounding(cla.Ib_rf * 100);
+        tele[10] = rounding(cla.Ic_rf * 100);
         break;
 
     case 1:
-        d1 = (uint16_t) (cla.Ia_rms * 100 + 0.5);
-        d2 = (uint16_t) (cla.Ib_rms * 100 + 0.5);
-        d3 = (uint16_t) (cla.Ic_rms * 100 + 0.5);
+        tele[8]  = (uint16_t) (cla.Ia_rms * 100 + 0.5);
+        tele[9]  = (uint16_t) (cla.Ib_rms * 100 + 0.5);
+        tele[10] = (uint16_t) (cla.Ic_rms * 100 + 0.5);
         break;
 
     case 2:
-        d1 = Udc_kod; 
-        d2 = rounding(motor2.pabc_rf);
-        d3 = (uint16_t) (motor2.mSabc + 0.5);
+        tele[8]  = Udc_kod;
+        tele[9]  = rounding(motor2.pabc_rf);
+        tele[10] = (uint16_t) (motor2.mSabc + 0.5);
         break;
 
     case 3:
-        d1 = rounding(Udc_rf * 10);
-        d2 = rounding(motor2.slip.absF * 1000);
-        d3 = rounding(motor2.clark.UmF * 50);
+        tele[8]  = rounding(Udc_rf * 10);
+        tele[9]  = rounding(motor2.slip.absF * 1000);
+        tele[10] = rounding(motor2.clark.UmF * 50);
         break;
 
     case 4:
-        d1 = core_temp;
-        d2 = core_temp;
-        d3 = core_temp;
+        tele[8]  = core_temp;
+        tele[9]  = core_temp;
+        tele[10] = core_temp;
         P102Kadr = -1;
         break;
 
     }
-    tele[8] = d1; tele[9] = d2; tele[10] = d3; tele[11] = d4; // блок 2 -> ID 102 (цикл P102Kadr)
 
 #endif //  if (ref_kadr_mask & BIT7)==BIT7
 
 // 106 MsgID -------------------------------------------------------------
 #if (ref_kadr_mask & BIT9)==BIT9
 
-    d4 = ++P106Kadr;
-    switch (d4)
+    tele[15] = ++P106Kadr;                                     // блок 3 -> ID 106 (цикл P106Kadr)
+    switch (P106Kadr)
     {
     case 0:
-        d1 = rounding(motor1.park.IdF * 100);
-        d2 = rounding(motor1.park.IqF * 100);
-        d3 = rounding(motor2.park.IdF * 100);
+        tele[12] = rounding(motor1.park.IdF * 100);
+        tele[13] = rounding(motor1.park.IqF * 100);
+        tele[14] = rounding(motor2.park.IdF * 100);
         break;
 
     case 1:
-        d1 = rounding(motor2.park.IqF * 100);
-        d2 = rounding(motor1.park.VdF * 10); // среднее значение тока от 2-го выпрямителя
-        d3 = rounding(motor1.park.VqF * 10);
+        tele[12] = rounding(motor2.park.IqF * 100);
+        tele[13] = rounding(motor1.park.VdF * 10); // среднее значение тока от 2-го выпрямителя
+        tele[14] = rounding(motor1.park.VqF * 10);
         break;
     case 2:
-        d1 = rounding(motor2.park.VdF * 10);
-        d2 = rounding(motor2.park.VqF * 10);
-        //          d3 = rounding(motor2.ipark.Vd_max * 10);
-        //          p1063 = rounding(motor2.ipark.Vq_max * 10);
+        tele[12] = rounding(motor2.park.VdF * 10);
+        tele[13] = rounding(motor2.park.VqF * 10);
+        // tele[14] не задаётся -> 0 (UI в case 2 его не читает)
         break;
     case 3:
-        d1 = rounding(Idc_rf * 100); // среднее значение тока от 1-го выпрямителя
-        d2 = rounding(Idc_rms * 100); // среднее значение тока от 2-го выпрямителя
-        d3 = rounding(stend.Pa_stend); // активная мощность от или к источнику питания
+        tele[12] = rounding(Idc_rf * 100); // среднее значение тока от 1-го выпрямителя
+        tele[13] = rounding(Idc_rms * 100); // среднее значение тока от 2-го выпрямителя
+        tele[14] = rounding(stend.Pa_stend); // активная мощность от или к источнику питания
         P106Kadr = -1;
         break;
     }
-    tele[12] = d1; tele[13] = d2; tele[14] = d3; tele[15] = d4; // блок 3 -> ID 106 (цикл P106Kadr)
 #endif
 
     // 107  MsgID -------------------------------------------------------------
 #if ((ref_kadr_mask & BIT8) == BIT8)
 
-    d1 = rounding(motor1.ramp.ref * 0.02f); // заданная частота поля статора speedRef+sAbsfref1;
-    d2 = rounding(motor1.freq * 5);  // фактическая частота поля
-    d3 = rounding(motor2.ramp.ref * 0.02f); // заданная частота поля статора speedRef+sAbsfref1;
-    d4 = rounding(motor2.freq * 5);  // фактическая частота поля
-
-    tele[16] = d1; tele[17] = d2; tele[18] = d3; tele[19] = d4; // блок 4 -> ID 107 (частоты поля)
+    tele[16] = rounding(motor1.ramp.ref * 0.02f); // заданная частота поля статора m1
+    tele[17] = rounding(motor1.freq * 5);         // фактическая частота поля m1
+    tele[18] = rounding(motor2.ramp.ref * 0.02f); // заданная частота поля статора m2
+    tele[19] = rounding(motor2.freq * 5);         // фактическая частота поля m2  (блок 4 -> ID 107)
 
 #endif
 //BIT9   MsgID = 115  10-ый  Mbox для передачи кодов ошибок в фоне.
@@ -197,11 +186,10 @@ void send_REF_kadr()
 //BIT10  MsgID = 109  
 #if (ref_kadr_mask & BIT10)==BIT10
 
-    d1 = (uint16_t) (motor1.ipark.gain * 1000 + 0.5); //выходное результирующее значение индекса модуляции напряжения;
-    d2 = (uint16_t) (motor2.ipark.gain * 1000 + 0.5); //выходное результирующее значение индекса модуляции напряжения;
-    d3 = motor1.flag.all;
-    d4 = motor2.flag.all;
-    tele[20] = d1; tele[21] = d2; tele[22] = d3; tele[23] = d4; // блок 5 -> ID 109 (gain/flags)
+    tele[20] = (uint16_t) (motor1.ipark.gain * 1000 + 0.5); // индекс модуляции m1
+    tele[21] = (uint16_t) (motor2.ipark.gain * 1000 + 0.5); // индекс модуляции m2
+    tele[22] = motor1.flag.all;
+    tele[23] = motor2.flag.all;                             // блок 5 -> ID 109 (gain/flags)
 #endif
 
 
@@ -213,73 +201,63 @@ void send_REF_kadr()
 
         f118L.f32 = motor1.mPabc;
         f118H.f32 = motor2.mPabc;
-        d1 = f118L.u16.Low;
-        d2 = f118L.u16.Hi;
-        d3 = f118H.u16.Low;
-        d4 = f118H.u16.Hi;
-        tele[24] = d1; tele[25] = d2; tele[26] = d3; tele[27] = d4; // блок 6 -> ID 118 (мощность)
+        tele[24] = f118L.u16.Low;
+        tele[25] = f118L.u16.Hi;
+        tele[26] = f118H.u16.Low;
+        tele[27] = f118H.u16.Hi;   // блок 6 -> ID 118 (float мощность m1/m2)
     }
 #endif
 
 //------------------------------------------------------------------------------
 // 116  MsgID  для передачи медленных параметров
-#if (ref_kadr_mask & BIT12)==BIT12
+#if (ref_kadr_mask & BIT12) == BIT12
 
-    d4 = ++P16Kadr;
-    switch (P16Kadr)
-    {
-    case 0:
-        d1 = motor1.mode.all;
-        d2 = motor2.mode.all;
-        d3 = sbit.all;
-        break;
+  tele[31] = ++P16Kadr; // блок 7 -> ID 116 (цикл P16Kadr)
+  switch (P16Kadr)
+  {
+  case 0:
+    tele[28] = motor1.mode.all;
+    tele[29] = motor2.mode.all;
+    tele[30] = sbit.all;
+    break;
 
-    case 1:
-        d2 = rounding(mK60->rg.em2 * 1000);
-        d3 = mK60->rg.offset;
+  case 1:
+    tele[29] = rounding(mK60->rg.em2 * 1000);
+    tele[30] = mK60->rg.offset;
+    // tele[28] (A_SPI) не задаётся -> 0; при необходимости дописать
+    break;
 
-        break;
+  case 2:
+    // tele[28] = mK60->qep.angle;  // A_QEP: при необходимости раскомментировать
+    tele[29] = rounding(mK60->piId.i1 * 10);
+    tele[30] = rounding(mK60->piIq.i1 * 10);
+    break;
 
-    case 2:
-        //       d1 = mK60->qep.angle;       //rounding(mK60->piRPM.i1*10);
-        d2 = rounding(mK60->piId.i1 * 10);
-        d3 = rounding(mK60->piIq.i1 * 10);
-        break;
+  case 3:
+    tele[28] = REF.speedRef;
+    tele[29] = REF.currentMax;
+    tele[30] = REF.voltMax;
+    break;
 
-    case 3:
-        d1 = REF.speedRef;
-        d2 = REF.currentMax;
-        d3 = REF.voltMax;
+  case 4:
+    tele[28] = motor1.error.all;
+    tele[29] = motor2.error.all;
+    break;
 
-        break;
-    case 4:
+  case 5:
+    tele[28] = motor1.typeID.motID;
+    tele[29] = motor2.typeID.motID;
+    break;
 
-        d1 = motor1.error.all;
-        d2 = motor2.error.all;
+  case 6:
+    tele[28] = motor1.mbit.all;
+    tele[29] = motor2.mbit.all;
+    tele[30] = rounding(mK60->rg.Out * 1000);
+    P16Kadr = -1; // !!! сброс счётчика всегда переносится в последний case
+    break;
 
-        break;
+  } // switch (P16Kadr)
 
-    case 5:
-        d1 = motor1.typeID.motID;
-        d2 = motor2.typeID.motID;
-        break;
-
-    case 6:
-        d1 = motor1.mbit.all;
-        d2 = motor2.mbit.all;
-        d3 = rounding(mK60->rg.Out * 1000);
-//        break;
-
- //   case 7:
-//        d1 = motor1.flag.all;
-//        d2 = motor2.flag.all;
-        //       d3 = sflag.all;
-
-        P16Kadr = -1;  // !!! сброс счётчика всегда переносится в последний case
-        break;
-    } //switch (P16Kadr)
-
-    tele[28] = d1; tele[29] = d2; tele[30] = d3; tele[31] = d4; // блок 7 -> ID 116 (цикл P16Kadr)
 
 #endif
 

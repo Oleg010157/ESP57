@@ -257,7 +257,7 @@ void myMCANA_init(){
     // Transmitter Delay Compensation parameters.
     //
     initParams_myMCANA.tdcConfig.tdcf    = 10;
-    initParams_myMCANA.tdcConfig.tdco    = 29;
+    initParams_myMCANA.tdcConfig.tdco    = 33;
     //
     // Initialize MCAN Config parameters.
     //
