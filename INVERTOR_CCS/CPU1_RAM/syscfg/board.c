@@ -50,6 +50,8 @@ void Board_init()
 	PinMux_init();
 	SYSCTL_init();
 	SYNC_init();
+	ASYSCTL_init();
+	ADC_init();
 	EPWM_init();
 	MCAN_SYSCFG_init();
 	SPI_init();
@@ -70,33 +72,154 @@ void PinMux_init()
 	//
 
 	//
+	// ANALOG -> myANALOGPinMux0 Pinmux
+	//
+	// Analog PinMux for A0, B15, C15, DACA_OUT
+	GPIO_setPinConfig(GPIO_231_GPIO231);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(231, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A2, B6, C9, PGA1_INP, GPIO224
+	GPIO_setPinConfig(GPIO_224_GPIO224);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(224, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A3, B9, C7, PGA1_INM
+	GPIO_setPinConfig(GPIO_229_GPIO229);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(229, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A4, B8
+	GPIO_setPinConfig(GPIO_225_GPIO225);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(225, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A5
+	GPIO_setPinConfig(GPIO_249_GPIO249);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(249, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A6, D14, E14, GPIO228
+	GPIO_setPinConfig(GPIO_228_GPIO228);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(228, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A7, B30, C3, D12, E30
+	GPIO_setPinConfig(GPIO_245_GPIO245);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(245, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A8
+	GPIO_setPinConfig(GPIO_240_GPIO240);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(240, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A9, GPIO227
+	GPIO_setPinConfig(GPIO_227_GPIO227);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(227, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A10, B1, C10, GPIO230
+	GPIO_setPinConfig(GPIO_230_GPIO230);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(230, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A11, B10, C0, PGA2_OUT
+	GPIO_setPinConfig(GPIO_237_GPIO237);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(237, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A12, C5
+	GPIO_setPinConfig(GPIO_238_GPIO238);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(238, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A14, B14, C4, PGA1_OUT
+	GPIO_setPinConfig(GPIO_239_GPIO239);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(239, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A16, B16, C16, GPIO28
+	GPIO_setPinConfig(GPIO_28_GPIO28);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(28, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A17, B17, C17, GPIO20
+	GPIO_setPinConfig(GPIO_20_GPIO20);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(20, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A18, B18, C18, GPIO21
+	GPIO_setPinConfig(GPIO_21_GPIO21);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(21, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A19, B19, C19, GPIO13
+	GPIO_setPinConfig(GPIO_13_GPIO13);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(13, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A20, B20, C20, GPIO12
+	GPIO_setPinConfig(GPIO_12_GPIO12);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(12, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A24, D0, E0, GPIO11
+	GPIO_setPinConfig(GPIO_11_GPIO11);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(11, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A25, D3, E3, GPIO17
+	GPIO_setPinConfig(GPIO_17_GPIO17);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(17, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for B0, C11, GPIO253
+	GPIO_setPinConfig(GPIO_253_GPIO253);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(253, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for B2, C6, E12, GPIO226
+	GPIO_setPinConfig(GPIO_226_GPIO226);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(226, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for B3, PGA2_INP, GPIO242
+	GPIO_setPinConfig(GPIO_242_GPIO242);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(242, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for B4, C8, GPIO236
+	GPIO_setPinConfig(GPIO_236_GPIO236);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(236, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for B5, D15, E15, PGA3_OUT
+	GPIO_setPinConfig(GPIO_252_GPIO252);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(252, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for B11, D16, E16, PGA3_INM
+	GPIO_setPinConfig(GPIO_251_GPIO251);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(251, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for B12, C2, PGA2_INM
+	GPIO_setPinConfig(GPIO_244_GPIO244);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(244, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for B24, D1, E1, GPIO33
+	GPIO_setPinConfig(GPIO_33_GPIO33);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(33, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for B25, D4, E4, GPIO24
+	GPIO_setPinConfig(GPIO_24_GPIO24);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(24, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for C1, E11, PGA3_INP
+	GPIO_setPinConfig(GPIO_248_GPIO248);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(248, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for C14, GPIO247
+	GPIO_setPinConfig(GPIO_247_GPIO247);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(247, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for C24, D2, E2, GPIO16
+	GPIO_setPinConfig(GPIO_16_GPIO16);
+	// AGPIO -> Analog mode selected
+	GPIO_setAnalogMode(16, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for D20, E20, VREFHI
+	GPIO_setPinConfig(GPIO_234_GPIO234);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(234, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A13, B13, C13, D13, E13, VREFLO
+	GPIO_setPinConfig(GPIO_235_GPIO235);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(235, GPIO_ANALOG_ENABLED);
+	// Analog PinMux for A1, B7, D11, CMP1_DACL
+	GPIO_setPinConfig(GPIO_232_GPIO232);
+	// AIO -> Analog mode selected
+	GPIO_setAnalogMode(232, GPIO_ANALOG_ENABLED);
+	//
 	// EPWM2 -> myEPWM1 Pinmux
 	//
-	GPIO_setPinConfig(myEPWM1_EPWMA_PIN_CONFIG);
-	// AGPIO -> GPIO mode selected
-	GPIO_setAnalogMode(230, GPIO_ANALOG_DISABLED);
-	GPIO_setPadConfig(myEPWM1_EPWMA_GPIO, GPIO_PIN_TYPE_STD);
-	GPIO_setQualificationMode(myEPWM1_EPWMA_GPIO, GPIO_QUAL_SYNC);
-
-	GPIO_setPinConfig(myEPWM1_EPWMB_PIN_CONFIG);
-	// AGPIO -> GPIO mode selected
-	GPIO_setAnalogMode(228, GPIO_ANALOG_DISABLED);
-	GPIO_setPadConfig(myEPWM1_EPWMB_GPIO, GPIO_PIN_TYPE_STD);
-	GPIO_setQualificationMode(myEPWM1_EPWMB_GPIO, GPIO_QUAL_SYNC);
-
 	//
 	// EPWM1 -> myEPWM2 Pinmux
 	//
-	GPIO_setPinConfig(myEPWM2_EPWMA_PIN_CONFIG);
-	GPIO_setPadConfig(myEPWM2_EPWMA_GPIO, GPIO_PIN_TYPE_STD);
-	GPIO_setQualificationMode(myEPWM2_EPWMA_GPIO, GPIO_QUAL_SYNC);
-
-	GPIO_setPinConfig(myEPWM2_EPWMB_PIN_CONFIG);
-	// AGPIO -> GPIO mode selected
-	GPIO_setAnalogMode(226, GPIO_ANALOG_DISABLED);
-	GPIO_setPadConfig(myEPWM2_EPWMB_GPIO, GPIO_PIN_TYPE_STD);
-	GPIO_setQualificationMode(myEPWM2_EPWMB_GPIO, GPIO_QUAL_SYNC);
-
 	//
 	// MCANA -> myMCANA Pinmux
 	//
@@ -109,32 +232,453 @@ void PinMux_init()
 	GPIO_setQualificationMode(myMCANA_MCANTX_GPIO, GPIO_QUAL_ASYNC);
 
 	//
-	// SPIA -> mySPIB Pinmux
+	// SPIB -> mySPIB Pinmux
 	//
-	GPIO_setPinConfig(mySPIB_SPIPICO_PIN_CONFIG);
-	// AGPIO -> GPIO mode selected
-	GPIO_setAnalogMode(224, GPIO_ANALOG_DISABLED);
-	GPIO_setPadConfig(mySPIB_SPIPICO_GPIO, GPIO_PIN_TYPE_STD);
-	GPIO_setQualificationMode(mySPIB_SPIPICO_GPIO, GPIO_QUAL_ASYNC);
 
-	GPIO_setPinConfig(mySPIB_SPIPOCI_PIN_CONFIG);
-	// AGPIO -> GPIO mode selected
-	GPIO_setAnalogMode(13, GPIO_ANALOG_DISABLED);
-	GPIO_setPadConfig(mySPIB_SPIPOCI_GPIO, GPIO_PIN_TYPE_STD);
-	GPIO_setQualificationMode(mySPIB_SPIPOCI_GPIO, GPIO_QUAL_ASYNC);
+}
 
-	GPIO_setPinConfig(mySPIB_SPICLK_PIN_CONFIG);
-	// AGPIO -> GPIO mode selected
-	GPIO_setAnalogMode(12, GPIO_ANALOG_DISABLED);
-	GPIO_setPadConfig(mySPIB_SPICLK_GPIO, GPIO_PIN_TYPE_STD);
-	GPIO_setQualificationMode(mySPIB_SPICLK_GPIO, GPIO_QUAL_ASYNC);
+//*****************************************************************************
+//
+// ADC Configurations
+//
+//*****************************************************************************
+void ADC_init(){
+	myADCA_init();
+	myADCB_init();
+	myADCC_init();
+}
 
-	GPIO_setPinConfig(mySPIB_SPIPTE_PIN_CONFIG);
-	// AGPIO -> GPIO mode selected
-	GPIO_setAnalogMode(11, GPIO_ANALOG_DISABLED);
-	GPIO_setPadConfig(mySPIB_SPIPTE_GPIO, GPIO_PIN_TYPE_STD);
-	GPIO_setQualificationMode(mySPIB_SPIPTE_GPIO, GPIO_QUAL_ASYNC);
+void myADCA_init(){
+	//
+	// ADC Initialization: Write ADC configurations and power up the ADC
+	//
+	// Set the analog voltage reference selection and ADC module's offset trims.
+	// This function sets the analog voltage reference to internal (with the reference voltage of 1.65V or 2.5V) or external for ADC
+	// which is same as ASysCtl APIs.
+	//
+	ADC_setVREF(myADCA_BASE, ADC_REFERENCE_EXTERNAL, ADC_REFERENCE_2_5V);
+	//
+	// Configures the analog-to-digital converter module prescaler.
+	//
+	ADC_setPrescaler(myADCA_BASE, ADC_CLK_DIV_2_0);
+	//
+	// Sets the timing of the end-of-conversion pulse
+	//
+	ADC_setInterruptPulseMode(myADCA_BASE, ADC_PULSE_END_OF_CONV);
+	//
+	// Powers up the analog-to-digital converter core.
+	//
+	ADC_enableConverter(myADCA_BASE);
+	//
+	// Delay for 1ms to allow ADC time to power up
+	//
+	DEVICE_DELAY_US(500);
+	//
+	// Enable alternate timings for DMA trigger
+	//
+	ADC_enableAltDMATiming(myADCA_BASE);
+	//
+	// SOC Configuration: Setup ADC EPWM channel and trigger settings
+	//
+	// Disables SOC burst mode.
+	//
+	ADC_disableBurstMode(myADCA_BASE);
+	//
+	// Sets the priority mode of the SOCs.
+	//
+	ADC_setSOCPriority(myADCA_BASE, ADC_PRI_ALL_HIPRI);
+	//
+	// Start of Conversion 0 Configuration
+	//
+	//
+	// Disables Sample Capacitor to reset after each conversion.
+	//
+	ADC_disableSampleCAPReset(myADCA_BASE, ADC_SOC_NUMBER0);
+	//
+	// Configures a start-of-conversion (SOC) in the ADC and its interrupt SOC trigger.
+	// 	  	SOC number		: 0
+	//	  	Trigger			: ADC_TRIGGER_EPWM1_SOCA
+	//	  	Channel			: ADC_CH_ADCIN0
+	//	 	Sample Window	: 12 SYSCLK cycles
+	//		Interrupt Trigger: ADC_INT_SOC_TRIGGER_NONE
+	//
+	ADC_setupSOC(myADCA_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 12U);
+	ADC_setInterruptSOCTrigger(myADCA_BASE, ADC_SOC_NUMBER0, ADC_INT_SOC_TRIGGER_NONE);
+	//
+	// Start of Conversion 1 Configuration
+	//
+	//
+	// Disables Sample Capacitor to reset after each conversion.
+	//
+	ADC_disableSampleCAPReset(myADCA_BASE, ADC_SOC_NUMBER1);
+	//
+	// Configures a start-of-conversion (SOC) in the ADC and its interrupt SOC trigger.
+	// 	  	SOC number		: 1
+	//	  	Trigger			: ADC_TRIGGER_EPWM1_SOCA
+	//	  	Channel			: ADC_CH_ADCIN4
+	//	 	Sample Window	: 12 SYSCLK cycles
+	//		Interrupt Trigger: ADC_INT_SOC_TRIGGER_NONE
+	//
+	ADC_setupSOC(myADCA_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN4, 12U);
+	ADC_setInterruptSOCTrigger(myADCA_BASE, ADC_SOC_NUMBER1, ADC_INT_SOC_TRIGGER_NONE);
+	//
+	// Start of Conversion 2 Configuration
+	//
+	//
+	// Disables Sample Capacitor to reset after each conversion.
+	//
+	ADC_disableSampleCAPReset(myADCA_BASE, ADC_SOC_NUMBER2);
+	//
+	// Configures a start-of-conversion (SOC) in the ADC and its interrupt SOC trigger.
+	// 	  	SOC number		: 2
+	//	  	Trigger			: ADC_TRIGGER_EPWM1_SOCA
+	//	  	Channel			: ADC_CH_ADCIN12
+	//	 	Sample Window	: 12 SYSCLK cycles
+	//		Interrupt Trigger: ADC_INT_SOC_TRIGGER_NONE
+	//
+	ADC_setupSOC(myADCA_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN12, 12U);
+	ADC_setInterruptSOCTrigger(myADCA_BASE, ADC_SOC_NUMBER2, ADC_INT_SOC_TRIGGER_NONE);
+	//
+	// ADC Interrupt 1 Configuration
+	// 		Source	: ADC_INT_TRIGGER_EOC2
+	// 		Interrupt Source: enabled
+	//		Continuous Mode	: enabled
+	//
+	//
+	ADC_setInterruptSource(myADCA_BASE, ADC_INT_NUMBER1, ADC_INT_TRIGGER_EOC2);
+	ADC_clearInterruptStatus(myADCA_BASE, ADC_INT_NUMBER1);
+	ADC_enableContinuousMode(myADCA_BASE, ADC_INT_NUMBER1);
+	ADC_enableInterrupt(myADCA_BASE, ADC_INT_NUMBER1);
 
+	//
+	// PPB Configuration: Configure high and low limits detection for ADCPPB
+	//
+	// Post Processing Block 1 Configuration
+	// 		Configures a post-processing block (PPB) in the ADC.
+	// 		PPB Number				: 1
+	// 		SOC/EOC number			: 0
+	// 		Calibration Offset		: 0
+	// 		Reference Offset		: 200
+	// 		Two's Complement		: Disabled
+	// 		Trip High Limit			: 2000
+	// 		Trip Low Limit			: -2000
+	// 		Clear PPB Event Flags	: Disabled
+	// 		Accumulation Limit		: 0
+	// 		SyncInput Source		: ADC_SYNCIN_DISABLE
+	// 		Comparator Source		: ADC_PPB_COMPSOURCE_RESULT
+	// 		Right Shift				: 0
+	// 		Absolute value				: false
+	//
+	ADC_setupPPB(myADCA_BASE, ADC_PPB_NUMBER1, ADC_SOC_NUMBER0);
+	ADC_disablePPBEvent(myADCA_BASE, ADC_PPB_NUMBER1, (ADC_EVT_TRIPHI | ADC_EVT_TRIPLO | ADC_EVT_ZERO));
+	ADC_disablePPBEventInterrupt(myADCA_BASE, ADC_PPB_NUMBER1, (ADC_EVT_TRIPHI | ADC_EVT_TRIPLO | ADC_EVT_ZERO));
+	ADC_setPPBCalibrationOffset(myADCA_BASE, ADC_PPB_NUMBER1, 0);
+	ADC_setPPBReferenceOffset(myADCA_BASE, ADC_PPB_NUMBER1, 200);
+	ADC_disablePPBTwosComplement(myADCA_BASE, ADC_PPB_NUMBER1);
+	ADC_setPPBTripLimits(myADCA_BASE, ADC_PPB_NUMBER1, 2000, -2000);
+	ADC_disablePPBEventCBCClear(myADCA_BASE, ADC_PPB_NUMBER1);
+	ADC_setPPBCountLimit(myADCA_BASE, ADC_PPB_NUMBER1,0);
+	ADC_selectPPBSyncInput(myADCA_BASE, ADC_PPB_NUMBER1,ADC_SYNCIN_DISABLE);
+	ADC_selectPPBCompareSource(myADCA_BASE, ADC_PPB_NUMBER1,ADC_PPB_COMPSOURCE_RESULT);
+	ADC_setPPBShiftValue(myADCA_BASE, ADC_PPB_NUMBER1,0);
+	ADC_disablePPBAbsoluteValue(myADCA_BASE, ADC_PPB_NUMBER1);
+	//
+	// Post Processing Block 2 Configuration
+	// 		Configures a post-processing block (PPB) in the ADC.
+	// 		PPB Number				: 2
+	// 		SOC/EOC number			: 1
+	// 		Calibration Offset		: 0
+	// 		Reference Offset		: 2048
+	// 		Two's Complement		: Disabled
+	// 		Trip High Limit			: 4000
+	// 		Trip Low Limit			: 0
+	// 		Clear PPB Event Flags	: Disabled
+	// 		Accumulation Limit		: 0
+	// 		SyncInput Source		: ADC_SYNCIN_DISABLE
+	// 		Comparator Source		: ADC_PPB_COMPSOURCE_RESULT
+	// 		Right Shift				: 0
+	// 		Absolute value				: false
+	//
+	ADC_setupPPB(myADCA_BASE, ADC_PPB_NUMBER2, ADC_SOC_NUMBER1);
+	ADC_disablePPBEvent(myADCA_BASE, ADC_PPB_NUMBER2, (ADC_EVT_TRIPHI | ADC_EVT_TRIPLO | ADC_EVT_ZERO));
+	ADC_disablePPBEventInterrupt(myADCA_BASE, ADC_PPB_NUMBER2, (ADC_EVT_TRIPHI | ADC_EVT_TRIPLO | ADC_EVT_ZERO));
+	ADC_setPPBCalibrationOffset(myADCA_BASE, ADC_PPB_NUMBER2, 0);
+	ADC_setPPBReferenceOffset(myADCA_BASE, ADC_PPB_NUMBER2, 2048);
+	ADC_disablePPBTwosComplement(myADCA_BASE, ADC_PPB_NUMBER2);
+	ADC_setPPBTripLimits(myADCA_BASE, ADC_PPB_NUMBER2, 4000, 0);
+	ADC_disablePPBEventCBCClear(myADCA_BASE, ADC_PPB_NUMBER2);
+	ADC_setPPBCountLimit(myADCA_BASE, ADC_PPB_NUMBER2,0);
+	ADC_selectPPBSyncInput(myADCA_BASE, ADC_PPB_NUMBER2,ADC_SYNCIN_DISABLE);
+	ADC_selectPPBCompareSource(myADCA_BASE, ADC_PPB_NUMBER2,ADC_PPB_COMPSOURCE_RESULT);
+	ADC_setPPBShiftValue(myADCA_BASE, ADC_PPB_NUMBER2,0);
+	ADC_disablePPBAbsoluteValue(myADCA_BASE, ADC_PPB_NUMBER2);
+	//
+	// Post Processing Block 3 Configuration
+	// 		Configures a post-processing block (PPB) in the ADC.
+	// 		PPB Number				: 3
+	// 		SOC/EOC number			: 2
+	// 		Calibration Offset		: 0
+	// 		Reference Offset		: 2048
+	// 		Two's Complement		: Disabled
+	// 		Trip High Limit			: 0
+	// 		Trip Low Limit			: 0
+	// 		Clear PPB Event Flags	: Disabled
+	// 		Accumulation Limit		: 0
+	// 		SyncInput Source		: ADC_SYNCIN_DISABLE
+	// 		Comparator Source		: ADC_PPB_COMPSOURCE_RESULT
+	// 		Right Shift				: 0
+	// 		Absolute value				: false
+	//
+	ADC_setupPPB(myADCA_BASE, ADC_PPB_NUMBER3, ADC_SOC_NUMBER2);
+	ADC_disablePPBEvent(myADCA_BASE, ADC_PPB_NUMBER3, (ADC_EVT_TRIPHI | ADC_EVT_TRIPLO | ADC_EVT_ZERO));
+	ADC_disablePPBEventInterrupt(myADCA_BASE, ADC_PPB_NUMBER3, (ADC_EVT_TRIPHI | ADC_EVT_TRIPLO | ADC_EVT_ZERO));
+	ADC_setPPBCalibrationOffset(myADCA_BASE, ADC_PPB_NUMBER3, 0);
+	ADC_setPPBReferenceOffset(myADCA_BASE, ADC_PPB_NUMBER3, 2048);
+	ADC_disablePPBTwosComplement(myADCA_BASE, ADC_PPB_NUMBER3);
+	ADC_setPPBTripLimits(myADCA_BASE, ADC_PPB_NUMBER3, 0, 0);
+	ADC_disablePPBEventCBCClear(myADCA_BASE, ADC_PPB_NUMBER3);
+	ADC_setPPBCountLimit(myADCA_BASE, ADC_PPB_NUMBER3,0);
+	ADC_selectPPBSyncInput(myADCA_BASE, ADC_PPB_NUMBER3,ADC_SYNCIN_DISABLE);
+	ADC_selectPPBCompareSource(myADCA_BASE, ADC_PPB_NUMBER3,ADC_PPB_COMPSOURCE_RESULT);
+	ADC_setPPBShiftValue(myADCA_BASE, ADC_PPB_NUMBER3,0);
+	ADC_disablePPBAbsoluteValue(myADCA_BASE, ADC_PPB_NUMBER3);
+}
+
+void myADCB_init(){
+	//
+	// ADC Initialization: Write ADC configurations and power up the ADC
+	//
+	// Set the analog voltage reference selection and ADC module's offset trims.
+	// This function sets the analog voltage reference to internal (with the reference voltage of 1.65V or 2.5V) or external for ADC
+	// which is same as ASysCtl APIs.
+	//
+	ADC_setVREF(myADCB_BASE, ADC_REFERENCE_EXTERNAL, ADC_REFERENCE_2_5V);
+	//
+	// Configures the analog-to-digital converter module prescaler.
+	//
+	ADC_setPrescaler(myADCB_BASE, ADC_CLK_DIV_2_0);
+	//
+	// Sets the timing of the end-of-conversion pulse
+	//
+	ADC_setInterruptPulseMode(myADCB_BASE, ADC_PULSE_END_OF_CONV);
+	//
+	// Powers up the analog-to-digital converter core.
+	//
+	ADC_enableConverter(myADCB_BASE);
+	//
+	// Delay for 1ms to allow ADC time to power up
+	//
+	DEVICE_DELAY_US(500);
+	//
+	// Enable alternate timings for DMA trigger
+	//
+	ADC_enableAltDMATiming(myADCB_BASE);
+	//
+	// SOC Configuration: Setup ADC EPWM channel and trigger settings
+	//
+	// Disables SOC burst mode.
+	//
+	ADC_disableBurstMode(myADCB_BASE);
+	//
+	// Sets the priority mode of the SOCs.
+	//
+	ADC_setSOCPriority(myADCB_BASE, ADC_PRI_ALL_HIPRI);
+	//
+	// Start of Conversion 0 Configuration
+	//
+	//
+	// Disables Sample Capacitor to reset after each conversion.
+	//
+	ADC_disableSampleCAPReset(myADCB_BASE, ADC_SOC_NUMBER0);
+	//
+	// Configures a start-of-conversion (SOC) in the ADC and its interrupt SOC trigger.
+	// 	  	SOC number		: 0
+	//	  	Trigger			: ADC_TRIGGER_EPWM2_SOCA
+	//	  	Channel			: ADC_CH_ADCIN1
+	//	 	Sample Window	: 120 SYSCLK cycles
+	//		Interrupt Trigger: ADC_INT_SOC_TRIGGER_NONE
+	//
+	ADC_setupSOC(myADCB_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM2_SOCA, ADC_CH_ADCIN1, 120U);
+	ADC_setInterruptSOCTrigger(myADCB_BASE, ADC_SOC_NUMBER0, ADC_INT_SOC_TRIGGER_NONE);
+	//
+	// Start of Conversion 1 Configuration
+	//
+	//
+	// Disables Sample Capacitor to reset after each conversion.
+	//
+	ADC_disableSampleCAPReset(myADCB_BASE, ADC_SOC_NUMBER1);
+	//
+	// Configures a start-of-conversion (SOC) in the ADC and its interrupt SOC trigger.
+	// 	  	SOC number		: 1
+	//	  	Trigger			: ADC_TRIGGER_EPWM2_SOCA
+	//	  	Channel			: ADC_CH_ADCIN7
+	//	 	Sample Window	: 12 SYSCLK cycles
+	//		Interrupt Trigger: ADC_INT_SOC_TRIGGER_NONE
+	//
+	ADC_setupSOC(myADCB_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM2_SOCA, ADC_CH_ADCIN7, 12U);
+	ADC_setInterruptSOCTrigger(myADCB_BASE, ADC_SOC_NUMBER1, ADC_INT_SOC_TRIGGER_NONE);
+	//
+	// ADC Interrupt 1 Configuration
+	// 		Source	: ADC_INT_TRIGGER_EOC1
+	// 		Interrupt Source: enabled
+	//		Continuous Mode	: enabled
+	//
+	//
+	ADC_setInterruptSource(myADCB_BASE, ADC_INT_NUMBER1, ADC_INT_TRIGGER_EOC1);
+	ADC_clearInterruptStatus(myADCB_BASE, ADC_INT_NUMBER1);
+	ADC_enableContinuousMode(myADCB_BASE, ADC_INT_NUMBER1);
+	ADC_enableInterrupt(myADCB_BASE, ADC_INT_NUMBER1);
+
+	//
+	// PPB Configuration: Configure high and low limits detection for ADCPPB
+	//
+	// Post Processing Block 1 Configuration
+	// 		Configures a post-processing block (PPB) in the ADC.
+	// 		PPB Number				: 1
+	// 		SOC/EOC number			: 0
+	// 		Calibration Offset		: 0
+	// 		Reference Offset		: 2048
+	// 		Two's Complement		: Disabled
+	// 		Trip High Limit			: 0
+	// 		Trip Low Limit			: 0
+	// 		Clear PPB Event Flags	: Disabled
+	// 		Accumulation Limit		: 0
+	// 		SyncInput Source		: ADC_SYNCIN_DISABLE
+	// 		Comparator Source		: ADC_PPB_COMPSOURCE_RESULT
+	// 		Right Shift				: 0
+	// 		Absolute value				: false
+	//
+	ADC_setupPPB(myADCB_BASE, ADC_PPB_NUMBER1, ADC_SOC_NUMBER0);
+	ADC_disablePPBEvent(myADCB_BASE, ADC_PPB_NUMBER1, (ADC_EVT_TRIPHI | ADC_EVT_TRIPLO | ADC_EVT_ZERO));
+	ADC_disablePPBEventInterrupt(myADCB_BASE, ADC_PPB_NUMBER1, (ADC_EVT_TRIPHI | ADC_EVT_TRIPLO | ADC_EVT_ZERO));
+	ADC_setPPBCalibrationOffset(myADCB_BASE, ADC_PPB_NUMBER1, 0);
+	ADC_setPPBReferenceOffset(myADCB_BASE, ADC_PPB_NUMBER1, 2048);
+	ADC_disablePPBTwosComplement(myADCB_BASE, ADC_PPB_NUMBER1);
+	ADC_setPPBTripLimits(myADCB_BASE, ADC_PPB_NUMBER1, 0, 0);
+	ADC_disablePPBEventCBCClear(myADCB_BASE, ADC_PPB_NUMBER1);
+	ADC_setPPBCountLimit(myADCB_BASE, ADC_PPB_NUMBER1,0);
+	ADC_selectPPBSyncInput(myADCB_BASE, ADC_PPB_NUMBER1,ADC_SYNCIN_DISABLE);
+	ADC_selectPPBCompareSource(myADCB_BASE, ADC_PPB_NUMBER1,ADC_PPB_COMPSOURCE_RESULT);
+	ADC_setPPBShiftValue(myADCB_BASE, ADC_PPB_NUMBER1,0);
+	ADC_disablePPBAbsoluteValue(myADCB_BASE, ADC_PPB_NUMBER1);
+	//
+	// Post Processing Block 2 Configuration
+	// 		Configures a post-processing block (PPB) in the ADC.
+	// 		PPB Number				: 2
+	// 		SOC/EOC number			: 1
+	// 		Calibration Offset		: 0
+	// 		Reference Offset		: 2048
+	// 		Two's Complement		: Disabled
+	// 		Trip High Limit			: 0
+	// 		Trip Low Limit			: 0
+	// 		Clear PPB Event Flags	: Disabled
+	// 		Accumulation Limit		: 0
+	// 		SyncInput Source		: ADC_SYNCIN_DISABLE
+	// 		Comparator Source		: ADC_PPB_COMPSOURCE_RESULT
+	// 		Right Shift				: 0
+	// 		Absolute value				: false
+	//
+	ADC_setupPPB(myADCB_BASE, ADC_PPB_NUMBER2, ADC_SOC_NUMBER1);
+	ADC_disablePPBEvent(myADCB_BASE, ADC_PPB_NUMBER2, (ADC_EVT_TRIPHI | ADC_EVT_TRIPLO | ADC_EVT_ZERO));
+	ADC_disablePPBEventInterrupt(myADCB_BASE, ADC_PPB_NUMBER2, (ADC_EVT_TRIPHI | ADC_EVT_TRIPLO | ADC_EVT_ZERO));
+	ADC_setPPBCalibrationOffset(myADCB_BASE, ADC_PPB_NUMBER2, 0);
+	ADC_setPPBReferenceOffset(myADCB_BASE, ADC_PPB_NUMBER2, 2048);
+	ADC_disablePPBTwosComplement(myADCB_BASE, ADC_PPB_NUMBER2);
+	ADC_setPPBTripLimits(myADCB_BASE, ADC_PPB_NUMBER2, 0, 0);
+	ADC_disablePPBEventCBCClear(myADCB_BASE, ADC_PPB_NUMBER2);
+	ADC_setPPBCountLimit(myADCB_BASE, ADC_PPB_NUMBER2,0);
+	ADC_selectPPBSyncInput(myADCB_BASE, ADC_PPB_NUMBER2,ADC_SYNCIN_DISABLE);
+	ADC_selectPPBCompareSource(myADCB_BASE, ADC_PPB_NUMBER2,ADC_PPB_COMPSOURCE_RESULT);
+	ADC_setPPBShiftValue(myADCB_BASE, ADC_PPB_NUMBER2,0);
+	ADC_disablePPBAbsoluteValue(myADCB_BASE, ADC_PPB_NUMBER2);
+}
+
+void myADCC_init(){
+	//
+	// ADC Initialization: Write ADC configurations and power up the ADC
+	//
+	// Set the analog voltage reference selection and ADC module's offset trims.
+	// This function sets the analog voltage reference to internal (with the reference voltage of 1.65V or 2.5V) or external for ADC
+	// which is same as ASysCtl APIs.
+	//
+	ADC_setVREF(myADCC_BASE, ADC_REFERENCE_EXTERNAL, ADC_REFERENCE_2_5V);
+	//
+	// Configures the analog-to-digital converter module prescaler.
+	//
+	ADC_setPrescaler(myADCC_BASE, ADC_CLK_DIV_2_0);
+	//
+	// Sets the timing of the end-of-conversion pulse
+	//
+	ADC_setInterruptPulseMode(myADCC_BASE, ADC_PULSE_END_OF_CONV);
+	//
+	// Powers up the analog-to-digital converter core.
+	//
+	ADC_enableConverter(myADCC_BASE);
+	//
+	// Delay for 1ms to allow ADC time to power up
+	//
+	DEVICE_DELAY_US(500);
+	//
+	// Enable alternate timings for DMA trigger
+	//
+	ADC_enableAltDMATiming(myADCC_BASE);
+	//
+	// SOC Configuration: Setup ADC EPWM channel and trigger settings
+	//
+	// Disables SOC burst mode.
+	//
+	ADC_disableBurstMode(myADCC_BASE);
+	//
+	// Sets the priority mode of the SOCs.
+	//
+	ADC_setSOCPriority(myADCC_BASE, ADC_PRI_ALL_ROUND_ROBIN);
+	//
+	// Start of Conversion 0 Configuration
+	//
+	//
+	// Disables Sample Capacitor to reset after each conversion.
+	//
+	ADC_disableSampleCAPReset(myADCC_BASE, ADC_SOC_NUMBER0);
+	//
+	// Configures a start-of-conversion (SOC) in the ADC and its interrupt SOC trigger.
+	// 	  	SOC number		: 0
+	//	  	Trigger			: ADC_TRIGGER_EPWM2_SOCA
+	//	  	Channel			: ADC_CH_ADCIN12
+	//	 	Sample Window	: 512 SYSCLK cycles
+	//		Interrupt Trigger: ADC_INT_SOC_TRIGGER_NONE
+	//
+	ADC_setupSOC(myADCC_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM2_SOCA, ADC_CH_ADCIN12, 512U);
+	ADC_setInterruptSOCTrigger(myADCC_BASE, ADC_SOC_NUMBER0, ADC_INT_SOC_TRIGGER_NONE);
+	//
+	// ADC Interrupt 1 Configuration
+	// 		Source	: ADC_INT_TRIGGER_EOC0
+	// 		Interrupt Source: enabled
+	//		Continuous Mode	: enabled
+	//
+	//
+	ADC_setInterruptSource(myADCC_BASE, ADC_INT_NUMBER1, ADC_INT_TRIGGER_EOC0);
+	ADC_clearInterruptStatus(myADCC_BASE, ADC_INT_NUMBER1);
+	ADC_enableContinuousMode(myADCC_BASE, ADC_INT_NUMBER1);
+	ADC_enableInterrupt(myADCC_BASE, ADC_INT_NUMBER1);
+}
+
+
+//*****************************************************************************
+//
+// ASYSCTL Configurations
+//
+//*****************************************************************************
+void ASYSCTL_init(){
+	//
+	// asysctl initialization
+	//
+	// Disables the temperature sensor output to the ADC.
+	//
+	ASysCtl_disableTemperatureSensor();
+	//
+	// Set the analog voltage reference selection to external.
+	//
+	ASysCtl_setAnalogReferenceExternal( ASYSCTL_ANAREF_VREFHI_ADCA | ASYSCTL_ANAREF_VREFHI_ADCB | ASYSCTL_ANAREF_VREFHI_ADCC | ASYSCTL_ANAREF_VREFHI_ADCD | ASYSCTL_ANAREF_VREFHI_ADCE );
 
 }
 
@@ -245,7 +789,7 @@ void myMCANA_init(){
     initParams_myMCANA.fdMode            = true;
     initParams_myMCANA.brsEnable         = true;
     initParams_myMCANA.txpEnable         = true;
-    initParams_myMCANA.efbi              = true;
+    initParams_myMCANA.efbi              = false;
     initParams_myMCANA.pxhddisable       = false;
     initParams_myMCANA.darEnable         = true;
     initParams_myMCANA.wkupReqEnable     = false;

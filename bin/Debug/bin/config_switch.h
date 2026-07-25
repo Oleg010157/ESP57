@@ -17,6 +17,7 @@
 
 #define MCANA    1
 #define MCANB    0
+#define CANA_FD  1
 
 
 #define Ic_sensor 0   // есть/нет  датчик тока в фазе С

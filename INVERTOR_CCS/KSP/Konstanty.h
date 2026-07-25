@@ -36,8 +36,9 @@
 #define CANA_f3_mask (BIT2|BIT3|BIT4)// Main_ISR Передача быстрого CANA кадра через Mbox3, Mbox4, Mbox5 ID =103,104,110
 #define CANA_f1_mask (BIT2)  // Main_ISR Передача быстрого CANA кадра через Mbox3 ID =103
 #define CANA_fon_mask (BIT31)  // Фон Передача ошибок  через Mbox32 ID =131
-#define MCAN_f3_mask ((1UL << 3U) | (1UL << 4U) | (1UL << 5U))
-#define MCAN_f1_mask (1UL << 3U)
+// Быстрый кадр консолидирован на буфер 1 (F1=8б / F3=24б). Маска занятости = бит буфера 1.
+#define MCAN_f3_mask (1UL << 1U)
+#define MCAN_f1_mask (1UL << 1U)
 //#define kmask60 (BIT14|BIT17|BIT18|BIT19|BIT20|BIT21|BIT22|BIT23|BIT24|BIT25|BIT26|BIT27|BIT30)
 #define kmask60 BIT30
 

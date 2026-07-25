@@ -135,8 +135,6 @@ digraph {
 
  	epwm2_TB:epwm2_syncout -> SYNCOUT_EPWM2
 
-    epwm2_TZ:epwm2_tz_epwma_out:e -> A10, B1, C10, GPIO230
-    epwm2_TZ:epwm2_tz_epwmb_out:e -> A6, D14, E14, GPIO228
        
     subgraph cluster_epwm1 {
         label = "EPWM1 = myEPWM2";
@@ -255,8 +253,6 @@ digraph {
 
  	epwm1_TB:epwm1_syncout -> SYNCOUT_EPWM1
 
-    epwm1_TZ:epwm1_tz_epwma_out:e -> GPIO0
-    epwm1_TZ:epwm1_tz_epwmb_out:e -> B2, C6, E12, GPIO226
  
  	
     SYNCOUT_EPWM1 -> epwm2_TB:epwm2_syncin

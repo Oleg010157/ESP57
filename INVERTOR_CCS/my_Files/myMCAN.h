@@ -54,8 +54,8 @@ static inline void MCAN_readMsgRamFast(uint32_t baseAddr,
                                        uint32_t idx,
                                        MCAN_RxBufElement *elem)
 {
-    uint32_t elemAddr = (myMCANA_MCAN_FIFO_0_START_ADDR << 2U) + (myMCANA_MCAN_FIFO_0_NUM * 4U * idx) 
-                        + MCAN_MCAN_MSG_MEM;
+    // FIFO0 element size: 8-byte data = 16 bytes total (8 header + 8 data)
+    uint32_t elemAddr = myMCANA_MCAN_FIFO_0_START_ADDR + (16U * idx) + MCAN_MCAN_MSG_MEM;
     uint32_t addr = baseAddr + elemAddr;
     
     // ⚡ 4 HW_RD_REG32 вместо 6+ в оригинале

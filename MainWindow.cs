@@ -2633,12 +2633,13 @@ namespace ICDIBasic
             {
                 case 0:
                     {
-                     
+                      
                         // Настоящий ACK на ping имеет d1=55, d2=55.
                         // Старый застрявший кадр из TX-буфера MCU имеет другие d1/d2 — игнорируем.
                         if (d1 == 55 && d2 == 55)
                         {
-                            _mcuAlreadyConnected = (d3 == 1);
+                            _mcuAlreadyConnected = (d3 & 0x01) == 1;
+                            _mcuUsesFD           = (d3 & 0x02) != 0;
                             _canaM.BackColor = Color.LightGreen;
                             CanA_Ok = tsmConnect.Enabled = true;
                         }

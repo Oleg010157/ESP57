@@ -193,12 +193,27 @@ void MCAN_initAllTxBuffers(void)
 {
     //                 buf, msgId, dlc, brs, fdf
     MCAN_initTxBuffer(  0,   1,     8,   1,   1);  // ACK
-    MCAN_initTxBuffer(  3, 103,     8,   1,   1);  // fast: Ia,Ib,Idc,Udc (после EPWM)
-    MCAN_initTxBuffer(  4, 104,     8,   1,   1);  // fast: Va,Vb,Idc,Udc
-    MCAN_initTxBuffer(  5, 110,     8,   1,   1);  // fast: Vin, индекс модуляции
-    MCAN_initTxBuffer(  6, 140,    15,   1,   1);  // консолидированный REF кадр (64 байта)
-    MCAN_initTxBuffer( 14, 131,     8,   1,   1);  // Kadr60: K60cnt
-    MCAN_initTxBuffer( 15, 132,     8,   1,   1);  // Errors/main
+    MCAN_initTxBuffer(  1, 103,    12,   1,   1);  // быстрый кадр: F1=8б(DLC8) / F3=24б(DLC12).
+                                                  // DLC переключается в MBOX28 (MCAN_setFastDLC).
+    MCAN_initTxBuffer(  2, 140,    15,   1,   1);  //  REF кадр (64 байта)
+    MCAN_initTxBuffer(  3, 131,     8,   1,   1);  // Kadr60: K60cnt
+    MCAN_initTxBuffer(  4, 132,     8,   1,   1);  // Errors/main
+}
+
+//
+// Смена DLC быстрого кадра (буфер 1) без трогания payload и адреса — только заголовок (word1).
+// Вызывается из MBOX28 при выборе режима: F1-режимы -> dlc=8 (8 байт), F3 -> dlc=12 (24 байта).
+// FDF и BRS всегда 1.
+//
+void MCAN_setFastDLC(uint16_t dlc)
+{
+    uint32_t addr = txPayloadAddr[1];   // старт payload (фиксирован); заголовок word1 = addr-4
+    if (addr == 0) return;
+
+    HWREG(addr - 4U) =
+        (((uint32_t)dlc) << MCANSS_TX_BUFFER_ELEM_DLC_SHIFT) |
+        ((uint32_t)1U   << MCANSS_TX_BUFFER_ELEM_BRS_SHIFT) |
+        ((uint32_t)1U   << MCANSS_TX_BUFFER_ELEM_FDF_SHIFT);
 }
 
 

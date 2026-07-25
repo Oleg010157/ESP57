@@ -154,8 +154,9 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
     switch (cmd)
     {
         case 0: // команда посылается при открытии формы Мотор-Контрол
-            // d1=55 d2=55 d3=sbit.bit.connect — UI может восстановить состояние без cmd=2
-            SendAck(55, 55, sbit.bit.connect, cmd);
+            // d1=55 d2=55
+            // d3: bit0 = sbit.bit.connect, bit1 = CANA_FD (0=classic IDs 100-132, 1=FD ID 140)
+            SendAck(55, 55, (uint16_t)(sbit.bit.connect | (CANA_FD << 1)), cmd);
             break;
 
         case 1001: // команда включения/ выключения и выбора типа   кадра   по CANA
@@ -167,13 +168,16 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             {
                 case 1:
                     canaKadr.bit.F1_convertor = 1;
-                    break; // включить передачу быстрого кадра из 1-го MBOX
+                    MCAN_setFastDLC(8);       // 8 байт (Idc,Udc,Vin,ticker)
+                    break;
                 case 2:
                     canaKadr.bit.F1_invertor = 1;
-                    break; // включить  передачу быстрого кадра из 3-х MBOX
+                    MCAN_setFastDLC(8);       // 8 байт (Ia,Ib,Idc,ticker)
+                    break;
                 case 3:
                     canaKadr.bit.F3_invertor = 1;
-                    break; // включить передачу быстрого кадра из 1-го MBOX
+                    MCAN_setFastDLC(12);      // 24 байта (SPL_UI: 12 слов)
+                    break;
 
                 case 4: // включить передачу медленного кадра по CANA
                 {

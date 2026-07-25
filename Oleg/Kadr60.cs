@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using static EasyModbus.ModbusClient;
+using static EthLogger.AlStEthLog;
 using static ICDIBasic.Form1;
 
 namespace ICDIBasic
@@ -17,7 +18,7 @@ namespace ICDIBasic
 
         private readonly int[] _regBuffer = new int[2];
 
-        private void Kadr60Rx(TPCANMsg msg)
+        private void Kadr60Rx(TPCANMsgFD msg)
         {
             ushort u1 = (ushort)((msg.DATA[1] << 8) | msg.DATA[0]);
             ushort u2 = (ushort)((msg.DATA[3] << 8) | msg.DATA[2]);
@@ -31,11 +32,14 @@ namespace ICDIBasic
 
             ushort grup4 = (ushort)(ccs.k60Cnt & 3);
 
-            // ✅ JIT инлайнирует эти вызовы как если бы это была одна функция
+          
             switch (msg.ID)
             {
-                case 100:
-                    ProcessFrame100(u1, u2, u3, u4, msg);
+                case 103:
+                    ProcessFrame103(msg);
+                    break;
+                case 140:
+                    Parse140(msg);
                     break;
                 case 101:
                     ProcessFrame101(u1, u2, u3, u4, s1, s2, s3);
@@ -43,9 +47,7 @@ namespace ICDIBasic
                 case 102:
                     ProcessFrame102(u1, u2, u3, u4, s1, s2, s3);
                     break;
-                case 103:
-                    ProcessFrame103(s1, s2, s3, s4, u4);
-                    break;
+                
                 case 104:
                     ProcessFrame104(s1, s2, s3, s4);
                     break;
@@ -140,7 +142,7 @@ namespace ICDIBasic
             ushort W(int w) => (ushort)((d[w * 2 + 1] << 8) | d[w * 2]);
 
             // Блок 0 (слова 0..3)   -> ID 100  (msg не используется в теле ProcessFrame100)
-            ProcessFrame100(W(0), W(1), W(2), W(3), default(TPCANMsg));
+            ProcessFrame100(W(0), W(1), W(2), W(3));
             // Блок 1 (слова 4..7)   -> ID 101  (цикл по u4)
             ProcessFrame101(W(4), W(5), W(6), W(7), (short)W(4), (short)W(5), (short)W(6));
             // Блок 2 (слова 8..11)  -> ID 102  (цикл по u4)
@@ -159,7 +161,7 @@ namespace ICDIBasic
 
         #region Frame Processors
 
-        private void ProcessFrame100(ushort u1, ushort u2, ushort u3, ushort u4, TPCANMsg msg)
+        private void ProcessFrame100(ushort u1, ushort u2, ushort u3, ushort u4)
         {
             ccs.overload = u1;
             ccs.bit1 = u2;
@@ -238,26 +240,47 @@ namespace ICDIBasic
             }
         }
 
-        private void ProcessFrame103(short s1, short s2, short s3, short s4, ushort u4)
+        private void ProcessFrame103(TPCANMsgFD msg)
         {
             if (!spl_running) return;
+
+            byte[] d = msg.DATA;
+
+            // Чтение 16-битного слова по абсолютному индексу слова (0..31).
+            ushort U(uint w) => (ushort)((d[w * 2 + 1] << 8) | d[w * 2]);
+            short  S(uint w) =>  (short)((d[w * 2 + 1] << 8) | d[w * 2]);
+
+
             if (f2kadrName == "F3_invertor")
             {
-                M2.ccs.Ia = s1;
-                M2.ccs.Ib = s2;
-                M2.ccs.Ic = s3;
-                M2.ccs.Va = s4;
+                M2.ccs.Ia = S(0);
+                M2.ccs.Ib = S(1);
+                M2.ccs.Ic = S(2);
+                M2.ccs.Va = S(3);
+
+                M1.ccs.Vb = S(4);
+                M1.ccs.Vc = S(5);
+                M1.ccs.radian = S(6);
+                M1.ccs.rgOut = S(7);
+
+                M1.ccs.freq = S(8);
+                M1.ccs.gain = U(9);
+                ccs.IsrTicker = U(10);
+                ccs.k60Cnt = U(11);
             }
             else if (f2kadrName == "F1_invertor")
             {
-                ccs.Ia_kod = s1;
-                ccs.Ib_kod = s2;
-                ccs.Ic_kod = s3;
-                ccs.k60Cnt = u4;
+                ccs.Ia_kod = S(0);
+                ccs.Ib_kod = S(1);
+                ccs.Ic_kod = S(2);
+                ccs.k60Cnt = U(3);
             }
             else if (f2kadrName == "F1_convertor")
             {
-                ccs.k60Cnt = u4;
+                ccs.Idc_kod = S(0); 
+                ccs.Udc_kod = S(1);
+                ccs.Vin_kod = S(2); 
+                ccs.k60Cnt  = U(3);
             }
         }
 

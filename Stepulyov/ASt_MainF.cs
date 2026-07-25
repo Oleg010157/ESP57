@@ -216,7 +216,7 @@ namespace ICDIBasic
         #endregion
 
         #region Синхронизация Spl_Main, получение данных телеметрии с CANA 
-        private void CAN_RxData(TPCANMsg msg) // эта функция работает во вторичном потоке
+        private void CAN_RxData(TPCANMsgFD msg) // эта функция работает во вторичном потоке
         {
             if (IsDisposed) return;
           

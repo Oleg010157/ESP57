@@ -59,36 +59,16 @@ extern "C"
 //*****************************************************************************
 
 //
+// ANALOG -> myANALOGPinMux0 Pinmux
+//
+
+//
 // EPWM2 -> myEPWM1 Pinmux
 //
-//
-// EPWM2_A - GPIO Settings
-//
-#define GPIO_PIN_EPWM2_A 230
-#define myEPWM1_EPWMA_GPIO 230
-#define myEPWM1_EPWMA_PIN_CONFIG GPIO_230_EPWM2_A
-//
-// EPWM2_B - GPIO Settings
-//
-#define GPIO_PIN_EPWM2_B 228
-#define myEPWM1_EPWMB_GPIO 228
-#define myEPWM1_EPWMB_PIN_CONFIG GPIO_228_EPWM2_B
 
 //
 // EPWM1 -> myEPWM2 Pinmux
 //
-//
-// EPWM1_A - GPIO Settings
-//
-#define GPIO_PIN_EPWM1_A 0
-#define myEPWM2_EPWMA_GPIO 0
-#define myEPWM2_EPWMA_PIN_CONFIG GPIO_0_EPWM1_A
-//
-// EPWM1_B - GPIO Settings
-//
-#define GPIO_PIN_EPWM1_B 226
-#define myEPWM2_EPWMB_GPIO 226
-#define myEPWM2_EPWMB_PIN_CONFIG GPIO_226_EPWM1_B
 
 //
 // MCANA -> myMCANA Pinmux
@@ -107,32 +87,72 @@ extern "C"
 #define myMCANA_MCANTX_PIN_CONFIG GPIO_4_MCANA_TX
 
 //
-// SPIA -> mySPIB Pinmux
+// SPIB -> mySPIB Pinmux
 //
+
+//*****************************************************************************
 //
-// SPIA_PICO - GPIO Settings
+// ADC Configurations
 //
-#define GPIO_PIN_SPIA_PICO 224
-#define mySPIB_SPIPICO_GPIO 224
-#define mySPIB_SPIPICO_PIN_CONFIG GPIO_224_SPIA_PICO
+//*****************************************************************************
+#define myADCA_BASE ADCA_BASE
+#define myADCA_RESULT_BASE ADCARESULT_BASE
+#define myADCA_SOC0_Udc ADC_SOC_NUMBER0
+#define myADCA_FORCE_SOC0_Udc ADC_FORCE_SOC0
+#define myADCA_SAMPLE_WINDOW_SOC0_Udc 80
+#define myADCA_TRIGGER_SOURCE_SOC0_Udc ADC_TRIGGER_EPWM1_SOCA
+#define myADCA_CHANNEL_SOC0_Udc ADC_CH_ADCIN0
+#define myADCA_SOC1_Vin ADC_SOC_NUMBER1
+#define myADCA_FORCE_SOC1_Vin ADC_FORCE_SOC1
+#define myADCA_SAMPLE_WINDOW_SOC1_Vin 80
+#define myADCA_TRIGGER_SOURCE_SOC1_Vin ADC_TRIGGER_EPWM1_SOCA
+#define myADCA_CHANNEL_SOC1_Vin ADC_CH_ADCIN4
+#define myADCA_SOC2_Idc ADC_SOC_NUMBER2
+#define myADCA_FORCE_SOC2_Idc ADC_FORCE_SOC2
+#define myADCA_SAMPLE_WINDOW_SOC2_Idc 80
+#define myADCA_TRIGGER_SOURCE_SOC2_Idc ADC_TRIGGER_EPWM1_SOCA
+#define myADCA_CHANNEL_SOC2_Idc ADC_CH_ADCIN12
+#define myADCA_PPB1 ADC_PPB_NUMBER1
+#define myADCA_SOC_PPB1 ADC_SOC_NUMBER0
+#define myADCA_PPB2 ADC_PPB_NUMBER2
+#define myADCA_SOC_PPB2 ADC_SOC_NUMBER1
+#define myADCA_PPB3 ADC_PPB_NUMBER3
+#define myADCA_SOC_PPB3 ADC_SOC_NUMBER2
+void myADCA_init();
+
+#define myADCB_BASE ADCB_BASE
+#define myADCB_RESULT_BASE ADCBRESULT_BASE
+#define myADCB_SOC0_Ia ADC_SOC_NUMBER0
+#define myADCB_FORCE_SOC0_Ia ADC_FORCE_SOC0
+#define myADCB_SAMPLE_WINDOW_SOC0_Ia 800
+#define myADCB_TRIGGER_SOURCE_SOC0_Ia ADC_TRIGGER_EPWM2_SOCA
+#define myADCB_CHANNEL_SOC0_Ia ADC_CH_ADCIN1
+#define myADCB_SOC1_Ib ADC_SOC_NUMBER1
+#define myADCB_FORCE_SOC1_Ib ADC_FORCE_SOC1
+#define myADCB_SAMPLE_WINDOW_SOC1_Ib 80
+#define myADCB_TRIGGER_SOURCE_SOC1_Ib ADC_TRIGGER_EPWM2_SOCA
+#define myADCB_CHANNEL_SOC1_Ib ADC_CH_ADCIN7
+#define myADCB_PPB1 ADC_PPB_NUMBER1
+#define myADCB_SOC_PPB1 ADC_SOC_NUMBER0
+#define myADCB_PPB2 ADC_PPB_NUMBER2
+#define myADCB_SOC_PPB2 ADC_SOC_NUMBER1
+void myADCB_init();
+
+#define myADCC_BASE ADCC_BASE
+#define myADCC_RESULT_BASE ADCCRESULT_BASE
+#define myADCC_SOC0 ADC_SOC_NUMBER0
+#define myADCC_FORCE_SOC0 ADC_FORCE_SOC0
+#define myADCC_SAMPLE_WINDOW_SOC0 3413.3333333333335
+#define myADCC_TRIGGER_SOURCE_SOC0 ADC_TRIGGER_EPWM2_SOCA
+#define myADCC_CHANNEL_SOC0 ADC_CH_ADCIN12
+void myADCC_init();
+
+
+//*****************************************************************************
 //
-// SPIA_POCI - GPIO Settings
+// ASYSCTL Configurations
 //
-#define GPIO_PIN_SPIA_POCI 13
-#define mySPIB_SPIPOCI_GPIO 13
-#define mySPIB_SPIPOCI_PIN_CONFIG GPIO_13_SPIA_POCI
-//
-// SPIA_CLK - GPIO Settings
-//
-#define GPIO_PIN_SPIA_CLK 12
-#define mySPIB_SPICLK_GPIO 12
-#define mySPIB_SPICLK_PIN_CONFIG GPIO_12_SPIA_CLK
-//
-// SPIA_PTE - GPIO Settings
-//
-#define GPIO_PIN_SPIA_PTE 11
-#define mySPIB_SPIPTE_GPIO 11
-#define mySPIB_SPIPTE_PIN_CONFIG GPIO_11_SPIA_PTE
+//*****************************************************************************
 
 //*****************************************************************************
 //
@@ -195,18 +215,18 @@ extern __interrupt void INT_myMCANA_1_ISR(void);
 //
 #define myMCANA_MCAN_STD_ID_FILTER_NUM          (1)
 #define myMCANA_MCAN_EXT_ID_FILTER_NUM          (0)
-#define myMCANA_MCAN_FIFO_0_NUM                 (3)
+#define myMCANA_MCAN_FIFO_0_NUM                 (10)
 #define myMCANA_MCAN_FIFO_1_NUM                 (0)
-#define myMCANA_MCAN_TX_BUFF_SIZE               (16)
+#define myMCANA_MCAN_TX_BUFF_SIZE               (5)
 #define myMCANA_MCAN_TX_EVENT_SIZE              (0)
 
 #define myMCANA_MCAN_STD_ID_FILT_START_ADDR     (0)
 #define myMCANA_MCAN_EXT_ID_FILT_START_ADDR     (4)
 #define myMCANA_MCAN_FIFO_0_START_ADDR          (4)
-#define myMCANA_MCAN_FIFO_1_START_ADDR          (52)
-#define myMCANA_MCAN_RX_BUFF_START_ADDR         (52)
-#define myMCANA_MCAN_TX_BUFF_START_ADDR         (52)
-#define myMCANA_MCAN_TX_EVENT_START_ADDR        (1204)
+#define myMCANA_MCAN_FIFO_1_START_ADDR          (164)
+#define myMCANA_MCAN_RX_BUFF_START_ADDR         (164)
+#define myMCANA_MCAN_TX_BUFF_START_ADDR         (164)
+#define myMCANA_MCAN_TX_EVENT_START_ADDR        (524)
 
 #define myMCANA_MCAN_INTR_LINE_NUM_0_INT (MCAN_IR_RF0N_MASK)
 void myMCANA_init();
@@ -216,7 +236,7 @@ void myMCANA_init();
 // SPI Configurations
 //
 //*****************************************************************************
-#define mySPIB_BASE SPIA_BASE
+#define mySPIB_BASE SPIB_BASE
 #define mySPIB_BITRATE 1000000
 #define mySPIB_DATAWIDTH 16
 void mySPIB_init();
@@ -239,6 +259,8 @@ void mySPIB_init();
 //
 //*****************************************************************************
 void	Board_init();
+void	ADC_init();
+void	ASYSCTL_init();
 void	EPWM_init();
 void	INTERRUPT_init();
 void	MCAN_SYSCFG_init();

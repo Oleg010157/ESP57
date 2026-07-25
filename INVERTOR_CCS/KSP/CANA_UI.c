@@ -26,30 +26,29 @@ extern uint16_t  timeBasePeriod;
 
 
 
+// Быстрый кадр F3_invertor: 3 группы по 4 слова = 12 слов = 24 байта, один FD-кадр (буфер 1).
+// DLC=12 задан в MBOX28. Порядок слов сохранён (было ID 103 / 104 / 110).
 void SPL_UI()
 {
-    uint16_t d1, d2, d3, d4;
-#if (CANA_f3_mask & BIT2) == BIT2 // MsgID = 103
-    d1 = Ia_kod;
-    d2 = Ib_kod;
-    d3 = Idc_kod;
-    d4 = Udc_kod;
-    Send_mbox(3, d1, d2, d3, d4);
-#endif
+    uint16_t fast[12];
 
-#if (CANA_f3_mask & BIT3) == BIT3 // MsgID = 104
-    d1 = rounding(c2p.Va_volt * 50);
-    d2 = rounding(c2p.Vb_volt * 50);
-    d3 = rounding(Idc_rf * 50); //rounding(motor1.rg.radian *1000);   //rounding(motor1.clark.Im * 100);
-    d4 = rounding(Udc_rf * 50); //rounding(motor1.rg.Out * 1000);
-    Send_mbox(4, d1, d2, d3, d4);
-#endif
+    // группа A (было ID 103): токи/напряжения инвертора
+    fast[0] = Ia_kod;
+    fast[1] = Ib_kod;
+    fast[2] = Idc_kod;
+    fast[3] = Udc_kod;
 
-#if (CANA_f3_mask & BIT4) == BIT4 // MsgID = 110
-    d1 = Vin_kod;
-    d2 = (uint16_t)(Vin_rf * 50 + 0.5); //выходное результирующее значение индекса модуляции напряжения;
-    d3 = (uint16_t)(c.duty*100 +0.5);
-    d4 = IsrTicker;
-    Send_mbox(5, d1, d2, d3, d4);
-#endif
+    // группа B (было ID 104)
+    fast[4] = rounding(c2p.Va_volt * 50);
+    fast[5] = rounding(c2p.Vb_volt * 50);
+    fast[6] = rounding(Idc_rf * 50);
+    fast[7] = rounding(Udc_rf * 50);
+
+    // группа C (было ID 110)
+    fast[8]  = Vin_kod;
+    fast[9]  = (uint16_t)(Vin_rf * 50 + 0.5); // индекс модуляции напряжения
+    fast[10] = (uint16_t)(c.duty * 100 + 0.5);
+    fast[11] = IsrTicker;
+
+    Send_mbox_FD(1, fast, 12);
 }

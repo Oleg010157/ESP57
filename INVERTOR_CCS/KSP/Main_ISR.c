@@ -113,17 +113,24 @@ void MainISR(void)
  //   uint32_t txbrp = McanaRegs.MCAN_TXBRP;
     uint32_t txbrp = HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP);
 
+    // Быстрый кадр — все режимы на буфер 1 (DLC задан в MBOX28). Проверяем, что буфер 1 свободен.
     if (canaKadr.bit.F3_invertor == 1)
-        if ((txbrp & MCAN_f3_mask) == 0U) // если завершена передача всех Mbox CANA_fastkadra
-            SPL_UI();
+        if ((txbrp & 2) == 0U)
+            SPL_UI();                                           // 24 байта (DLC=12)
 
-    if (canaKadr.bit.F1_convertor == 1)                         // проверяем что есть запрос на передачу данных по CANA
-        if ((txbrp & MCAN_f1_mask) == 0U)                       // проверяем что 103 Mbox свободен для передачи
-            Send_mbox(3, Idc_kod, Udc_kod, Vin_kod, IsrTicker); // загружаем данные в 3-ий Mbox
+    if (canaKadr.bit.F1_convertor == 1)
+        if ((txbrp & 2) == 0U)
+        {
+            uint16_t f[4] = { Idc_kod, Udc_kod, Vin_kod, IsrTicker };
+            Send_mbox_FD(1, f, 4);                              // 8 байт (DLC=8)
+        }
 
-    if (canaKadr.bit.F1_invertor == 1)                          // проверяем что есть запрос на передачу данных по CANA
-        if ((txbrp & MCAN_f1_mask) == 0U)                       // проверяем что 103 Mbox свободен для передачи
-            Send_mbox(3, Ia_kod, Ib_kod, Idc_kod, IsrTicker);   // загружаем данные в 3-ий Mbox
+    if (canaKadr.bit.F1_invertor == 1)
+        if ((txbrp & 2) == 0U)
+        {
+            uint16_t f[4] = { Ia_kod, Ib_kod, Idc_kod, IsrTicker };
+            Send_mbox_FD(1, f, 4);                              // 8 байт (DLC=8)
+        }
 
     // DBG
     mainISR_Time = (EPwm7Regs.TBCTR - tim0M); // dbg время в 1/120 мкс

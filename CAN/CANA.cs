@@ -24,8 +24,10 @@ namespace ICDIBasic
         public byte Ch;
         private readonly BackgroundWorker _crw = new BackgroundWorker { WorkerSupportsCancellation = true };
         private bool _crwHooked;
-        // true если последний ping (cmd=0) вернул d3=1 (MCU уже в состоянии connect)
+        // true если последний ping (cmd=0) вернул d3 bit0=1 (MCU уже в состоянии connect)
         private bool _mcuAlreadyConnected;
+        // true если MCU передаёт телеметрию по CAN FD (ID=140, CANA_FD=1), false — классика (IDs 100-132)
+        private bool _mcuUsesFD;
         // Queue for bootloader responses (MCU -> PC ID 0x32)
         private readonly ConcurrentQueue<ushort> _bootRespQueue = new ConcurrentQueue<ushort>();
         private readonly AutoResetEvent _bootRespEvent = new AutoResetEvent(false);
@@ -360,72 +362,43 @@ namespace ICDIBasic
         {
             while (_rden)
             {
-               if (!_re.WaitOne(10)) continue;
+                if (!_re.WaitOne(10)) continue;
 
                 TPCANStatus stsResult;
-
                 do
                 {
-                    stsResult = PCANBasic.ReadFD(Ch, out var canMsg, out ulong ts);
+                    stsResult = PCANBasic.ReadFD(Ch, out var canMsg, out _);
                     if (stsResult != TPCANStatus.PCAN_ERROR_OK) continue;
 
-                    // Консолидированный медленный кадр (64 байта) — разбираем напрямую из FD-структуры,
-                    // минуя 8-байтный ToClassic. 8 блоков x 4 слова -> существующие ProcessFrameXXX.
-                    // Вызываем во вторичном потоке, как CAN_RxData/Kadr60Rx (ProcessFrame сами делают
-                    // BeginInvoke для UI-части).
-                    if (canMsg.ID == 140)
+                    var data = canMsg.DATA;
+                    switch (canMsg.ID)
                     {
-                        try { Parse140(canMsg); } catch { /* ignored */ }
-                        continue;
-                    }
+                        case 0x32:
+                            _bootRespQueue.Enqueue((ushort)(data[0] | (data[1] << 8)));
+                            _bootRespEvent.Set();
+                            break;
 
-                    var classicMsg = PcanFdMessageConverter.ToClassic(canMsg);
-
-                    // If this is a bootloader response (MCU -> PC ID 0x32), enqueue for waiting callers
-                    if (classicMsg.ID == 0x32)
-                    {
-                        // Normalize to 8 bytes and extract first 16-bit word
-                        var len = classicMsg.LEN;
-                        byte b0 = len > 0 ? classicMsg.DATA[0] : (byte)0;
-                        byte b1 = len > 1 ? classicMsg.DATA[1] : (byte)0;
-                        ushort bootVal = (ushort)(b0 | (b1 << 8));
-                        _bootRespQueue.Enqueue(bootVal);
-                        _bootRespEvent.Set();
-                        continue;
-                    }
-
-                    if (classicMsg.ID == 1)
-                    {
-                        // Normalize to 8 bytes: some UIs send DLC=2 etc. — pad with zeros.
-                        var len = classicMsg.LEN;
-                        byte[] data8 = new byte[8];
-                        for (int i = 0; i < 8; i++) data8[i] = (i < len) ? classicMsg.DATA[i] : (byte)0;
-
-                        ushort cmd = BitConverter.ToUInt16(new[] { data8[0], data8[1] }, 0);
-                        ushort d1 = BitConverter.ToUInt16(new[] { data8[2], data8[3] }, 0);
-                        ushort d2 = BitConverter.ToUInt16(new[] { data8[4], data8[5] }, 0);
-                        ushort d3 = BitConverter.ToUInt16(new[] { data8[6], data8[7] }, 0);
-
-                        AppendUiCanLogLine("RX", 1, cmd, d1, d2, d3);
-
-                        _ = this.BeginInvoke(new Action(() =>
+                        case 1:
                         {
-                            Mbox13Rx(data8, cmd, d1, d2, d3);
-                            foreach (var t in _txFl) t.RxFb(cmd, (short)d1, d3);
-                        }));
+                            ushort cmd = (ushort)(data[0] | (data[1] << 8));
+                            ushort d1  = (ushort)(data[2] | (data[3] << 8));
+                            ushort d2  = (ushort)(data[4] | (data[5] << 8));
+                            ushort d3  = (ushort)(data[6] | (data[7] << 8));
 
-                        continue;
-                    }
+                            AppendUiCanLogLine("RX", 1, cmd, d1, d2, d3);
+                            _ = this.BeginInvoke(new Action(() =>
+                            {
+                                Mbox13Rx(data, cmd, d1, d2, d3);
+                                foreach (var t in _txFl) t.RxFb(cmd, (short)d1, d3);
+                            }));
+                            break;
+                        }
 
-                    try
-                    {
-                        CAN_RxData(classicMsg);
+                        default:  // 103 (быстрый), 131 (Kadr60), 132 (Errors) и др.
+                            try { CAN_RxData(canMsg); } catch { }
+                            break;
                     }
-                    catch
-                    {
-                        // ignored
-                    }
-                } while (_rden && !Convert.ToBoolean(stsResult & TPCANStatus.PCAN_ERROR_QRCVEMPTY));
+                } while (_rden && (stsResult & TPCANStatus.PCAN_ERROR_QRCVEMPTY) == 0);
             }
         }
 

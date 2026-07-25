@@ -317,7 +317,7 @@ MCAN_enableLine1Routing();
                 uint16_t b = CheckLamp + CheckLamp0;
                 if ((Req_336 & 1) == 1)
                 {
-                    Send_mbox(15, 0, 0, b, 32012);
+                    Send_mbox(4, 0, 0, b, 32012);
                     Req_336 = Req_336 & ~1U; // сброс признака наличия ошибок
 
                     goto end_336;
