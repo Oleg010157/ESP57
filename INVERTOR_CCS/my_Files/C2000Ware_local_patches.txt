@@ -42,6 +42,25 @@ Backup:
 Verification:
 - No warning #48-D for SUCCESS/FAIL.
 
+Patch 3 (installed C2000Ware library)
+File: C:\ti\C2000Ware_26_01_00_00\device_support\f28p55x\common\include\f28p55x_globalprototypes.h
+Reason: ERROR #148 declaration incompatible for RamfuncsLoadStart/LoadEnd/LoadSize/RunStart/RunEnd/RunSize
+        (Uint16 here) vs the SysConfig-generated CPU1_FLASH\syscfg\device.h (uint16_t there). Only
+        happens in _FLASH builds - device.h only declares these symbols when _FLASH is defined.
+Applied form (around line 258):
+#ifndef _FLASH
+extern Uint16 RamfuncsLoadStart;
+extern Uint16 RamfuncsLoadEnd;
+extern Uint16 RamfuncsLoadSize;
+extern Uint16 RamfuncsRunStart;
+extern Uint16 RamfuncsRunEnd;
+extern Uint16 RamfuncsRunSize;
+#endif
+Backup:
+- C:\ti\C2000Ware_26_01_00_00\device_support\f28p55x\common\include\f28p55x_globalprototypes.h.bak
+Verification:
+- No error #148 for Ramfuncs* symbols when building CPU1_FLASH.
+
 Build settings notes
 - Keep include paths for both device_support headers and driverlib.
 - Keep --define=_DUAL_HEADERS.
@@ -49,16 +68,57 @@ Build settings notes
 - Remove compat_dual_heders.h from project files if present.
 - Optional suppression if needed: --diag_suppress=109 (TI bitfield style warning).
 
+CPU1_FLASH build configuration notes (2026-07-26)
+CPU1_FLASH was never fully brought up to parity with CPU1_RAM. To make it build:
+- SysConfig tool flags for CPU1_FLASH used unresolved build variables
+  (${COM_TI_C2000WARE_SYSCONFIG_MANIFEST} / ${SYSCONFIG_TOOL_SYSCONFIG_MANIFEST}) that silently
+  evaluated to empty, so sysconfig_cli.bat fell back to the .syscfg file's own embedded @cliArgs
+  product version ("C2000WARE@26.01.00.00"), which CCS's product registry does not recognize
+  (it knows the SDK as "26.1.0.00"). Fixed by appending explicit flags via setToolFlags:
+  -s "C:/ti/C2000Ware_26_01_00_00/.metadata/sdk.json" -d "F28P55x" -p "100PZ" -r "F28P55x_100PZ"
+- Compiler flags for CPU1_FLASH were missing --define=_DUAL_HEADERS and several include paths
+  that CPU1_RAM has (KSP, CLA, my_Files, C2000Ware_COMMON, CLAmath, FlashAPI, PROJECT_LOC/../bin,
+  C2000WARE_DLIB_ROOT/inc), plus --idiv_support=idiv0 --vcu_support=vcu2 --fp_mode=relaxed
+  --cla_signed_compare_workaround=on. Added via setToolFlags to mirror CPU1_RAM.
+- Per-file build exclusions were missing for CPU1_FLASH (present in CPU1_RAM for the same reasons
+  as Patch 1/3 above - these files conflict with globalprototypes.h in dual-header mode):
+  bitfield_source/f28p55x_sysctrl.c, bitfield_source/f28p55x_gpio.c,
+  my_Files/Bootloader/can_bootloader.c. No MCP tool exists for toggling per-file exclusion -
+  must be done manually in CCS: Project Explorer -> select file -> right-click -> Exclude from
+  Build... -> check the configuration.
+
 Reapply checklist after C2000Ware update
 1) Confirm version path and file locations.
 2) Reapply Patch 1 in project local copy cpu.h.
 3) Reapply Patch 2 in installed C2000Ware stw_types.h.
-4) Verify preinclude list does not contain compat_dual_heders.h.
-5) Clean project.
-6) Rebuild and verify listed errors/warnings are gone.
+4) Reapply Patch 3 in installed C2000Ware f28p55x_globalprototypes.h.
+5) Verify preinclude list does not contain compat_dual_heders.h.
+6) Clean project.
+7) Rebuild both CPU1_RAM and CPU1_FLASH configurations and verify listed errors/warnings are gone.
+
+CPU1_FLASH linker cmd notes (2026-07-26)
+File: 28p55x_generic_flash_lnk.cmd (project file, git-tracked, not an SDK patch)
+Mirrored the CLA-specific SECTIONS block that 28p55x_generic_ram_lnk.cmd already had (added in
+commit 9257497), to place Cla1Prog / .scratchpad / .bss_cla / cla_shared / .const_cla /
+Cla1ToCpuMsgRAM / CpuToCla1MsgRAM instead of leaving them for default linker allocation.
+IMPORTANT: addresses differ from the RAM file - FLASH's RAMLS0 is already used by .TI.ramfunc
+(RUN address for flash-to-RAM code relocation), so CLA sections use RAMLS1/RAMLS2/RAMLS7 instead
+of RAM's RAMLS0/RAMLS1/RAMLS2. Verified correct placement via CPU1_FLASH/invertor.map (load/run
+addresses match, no overlap).
+Residual warning #10247-D for these same section names ("creating output section X without a
+SECTIONS specification") still appears for CPU1_FLASH even with explicit placement - this is
+believed to be inherent to --rom_model (used only by FLASH, not RAM): under rom_model every
+uninitialized/zero-init section gets an auto-synthesized ".cinit.X.load" companion section for
+the load image, and THAT auto-generated companion (not the run placement) is what triggers the
+warning. Confirmed harmless via the .map file. Left unsuppressed per user's choice; could be
+silenced with --diag_suppress=10247 on the CPU1_FLASH linker if ever wanted.
 
 Change log
 - 2026-07-08: Initial memo created.
 - 2026-07-08: Updated for exact applied guards (_DUAL_HEADERS + DUAL_HEADERS) and preinclude cleanup.
 - 2026-07-08: Added explicit note that SUCCESS/FAIL fix is applied in installed C2000Ware library.
 - 2026-07-08: Patch 1 reverted to _DUAL_HEADERS-only condition; build define documented as _DUAL_HEADERS.
+- 2026-07-26: Patch 2 was missing from the installed stw_types.h (warning #48-D had returned); reapplied with #ifndef guards. Backup saved as stw_types.h.bak.
+- 2026-07-26: Brought CPU1_FLASH build configuration up to parity with CPU1_RAM (SysConfig product manifest flags, compiler defines/include paths, per-file exclusions) and added Patch 3 for Ramfuncs* declaration conflict. CPU1_FLASH now builds successfully (warnings only).
+- 2026-07-26: Mirrored CLA-specific SECTIONS block into 28p55x_generic_flash_lnk.cmd (different RAMLS blocks than RAM due to ramfunc using RAMLS0 in FLASH). Placement verified via .map; residual #10247-D warnings left unsuppressed (harmless, tied to --rom_model load-image synthesis).
+- 2026-07-26: Found CPU1_FLASH was (unlike CPU1_RAM) compiling all installed C2000Ware driverlib/*.c files directly as project sources, redundant with the already-linked prebuilt driverlib.lib - this caused SDK-internal warnings (e.g. pmbus.c #179-D unused variables) that never showed up for CPU1_RAM (whose makefile has no driverlib subdir_rules.mk include, so it only links driverlib.lib). Fixed by excluding the driverlib source folder from CPU1_FLASH's build in the IDE, matching CPU1_RAM. All CPU1_FLASH errors/warnings resolved after this.

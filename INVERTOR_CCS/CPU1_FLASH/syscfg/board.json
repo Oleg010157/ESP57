@@ -1,0 +1,16 @@
+{
+    "interruptInfo" : [
+        {
+            "interruptName": "INT_myEPWM1",
+            "interruptHandler": "INT_myEPWM1_ISR"
+        },
+        {
+            "interruptName": "INT_myMCANA_0",
+            "interruptHandler": "INT_myMCANA_0_ISR"
+        },
+        {
+            "interruptName": "INT_myMCANA_1",
+            "interruptHandler": "INT_myMCANA_1_ISR"
+        }
+    ]
+}

@@ -2,6 +2,7 @@
  * myEPWM.c
  *
  *  Created on: 13.05.2025 
+ * модификация от 28.07.2026
  *      Author: olegs.pavlovskis
  */
 #include "board.h"

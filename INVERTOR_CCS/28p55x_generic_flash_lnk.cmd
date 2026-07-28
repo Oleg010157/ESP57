@@ -91,6 +91,16 @@ SECTIONS
                         ALIGN(8)
    #endif
 
+   /* CLA specific sections */
+   Cla1Prog        : > RAMLS1
+   .scratchpad     : > RAMLS2
+   .bss_cla        : > RAMLS2
+   cla_shared      : > RAMLS2, ALIGN(4)
+   .const_cla      : > RAMLS7
+
+   Cla1ToCpuMsgRAM : > CLATOCPURAM
+   CpuToCla1MsgRAM : > CPUTOCLARAM
+
 }
 
 /*

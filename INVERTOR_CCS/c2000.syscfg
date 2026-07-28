@@ -19,8 +19,10 @@ const adc2           = adc.addInstance();
 const adc3           = adc.addInstance();
 const analog         = scripting.addModule("/driverlib/analog.js", {}, false);
 const analog1        = analog.addInstance();
+const dac            = scripting.addModule("/driverlib/dac.js", {}, false);
+const dac1           = dac.addInstance();
 const device_support = scripting.addModule("/driverlib/device_support.js");
-const epwm           = scripting.addModule("/driverlib/epwm.js", {}, false);
+const epwm           = scripting.addModule("/driverlib/epwm.js");
 const epwm1          = epwm.addInstance();
 const epwm2          = epwm.addInstance();
 const mcan           = scripting.addModule("/driverlib/mcan.js", {}, false);
@@ -96,17 +98,36 @@ adc3.soc0SampleWindow               = 512;
 adc3.enableInterrupt1               = true;
 adc3.enableInterrupt1ContinuousMode = true;
 
+const divider4       = system.clockTree["MCANACLKDIV"];
+divider4.divideValue = 1;
+
+dac1.$name = "myDAC1";
+
 analog1.$name                                              = "myANALOGPinMux0";
 adc1.analog                                                = analog1;
 adc2.analog                                                = analog1;
 adc3.analog                                                = analog1;
+dac1.analog                                                = analog1;
 analog1.analog["a2, b6, c9, pga1_inp, gpio224Pin"].$assign = "A2, B6, C9, PGA1_INP, GPIO224";
 
-const divider4       = system.clockTree["MCANACLKDIV"];
-divider4.divideValue = 1;
+epwm.generateInitFunctions = true;
+epwm.commentOutDefaultCode = true;
+epwm.enableAllCode         = true;
 
-epwm1.$name   = "myEPWM1";
-epwm1.useCase = "CUSTOM";
+epwm1.$name                                = "myEPWM1";
+epwm1.useCase                              = "CUSTOM";
+epwm1.epwmTimebase_emulationMode           = "EPWM_EMULATION_FREE_RUN";
+epwm1.epwmTimebase_hsClockDiv              = "EPWM_HSCLOCK_DIVIDER_1";
+epwm1.epwmTimebase_period                  = 6000;
+epwm1.epwmTimebase_counterMode             = "EPWM_COUNTER_MODE_UP_DOWN";
+epwm1.epwmTimebase_counterModeAfterSync    = "EPWM_COUNT_MODE_UP_AFTER_SYNC";
+epwm1.epwmTimebase_syncInPulseSource       = "EPWM_SYNC_IN_PULSE_SRC_DISABLE";
+epwm1.epwmTimebase_syncOutPulseMode        = ["EPWM_SYNC_OUT_PULSE_ON_CNTR_ZERO"];
+epwm1.epwmEventTrigger_enableInterrupt     = true;
+epwm1.epwmEventTrigger_registerInterrupts  = true;
+epwm1.epwmEventTrigger_interruptSource     = "EPWM_INT_TBCTR_PERIOD";
+epwm1.epwmEventTrigger_interruptEventCount = "1";
+epwm1.epwmInt.enableInterrupt              = true;
 
 epwm2.$name   = "myEPWM2";
 epwm2.useCase = "CUSTOM";

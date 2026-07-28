@@ -10,8 +10,25 @@
       "Read(//C/ti/ccs2100/ccs/utils/sysconfig_1.28.0/**)",
       "Bash(find /c/ti -name \"mcan.c\" 2>/dev/null | head -5)",
       "Read(//c/ti/**)",
-      "Bash(grep -E \"^.{1,100}#define MCAN_\\(TXBC|RXF0C|RXF0S|TXBRP|SIDFC|RXBC\\)\\\\s\")"
+      "Bash(grep -E \"^.{1,100}#define MCAN_\\(TXBC|RXF0C|RXF0S|TXBRP|SIDFC|RXBC\\)\\\\s\")",
+      "Bash(cp \"C:/ti/C2000Ware_26_01_00_00/driverlib/f28p55x/driverlib/inc/stw_types.h\" \"C:/ti/C2000Ware_26_01_00_00/driverlib/f28p55x/driverlib/inc/stw_types.h.bak\")",
+      "mcp__ccs-project__getActiveProjectName",
+      "mcp__ccs-project__buildProject",
+      "mcp__ccs-project__getProjectDescriptors",
+      "mcp__ccs-debug__getDebugSessions",
+      "Read(//c/ti/C2000Ware_26_01_00_00/.metadata/**)",
+      "Bash(cat \"C:/ti/C2000Ware_26_01_00_00/.metadata/sdk.json\" 2>/dev/null | head -40)",
+      "mcp__ccs-project__getProducts",
+      "mcp__ccs-debug",
+      "mcp__ccs-project",
+      "mcp__ccs-sysconfig",
+      "mcp__ccs-serial"
     ],
-    "ask": []
+    "ask": [
+      "mcp__ccs-project__changeSysConfigVersion"
+    ],
+    "additionalDirectories": [
+      "C:\\ti\\C2000Ware_26_01_00_00\\driverlib\\f28p55x\\driverlib\\inc"
+    ]
   }
 }

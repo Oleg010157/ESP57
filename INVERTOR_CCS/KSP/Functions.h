@@ -8,6 +8,8 @@
 #ifndef FUNCTIONS_H_
 #define FUNCTIONS_H_
 
+#include "Konstanty.h"
+
 #define mSecond(msec) (Uint32)(150000*msec) //  CPU Timers 
 
 extern uint16_t Deadband;
@@ -15,7 +17,7 @@ extern int satFlag;  // ���������� ������� �
 
 void change_Tpwm();
 void write_pwmCLKDIV(uint16_t div);
-//float asut(float a);
+float asut(float a);
 
 // float -> int � �����������
 //#define  rounding(number) ((number >= 0)?(int)(number + 0.5):(int)(number - 0.5))
@@ -78,6 +80,14 @@ static inline uint16_t saturU16(uint16_t input, uint16_t high, uint16_t low)
     else if (input < low)
         input = low;
     return input;
+}
+
+static inline float PI2sut(float a)
+{ // угол в диапазон 0 -> 2 пи радиан
+    if (a > PI2)
+        a = a - PI2;
+    
+    return a;
 }
 
 float saturfloat(float input, float high, float low);
