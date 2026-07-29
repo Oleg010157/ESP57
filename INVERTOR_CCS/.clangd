@@ -2,6 +2,7 @@
 
 CompileFlags:
    CompilationDatabase: CPU1_FLASH/.clangd
+   Add: [-D__TMS320C28XX__]
 
 Diagnostics:
    Suppress: '*'

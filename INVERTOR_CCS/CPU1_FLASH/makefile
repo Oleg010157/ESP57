@@ -35,6 +35,7 @@ ORDERED_OBJS += \
 "./bitfield_source/f28p55x_pievect.obj" \
 "./bitfield_source/f28p55x_usdelay.obj" \
 "./my_Files/1ph_Sin.obj" \
+"./my_Files/3ph_sin.obj" \
 "./my_Files/SPI_EEPROM.obj" \
 "./my_Files/main.obj" \
 "./my_Files/myADC.obj" \
@@ -43,6 +44,7 @@ ORDERED_OBJS += \
 "../28p55x_generic_flash_lnk.cmd" \
 "C:/ti/C2000Ware_26_01_00_00/driverlib/f28p55x/driverlib/ccs/Debug/driverlib.lib" \
 "../f28p55x_headers_nonBIOS.cmd" \
+"C:/ti/C2000Ware_26_01_00_00/driverlib/f28p55x/driverlib/ccs/Release/driverlib.lib" \
 $(GEN_CMDS__FLAG) \
 -llibc.a \
 
@@ -57,11 +59,15 @@ RMDIR := RMDIR /S/Q
 -include CLA/subdir_vars.mk
 -include KSP/subdir_vars.mk
 -include bitfield_source/subdir_vars.mk
+-include driverlib/ccs/Debug/subdir_vars.mk
+-include driverlib/ccs/Release/subdir_vars.mk
 -include my_Files/subdir_vars.mk
 -include subdir_rules.mk
 -include CLA/subdir_rules.mk
 -include KSP/subdir_rules.mk
 -include bitfield_source/subdir_rules.mk
+-include driverlib/ccs/Debug/subdir_rules.mk
+-include driverlib/ccs/Release/subdir_rules.mk
 -include my_Files/subdir_rules.mk
 -include objects.mk
 
@@ -173,8 +179,8 @@ invertor.out: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(GEN_CMDS)
 # Other Targets
 clean:
 	-$(RM) $(GEN_MISC_FILES__QUOTED)$(GEN_FILES__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) "syscfg\board.obj" "syscfg\device.obj" "syscfg\c2000ware_libraries.obj" "f28p55x_codestartbranch.obj" "CLA\Task1.obj" "CLA\Task7.obj" "CLA\cla_shared.obj" "KSP\CANA_UI.obj" "KSP\Errors.obj" "KSP\Functions.obj" "KSP\GET_freq.obj" "KSP\Kadr60.obj" "KSP\MBOX28.obj" "KSP\Main_ISR.obj" "KSP\MotorCalc.obj" "KSP\Power.obj" "KSP\REF_Kadr.obj" "KSP\main_Init.obj" "KSP\pwm_funcs.obj" "bitfield_source\f28p55x_defaultisr.obj" "bitfield_source\f28p55x_globalvariabledefs.obj" "bitfield_source\f28p55x_piectrl.obj" "bitfield_source\f28p55x_pievect.obj" "bitfield_source\f28p55x_usdelay.obj" "my_Files\1ph_Sin.obj" "my_Files\SPI_EEPROM.obj" "my_Files\main.obj" "my_Files\myADC.obj" "my_Files\myEPWM.obj" "my_Files\myMCAN.obj" 
-	-$(RM) "syscfg\board.d" "syscfg\device.d" "syscfg\c2000ware_libraries.d" "CLA\cla_shared.d" "KSP\CANA_UI.d" "KSP\Errors.d" "KSP\Functions.d" "KSP\GET_freq.d" "KSP\Kadr60.d" "KSP\MBOX28.d" "KSP\Main_ISR.d" "KSP\MotorCalc.d" "KSP\Power.d" "KSP\REF_Kadr.d" "KSP\main_Init.d" "KSP\pwm_funcs.d" "bitfield_source\f28p55x_defaultisr.d" "bitfield_source\f28p55x_globalvariabledefs.d" "bitfield_source\f28p55x_piectrl.d" "bitfield_source\f28p55x_pievect.d" "my_Files\1ph_Sin.d" "my_Files\SPI_EEPROM.d" "my_Files\main.d" "my_Files\myADC.d" "my_Files\myEPWM.d" "my_Files\myMCAN.d" 
+	-$(RM) "syscfg\board.obj" "syscfg\device.obj" "syscfg\c2000ware_libraries.obj" "f28p55x_codestartbranch.obj" "CLA\Task1.obj" "CLA\Task7.obj" "CLA\cla_shared.obj" "KSP\CANA_UI.obj" "KSP\Errors.obj" "KSP\Functions.obj" "KSP\GET_freq.obj" "KSP\Kadr60.obj" "KSP\MBOX28.obj" "KSP\Main_ISR.obj" "KSP\MotorCalc.obj" "KSP\Power.obj" "KSP\REF_Kadr.obj" "KSP\main_Init.obj" "KSP\pwm_funcs.obj" "bitfield_source\f28p55x_defaultisr.obj" "bitfield_source\f28p55x_globalvariabledefs.obj" "bitfield_source\f28p55x_piectrl.obj" "bitfield_source\f28p55x_pievect.obj" "bitfield_source\f28p55x_usdelay.obj" "my_Files\1ph_Sin.obj" "my_Files\3ph_sin.obj" "my_Files\SPI_EEPROM.obj" "my_Files\main.obj" "my_Files\myADC.obj" "my_Files\myEPWM.obj" "my_Files\myMCAN.obj" 
+	-$(RM) "syscfg\board.d" "syscfg\device.d" "syscfg\c2000ware_libraries.d" "CLA\cla_shared.d" "KSP\CANA_UI.d" "KSP\Errors.d" "KSP\Functions.d" "KSP\GET_freq.d" "KSP\Kadr60.d" "KSP\MBOX28.d" "KSP\Main_ISR.d" "KSP\MotorCalc.d" "KSP\Power.d" "KSP\REF_Kadr.d" "KSP\main_Init.d" "KSP\pwm_funcs.d" "bitfield_source\f28p55x_defaultisr.d" "bitfield_source\f28p55x_globalvariabledefs.d" "bitfield_source\f28p55x_piectrl.d" "bitfield_source\f28p55x_pievect.d" "my_Files\1ph_Sin.d" "my_Files\3ph_sin.d" "my_Files\SPI_EEPROM.d" "my_Files\main.d" "my_Files\myADC.d" "my_Files\myEPWM.d" "my_Files\myMCAN.d" 
 	-$(RM) "CLA\Task1.d" "CLA\Task7.d" 
 	-$(RM) "f28p55x_codestartbranch.d" "bitfield_source\f28p55x_usdelay.d" 
 	-$(RMDIR) $(GEN_MISC_DIRS__QUOTED)

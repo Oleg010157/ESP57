@@ -122,5 +122,7 @@ SUBDIRS := \
 CLA \
 KSP \
 bitfield_source \
+driverlib/ccs/Debug \
+driverlib/ccs/Release \
 my_Files \
 

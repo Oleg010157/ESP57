@@ -1,0 +1,31 @@
+BasedOnStyle: Microsoft
+BreakBeforeBraces: Allman
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+# Выравнивания и читаемость
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignTrailingComments: true
+AlignEscapedNewlines: Left
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortEnumsOnASingleLine: false
+
+# Стиль enum и typedef
+IndentCaseLabels: true
+KeepEmptyLinesAtTheStartOfBlocks: true
+ReflowComments: false
+SortIncludes: false
+
+# Скобки и пробелы
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+SpacesInAngles: false
+SpaceBeforeCpp11BracedList: true
+SpaceAfterControlStatementKeyword: true
+
+# Прочее
+ColumnLimit: 200

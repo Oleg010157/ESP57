@@ -63,11 +63,15 @@ extern "C"
 //
 
 //
-// EPWM2 -> myEPWM1 Pinmux
+// EPWM3 -> myEPWM1 Pinmux
 //
 
 //
-// EPWM1 -> myEPWM2 Pinmux
+// EPWM2 -> myEPWM2 Pinmux
+//
+
+//
+// EPWM1 -> myEPWM3 Pinmux
 //
 
 //
@@ -167,7 +171,7 @@ void myDAC1_init();
 // EPWM Configurations
 //
 //*****************************************************************************
-#define myEPWM1_BASE EPWM2_BASE
+#define myEPWM1_BASE EPWM3_BASE
 #define myEPWM1_TBPRD 6000
 #define myEPWM1_COUNTER_MODE EPWM_COUNTER_MODE_UP_DOWN
 #define myEPWM1_TBPHS 0
@@ -181,7 +185,7 @@ void myDAC1_init();
 #define myEPWM1_TZB_ACTION EPWM_TZ_ACTION_HIGH_Z
 #define myEPWM1_INTERRUPT_SOURCE EPWM_INT_TBCTR_PERIOD
 void myEPWM1_init();
-#define myEPWM2_BASE EPWM1_BASE
+#define myEPWM2_BASE EPWM2_BASE
 #define myEPWM2_TBPRD 0
 #define myEPWM2_COUNTER_MODE EPWM_COUNTER_MODE_STOP_FREEZE
 #define myEPWM2_TBPHS 0
@@ -195,6 +199,20 @@ void myEPWM1_init();
 #define myEPWM2_TZB_ACTION EPWM_TZ_ACTION_HIGH_Z
 #define myEPWM2_INTERRUPT_SOURCE EPWM_INT_TBCTR_DISABLED
 void myEPWM2_init();
+#define myEPWM3_BASE EPWM1_BASE
+#define myEPWM3_TBPRD 6000
+#define myEPWM3_COUNTER_MODE EPWM_COUNTER_MODE_UP_DOWN
+#define myEPWM3_TBPHS 0
+#define myEPWM3_CMPA 0
+#define myEPWM3_CMPB 0
+#define myEPWM3_CMPC 0
+#define myEPWM3_CMPD 0
+#define myEPWM3_DBRED 0
+#define myEPWM3_DBFED 0
+#define myEPWM3_TZA_ACTION EPWM_TZ_ACTION_HIGH_Z
+#define myEPWM3_TZB_ACTION EPWM_TZ_ACTION_HIGH_Z
+#define myEPWM3_INTERRUPT_SOURCE EPWM_INT_TBCTR_PERIOD
+void myEPWM3_init();
 
 //*****************************************************************************
 //
@@ -204,9 +222,15 @@ void myEPWM2_init();
 
 // Interrupt Settings for INT_myEPWM1
 // ISR need to be defined for the registered interrupts
-#define INT_myEPWM1 INT_EPWM2
+#define INT_myEPWM1 INT_EPWM3
 #define INT_myEPWM1_INTERRUPT_ACK_GROUP INTERRUPT_ACK_GROUP3
 extern __interrupt void INT_myEPWM1_ISR(void);
+
+// Interrupt Settings for INT_myEPWM3
+// ISR need to be defined for the registered interrupts
+#define INT_myEPWM3 INT_EPWM1
+#define INT_myEPWM3_INTERRUPT_ACK_GROUP INTERRUPT_ACK_GROUP3
+extern __interrupt void INT_myEPWM3_ISR(void);
 
 // Interrupt Settings for INT_myMCANA_0
 // ISR need to be defined for the registered interrupts

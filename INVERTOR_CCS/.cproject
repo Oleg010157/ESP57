@@ -123,6 +123,8 @@
                     </folderInfo>
                     <sourceEntries>
                         <entry excluding="bitfield_source/f28p55x_sysctrl.c|bitfield_source/f28p55x_gpio.c|driverlib|Debug.syscfg|my_Files/Bootloader/app_boot_request.c|my_Files/Bootloader/can_bootloader.c|28p55x_generic_flash_lnk.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="driverlib/inc"/>
+                        <entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="driverlib/ccs"/>
                     </sourceEntries>
                 </configuration>
             </storageModule>
@@ -242,7 +244,9 @@
                         </toolChain>
                     </folderInfo>
                     <sourceEntries>
-                        <entry excluding="driverlib|bitfield_source/f28p55x_sysctrl.c|my_Files/Bootloader|bitfield_source/f28p55x_gpio.c|Debug.syscfg|28p55x_generic_ram_lnk.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry excluding="driverlib|bitfield_source/f28p55x_sysctrl.c|my_Files/Bootloader|bitfield_source/f28p55x_gpio.c|Debug.syscfg" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="driverlib/inc"/>
+                        <entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="driverlib/ccs"/>
                     </sourceEntries>
                 </configuration>
             </storageModule>
@@ -449,7 +453,7 @@
                         </toolChain>
                     </folderInfo>
                     <sourceEntries>
-                        <entry excluding="28p55x_generic_ram_lnk.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
                     </sourceEntries>
                 </configuration>
             </storageModule>
