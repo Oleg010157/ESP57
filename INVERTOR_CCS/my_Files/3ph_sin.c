@@ -21,12 +21,16 @@
 
 #include "1ph_Sin.h"
 
-
-uint16_t epwm3count = 0;
+void MainISR(void);
+volatile uint16_t epwm3count = 0;// dbg
+volatile uint16_t epwm3time = 0;// dbg
 
 __interrupt void INT_myEPWM3_ISR(void) 
 { 
-    epwm3count++;
+    epwm3count++;//dbg
+    GpioDataRegs.GPBTOGGLE.bit.GPIO57 = 1; // scope dbg
+    
+    MainISR();
     EPwm3Regs.ETCLR.bit.INT = 1;
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP3); 
 }

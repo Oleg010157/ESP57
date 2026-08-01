@@ -63,7 +63,7 @@ extern "C"
 //
 
 //
-// EPWM3 -> myEPWM1 Pinmux
+// EPWM1 -> myEPWM1 Pinmux
 //
 
 //
@@ -71,8 +71,16 @@ extern "C"
 //
 
 //
-// EPWM1 -> myEPWM3 Pinmux
+// EPWM3 -> myEPWM3 Pinmux
 //
+
+//
+// EPWM7 -> myEPWM7 Pinmux
+//
+//
+// GPIO57 - GPIO Settings
+//
+#define scope_GPIO_PIN_CONFIG GPIO_57_GPIO57
 
 //
 // MCANA -> myMCANA Pinmux
@@ -171,7 +179,7 @@ void myDAC1_init();
 // EPWM Configurations
 //
 //*****************************************************************************
-#define myEPWM1_BASE EPWM3_BASE
+#define myEPWM1_BASE EPWM1_BASE
 #define myEPWM1_TBPRD 6000
 #define myEPWM1_COUNTER_MODE EPWM_COUNTER_MODE_UP_DOWN
 #define myEPWM1_TBPHS 0
@@ -186,7 +194,7 @@ void myDAC1_init();
 #define myEPWM1_INTERRUPT_SOURCE EPWM_INT_TBCTR_PERIOD
 void myEPWM1_init();
 #define myEPWM2_BASE EPWM2_BASE
-#define myEPWM2_TBPRD 0
+#define myEPWM2_TBPRD 6000
 #define myEPWM2_COUNTER_MODE EPWM_COUNTER_MODE_STOP_FREEZE
 #define myEPWM2_TBPHS 0
 #define myEPWM2_CMPA 0
@@ -199,8 +207,8 @@ void myEPWM1_init();
 #define myEPWM2_TZB_ACTION EPWM_TZ_ACTION_HIGH_Z
 #define myEPWM2_INTERRUPT_SOURCE EPWM_INT_TBCTR_DISABLED
 void myEPWM2_init();
-#define myEPWM3_BASE EPWM1_BASE
-#define myEPWM3_TBPRD 6000
+#define myEPWM3_BASE EPWM3_BASE
+#define myEPWM3_TBPRD 37500
 #define myEPWM3_COUNTER_MODE EPWM_COUNTER_MODE_UP_DOWN
 #define myEPWM3_TBPHS 0
 #define myEPWM3_CMPA 0
@@ -213,6 +221,28 @@ void myEPWM2_init();
 #define myEPWM3_TZB_ACTION EPWM_TZ_ACTION_HIGH_Z
 #define myEPWM3_INTERRUPT_SOURCE EPWM_INT_TBCTR_PERIOD
 void myEPWM3_init();
+#define myEPWM7_BASE EPWM7_BASE
+#define myEPWM7_TBPRD 65535
+#define myEPWM7_COUNTER_MODE EPWM_COUNTER_MODE_UP
+#define myEPWM7_TBPHS 0
+#define myEPWM7_CMPA 0
+#define myEPWM7_CMPB 0
+#define myEPWM7_CMPC 0
+#define myEPWM7_CMPD 0
+#define myEPWM7_DBRED 0
+#define myEPWM7_DBFED 0
+#define myEPWM7_TZA_ACTION EPWM_TZ_ACTION_HIGH_Z
+#define myEPWM7_TZB_ACTION EPWM_TZ_ACTION_HIGH_Z
+#define myEPWM7_INTERRUPT_SOURCE EPWM_INT_TBCTR_DISABLED
+void myEPWM7_init();
+
+//*****************************************************************************
+//
+// GPIO Configurations
+//
+//*****************************************************************************
+#define scope 57
+void scope_init();
 
 //*****************************************************************************
 //
@@ -222,13 +252,13 @@ void myEPWM3_init();
 
 // Interrupt Settings for INT_myEPWM1
 // ISR need to be defined for the registered interrupts
-#define INT_myEPWM1 INT_EPWM3
+#define INT_myEPWM1 INT_EPWM1
 #define INT_myEPWM1_INTERRUPT_ACK_GROUP INTERRUPT_ACK_GROUP3
 extern __interrupt void INT_myEPWM1_ISR(void);
 
 // Interrupt Settings for INT_myEPWM3
 // ISR need to be defined for the registered interrupts
-#define INT_myEPWM3 INT_EPWM1
+#define INT_myEPWM3 INT_EPWM3
 #define INT_myEPWM3_INTERRUPT_ACK_GROUP INTERRUPT_ACK_GROUP3
 extern __interrupt void INT_myEPWM3_ISR(void);
 
@@ -303,6 +333,7 @@ void	ADC_init();
 void	ASYSCTL_init();
 void	DAC_init();
 void	EPWM_init();
+void	GPIO_init();
 void	INTERRUPT_init();
 void	MCAN_SYSCFG_init();
 void	SPI_init();

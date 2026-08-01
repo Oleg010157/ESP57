@@ -47,6 +47,7 @@ float    test[32];
 uint16_t index  = 0;      // номер от 0 до количества точек периодов ШИМ синусоиды
 uint16_t spwmHz = 1000;   //заданная частота  ШИМ в Гц , глобальный параметр. Изменяется через команды CAN
 float    sine0  = PI / 2; // регулируемое смещение фазы синусоиды
+
 //DBG
 struct sine sineA = {.resolution = 256, .freq = 50, .gain = 1800};
 struct sine sineB = {.resolution = 100, .freq = 50, .gain = 1800};
@@ -85,11 +86,11 @@ void sine_invertor1(struct sine *s)
     if (duty >= 0) // реализация положительной волны синусоиды
     {
         EPwm1Regs.CMPA.bit.CMPA = cmpaA = s->pwm_period - tbperiod * duty; // ШИМ для верхнего ключа фазы А
-        EPwm6Regs.CMPA.bit.CMPA = cmpaB = s->pwm_period;                   //верхний ключа фазы B ШИМ всегда в нуле
+        EPwm2Regs.CMPA.bit.CMPA = cmpaB = s->pwm_period;                   //верхний ключа фазы B ШИМ всегда в нуле
     }
     else // реализация отрицательной волны синусоиды
     {
-        EPwm6Regs.CMPA.bit.CMPA = cmpaB = s->pwm_period + tbperiod * duty; // ШИМ для верхнего ключа фазы B
+        EPwm2Regs.CMPA.bit.CMPA = cmpaB = s->pwm_period + tbperiod * duty; // ШИМ для верхнего ключа фазы B
         EPwm1Regs.CMPA.bit.CMPA = cmpaA = s->pwm_period;                   // верхний ключа фазы A ШИМ всегда в нуле
     }
 
@@ -123,7 +124,7 @@ void sine_invertor2(struct sine *s)
     // загрузка скважности в теневые регистры компараторов:
     DINT;
     EPwm1Regs.CMPA.bit.CMPA = cmpaA = tbperiod * (duty);                  // ШИМ для верхнего ключа фазы А
-    EPwm6Regs.CMPA.bit.CMPA = cmpaB = tbperiod - EPwm1Regs.CMPA.bit.CMPA; //  *(1.0f-duty); // ШИМ для верхнего ключа фазы B
+    EPwm2Regs.CMPA.bit.CMPA = cmpaB = tbperiod - EPwm1Regs.CMPA.bit.CMPA; //  *(1.0f-duty); // ШИМ для верхнего ключа фазы B
     EINT;
 
     // вычисление нового угла синусоиды и ограничение в диапазоне от -PI до PI
@@ -286,7 +287,7 @@ __interrupt void INT_myEPWM2_ISR(void)
     daca        = (a > 4095) ? 4095 : a;
     DAC_setShadowValue(myDAC1_BASE, daca); // A0, B15, C15 ,DACA_OUT -> HSEC pin 9
 
-    EPwm6Regs.ETCLR.bit.INT = 1;
+    EPwm2Regs.ETCLR.bit.INT = 1;
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP3);
 }
 

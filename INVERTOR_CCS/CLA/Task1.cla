@@ -70,6 +70,6 @@ __interrupt void Cla1Task1(void)
 
     EPwm1Regs.CMPA.bit.CMPA = c.CMPA;
 
-    task1Time = (EPwm7Regs.TBCTR - dbgtest); // время в 1/120 мкс
+    task1Time = (EPwm7Regs.TBCTR - dbgtest); // время в 1/150 мкс
 }
 

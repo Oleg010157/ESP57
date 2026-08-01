@@ -54,6 +54,7 @@ void Board_init()
 	ADC_init();
 	DAC_init();
 	EPWM_init();
+	GPIO_init();
 	MCAN_SYSCFG_init();
 	SPI_init();
 	INTERRUPT_init();
@@ -216,14 +217,19 @@ void PinMux_init()
 	// AIO -> Analog mode selected
 	GPIO_setAnalogMode(232, GPIO_ANALOG_ENABLED);
 	//
-	// EPWM3 -> myEPWM1 Pinmux
+	// EPWM1 -> myEPWM1 Pinmux
 	//
 	//
 	// EPWM2 -> myEPWM2 Pinmux
 	//
 	//
-	// EPWM1 -> myEPWM3 Pinmux
+	// EPWM3 -> myEPWM3 Pinmux
 	//
+	//
+	// EPWM7 -> myEPWM7 Pinmux
+	//
+	// GPIO57 -> scope Pinmux
+	GPIO_setPinConfig(GPIO_57_GPIO57);
 	//
 	// MCANA -> myMCANA Pinmux
 	//
@@ -732,6 +738,7 @@ void EPWM_init(){
 	myEPWM1_init();
 	myEPWM2_init();
 	myEPWM3_init();
+	myEPWM7_init();
 }
 void myEPWM1_init(){
     //EPWM_disableGlobalLoad(myEPWM1_BASE);	
@@ -904,11 +911,11 @@ void myEPWM2_init(){
     //EPWM_setGlobalLoadTrigger(myEPWM2_BASE, EPWM_GL_LOAD_PULSE_CNTR_ZERO);	
     //EPWM_setGlobalLoadEventPrescale(myEPWM2_BASE, 0);	
     //EPWM_disableGlobalLoadOneShotMode(myEPWM2_BASE);	
-    //EPWM_setEmulationMode(myEPWM2_BASE, EPWM_EMULATION_STOP_AFTER_NEXT_TB);	
-    //EPWM_setClockPrescaler(myEPWM2_BASE, EPWM_CLOCK_DIVIDER_1, EPWM_HSCLOCK_DIVIDER_2);	
+    EPWM_setEmulationMode(myEPWM2_BASE, EPWM_EMULATION_FREE_RUN);	
+    EPWM_setClockPrescaler(myEPWM2_BASE, EPWM_CLOCK_DIVIDER_1, EPWM_HSCLOCK_DIVIDER_1);	
     //EPWM_setPeriodLoadMode(myEPWM2_BASE, EPWM_PERIOD_SHADOW_LOAD);	
     //EPWM_selectPeriodLoadEvent(myEPWM2_BASE, EPWM_SHADOW_LOAD_MODE_COUNTER_ZERO);	
-    //EPWM_setTimeBasePeriod(myEPWM2_BASE, 0);	
+    EPWM_setTimeBasePeriod(myEPWM2_BASE, 6000);	
     //EPWM_disableGlobalLoadRegisters(myEPWM2_BASE, EPWM_GL_REGISTER_TBPRD_TBPRDHR);	
     //EPWM_setTimeBaseCounter(myEPWM2_BASE, 0);	
     //EPWM_setTimeBaseCounterMode(myEPWM2_BASE, EPWM_COUNTER_MODE_STOP_FREEZE);	
@@ -1073,7 +1080,7 @@ void myEPWM3_init(){
     EPWM_setClockPrescaler(myEPWM3_BASE, EPWM_CLOCK_DIVIDER_1, EPWM_HSCLOCK_DIVIDER_1);	
     //EPWM_setPeriodLoadMode(myEPWM3_BASE, EPWM_PERIOD_SHADOW_LOAD);	
     //EPWM_selectPeriodLoadEvent(myEPWM3_BASE, EPWM_SHADOW_LOAD_MODE_COUNTER_ZERO);	
-    EPWM_setTimeBasePeriod(myEPWM3_BASE, 6000);	
+    EPWM_setTimeBasePeriod(myEPWM3_BASE, 37500);	
     //EPWM_disableGlobalLoadRegisters(myEPWM3_BASE, EPWM_GL_REGISTER_TBPRD_TBPRDHR);	
     //EPWM_setTimeBaseCounter(myEPWM3_BASE, 0);	
     EPWM_setTimeBaseCounterMode(myEPWM3_BASE, EPWM_COUNTER_MODE_UP_DOWN);	
@@ -1229,6 +1236,187 @@ void myEPWM3_init(){
     //EPWM_setADCTriggerEventPrescale(myEPWM3_BASE, EPWM_SOC_B, 0);	
     //EPWM_disableADCTriggerEventCountInit(myEPWM3_BASE, EPWM_SOC_B);	
     //EPWM_setADCTriggerEventCountInitValue(myEPWM3_BASE, EPWM_SOC_B, 0);	
+}
+void myEPWM7_init(){
+    //EPWM_disableGlobalLoad(myEPWM7_BASE);	
+    //EPWM_setGlobalLoadTrigger(myEPWM7_BASE, EPWM_GL_LOAD_PULSE_CNTR_ZERO);	
+    //EPWM_setGlobalLoadEventPrescale(myEPWM7_BASE, 0);	
+    //EPWM_disableGlobalLoadOneShotMode(myEPWM7_BASE);	
+    EPWM_setEmulationMode(myEPWM7_BASE, EPWM_EMULATION_FREE_RUN);	
+    EPWM_setClockPrescaler(myEPWM7_BASE, EPWM_CLOCK_DIVIDER_1, EPWM_HSCLOCK_DIVIDER_1);	
+    EPWM_setPeriodLoadMode(myEPWM7_BASE, EPWM_PERIOD_DIRECT_LOAD);	
+    //EPWM_selectPeriodLoadEvent(myEPWM7_BASE, EPWM_SHADOW_LOAD_MODE_COUNTER_ZERO);	
+    EPWM_setTimeBasePeriod(myEPWM7_BASE, 65535);	
+    //EPWM_disableGlobalLoadRegisters(myEPWM7_BASE, EPWM_GL_REGISTER_TBPRD_TBPRDHR);	
+    //EPWM_setTimeBaseCounter(myEPWM7_BASE, 0);	
+    EPWM_setTimeBaseCounterMode(myEPWM7_BASE, EPWM_COUNTER_MODE_UP);	
+    //EPWM_setCountModeAfterSync(myEPWM7_BASE, EPWM_COUNT_MODE_DOWN_AFTER_SYNC);	
+    //EPWM_disablePhaseShiftLoad(myEPWM7_BASE);	
+    //EPWM_setPhaseShift(myEPWM7_BASE, 0);	
+    EPWM_setSyncInPulseSource(myEPWM7_BASE, EPWM_SYNC_IN_PULSE_SRC_DISABLE);	
+    //EPWM_setOneShotSyncOutTrigger(myEPWM7_BASE, EPWM_OSHT_SYNC_OUT_TRIG_SYNC);	
+    //EPWM_setSyncPulseSource(myEPWM7_BASE, HRPWM_PWMSYNC_SOURCE_PERIOD);	
+    //EPWM_setCounterCompareValue(myEPWM7_BASE, EPWM_COUNTER_COMPARE_A, 0);	
+    //EPWM_disableGlobalLoadRegisters(myEPWM7_BASE, EPWM_GL_REGISTER_CMPA_CMPAHR);	
+    //EPWM_setCounterCompareShadowLoadMode(myEPWM7_BASE, EPWM_COUNTER_COMPARE_A, EPWM_COMP_LOAD_ON_CNTR_ZERO);	
+    //EPWM_setCounterCompareValue(myEPWM7_BASE, EPWM_COUNTER_COMPARE_B, 0);	
+    //EPWM_disableGlobalLoadRegisters(myEPWM7_BASE, EPWM_GL_REGISTER_CMPB_CMPBHR);	
+    //EPWM_setCounterCompareShadowLoadMode(myEPWM7_BASE, EPWM_COUNTER_COMPARE_B, EPWM_COMP_LOAD_ON_CNTR_ZERO);	
+    //EPWM_setCounterCompareValue(myEPWM7_BASE, EPWM_COUNTER_COMPARE_C, 0);	
+    //EPWM_disableGlobalLoadRegisters(myEPWM7_BASE, EPWM_GL_REGISTER_CMPC);	
+    //EPWM_setCounterCompareShadowLoadMode(myEPWM7_BASE, EPWM_COUNTER_COMPARE_C, EPWM_COMP_LOAD_ON_CNTR_ZERO);	
+    //EPWM_setCounterCompareValue(myEPWM7_BASE, EPWM_COUNTER_COMPARE_D, 0);	
+    //EPWM_disableGlobalLoadRegisters(myEPWM7_BASE, EPWM_GL_REGISTER_CMPD);	
+    //EPWM_setCounterCompareShadowLoadMode(myEPWM7_BASE, EPWM_COUNTER_COMPARE_D, EPWM_COMP_LOAD_ON_CNTR_ZERO);	
+    //EPWM_disableGlobalLoadRegisters(myEPWM7_BASE, EPWM_GL_REGISTER_AQCSFRC);	
+    //EPWM_setActionQualifierContSWForceShadowMode(myEPWM7_BASE, EPWM_AQ_SW_SH_LOAD_ON_CNTR_ZERO);	
+    //EPWM_setActionQualifierT1TriggerSource(myEPWM7_BASE, EPWM_AQ_TRIGGER_EVENT_TRIG_DCA_1);	
+    //EPWM_setActionQualifierT2TriggerSource(myEPWM7_BASE, EPWM_AQ_TRIGGER_EVENT_TRIG_DCA_1);	
+    //EPWM_disableGlobalLoadRegisters(myEPWM7_BASE, EPWM_GL_REGISTER_AQCTLA_AQCTLA2);	
+    //EPWM_disableActionQualifierShadowLoadMode(myEPWM7_BASE, EPWM_ACTION_QUALIFIER_A);	
+    //EPWM_setActionQualifierSWAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE);	
+    //EPWM_setActionQualifierContSWForceAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_SW_DISABLED);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_ZERO);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_PERIOD);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPA);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPA);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPB);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPB);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_T1_COUNT_UP);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_T1_COUNT_DOWN);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_T2_COUNT_UP);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_T2_COUNT_DOWN);	
+    //EPWM_disableGlobalLoadRegisters(myEPWM7_BASE, EPWM_GL_REGISTER_AQCTLB_AQCTLB2);	
+    //EPWM_disableActionQualifierShadowLoadMode(myEPWM7_BASE, EPWM_ACTION_QUALIFIER_B);	
+    //EPWM_setActionQualifierSWAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE);	
+    //EPWM_setActionQualifierContSWForceAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_SW_DISABLED);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_ZERO);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_PERIOD);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPA);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPA);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPB);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPB);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_T1_COUNT_UP);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_T1_COUNT_DOWN);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_T2_COUNT_UP);	
+    //EPWM_setActionQualifierAction(myEPWM7_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_T2_COUNT_DOWN);	
+    //EPWM_setRisingEdgeDeadBandDelayInput(myEPWM7_BASE, EPWM_DB_INPUT_EPWMA);	
+    //EPWM_setFallingEdgeDeadBandDelayInput(myEPWM7_BASE, EPWM_DB_INPUT_EPWMA);	
+    //EPWM_setDeadBandDelayPolarity(myEPWM7_BASE, EPWM_DB_RED, EPWM_DB_POLARITY_ACTIVE_HIGH);	
+    //EPWM_setDeadBandDelayPolarity(myEPWM7_BASE, EPWM_DB_FED, EPWM_DB_POLARITY_ACTIVE_HIGH);	
+    //EPWM_setDeadBandDelayMode(myEPWM7_BASE, EPWM_DB_RED, false);	
+    //EPWM_setRisingEdgeDelayCountShadowLoadMode(myEPWM7_BASE, EPWM_RED_LOAD_ON_CNTR_ZERO);	
+    //EPWM_disableRisingEdgeDelayCountShadowLoadMode(myEPWM7_BASE);	
+    //EPWM_setRisingEdgeDelayCount(myEPWM7_BASE, 0);	
+    //EPWM_setDeadBandDelayMode(myEPWM7_BASE, EPWM_DB_FED, false);	
+    //EPWM_setFallingEdgeDelayCountShadowLoadMode(myEPWM7_BASE, EPWM_FED_LOAD_ON_CNTR_ZERO);	
+    //EPWM_disableFallingEdgeDelayCountShadowLoadMode(myEPWM7_BASE);	
+    //EPWM_setFallingEdgeDelayCount(myEPWM7_BASE, 0);	
+    //EPWM_setDeadBandOutputSwapMode(myEPWM7_BASE, EPWM_DB_OUTPUT_A, false);	
+    //EPWM_setDeadBandOutputSwapMode(myEPWM7_BASE, EPWM_DB_OUTPUT_B, false);	
+    //EPWM_setDeadBandControlShadowLoadMode(myEPWM7_BASE, EPWM_DB_LOAD_ON_CNTR_ZERO);	
+    //EPWM_disableDeadBandControlShadowLoadMode(myEPWM7_BASE);	
+    //EPWM_setDeadBandCounterClock(myEPWM7_BASE, EPWM_DB_COUNTER_CLOCK_FULL_CYCLE);	
+    //EPWM_disableChopper(myEPWM7_BASE);	
+    //EPWM_setChopperDutyCycle(myEPWM7_BASE, 0);	
+    //EPWM_setChopperFreq(myEPWM7_BASE, 0);	
+    //EPWM_setChopperFirstPulseWidth(myEPWM7_BASE, 0);	
+    //EPWM_disableTripZoneAdvAction(myEPWM7_BASE);	
+    //EPWM_setTripZoneAction(myEPWM7_BASE, EPWM_TZ_ACTION_EVENT_TZA, EPWM_TZ_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAction(myEPWM7_BASE, EPWM_TZ_ACTION_EVENT_TZB, EPWM_TZ_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAction(myEPWM7_BASE, EPWM_TZ_ACTION_EVENT_DCAEVT1, EPWM_TZ_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAction(myEPWM7_BASE, EPWM_TZ_ACTION_EVENT_DCAEVT2, EPWM_TZ_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAction(myEPWM7_BASE, EPWM_TZ_ACTION_EVENT_DCBEVT1, EPWM_TZ_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAction(myEPWM7_BASE, EPWM_TZ_ACTION_EVENT_DCBEVT2, EPWM_TZ_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAdvAction(myEPWM7_BASE, EPWM_TZ_ADV_ACTION_EVENT_TZB_D, EPWM_TZ_ADV_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAdvAction(myEPWM7_BASE, EPWM_TZ_ADV_ACTION_EVENT_TZB_U, EPWM_TZ_ADV_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAdvAction(myEPWM7_BASE, EPWM_TZ_ADV_ACTION_EVENT_TZA_D, EPWM_TZ_ADV_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAdvAction(myEPWM7_BASE, EPWM_TZ_ADV_ACTION_EVENT_TZA_U, EPWM_TZ_ADV_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAdvDigitalCompareActionA(myEPWM7_BASE, EPWM_TZ_ADV_ACTION_EVENT_DCxEVT1_U, EPWM_TZ_ADV_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAdvDigitalCompareActionA(myEPWM7_BASE, EPWM_TZ_ADV_ACTION_EVENT_DCxEVT1_D, EPWM_TZ_ADV_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAdvDigitalCompareActionA(myEPWM7_BASE, EPWM_TZ_ADV_ACTION_EVENT_DCxEVT2_U, EPWM_TZ_ADV_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAdvDigitalCompareActionA(myEPWM7_BASE, EPWM_TZ_ADV_ACTION_EVENT_DCxEVT2_D, EPWM_TZ_ADV_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAdvDigitalCompareActionB(myEPWM7_BASE, EPWM_TZ_ADV_ACTION_EVENT_DCxEVT1_U, EPWM_TZ_ADV_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAdvDigitalCompareActionB(myEPWM7_BASE, EPWM_TZ_ADV_ACTION_EVENT_DCxEVT1_D, EPWM_TZ_ADV_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAdvDigitalCompareActionB(myEPWM7_BASE, EPWM_TZ_ADV_ACTION_EVENT_DCxEVT2_U, EPWM_TZ_ADV_ACTION_HIGH_Z);	
+    //EPWM_setTripZoneAdvDigitalCompareActionB(myEPWM7_BASE, EPWM_TZ_ADV_ACTION_EVENT_DCxEVT2_D, EPWM_TZ_ADV_ACTION_HIGH_Z);	
+    //EPWM_selectCycleByCycleTripZoneClearEvent(myEPWM7_BASE, EPWM_TZ_CBC_PULSE_CLR_CNTR_ZERO);	
+    //EPWM_selectDigitalCompareTripInput(myEPWM7_BASE, EPWM_DC_TRIP_TRIPIN1, EPWM_DC_TYPE_DCAH);	
+    //EPWM_selectDigitalCompareTripInput(myEPWM7_BASE, EPWM_DC_TRIP_TRIPIN1, EPWM_DC_TYPE_DCAL);	
+    //EPWM_setTripZoneDigitalCompareEventCondition(myEPWM7_BASE, EPWM_TZ_DC_OUTPUT_A1, EPWM_TZ_EVENT_DC_DISABLED);	
+    //EPWM_setTripZoneDigitalCompareEventCondition(myEPWM7_BASE, EPWM_TZ_DC_OUTPUT_A2, EPWM_TZ_EVENT_DC_DISABLED);	
+    //EPWM_disableDigitalCompareADCTrigger(myEPWM7_BASE, EPWM_DC_MODULE_A);	
+    //EPWM_disableDigitalCompareSyncEvent(myEPWM7_BASE, EPWM_DC_MODULE_A);	
+    //EPWM_setDigitalCompareEventSyncMode(myEPWM7_BASE, EPWM_DC_MODULE_A, EPWM_DC_EVENT_1, EPWM_DC_EVENT_INPUT_SYNCED);	
+    //EPWM_setDigitalCompareEventSource(myEPWM7_BASE, EPWM_DC_MODULE_A, EPWM_DC_EVENT_1, EPWM_DC_EVENT_SOURCE_ORIG_SIGNAL);	
+    //EPWM_setDigitalCompareCBCLatchMode(myEPWM7_BASE, EPWM_DC_MODULE_A, EPWM_DC_EVENT_1, EPWM_DC_CBC_LATCH_DISABLED);	
+    //EPWM_selectDigitalCompareCBCLatchClearEvent(myEPWM7_BASE, EPWM_DC_MODULE_A, EPWM_DC_EVENT_1, EPWM_DC_CBC_LATCH_CLR_CNTR_ZERO);	
+    //EPWM_setDigitalCompareEventSyncMode(myEPWM7_BASE, EPWM_DC_MODULE_A, EPWM_DC_EVENT_2, EPWM_DC_EVENT_INPUT_SYNCED);	
+    //EPWM_setDigitalCompareEventSource(myEPWM7_BASE, EPWM_DC_MODULE_A, EPWM_DC_EVENT_2, EPWM_DC_EVENT_SOURCE_ORIG_SIGNAL);	
+    //EPWM_setDigitalCompareCBCLatchMode(myEPWM7_BASE, EPWM_DC_MODULE_A, EPWM_DC_EVENT_2, EPWM_DC_CBC_LATCH_DISABLED);	
+    //EPWM_selectDigitalCompareCBCLatchClearEvent(myEPWM7_BASE, EPWM_DC_MODULE_A, EPWM_DC_EVENT_2, EPWM_DC_CBC_LATCH_CLR_CNTR_ZERO);	
+    //EPWM_selectDigitalCompareTripInput(myEPWM7_BASE, EPWM_DC_TRIP_TRIPIN1, EPWM_DC_TYPE_DCBH);	
+    //EPWM_selectDigitalCompareTripInput(myEPWM7_BASE, EPWM_DC_TRIP_TRIPIN1, EPWM_DC_TYPE_DCBL);	
+    //EPWM_setTripZoneDigitalCompareEventCondition(myEPWM7_BASE, EPWM_TZ_DC_OUTPUT_B1, EPWM_TZ_EVENT_DC_DISABLED);	
+    //EPWM_setTripZoneDigitalCompareEventCondition(myEPWM7_BASE, EPWM_TZ_DC_OUTPUT_B2, EPWM_TZ_EVENT_DC_DISABLED);	
+    //EPWM_disableDigitalCompareADCTrigger(myEPWM7_BASE, EPWM_DC_MODULE_B);	
+    //EPWM_disableDigitalCompareSyncEvent(myEPWM7_BASE, EPWM_DC_MODULE_B);	
+    //EPWM_setDigitalCompareEventSyncMode(myEPWM7_BASE, EPWM_DC_MODULE_B, EPWM_DC_EVENT_1, EPWM_DC_EVENT_INPUT_SYNCED);	
+    //EPWM_setDigitalCompareEventSource(myEPWM7_BASE, EPWM_DC_MODULE_B, EPWM_DC_EVENT_1, EPWM_DC_EVENT_SOURCE_ORIG_SIGNAL);	
+    //EPWM_setDigitalCompareCBCLatchMode(myEPWM7_BASE, EPWM_DC_MODULE_B, EPWM_DC_EVENT_1, EPWM_DC_CBC_LATCH_DISABLED);	
+    //EPWM_selectDigitalCompareCBCLatchClearEvent(myEPWM7_BASE, EPWM_DC_MODULE_B, EPWM_DC_EVENT_1, EPWM_DC_CBC_LATCH_CLR_CNTR_ZERO);	
+    //EPWM_setDigitalCompareEventSyncMode(myEPWM7_BASE, EPWM_DC_MODULE_B, EPWM_DC_EVENT_2, EPWM_DC_EVENT_INPUT_SYNCED);	
+    //EPWM_setDigitalCompareEventSource(myEPWM7_BASE, EPWM_DC_MODULE_B, EPWM_DC_EVENT_2, EPWM_DC_EVENT_SOURCE_ORIG_SIGNAL);	
+    //EPWM_setDigitalCompareCBCLatchMode(myEPWM7_BASE, EPWM_DC_MODULE_B, EPWM_DC_EVENT_2, EPWM_DC_CBC_LATCH_DISABLED);	
+    //EPWM_selectDigitalCompareCBCLatchClearEvent(myEPWM7_BASE, EPWM_DC_MODULE_B, EPWM_DC_EVENT_2, EPWM_DC_CBC_LATCH_CLR_CNTR_ZERO);	
+    //EPWM_setDigitalCompareFilterInput(myEPWM7_BASE, EPWM_DC_WINDOW_SOURCE_DCAEVT1);	
+    //EPWM_disableDigitalCompareBlankingWindow(myEPWM7_BASE);	
+    //EPWM_setDigitalCompareBlankingEvent(myEPWM7_BASE, EPWM_DC_WINDOW_START_TBCTR_PERIOD);	
+    //EPWM_setDigitalCompareWindowOffset(myEPWM7_BASE, 0);	
+    //EPWM_setDigitalCompareWindowLength(myEPWM7_BASE, 0);	
+    //EPWM_disableDigitalCompareWindowInverseMode(myEPWM7_BASE);	
+    //EPWM_disableDigitalCompareCounterCapture(myEPWM7_BASE);	
+    //EPWM_setDigitalCompareCounterShadowMode(myEPWM7_BASE, false);	
+    //EPWM_disableDigitalCompareEdgeFilter(myEPWM7_BASE);	
+    //EPWM_setDigitalCompareEdgeFilterMode(myEPWM7_BASE, EPWM_DC_EDGEFILT_MODE_RISING);	
+    //EPWM_setDigitalCompareEdgeFilterEdgeCount(myEPWM7_BASE, EPWM_DC_EDGEFILT_EDGECNT_0);	
+    //EPWM_disableValleyCapture(myEPWM7_BASE);	
+    //EPWM_setValleyTriggerSource(myEPWM7_BASE, EPWM_VALLEY_TRIGGER_EVENT_SOFTWARE);	
+    //EPWM_setValleyTriggerEdgeCounts(myEPWM7_BASE, 0, 0);	
+    //EPWM_disableValleyHWDelay(myEPWM7_BASE);	
+    //EPWM_setValleySWDelayValue(myEPWM7_BASE, 0);	
+    //EPWM_setValleyDelayDivider(myEPWM7_BASE, EPWM_VALLEY_DELAY_MODE_SW_DELAY);	
+    //EPWM_disableInterrupt(myEPWM7_BASE);	
+    //EPWM_setInterruptSource(myEPWM7_BASE, EPWM_INT_TBCTR_DISABLED);	
+    //EPWM_setInterruptEventCount(myEPWM7_BASE, 0);	
+    //EPWM_disableInterruptEventCountInit(myEPWM7_BASE);	
+    //EPWM_setInterruptEventCountInitValue(myEPWM7_BASE, 0);	
+    //EPWM_disableADCTrigger(myEPWM7_BASE, EPWM_SOC_A);	
+    //EPWM_setADCTriggerSource(myEPWM7_BASE, EPWM_SOC_A, EPWM_SOC_DCxEVT1);	
+    //EPWM_setADCTriggerEventPrescale(myEPWM7_BASE, EPWM_SOC_A, 0);	
+    //EPWM_disableADCTriggerEventCountInit(myEPWM7_BASE, EPWM_SOC_A);	
+    //EPWM_setADCTriggerEventCountInitValue(myEPWM7_BASE, EPWM_SOC_A, 0);	
+    //EPWM_disableADCTrigger(myEPWM7_BASE, EPWM_SOC_B);	
+    //EPWM_setADCTriggerSource(myEPWM7_BASE, EPWM_SOC_B, EPWM_SOC_DCxEVT1);	
+    //EPWM_setADCTriggerEventPrescale(myEPWM7_BASE, EPWM_SOC_B, 0);	
+    //EPWM_disableADCTriggerEventCountInit(myEPWM7_BASE, EPWM_SOC_B);	
+    //EPWM_setADCTriggerEventCountInitValue(myEPWM7_BASE, EPWM_SOC_B, 0);	
+}
+
+//*****************************************************************************
+//
+// GPIO Configurations
+//
+//*****************************************************************************
+void GPIO_init(){
+	scope_init();
+}
+
+void scope_init(){
+	GPIO_setPadConfig(scope, GPIO_PIN_TYPE_STD);
+	GPIO_setQualificationMode(scope, GPIO_QUAL_SYNC);
+	GPIO_setDirectionMode(scope, GPIO_DIR_MODE_OUT);
+	GPIO_setControllerCore(scope, GPIO_CORE_CPU1);
 }
 
 //*****************************************************************************

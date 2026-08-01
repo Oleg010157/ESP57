@@ -386,7 +386,9 @@ namespace ICDIBasic
                             ushort d3  = (ushort)(data[6] | (data[7] << 8));
 
                             AppendUiCanLogLine("RX", 1, cmd, d1, d2, d3);
-                            _ = this.BeginInvoke(new Action(() =>
+
+                            _ = this.BeginInvoke(new Action(() => 
+                     
                             {
                                 Mbox13Rx(data, cmd, d1, d2, d3);
                                 foreach (var t in _txFl) t.RxFb(cmd, (short)d1, d3);

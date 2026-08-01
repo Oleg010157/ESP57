@@ -179,6 +179,9 @@ MCAN_enableLine1Routing();
     EINT;
     ERTM;
 
+    extern volatile uint16_t epwm3count;// dbg
+extern volatile uint16_t epwm3time;// dbg
+
     while (1)
     {
         CMPSS_BackgroundCheck();
@@ -225,8 +228,10 @@ MCAN_enableLine1Routing();
         {
             CpuTimer0Regs.TCR.bit.TIF = 1; // clear flag
             cntT0++;
-
+            epwm3time  = epwm3count;
+            epwm3count = 0;
           
+           
 
             if (cntT0 == OneSecond) // события обрабатываемые каждую секунду
             {
