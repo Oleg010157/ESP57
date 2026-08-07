@@ -65,6 +65,18 @@ extern "C"
 //
 // EPWM1 -> myEPWM1 Pinmux
 //
+//
+// EPWM1_A - GPIO Settings
+//
+#define GPIO_PIN_EPWM1_A 0
+#define myEPWM1_EPWMA_GPIO 0
+#define myEPWM1_EPWMA_PIN_CONFIG GPIO_0_EPWM1_A
+//
+// EPWM1_B - GPIO Settings
+//
+#define GPIO_PIN_EPWM1_B 1
+#define myEPWM1_EPWMB_GPIO 1
+#define myEPWM1_EPWMB_PIN_CONFIG GPIO_1_EPWM1_B
 
 //
 // EPWM2 -> myEPWM2 Pinmux
@@ -165,6 +177,18 @@ void myADCC_init();
 // ASYSCTL Configurations
 //
 //*****************************************************************************
+
+//*****************************************************************************
+//
+// CLB Configurations
+//
+//*****************************************************************************
+#define myCLB0_BASE CLB1_BASE
+void myCLB0_init();
+//
+// Tile Configurations for all CLBs are in this file
+//
+#include "clb_config.h"
 
 //*****************************************************************************
 //
@@ -331,6 +355,7 @@ void mySPIB_init();
 void	Board_init();
 void	ADC_init();
 void	ASYSCTL_init();
+void	CLB_init();
 void	DAC_init();
 void	EPWM_init();
 void	GPIO_init();

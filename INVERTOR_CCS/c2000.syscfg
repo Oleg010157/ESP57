@@ -19,6 +19,8 @@ const adc2           = adc.addInstance();
 const adc3           = adc.addInstance();
 const analog         = scripting.addModule("/driverlib/analog.js", {}, false);
 const analog1        = analog.addInstance();
+const clb            = scripting.addModule("/driverlib/clb.js", {}, false);
+const clb1           = clb.addInstance();
 const dac            = scripting.addModule("/driverlib/dac.js", {}, false);
 const dac1           = dac.addInstance();
 const device_support = scripting.addModule("/driverlib/device_support.js");
@@ -33,6 +35,8 @@ const mcan           = scripting.addModule("/driverlib/mcan.js", {}, false);
 const mcan1          = mcan.addInstance();
 const spi            = scripting.addModule("/driverlib/spi.js", {}, false);
 const spi1           = spi.addInstance();
+const TILE           = scripting.addModule("/utilities/clb_tool/clb_syscfg/source/TILE", {}, false);
+const TILE1          = TILE.addInstance();
 
 /**
  * Write custom configuration values to the imported modules.
@@ -102,6 +106,35 @@ adc3.soc0SampleWindow               = 512;
 adc3.enableInterrupt1               = true;
 adc3.enableInterrupt1ContinuousMode = true;
 
+clb1.$name               = "myCLB0";
+clb1.enableCLB           = true;
+clb1.inputTypeCLB_IN0    = "GLOBAL";
+clb1.inputTypeCLB_IN1    = "GLOBAL";
+clb1.globalConfigCLB_IN1 = "CLB_GLOBAL_IN_MUX_EPWM1B";
+clb1.synchronizeCLB_IN0  = true;
+clb1.synchronizeCLB_IN1  = true;
+clb1.inputTypeCLB_IN2    = "GLOBAL";
+clb1.synchronizeCLB_IN2  = true;
+clb1.globalConfigCLB_IN2 = "CLB_GLOBAL_IN_MUX_EPWM2A";
+clb1.inputTypeCLB_IN3    = "GLOBAL";
+clb1.synchronizeCLB_IN3  = true;
+clb1.globalConfigCLB_IN3 = "CLB_GLOBAL_IN_MUX_EPWM2B";
+clb1.inputsUsed          = ["CLB_IN0","CLB_IN1","CLB_IN2","CLB_IN3","CLB_IN4","CLB_IN5","CLB_IN6","CLB_IN7"];
+clb1.inputTypeCLB_IN4    = "GLOBAL";
+clb1.synchronizeCLB_IN4  = true;
+clb1.globalConfigCLB_IN4 = "CLB_GLOBAL_IN_MUX_EPWM3A";
+clb1.inputTypeCLB_IN5    = "GLOBAL";
+clb1.synchronizeCLB_IN5  = true;
+clb1.globalConfigCLB_IN5 = "CLB_GLOBAL_IN_MUX_EPWM3B";
+clb1.inputTypeCLB_IN6    = "GLOBAL";
+clb1.synchronizeCLB_IN6  = true;
+clb1.globalConfigCLB_IN6 = "CLB_GLOBAL_IN_MUX_EPWM4A";
+clb1.inputTypeCLB_IN7    = "GLOBAL";
+clb1.globalConfigCLB_IN7 = "CLB_GLOBAL_IN_MUX_EPWM4B";
+clb1.synchronizeCLB_IN7  = true;
+clb1.attachTile          = true;
+clb1.initTile            = true;
+
 const divider4       = system.clockTree["MCANACLKDIV"];
 divider4.divideValue = 1;
 
@@ -131,8 +164,10 @@ epwm1.epwmEventTrigger_enableInterrupt     = true;
 epwm1.epwmEventTrigger_registerInterrupts  = true;
 epwm1.epwmEventTrigger_interruptSource     = "EPWM_INT_TBCTR_PERIOD";
 epwm1.epwmEventTrigger_interruptEventCount = "1";
-epwm1.epwm.$assign                         = "EPWM1";
+epwm1.useInterfacePins                     = ["EPWM#_A","EPWM#_B"];
 epwm1.epwmInt.enableInterrupt              = true;
+epwm1.epwm.epwm_aPin.$assign               = "GPIO0";
+epwm1.epwm.epwm_bPin.$assign               = "GPIO1";
 
 epwm2.$name                      = "myEPWM2";
 epwm2.useCase                    = "CUSTOM";
@@ -223,6 +258,40 @@ spi1.$name       = "mySPIB";
 spi1.useCase     = "CUSTOM";
 spi1.spi.$assign = "SPIB";
 
+TILE1.$name              = "TILE0";
+clb1.tile                = TILE1;
+TILE1.BOUNDARY.$name     = "BOUNDARY0";
+TILE1.HLC.$name          = "HLC_0";
+TILE1.HLC.program0.$name = "HLCP_0";
+TILE1.HLC.program1.$name = "HLCP_1";
+TILE1.HLC.program2.$name = "HLCP_2";
+TILE1.HLC.program3.$name = "HLCP_3";
+TILE1.LUT_0.$name        = "LUT_0";
+TILE1.LUT_1.$name        = "LUT_1";
+TILE1.LUT_2.$name        = "LUT_2";
+TILE1.FSM_0.$name        = "FSM_0";
+TILE1.FSM_1.$name        = "FSM_1";
+TILE1.FSM_2.$name        = "FSM_2";
+TILE1.COUNTER_0.$name    = "COUNTER_0";
+TILE1.COUNTER_1.$name    = "COUNTER_1";
+TILE1.COUNTER_2.$name    = "COUNTER_2";
+TILE1.OUTLUT_0.$name     = "OUTLUT_0";
+TILE1.OUTLUT_1.$name     = "OUTLUT_1";
+TILE1.OUTLUT_2.$name     = "OUTLUT_2";
+TILE1.OUTLUT_3.$name     = "OUTLUT_3";
+TILE1.OUTLUT_4.$name     = "OUTLUT_4";
+TILE1.OUTLUT_5.$name     = "OUTLUT_5";
+TILE1.OUTLUT_6.$name     = "OUTLUT_6";
+TILE1.OUTLUT_7.$name     = "OUTLUT_7";
+TILE1.AOC_0.$name        = "AOC_0";
+TILE1.AOC_1.$name        = "AOC_1";
+TILE1.AOC_2.$name        = "AOC_2";
+TILE1.AOC_3.$name        = "AOC_3";
+TILE1.AOC_4.$name        = "AOC_4";
+TILE1.AOC_5.$name        = "AOC_5";
+TILE1.AOC_6.$name        = "AOC_6";
+TILE1.AOC_7.$name        = "AOC_7";
+
 /**
  * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future
  * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
@@ -263,3 +332,4 @@ analog1.analog["c24, d2, e2, gpio16Pin"].$suggestSolution             = "C24, D2
 analog1.analog["d20, e20, vrefhiPin"].$suggestSolution                = "D20, E20, VREFHI";
 analog1.analog["a13, b13, c13, d13, e13, vrefloPin"].$suggestSolution = "A13, B13, C13, D13, E13, VREFLO";
 analog1.analog["a1, b7, d11, cmp1_daclPin"].$suggestSolution          = "A1, B7, D11, CMP1_DACL";
+epwm1.epwm.$suggestSolution                                           = "EPWM1";

@@ -52,6 +52,7 @@ void Board_init()
 	SYNC_init();
 	ASYSCTL_init();
 	ADC_init();
+	CLB_init();
 	DAC_init();
 	EPWM_init();
 	GPIO_init();
@@ -219,6 +220,14 @@ void PinMux_init()
 	//
 	// EPWM1 -> myEPWM1 Pinmux
 	//
+	GPIO_setPinConfig(myEPWM1_EPWMA_PIN_CONFIG);
+	GPIO_setPadConfig(myEPWM1_EPWMA_GPIO, GPIO_PIN_TYPE_STD);
+	GPIO_setQualificationMode(myEPWM1_EPWMA_GPIO, GPIO_QUAL_SYNC);
+
+	GPIO_setPinConfig(myEPWM1_EPWMB_PIN_CONFIG);
+	GPIO_setPadConfig(myEPWM1_EPWMB_GPIO, GPIO_PIN_TYPE_STD);
+	GPIO_setQualificationMode(myEPWM1_EPWMB_GPIO, GPIO_QUAL_SYNC);
+
 	//
 	// EPWM2 -> myEPWM2 Pinmux
 	//
@@ -690,6 +699,143 @@ void ASYSCTL_init(){
 	//
 	ASysCtl_setAnalogReferenceExternal( ASYSCTL_ANAREF_VREFHI_ADCA | ASYSCTL_ANAREF_VREFHI_ADCB | ASYSCTL_ANAREF_VREFHI_ADCC | ASYSCTL_ANAREF_VREFHI_ADCD | ASYSCTL_ANAREF_VREFHI_ADCE );
 
+}
+
+//*****************************************************************************
+//
+// CLB Configurations
+//
+//*****************************************************************************
+void CLB_init(){
+	myCLB0_init();
+}
+
+void myCLB0_init(){
+	CLB_setOutputMask(myCLB0_BASE,
+				(0UL << 0UL), true);
+	CLB_enableOutputMaskUpdates(myCLB0_BASE);
+	//
+	// myCLB0 SPI Buffer Configuration
+	//
+	CLB_disableSPIBufferAccess(myCLB0_BASE);
+	CLB_configSPIBufferLoadSignal(myCLB0_BASE, 0);
+	CLB_configSPIBufferShift(myCLB0_BASE, 0);
+	//
+	// myCLB0 CLB_IN0 initialization
+	//
+	// The following functions configure the CLB input mux and whether the inputs
+	// have synchronization or pipeline enabled; check the device manual for more
+	// information on when a signal needs to be synchronized or go through a
+	// pipeline filter
+	//
+	CLB_configLocalInputMux(myCLB0_BASE, CLB_IN0, CLB_LOCAL_IN_MUX_GLOBAL_IN);
+	CLB_configGlobalInputMux(myCLB0_BASE, CLB_IN0, CLB_GLOBAL_IN_MUX_EPWM1A);
+	CLB_configGPInputMux(myCLB0_BASE, CLB_IN0, CLB_GP_IN_MUX_EXTERNAL);
+	CLB_enableSynchronization(myCLB0_BASE, CLB_IN0);
+	CLB_selectInputFilter(myCLB0_BASE, CLB_IN0, CLB_FILTER_NONE);
+	CLB_disableInputPipelineMode(myCLB0_BASE, CLB_IN0);
+	//
+	// myCLB0 CLB_IN1 initialization
+	//
+	// The following functions configure the CLB input mux and whether the inputs
+	// have synchronization or pipeline enabled; check the device manual for more
+	// information on when a signal needs to be synchronized or go through a
+	// pipeline filter
+	//
+	CLB_configLocalInputMux(myCLB0_BASE, CLB_IN1, CLB_LOCAL_IN_MUX_GLOBAL_IN);
+	CLB_configGlobalInputMux(myCLB0_BASE, CLB_IN1, CLB_GLOBAL_IN_MUX_EPWM1B);
+	CLB_configGPInputMux(myCLB0_BASE, CLB_IN1, CLB_GP_IN_MUX_EXTERNAL);
+	CLB_enableSynchronization(myCLB0_BASE, CLB_IN1);
+	CLB_selectInputFilter(myCLB0_BASE, CLB_IN1, CLB_FILTER_NONE);
+	CLB_disableInputPipelineMode(myCLB0_BASE, CLB_IN1);
+	//
+	// myCLB0 CLB_IN2 initialization
+	//
+	// The following functions configure the CLB input mux and whether the inputs
+	// have synchronization or pipeline enabled; check the device manual for more
+	// information on when a signal needs to be synchronized or go through a
+	// pipeline filter
+	//
+	CLB_configLocalInputMux(myCLB0_BASE, CLB_IN2, CLB_LOCAL_IN_MUX_GLOBAL_IN);
+	CLB_configGlobalInputMux(myCLB0_BASE, CLB_IN2, CLB_GLOBAL_IN_MUX_EPWM2A);
+	CLB_configGPInputMux(myCLB0_BASE, CLB_IN2, CLB_GP_IN_MUX_EXTERNAL);
+	CLB_enableSynchronization(myCLB0_BASE, CLB_IN2);
+	CLB_selectInputFilter(myCLB0_BASE, CLB_IN2, CLB_FILTER_NONE);
+	CLB_disableInputPipelineMode(myCLB0_BASE, CLB_IN2);
+	//
+	// myCLB0 CLB_IN3 initialization
+	//
+	// The following functions configure the CLB input mux and whether the inputs
+	// have synchronization or pipeline enabled; check the device manual for more
+	// information on when a signal needs to be synchronized or go through a
+	// pipeline filter
+	//
+	CLB_configLocalInputMux(myCLB0_BASE, CLB_IN3, CLB_LOCAL_IN_MUX_GLOBAL_IN);
+	CLB_configGlobalInputMux(myCLB0_BASE, CLB_IN3, CLB_GLOBAL_IN_MUX_EPWM2B);
+	CLB_configGPInputMux(myCLB0_BASE, CLB_IN3, CLB_GP_IN_MUX_EXTERNAL);
+	CLB_enableSynchronization(myCLB0_BASE, CLB_IN3);
+	CLB_selectInputFilter(myCLB0_BASE, CLB_IN3, CLB_FILTER_NONE);
+	CLB_disableInputPipelineMode(myCLB0_BASE, CLB_IN3);
+	//
+	// myCLB0 CLB_IN4 initialization
+	//
+	// The following functions configure the CLB input mux and whether the inputs
+	// have synchronization or pipeline enabled; check the device manual for more
+	// information on when a signal needs to be synchronized or go through a
+	// pipeline filter
+	//
+	CLB_configLocalInputMux(myCLB0_BASE, CLB_IN4, CLB_LOCAL_IN_MUX_GLOBAL_IN);
+	CLB_configGlobalInputMux(myCLB0_BASE, CLB_IN4, CLB_GLOBAL_IN_MUX_EPWM3A);
+	CLB_configGPInputMux(myCLB0_BASE, CLB_IN4, CLB_GP_IN_MUX_EXTERNAL);
+	CLB_enableSynchronization(myCLB0_BASE, CLB_IN4);
+	CLB_selectInputFilter(myCLB0_BASE, CLB_IN4, CLB_FILTER_NONE);
+	CLB_disableInputPipelineMode(myCLB0_BASE, CLB_IN4);
+	//
+	// myCLB0 CLB_IN5 initialization
+	//
+	// The following functions configure the CLB input mux and whether the inputs
+	// have synchronization or pipeline enabled; check the device manual for more
+	// information on when a signal needs to be synchronized or go through a
+	// pipeline filter
+	//
+	CLB_configLocalInputMux(myCLB0_BASE, CLB_IN5, CLB_LOCAL_IN_MUX_GLOBAL_IN);
+	CLB_configGlobalInputMux(myCLB0_BASE, CLB_IN5, CLB_GLOBAL_IN_MUX_EPWM3B);
+	CLB_configGPInputMux(myCLB0_BASE, CLB_IN5, CLB_GP_IN_MUX_EXTERNAL);
+	CLB_enableSynchronization(myCLB0_BASE, CLB_IN5);
+	CLB_selectInputFilter(myCLB0_BASE, CLB_IN5, CLB_FILTER_NONE);
+	CLB_disableInputPipelineMode(myCLB0_BASE, CLB_IN5);
+	//
+	// myCLB0 CLB_IN6 initialization
+	//
+	// The following functions configure the CLB input mux and whether the inputs
+	// have synchronization or pipeline enabled; check the device manual for more
+	// information on when a signal needs to be synchronized or go through a
+	// pipeline filter
+	//
+	CLB_configLocalInputMux(myCLB0_BASE, CLB_IN6, CLB_LOCAL_IN_MUX_GLOBAL_IN);
+	CLB_configGlobalInputMux(myCLB0_BASE, CLB_IN6, CLB_GLOBAL_IN_MUX_EPWM4A);
+	CLB_configGPInputMux(myCLB0_BASE, CLB_IN6, CLB_GP_IN_MUX_EXTERNAL);
+	CLB_enableSynchronization(myCLB0_BASE, CLB_IN6);
+	CLB_selectInputFilter(myCLB0_BASE, CLB_IN6, CLB_FILTER_NONE);
+	CLB_disableInputPipelineMode(myCLB0_BASE, CLB_IN6);
+	//
+	// myCLB0 CLB_IN7 initialization
+	//
+	// The following functions configure the CLB input mux and whether the inputs
+	// have synchronization or pipeline enabled; check the device manual for more
+	// information on when a signal needs to be synchronized or go through a
+	// pipeline filter
+	//
+	CLB_configLocalInputMux(myCLB0_BASE, CLB_IN7, CLB_LOCAL_IN_MUX_GLOBAL_IN);
+	CLB_configGlobalInputMux(myCLB0_BASE, CLB_IN7, CLB_GLOBAL_IN_MUX_EPWM4B);
+	CLB_configGPInputMux(myCLB0_BASE, CLB_IN7, CLB_GP_IN_MUX_EXTERNAL);
+	CLB_enableSynchronization(myCLB0_BASE, CLB_IN7);
+	CLB_selectInputFilter(myCLB0_BASE, CLB_IN7, CLB_FILTER_NONE);
+	CLB_disableInputPipelineMode(myCLB0_BASE, CLB_IN7);
+	CLB_setGPREG(myCLB0_BASE,0);
+
+	initTILE0(myCLB0_BASE);
+	CLB_enableCLB(myCLB0_BASE);
 }
 
 //*****************************************************************************

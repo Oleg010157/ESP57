@@ -5,6 +5,9 @@
 SHELL = cmd.exe
 
 # Add inputs and outputs from these tool invocations to the build variables 
+CPP_SRCS += \
+./syscfg/clb_sim.cpp 
+
 CMD_SRCS += \
 ../28p55x_generic_flash_lnk.cmd \
 ../f28p55x_headers_nonBIOS.cmd 
@@ -21,12 +24,15 @@ C:/ti/C2000Ware_26_01_00_00/device_support/f28p55x/common/source/f28p55x_codesta
 C_SRCS += \
 ./syscfg/board.c \
 ./syscfg/device.c \
+./syscfg/clb_config.c \
 ./syscfg/c2000ware_libraries.c 
 
 GEN_FILES += \
 ./syscfg/board.c \
 ./syscfg/board.opt \
 ./syscfg/device.c \
+./syscfg/clb_config.c \
+./syscfg/clb_sim.cpp \
 ./syscfg/c2000ware_libraries.opt \
 ./syscfg/c2000ware_libraries.c 
 
@@ -36,6 +42,7 @@ GEN_MISC_DIRS += \
 C_DEPS += \
 ./syscfg/board.d \
 ./syscfg/device.d \
+./syscfg/clb_config.d \
 ./syscfg/c2000ware_libraries.d 
 
 GEN_OPTS += \
@@ -45,6 +52,8 @@ GEN_OPTS += \
 OBJS += \
 ./syscfg/board.obj \
 ./syscfg/device.obj \
+./syscfg/clb_config.obj \
+./syscfg/clb_sim.obj \
 ./syscfg/c2000ware_libraries.obj \
 ./f28p55x_codestartbranch.obj 
 
@@ -59,9 +68,15 @@ GEN_MISC_FILES += \
 ./syscfg/epwm.dot \
 ./syscfg/device.h \
 ./syscfg/adc.dot \
+./syscfg/clb_config.h \
+./syscfg/clb.dot \
+./syscfg/clb_simulation.bat \
 ./syscfg/c2000ware_libraries.cmd.genlibs \
 ./syscfg/c2000ware_libraries.h \
 ./syscfg/clocktree.h 
+
+CPP_DEPS += \
+./syscfg/clb_sim.d 
 
 GEN_MISC_DIRS__QUOTED += \
 "syscfg" 
@@ -69,6 +84,8 @@ GEN_MISC_DIRS__QUOTED += \
 OBJS__QUOTED += \
 "syscfg\board.obj" \
 "syscfg\device.obj" \
+"syscfg\clb_config.obj" \
+"syscfg\clb_sim.obj" \
 "syscfg\c2000ware_libraries.obj" \
 "f28p55x_codestartbranch.obj" 
 
@@ -80,6 +97,9 @@ GEN_MISC_FILES__QUOTED += \
 "syscfg\epwm.dot" \
 "syscfg\device.h" \
 "syscfg\adc.dot" \
+"syscfg\clb_config.h" \
+"syscfg\clb.dot" \
+"syscfg\clb_simulation.bat" \
 "syscfg\c2000ware_libraries.cmd.genlibs" \
 "syscfg\c2000ware_libraries.h" \
 "syscfg\clocktree.h" 
@@ -87,12 +107,18 @@ GEN_MISC_FILES__QUOTED += \
 C_DEPS__QUOTED += \
 "syscfg\board.d" \
 "syscfg\device.d" \
+"syscfg\clb_config.d" \
 "syscfg\c2000ware_libraries.d" 
+
+CPP_DEPS__QUOTED += \
+"syscfg\clb_sim.d" 
 
 GEN_FILES__QUOTED += \
 "syscfg\board.c" \
 "syscfg\board.opt" \
 "syscfg\device.c" \
+"syscfg\clb_config.c" \
+"syscfg\clb_sim.cpp" \
 "syscfg\c2000ware_libraries.opt" \
 "syscfg\c2000ware_libraries.c" 
 
@@ -105,7 +131,11 @@ SYSCFG_SRCS__QUOTED += \
 C_SRCS__QUOTED += \
 "./syscfg/board.c" \
 "./syscfg/device.c" \
+"./syscfg/clb_config.c" \
 "./syscfg/c2000ware_libraries.c" 
+
+CPP_SRCS__QUOTED += \
+"./syscfg/clb_sim.cpp" 
 
 ASM_SRCS__QUOTED += \
 "C:/ti/C2000Ware_26_01_00_00/device_support/f28p55x/common/source/f28p55x_codestartbranch.asm" 

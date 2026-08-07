@@ -2,12 +2,13 @@
  * MBOX28.c
  *
  *  Created on: 7 июня 2016 г.
+ *  modified 01.08.2026
  *      Author: olegs.pavlovskis
  */
 /***************************************************************************************************
- *  Функция cmd_MBOX28 принимает  команды от PC  через MailBOX2
- *  срабатывает при получении нового сообщения в MailBOX1                          *
- *  структура майлбокса -> MailBOX2( int16,int16,int16, int_cmd)           *
+ *  Функция cmd_MBOX28 принимает  команды от PC  через FIFO0
+ *  срабатывает при получении нового сообщения в FIFO0                      
+ *  структура команды -> cmd_MBOX28( int16,int16,int16, int_cmd)        
  ***************************************************************************************************/
 #include "board.h"
 #include "f28p55x_device.h"
@@ -29,12 +30,13 @@
 #include "Konstanty.h"
 #include "myEPWM.h"
 #include "SPI_EEPROM.h"
+#include "1ph_Sin.h"
 
 motor *motStrob = &motor1;
 
 volatile struct EQEP_REGS *qepRegs = &EQep1Regs;
 
-uint16_t       K60per = 60 * 2; //период вывода медленного кадра
+uint16_t     K60per = 60 * 2; //период вывода медленного кадра
 union PCflag sharp;
 
 #if Strob_QEP         //------------------------------
@@ -62,7 +64,7 @@ motor       *mfast = &motor1;
 
 extern long fref1, fref2; // заданная частота поля АИН1, АИН2   0.1 об/мин
 //extern bool TXN, Fs;
-extern bool   Fs;
+extern bool     Fs;
 extern uint16_t P15Kadr; // число определяет набор параметров 15-го MBOX
 
 #if dbgIfull
@@ -83,20 +85,17 @@ void SendInfo(void);
 void SendStr(int size, char *str);
 void SendTemp(void);
 
+void change_motID(motor *v);
+void ClearErrorTable(void); // Очистка таблицы ошибок
+void pi_Reset(motor *m);
+void PUSK_Init(motor *v);
+void Reset_stop(motor *v);
+void Gain_Selector(motor *m, int data1, int data2, int data3, uint16_t cmd);
 
-
-void   change_motID(motor *v);
-void   ClearErrorTable(void); // Очистка таблицы ошибок
-void   pi_Reset(motor *m);
-void   PUSK_Init(motor *v);
-void   Reset_stop(motor *v);
-void   Gain_Selector(motor *m, int data1, int data2, int data3, uint16_t cmd);
-
-void   Reset_stend_filtr(void);
+void Reset_stend_filtr(void);
 
 //void   DC_PWM1_Init(void);
 uint16_t Deselect_imit(void);
-
 
 //06/02/2018
 motor        *mot28 = &motor1; //определяет номер (адресс) АИНа
@@ -105,8 +104,8 @@ extern motor *mfast;
 extern REFs  REF;
 SharpMode    sharpMode;
 extern float emstep; // шаг приращения EPS;
-uint16_t       BrRes1_Val = 0;
-uint16_t       BrRes2_Val = 0;
+uint16_t     BrRes1_Val = 0;
+uint16_t     BrRes2_Val = 0;
 motor       *mK60       = &motor1;
 MODEs        MODE; // Структура для описания переменных для различных режимов
 extern float pi_kIqd;
@@ -132,25 +131,22 @@ uint32_t objID = 2;
 //09.09.2024
 volatile union word32 rxA, rxB;
 
-
 uint16_t Req_336 = 0; // логическая переменная для вывода массивов в фоне, передаётся по 336 команде от GUI
 
 extern uint16_t dbgTrip;
 extern uint16_t Imax;
 
 uint16_t dbgRECALL = 0;
-uint16_t dbgi = 0;
+uint16_t dbgi      = 0;
 
 //13.06.2026
 KUK1 kuk1;
 KUK2 kuk2;
 KUK3 kuk3;
 
-
-void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
+void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 {
-  
-   
+
     switch (cmd)
     {
         case 0: // команда посылается при открытии формы Мотор-Контрол
@@ -168,15 +164,15 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             {
                 case 1:
                     canaKadr.bit.F1_convertor = 1;
-                    MCAN_setFastDLC(8);       // 8 байт (Idc,Udc,Vin,ticker)
+                    MCAN_setFastDLC(8); // 8 байт (Idc,Udc,Vin,ticker)
                     break;
                 case 2:
                     canaKadr.bit.F1_invertor = 1;
-                    MCAN_setFastDLC(8);       // 8 байт (Ia,Ib,Idc,ticker)
+                    MCAN_setFastDLC(8); // 8 байт (Ia,Ib,Idc,ticker)
                     break;
                 case 3:
                     canaKadr.bit.F3_invertor = 1;
-                    MCAN_setFastDLC(12);      // 24 байта (SPL_UI: 12 слов)
+                    MCAN_setFastDLC(12); // 24 байта (SPL_UI: 12 слов)
                     break;
 
                 case 4: // включить передачу медленного кадра по CANA
@@ -219,8 +215,8 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
             break;
 
-        case 3:                            // нажата Кнопка отключить
- //           CpuTimer0Regs.TCR.bit.TSS = 1; // останавливаем таймер Т0 для вывода REF кадра
+        case 3: // нажата Кнопка отключить
+                //           CpuTimer0Regs.TCR.bit.TSS = 1; // останавливаем таймер Т0 для вывода REF кадра
             sbit.bit.connect = 0;
             REF_init(&REF);
             sharp.all = 0;
@@ -228,9 +224,8 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             IGBT1_Disable();
             IGBT2_Disable();
 
-          
-            RealMOD          = RealMOD_def;
-            SplMode          = 0;
+            RealMOD = RealMOD_def;
+            SplMode = 0;
 
             SendAck(data1, data2, data3, cmd);
             break;
@@ -266,7 +261,6 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
         case 8: // нажата
 
-           
             break;
 
             //------------------------------------------------------------
@@ -614,7 +608,7 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             {
                 {
                     timeBasePeriod = data1 * 60;
-                    EPWM_setTimeBasePeriod(myEPWM2_BASE, timeBasePeriod);
+                    EPWM_setTimeBasePeriod(myEPWM1_BASE, timeBasePeriod);
                     change_Tpwm();
                 }
             }
@@ -627,43 +621,74 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
                 write_pwmCLKDIV(data1);
                 change_Tpwm();
             }
-            data1 = EPwm2Regs.TBCTL.bit.CLKDIV;
+            data1 = EPwm1Regs.TBCTL.bit.CLKDIV;
             SendAck(data1, data2, data3, cmd);
             break;
 
-        case 63:
+        case 621: // таблица sineB -> изменение количества точек формирования синусоиды sineB
             if (data2 == 3333)
-                REF.kIqRPM = (float)data1 / 100;
-            SendAck((uint16_t)(REF.kIqRPM * 100), data2, data3, cmd);
+            {
+                sineB.resolution = data1;
+                change_sine(&sineB);
+                EPwm1Regs.TBPRD = sineB.pwm_period;
+            }
+
+            SendAck(sineB.resolution, data2, data3, cmd);
             break;
 
-        case 64:
-            sharp.bit.V_regul = 1;
-
-            MODE.s_gen = 1;
-            break;
-        case 65:
-            sharp.bit.V_regul = 0;
-            break;
-        case 66:
-
-            sharp.bit.V_regul = 0;
-            break;
-        case 67:
-
-            MODE.s_gen = 1;
-            break;
-
-        case 68:
-            sharp.bit.KVU_On = data1;
-            break;
-
-        case 69:
+        case 622: // таблица sineB изменение метода формирования синусоиды
             if (data2 == 3333)
-                REF.korUDC = (float)data1 / 1000;
-            SendAck(rounding(REF.korUDC * 1000), data2, data3, cmd);
+            {
+                sine_metod = data1;
+            }
+            data1 = sine_metod;
+            SendAck(data1, data2, data3, cmd);
             break;
 
+#if Strob_rg
+        case 623: // таблица sineB -> строб номера  ШИМ периода в последовательности синусоиды
+            if (data2 == 3333)
+            {
+                strobIndex = data1;
+            }
+            SendAck(strobIndex, data2, data3, cmd);
+            break;
+#endif
+
+        case 624: // таблица sineB изменение частоты формирования синусоиды
+            if (data2 == 3333)
+            {
+                sineB.freq = data1;
+                change_sine(&sineB); // меняем параметры для формирования синусоиды
+                EPwm1Regs.TBPRD = sineB.pwm_period;
+            }
+
+            SendAck(sineB.freq, data2, data3, cmd);
+            break;
+
+        case 625: // таблица sineA изменение частоты формирования синусоиды
+            if (data2 == 3333)
+            {
+                sineA.freq = data1;
+                change_sine(&sineA); // меняем параметры для формирования синусоиды
+                EPwm6Regs.TBPRD = sineA.pwm_period;
+            }
+
+            SendAck(sineA.freq, data2, data3, cmd);
+            break;
+
+        case 626: // таблица sineB -> изменение количества точек формирования синусоиды sineB
+            if (data2 == 3333)
+            {
+                sineA.resolution = data1;
+                change_sine(&sineA);
+                EPwm6Regs.TBPRD = sineA.pwm_period;
+            }
+
+            SendAck(sineA.resolution, data2, data3, cmd);
+            break;
+
+            
         case 70:                     // запуск калибровки нуля выбранных АЦП каналов
             adcCalStart.all = data1; // задаёт список АЦП каналов
                                      //   DacaRegs.DACVALS.all = 2048;  // dbg
@@ -692,8 +717,8 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
             SendAck(Cmpss3Regs.DACLVALS.all, data2, data3, cmd);
             break;
-            
-             case 711: // настройка уровней компараторов  для защиты от превышения тока
+
+        case 711: // настройка уровней компараторов  для защиты от превышения тока
             if (data2 == 3333)
             {
                 Cmpss1Regs.DACLVALS.all = data1;
@@ -702,7 +727,7 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             SendAck(Cmpss1Regs.DACLVALS.all, data2, data3, cmd);
             break;
 
-                 case 712: // настройка уровней компараторов  для защиты от превышения тока
+        case 712: // настройка уровней компараторов  для защиты от превышения тока
             if (data2 == 3333)
             {
                 Cmpss1Regs.DACHVALS.all = data1;
@@ -710,7 +735,7 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
             SendAck(Cmpss1Regs.DACHVALS.all, data2, data3, cmd);
             break;
-               case 713: // настройка уровней компараторов  для защиты от превышения тока
+        case 713: // настройка уровней компараторов  для защиты от превышения тока
             if (data2 == 3333)
             {
                 Cmpss2Regs.DACLVALS.all = data1;
@@ -718,8 +743,8 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
             SendAck(Cmpss2Regs.DACLVALS.all, data2, data3, cmd);
             break;
-            
-                 case 714: // настройка уровней компараторов  для защиты от превышения тока
+
+        case 714: // настройка уровней компараторов  для защиты от превышения тока
             if (data2 == 3333)
             {
                 Cmpss2Regs.DACHVALS.all = data1;
@@ -728,7 +753,7 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             SendAck(Cmpss2Regs.DACHVALS.all, data2, data3, cmd);
             break;
 
-               case 715: // настройка уровней компараторов  для защиты от превышения тока
+        case 715: // настройка уровней компараторов  для защиты от превышения тока
             if (data2 == 3333)
             {
                 Cmpss4Regs.DACLVALS.all = data1;
@@ -736,8 +761,8 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
             SendAck(Cmpss4Regs.DACLVALS.all, data2, data3, cmd);
             break;
-            
-                 case 716: // настройка уровней компараторов  для защиты от превышения тока
+
+        case 716: // настройка уровней компараторов  для защиты от превышения тока
             if (data2 == 3333)
             {
                 Cmpss4Regs.DACHVALS.all = data1;
@@ -851,7 +876,7 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             SendAck(motor1.typeID.motID, 0, 0, cmd);
 
             change_motID(&motor1);
-           
+
 #if aci_fe
             ACIFE_CONST_CALC(&motor1);
 #endif
@@ -1002,8 +1027,7 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
                     //               QEP_Init(&motor2.qep, &EQep2Regs);
                     data3 = 2;
                 }
-
-                   }
+            }
 
             SendAck(mot28->typeID.toothNum, data2, data3, cmd);
             break;
@@ -1020,8 +1044,7 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
             ClearErrorTable();
             eeprom.bit.SaveErrors = 1; // сохранить очистку ошибок и истории в EEPROM
-            Req_336 =
-                1; //устанавливаем флаг для сканирования  в фоне текущих ошибок и при их отсутствии сброса лампы pb_ErrView
+            Req_336               = 1; //устанавливаем флаг для сканирования  в фоне текущих ошибок и при их отсутствии сброса лампы pb_ErrView
             break;
 
         case 112:
@@ -1139,8 +1162,8 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
         case 200:
             if (data2 == 3333)
             {
-                kadc.Idc             = data1;
-                kadcf.Idc            = (float)data1 / 10000;
+                kadc.Idc            = data1;
+                kadcf.Idc           = (float)data1 / 10000;
                 kadc.crc            = ControlSum(&kadc);
                 eeprom.bit.SaveCoef = 1;
             }
@@ -1196,7 +1219,7 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             eeStatusReg.all = send_EEcomand(SPIB_BASE, RDSR);
             SendAck(eeStatusReg.all, data2, data3, cmd);
             break;
-            
+
             //---------------------------------------------------------------------
             // data1 - значение
             // data2 - флаг чтения/записи - 3333 - запись
@@ -1418,16 +1441,16 @@ void cmd_MBOX28( uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             SendAck(data1, data2, igbt.all, cmd);
             break;
         }
-        
-        case 9999:  /* CAN bootloader: set flag + reset */
+
+        case 9999: /* CAN bootloader: set flag + reset */
         {
-           
-           request_firmware_update = 1;
-           
+
+            request_firmware_update = 1;
+
             break;
         }
         default:
-        break;
+            break;
     }
 }
 
@@ -1469,14 +1492,11 @@ void SendTemp(void)
     SendAck(32005, 32005, 32005, 32005);
 }
 
-
-
 //----------------------------------------------------
 void change_motID(motor *v)
 {
-    v->typeID.res_pp =
-        (int)(4096.0f / v->typeID.pole_pair + 0.5f); // число тиков резолвера на эл.оборот  = 4096/pole_pair
-    v->tsh.uf_norma = (float)v->typeID.Unom / (float)v->typeID.Fnom * 1000;
+    v->typeID.res_pp = (int)(4096.0f / v->typeID.pole_pair + 0.5f); // число тиков резолвера на эл.оборот  = 4096/pole_pair
+    v->tsh.uf_norma  = (float)v->typeID.Unom / (float)v->typeID.Fnom * 1000;
 
     v->rg.k_AF = v->typeID.pole_pair / 60.0f * PI2 * Tpwm / 1000000.0f; // радиан за миллисекунду
 
@@ -1487,8 +1507,7 @@ void change_motID(motor *v)
     v->tsh.Lr  = v->typeID.Lr * 1.0e-6;
     v->tsh.Lrm = (v->typeID.Lr + v->typeID.Lm) * 0.000001;
     v->tsh.Lsm = (v->typeID.Ls + v->typeID.Lm) * 0.000001;
-    v->tsh.kw  = (1.0 / 60 * PI2) *
-                v->typeID.pole_pair; // коэффициент об.мин ротора -> рад/сек частота поля статора в ( рад/сек )
+    v->tsh.kw  = (1.0 / 60 * PI2) * v->typeID.pole_pair; // коэффициент об.мин ротора -> рад/сек частота поля статора в ( рад/сек )
 
     v->tsh.Tr = (float)(v->typeID.Lr + v->typeID.Lm) / (float)v->typeID.Rr;
 }
@@ -1504,12 +1523,9 @@ void pi_Reset(motor *m)
     m->piIm.i1  = 0;
 }
 
-
-
-
 void Reset_stend_filtr(void)
 {
-    Udc_rf    = 0;
+    Udc_rf = 0;
     Idc_rf = 0;
 
     Idc_sum = 0;
@@ -1576,8 +1592,6 @@ void Gain_Selector(motor *m, int data1, int data2, int data3, uint16_t cmd)
 
     SendAck(iout, data2, m->mode.bit.umode, cmd);
 }
-
-
 
 /****************************************************************************************************
  *  Функция Deselect_imit выключает имитацию данной ножки АЦП                                       *

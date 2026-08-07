@@ -1,5 +1,7 @@
 "./syscfg/board.obj"
 "./syscfg/device.obj"
+"./syscfg/clb_config.obj"
+"./syscfg/clb_sim.obj"
 "./syscfg/c2000ware_libraries.obj"
 "./f28p55x_codestartbranch.obj"
 "./CLA/Task1.obj"
