@@ -4691,6 +4691,16 @@ else
 
             var d1 = x.tbar.Value / (decimal)x.kNT;
             x.nud.Value = Satur(d1, x.nud.Minimum, x.nud.Maximum);
+
+            // Форсируем отрисовку значения, не дожидаясь освобождения очереди UI-потока.
+            // Присваивание Value делает только Invalidate(); WM_PAINT — предпоследний по приоритету
+            // в GetMessage (ниже posted-сообщений от BeginInvoke и ниже ввода мыши), поэтому при
+            // идущей телеметрии цифра в NUD обновлялась рывками — кадры 140 непрерывно кладут
+            // BeginInvoke в очередь и она не пустеет.
+            // Refresh() = Invalidate(true) + Update(); дочерний TextBox с цифрой обновляем отдельно,
+            // т.к. UpdateWindow родителя на детей не распространяется.
+            x.nud.Refresh();
+            foreach (Control c in x.nud.Controls) c.Update();
         }
 
         private void Tbar_Send(NT x)
