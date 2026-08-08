@@ -29,6 +29,7 @@ WscopeE.ini
 .vscode/
 .launches/
 .clangd/
+/INVERTOR_CCS/.clangd
 .settings/
 **/.jxbrowser.userdata/
 /3ph_Invertor/.cproject
