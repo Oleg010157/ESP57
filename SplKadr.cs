@@ -62,10 +62,11 @@ namespace ICDIBasic
 
         private void F1_convertor()
         {
-            spL[0] = (ushort)M1.ccs.Ia; //
-            spL[1] = (ushort)M1.ccs.Ib; //
-            spL[2] = (ushort)M1.ccs.Ic; //
-            spL[3] = ccs.k60Cnt; //
+            spL[0] = (ushort)ccs.Idc_kod; //
+            spL[1] = (ushort)ccs.Udc_kod; //
+            spL[2] = (ushort)ccs.Vin_kod; //
+            spL[3] = ccs.k60Cnt;
+         
 
             FrlM = 4;
         }

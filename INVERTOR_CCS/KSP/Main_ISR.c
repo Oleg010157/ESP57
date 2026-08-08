@@ -76,12 +76,11 @@ void MainISR(void)
 {
     // DBG измеритель времени прохождения Maim_ISR
     // для измерения используется таймер ШИМ
-    tim0M                          = EPwm7Regs.TBCTR;
+    tim0M = EPwm7Regs.TBCTR;
+
     GpioDataRegs.GPBSET.bit.GPIO41 = 1;
 
     IsrTicker++; // номер прерывания
-
-  
 
 #if (CalcMotor1)
     MotorCalc(&motor1);
@@ -118,13 +117,7 @@ void MainISR(void)
         if ((txbrp & 2) == 0U)
             SPL_UI();                                           // 24 байта (DLC=12)
 
-    if (canaKadr.bit.F1_convertor == 1)
-        if ((txbrp & 2) == 0U)
-        {
-            uint16_t f[4] = { Idc_kod, Udc_kod, Vin_kod, IsrTicker };
-            Send_mbox_FD(1, f, 4);                              // 8 байт (DLC=8)
-        }
-
+ 
     if (canaKadr.bit.F1_invertor == 1)
         if ((txbrp & 2) == 0U)
         {

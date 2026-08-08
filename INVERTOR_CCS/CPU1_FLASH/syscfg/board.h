@@ -81,9 +81,69 @@ extern "C"
 //
 // EPWM2 -> myEPWM2 Pinmux
 //
+//
+// EPWM2_A - GPIO Settings
+//
+#define GPIO_PIN_EPWM2_A 2
+#define myEPWM2_EPWMA_GPIO 2
+#define myEPWM2_EPWMA_PIN_CONFIG GPIO_2_EPWM2_A
+//
+// EPWM2_B - GPIO Settings
+//
+#define GPIO_PIN_EPWM2_B 3
+#define myEPWM2_EPWMB_GPIO 3
+#define myEPWM2_EPWMB_PIN_CONFIG GPIO_3_EPWM2_B
 
 //
 // EPWM3 -> myEPWM3 Pinmux
+//
+//
+// EPWM3_A - GPIO Settings
+//
+#define GPIO_PIN_EPWM3_A 14
+#define myEPWM3_EPWMA_GPIO 14
+#define myEPWM3_EPWMA_PIN_CONFIG GPIO_14_EPWM3_A
+//
+// EPWM3_B - GPIO Settings
+//
+#define GPIO_PIN_EPWM3_B 15
+#define myEPWM3_EPWMB_GPIO 15
+#define myEPWM3_EPWMB_PIN_CONFIG GPIO_15_EPWM3_B
+
+//
+// EPWM4 -> myEPWM4 Pinmux
+//
+//
+// EPWM4_A - GPIO Settings
+//
+#define GPIO_PIN_EPWM4_A 22
+#define myEPWM4_EPWMA_GPIO 22
+#define myEPWM4_EPWMA_PIN_CONFIG GPIO_22_EPWM4_A
+//
+// EPWM4_B - GPIO Settings
+//
+#define GPIO_PIN_EPWM4_B 23
+#define myEPWM4_EPWMB_GPIO 23
+#define myEPWM4_EPWMB_PIN_CONFIG GPIO_23_EPWM4_B
+
+//
+// EPWM5 -> myEPWM5 Pinmux
+//
+//
+// EPWM5_A - GPIO Settings
+//
+#define GPIO_PIN_EPWM5_A 37
+#define myEPWM5_EPWMA_GPIO 37
+#define myEPWM5_EPWMA_PIN_CONFIG GPIO_37_EPWM5_A
+//
+// EPWM5_B - GPIO Settings
+//
+#define GPIO_PIN_EPWM5_B 35
+#define myEPWM5_EPWMB_GPIO 35
+#define myEPWM5_EPWMB_PIN_CONFIG GPIO_35_EPWM5_B
+
+//
+// EPWM6 -> myEPWM6 Pinmux
 //
 
 //
@@ -204,47 +264,93 @@ void myDAC1_init();
 //
 //*****************************************************************************
 #define myEPWM1_BASE EPWM1_BASE
-#define myEPWM1_TBPRD 6000
+#define myEPWM1_TBPRD 30000
 #define myEPWM1_COUNTER_MODE EPWM_COUNTER_MODE_UP_DOWN
 #define myEPWM1_TBPHS 0
-#define myEPWM1_CMPA 0
+#define myEPWM1_CMPA 15000
 #define myEPWM1_CMPB 0
 #define myEPWM1_CMPC 0
 #define myEPWM1_CMPD 0
-#define myEPWM1_DBRED 0
-#define myEPWM1_DBFED 0
+#define myEPWM1_DBRED 150
+#define myEPWM1_DBFED 150
 #define myEPWM1_TZA_ACTION EPWM_TZ_ACTION_HIGH_Z
 #define myEPWM1_TZB_ACTION EPWM_TZ_ACTION_HIGH_Z
+#define myEPWM1_OSHT_SOURCES EPWM_TZ_SIGNAL_DCAEVT1
 #define myEPWM1_INTERRUPT_SOURCE EPWM_INT_TBCTR_PERIOD
+// myEPWM1 Configuration Template
+void ePWM1_Template(uint32_t base);
 void myEPWM1_init();
 #define myEPWM2_BASE EPWM2_BASE
-#define myEPWM2_TBPRD 6000
-#define myEPWM2_COUNTER_MODE EPWM_COUNTER_MODE_STOP_FREEZE
+#define myEPWM2_TBPRD 30000
+#define myEPWM2_COUNTER_MODE EPWM_COUNTER_MODE_UP_DOWN
 #define myEPWM2_TBPHS 0
-#define myEPWM2_CMPA 0
+#define myEPWM2_CMPA 15000
 #define myEPWM2_CMPB 0
 #define myEPWM2_CMPC 0
 #define myEPWM2_CMPD 0
-#define myEPWM2_DBRED 0
-#define myEPWM2_DBFED 0
+#define myEPWM2_DBRED 150
+#define myEPWM2_DBFED 150
 #define myEPWM2_TZA_ACTION EPWM_TZ_ACTION_HIGH_Z
 #define myEPWM2_TZB_ACTION EPWM_TZ_ACTION_HIGH_Z
-#define myEPWM2_INTERRUPT_SOURCE EPWM_INT_TBCTR_DISABLED
+#define myEPWM2_OSHT_SOURCES EPWM_TZ_SIGNAL_DCAEVT1
+#define myEPWM2_INTERRUPT_SOURCE EPWM_INT_TBCTR_PERIOD
 void myEPWM2_init();
 #define myEPWM3_BASE EPWM3_BASE
-#define myEPWM3_TBPRD 37500
-#define myEPWM3_COUNTER_MODE EPWM_COUNTER_MODE_UP_DOWN
+#define myEPWM3_TBPRD 60000
+#define myEPWM3_COUNTER_MODE EPWM_COUNTER_MODE_STOP_FREEZE
 #define myEPWM3_TBPHS 0
 #define myEPWM3_CMPA 0
 #define myEPWM3_CMPB 0
 #define myEPWM3_CMPC 0
 #define myEPWM3_CMPD 0
-#define myEPWM3_DBRED 0
-#define myEPWM3_DBFED 0
+#define myEPWM3_DBRED 150
+#define myEPWM3_DBFED 150
 #define myEPWM3_TZA_ACTION EPWM_TZ_ACTION_HIGH_Z
 #define myEPWM3_TZB_ACTION EPWM_TZ_ACTION_HIGH_Z
 #define myEPWM3_INTERRUPT_SOURCE EPWM_INT_TBCTR_PERIOD
 void myEPWM3_init();
+#define myEPWM4_BASE EPWM4_BASE
+#define myEPWM4_TBPRD 60000
+#define myEPWM4_COUNTER_MODE EPWM_COUNTER_MODE_STOP_FREEZE
+#define myEPWM4_TBPHS 0
+#define myEPWM4_CMPA 0
+#define myEPWM4_CMPB 0
+#define myEPWM4_CMPC 0
+#define myEPWM4_CMPD 0
+#define myEPWM4_DBRED 150
+#define myEPWM4_DBFED 150
+#define myEPWM4_TZA_ACTION EPWM_TZ_ACTION_HIGH_Z
+#define myEPWM4_TZB_ACTION EPWM_TZ_ACTION_HIGH_Z
+#define myEPWM4_INTERRUPT_SOURCE EPWM_INT_TBCTR_DISABLED
+void myEPWM4_init();
+#define myEPWM5_BASE EPWM5_BASE
+#define myEPWM5_TBPRD 60000
+#define myEPWM5_COUNTER_MODE EPWM_COUNTER_MODE_STOP_FREEZE
+#define myEPWM5_TBPHS 0
+#define myEPWM5_CMPA 0
+#define myEPWM5_CMPB 0
+#define myEPWM5_CMPC 0
+#define myEPWM5_CMPD 0
+#define myEPWM5_DBRED 150
+#define myEPWM5_DBFED 150
+#define myEPWM5_TZA_ACTION EPWM_TZ_ACTION_HIGH_Z
+#define myEPWM5_TZB_ACTION EPWM_TZ_ACTION_HIGH_Z
+#define myEPWM5_INTERRUPT_SOURCE EPWM_INT_TBCTR_DISABLED
+void myEPWM5_init();
+#define myEPWM6_BASE EPWM6_BASE
+#define myEPWM6_TBPRD 0
+#define myEPWM6_COUNTER_MODE EPWM_COUNTER_MODE_STOP_FREEZE
+#define myEPWM6_TBPHS 0
+#define myEPWM6_CMPA 0
+#define myEPWM6_CMPB 0
+#define myEPWM6_CMPC 0
+#define myEPWM6_CMPD 0
+#define myEPWM6_DBRED 0
+#define myEPWM6_DBFED 0
+#define myEPWM6_TZA_ACTION EPWM_TZ_ACTION_HIGH_Z
+#define myEPWM6_TZB_ACTION EPWM_TZ_ACTION_HIGH_Z
+#define myEPWM6_INTERRUPT_SOURCE EPWM_INT_TBCTR_DISABLED
+void myEPWM6_init();
 #define myEPWM7_BASE EPWM7_BASE
 #define myEPWM7_TBPRD 65535
 #define myEPWM7_COUNTER_MODE EPWM_COUNTER_MODE_UP
@@ -279,6 +385,12 @@ void scope_init();
 #define INT_myEPWM1 INT_EPWM1
 #define INT_myEPWM1_INTERRUPT_ACK_GROUP INTERRUPT_ACK_GROUP3
 extern __interrupt void INT_myEPWM1_ISR(void);
+
+// Interrupt Settings for INT_myEPWM2
+// ISR need to be defined for the registered interrupts
+#define INT_myEPWM2 INT_EPWM2
+#define INT_myEPWM2_INTERRUPT_ACK_GROUP INTERRUPT_ACK_GROUP3
+extern __interrupt void INT_myEPWM2_ISR(void);
 
 // Interrupt Settings for INT_myEPWM3
 // ISR need to be defined for the registered interrupts

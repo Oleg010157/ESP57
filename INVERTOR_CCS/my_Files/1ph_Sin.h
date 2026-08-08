@@ -24,7 +24,6 @@ extern uint16_t sine_resolution; // количество точек за пер�
 extern float sine0; // регулируемое смещение фазы синусоиды
 
 void spwmCLKDIV(uint16_t div);
-void F1_CANA();
 void adjustPhaze(void);
 
 #if Strob_rg  // применяется для отладки метода формирования синусоиды

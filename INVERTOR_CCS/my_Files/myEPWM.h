@@ -42,3 +42,5 @@ void IGBT2_ManualApply(uint16_t mask);
 
 extern IGBT     igbt;
 extern uint16_t igbt_manually; // логическая переменная для включения прямого управления IGBT
+extern volatile uint16_t epwmcount;// dbg счётчик для измерения периода прерываний
+extern volatile uint16_t epwmtime;// dbg период прерываний

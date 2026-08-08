@@ -373,11 +373,7 @@ namespace ICDIBasic
                     var data = canMsg.DATA;
                     switch (canMsg.ID)
                     {
-                        case 0x32:
-                            _bootRespQueue.Enqueue((ushort)(data[0] | (data[1] << 8)));
-                            _bootRespEvent.Set();
-                            break;
-
+                        
                         case 1:
                         {
                             ushort cmd = (ushort)(data[0] | (data[1] << 8));
@@ -395,6 +391,11 @@ namespace ICDIBasic
                             }));
                             break;
                         }
+                        case 0x32:
+                            _bootRespQueue.Enqueue((ushort)(data[0] | (data[1] << 8)));
+                            _bootRespEvent.Set();
+                            break;
+
 
                         default:  // 103 (быстрый), 131 (Kadr60), 132 (Errors) и др.
                             try { CAN_RxData(canMsg); } catch { }

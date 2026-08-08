@@ -20,8 +20,8 @@ WscopeE.ini
 
 # === CCS Theia / Code Composer Studio (C) ===
 # Игнорируем папки конфигураций сборки (FLASH, RAM и т.д.)
-3ph_Inverter/CPU*/
-
+/3ph_Inverter/CPU*/
+/INVERTOR_CCS/CPU*/
 
 # Локальные настройки среды и кэш IDE
 .metadata/

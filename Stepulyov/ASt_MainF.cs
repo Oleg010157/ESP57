@@ -63,6 +63,7 @@ namespace ICDIBasic
         private string sp2_Dir = Application.StartupPath + "\\SPF" + "\\sp2_data\\";
         private string wscope_Dir = Path.GetFullPath(Path.Combine(Application.StartupPath, "..", "Wscope"));
         private string spl_tmp;
+        private FileStream _splStream; // держим файл .tmpm открытым на весь сеанс записи, не открываем/закрываем на каждый кадр
         private string F2Kadr_IniFileName; // имя ini файла заданное из мотор control формы
         private string spl_StartTime;
         private string spl_FileName;
@@ -221,7 +222,7 @@ namespace ICDIBasic
             if (IsDisposed) return;
           
             {
-                Kadr60Rx(msg); // читаем данные со всех msgId , кроме msgId =2
+                Kadr60Rx(msg); // читаем данные со всех msgId , кроме msgId =1
                 if (!spl_running) return;
 
                 // если задан режим вывода кадра по CANA
@@ -257,21 +258,23 @@ namespace ICDIBasic
                             frame[0] = 0x55;
                         }
 
-                        using (var stream = new FileStream(spl_tmp, FileMode.Append))
-                        {
-                            stream.Write(frame, 0, frame.Length);
-                        }
+                        _splStream?.Write(frame, 0, frame.Length);
 
-                        // поворачиваем стрелку на 90 градусов через каждые 10 кадров
-                        BeginInvoke(new Action(() =>   
+                        // поворачиваем стрелку на 90 градусов через каждые 10 кадров.
+                        // Счётчик считаем здесь, во вторичном потоке, и обращаемся к UI (BeginInvoke)
+                        // только раз в 10 кадров — иначе при частой телеметрии BeginInvoke летит
+                        // в очередь UI-потока на каждый кадр и забивает её, не давая вовремя
+                        // выполниться другим UI-событиям (например, отправке команд с трек-бара).
+                        _ract++;
+                        if (_ract > 10)
                         {
-                            _ract++;
-                            if (_ract <= 10) return;
                             _ract = 0;
-
-                            pbMainKadr.Image.RotateFlip(RotateFlipType.Rotate90FlipNone);
-                            pbMainKadr.Refresh();
-                        }));
+                            BeginInvoke(new Action(() =>
+                            {
+                                pbMainKadr.Image.RotateFlip(RotateFlipType.Rotate90FlipNone);
+                                pbMainKadr.Refresh();
+                            }));
+                        }
                     }
                     catch
                     {
@@ -513,7 +516,9 @@ namespace ICDIBasic
                 spl_StartTime = DateTime.Now.ToString("yy.MM.dd_HH.mm.ss");
                 spl_tmp = spl_Dir + spl_StartTime + ".tmpm";
                 Spl_Hdr(FrlM, GetSplInfo(), F2Kadr_IniFileName, spl_tmp);
-             
+
+                _splStream = new FileStream(spl_tmp, FileMode.Append, FileAccess.Write, FileShare.Read);
+
                 //     pbMainKadr.Enabled = pbMainKadr.Visible = true;
                 spl_running = true;
 
@@ -535,6 +540,10 @@ namespace ICDIBasic
 
             try
             {
+                _splStream?.Flush();
+                _splStream?.Dispose();
+                _splStream = null;
+
                 spl_FileName = spl_Dir + DateTime.Now.ToString("yy.MM.dd_HH.mm.ss") + ".spl";
 
                 if (File.Exists(spl_tmp))

@@ -4,7 +4,8 @@
  *  Created on: 26.02.2025
  *      Author: Oleg Pavlovsky
  *  модифицирован 03.10.2025  Олег Павловский
- *  модифицирован 27.07.2025  Олег Павловский  под проект К1
+ *  модифицирован 27.07.2026  Олег Павловский  под проект К1
+ *  модифицирован 07.08.2026  Олег Павловский  под проект К55
  */
 
 /* Данный файл представляет программный код для реализации мостового однофазного инвертора.
@@ -60,8 +61,6 @@ float angleOld   = 0;
 int   strobIndex = 0; // строб номера  ШИМ периода в последовательности синусоиды
 
 #endif // if Strob_rg
-
-void F1_CANA(uint16_t d1, uint16_t d2, uint16_t d3, uint16_t d4);
 
 //-------------------------------------------------------------------------------------------------
 #pragma CODE_SECTION(sine_invertor1, ".TI.ramfunc");
@@ -155,12 +154,16 @@ void spwmCLKDIV(uint16_t div)
 uint16_t daca  = 2048; // dbg
 uint16_t dacb  = 2048; // dbg
 float    sine1 = 0;
+volatile uint16_t epwmcount = 0;// dbg счётчик для измерения периода прерываний
+volatile uint16_t epwmtime = 0;// dbg период прерываний
 
 #pragma CODE_SECTION(INT_myEPWM1_ISR, ".TI.ramfunc");
 
 __interrupt void INT_myEPWM1_ISR(void)
 {
     tim0S = EPwm7Regs.TBCTR;
+    epwmcount++;
+     GpioDataRegs.GPBTOGGLE.bit.GPIO57 = 1; // scope dbg
     if (sine_metod == 1)
     {
         sine_invertor1(&sineB);
@@ -209,8 +212,8 @@ __interrupt void INT_myEPWM1_ISR(void)
    if (canaKadr.bit.F1_convertor == 1)
         if ((txbrp & 2) == 0U)
         {
-         //   uint16_t f[4] = { Idc_kod, Udc_kod, Vin_kod, IsrTicker };
-             uint16_t f[4] = { 11, 22, 33, 44 };
+         //   uint16_t f[4] = { Idc_kod, Udc_kod, Vin_kod, sineTick };
+             uint16_t f[4] = { 1101, 2202, 3303, sineTick };
             Send_mbox_FD(1, f, 4);                              // 8 байт (DLC=8)
         }
 

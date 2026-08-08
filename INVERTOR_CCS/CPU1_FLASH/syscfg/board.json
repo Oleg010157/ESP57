@@ -5,6 +5,10 @@
             "interruptHandler": "INT_myEPWM1_ISR"
         },
         {
+            "interruptName": "INT_myEPWM2",
+            "interruptHandler": "INT_myEPWM2_ISR"
+        },
+        {
             "interruptName": "INT_myEPWM3",
             "interruptHandler": "INT_myEPWM3_ISR"
         },

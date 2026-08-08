@@ -230,6 +230,8 @@ extern volatile uint16_t epwm3time;// dbg
             cntT0++;
             epwm3time  = epwm3count;
             epwm3count = 0;
+            epwmtime = epwmcount;
+            epwmcount = 0;
           
            
 
@@ -245,8 +247,7 @@ extern volatile uint16_t epwm3time;// dbg
                 {
                     CheckLamp--;
                 }
-              
- //               SendAck(10, 12, 13, 14);  // dbg
+
                 cntT0 = 0;
                 cnt1sek++;
             }
