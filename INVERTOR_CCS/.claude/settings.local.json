@@ -18,9 +18,15 @@
       "mcp__ccs-debug__getDebugSessions",
       "Read(//c/ti/C2000Ware_26_01_00_00/.metadata/**)",
       "Bash(cat \"C:/ti/C2000Ware_26_01_00_00/.metadata/sdk.json\" 2>/dev/null | head -40)",
-      "mcp__ccs-project__getProducts"
+      "mcp__ccs-project__getProducts",
+      "mcp__ccs-debug",
+      "mcp__ccs-project",
+      "mcp__ccs-sysconfig",
+      "mcp__ccs-serial"
     ],
-    "ask": [],
+    "ask": [
+      "mcp__ccs-project__changeSysConfigVersion"
+    ],
     "additionalDirectories": [
       "C:\\ti\\C2000Ware_26_01_00_00\\driverlib\\f28p55x\\driverlib\\inc"
     ]

@@ -26,8 +26,6 @@
 // Пользовательские настройки (измените значения по необходимости)
 //---------------------------------------------------------------------
 
-
-
 //
 // Globals
 //
@@ -50,6 +48,8 @@ float    test[32];
 uint16_t index  = 0;      // номер от 0 до количества точек периодов ШИМ синусоиды
 uint16_t spwmHz = 1000;   //заданная частота  ШИМ в Гц , глобальный параметр. Изменяется через команды CAN
 float    sine0  = PI / 2; // регулируемое смещение фазы синусоиды
+uint16_t cmpaA;
+uint16_t cmpaB;
 
 //DBG
 struct sine sineA = {.resolution = 256, .freq = 50, .gain = 1800};
@@ -212,10 +212,10 @@ __interrupt void INT_myEPWM1_ISR(void)
     uint32_t txbrp = HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP);
 
    if (canaKadr.bit.F1_convertor == 1)
-        if ((txbrp & 2) == 0U)
+        if ((txbrp & 2) == 0U) // проверяет Buff = 1  !!! Buff = 0,1,2,....32
         {
-         //   uint16_t f[4] = { Idc_kod, Udc_kod, Vin_kod, sineTick };
-             uint16_t f[4] = { 1101, 2202, 3303, sineTick };
+            uint16_t f[4] = { cmpaA, cmpaB, (int16_t)(duty*1000), sineTick };
+         //    uint16_t f[4] = { 1101, 2202, 3303, sineTick };
             Send_mbox_FD(1, f, 4);                              // 8 байт (DLC=8)
         }
 
