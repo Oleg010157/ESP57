@@ -46,7 +46,7 @@ int strob_sektor = 80;
 
 #if Strob_rg
 int   rgStrob_enable = 0;
-float rgStrob        = 0; //
+float rgStrob        = 0; // угол синусоиды в радианнах по которому выдаётся строб на scope
 #endif
 
 extern uint16_t KpA; // коэффициент пропорционального регулятора тока возбуждения DC
@@ -677,7 +677,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             SendAck(sineA.freq, data2, data3, cmd);
             break;
 
-        case 626: // таблица sineB -> изменение количества точек формирования синусоиды sineB
+        case 626: // таблица sineA -> изменение количества точек формирования синусоиды sineB
             if (data2 == 3333)
             {
                 sineA.resolution = data1;

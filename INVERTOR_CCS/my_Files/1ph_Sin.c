@@ -18,6 +18,7 @@
 #include "F28P55x_Device.h" // Основные определения регистров и структуры устройства
 
 #include "KSP.h"
+#include "hw_mcan.h"
 #include "myDCAN.h"
 
 #include "1ph_Sin.h"
@@ -50,6 +51,7 @@ uint16_t spwmHz = 1000;   //заданная частота  ШИМ в Гц , г
 float    sine0  = PI / 2; // регулируемое смещение фазы синусоиды
 uint16_t cmpaA;
 uint16_t cmpaB;
+float duty; // Значение скважности ШИМ (в тактах таймера TBCLK)
 
 //DBG
 struct sine sineA = {.resolution = 256, .freq = 50, .gain = 1800};
@@ -78,7 +80,7 @@ void sine_invertor1(struct sine *s)
     // ----------------------------------------------------------------------
 
     // локальные переменные
-    float duty; // Значение скважности ШИМ (в тактах таймера TBCLK)
+   
 
     // вычисление и загрузка нового значения CMPA в PWM секции
     duty           = sinf(s->angle + s->offset);
@@ -116,9 +118,6 @@ void sine_invertor2(struct sine *s)
     // который тоже нормируется от 0 до 1 -> amp = Uab/Vin;  где Uab - выходное напряжение, а
     // Vin - входное напряжение от АКБ
 
-    // локальные переменные
-    float duty; // Значение скважности ШИМ (в тактах таймера TBCLK)
-
     // нормируем скважность в диапазоне от 0 до 1
     duty           = (0.5f * sinf(s->angle + s->offset) + 0.5f);
     float tbperiod = s->gain / 2048 * s->pwm_period;
@@ -155,6 +154,30 @@ void spwmCLKDIV(uint16_t div)
 //--------------------------------------------------------------------------------------
 uint16_t daca  = 2048; // dbg
 uint16_t dacb  = 2048; // dbg
+
+#if DBG_SIN_DAC
+//--------------------------------------------------------------------------------------
+// dbg  Настройка ЦАП CMPSS1 (COMPDACL) на вывод в пин A1, B7, D11, CMP1_DACL.
+// На F28P55x нет DACB, но нижний ЦАП CMPSS1 можно перевести в режим
+// ЦАП общего назначения (11 бит, 0..2047) с выводом на внешний пин.
+// ВНИМАНИЕ: при этом весь модуль CMPSS1 (оба компаратора, верхний ЦАП,
+// генератор рампы и цифровые фильтры) становится недоступен - защита по току
+// фазы А через CMPSS1 не работает.
+//--------------------------------------------------------------------------------------
+void dacb_CMPSS1_init(void)
+{
+    SysCtl_enablePeripheral(SYSCTL_PERIPH_CLK_CMPSS1);
+    CMPSS_enableModule(CMPSS1_BASE); // COMPDACE - включение питания ЦАП
+
+    // значение из DACLVALS переписывается в активный регистр по SYSCLK,
+    // т.е. запись действует сразу, а не по PWMSYNC
+    CMPSS_configDACLow(CMPSS1_BASE, CMPSS_DACVAL_SYSCLK | CMPSS_DACSRC_SHDW);
+    CMPSS_setDACValueLow(CMPSS1_BASE, 1024); // середина 11-битной шкалы
+
+    ASysCtl_enableCMPSSExternalDAC(ASYSCTL_CMPSS1_DACL); // вывод COMPDACL на пин
+}
+#endif // DBG_SIN_DAC
+
 float    sine1 = 0;
 volatile uint16_t epwmcount = 0;// dbg счётчик для измерения периода прерываний
 volatile uint16_t epwmtime = 0;// dbg период прерываний
@@ -165,7 +188,7 @@ __interrupt void INT_myEPWM1_ISR(void)
 {
     tim0S = EPwm7Regs.TBCTR;
     epwmcount++;
-     GpioDataRegs.GPBTOGGLE.bit.GPIO57 = 1; // scope dbg
+   
     if (sine_metod == 1)
     {
         sine_invertor1(&sineB);
@@ -199,10 +222,17 @@ __interrupt void INT_myEPWM1_ISR(void)
     index++;
     sineTick++;
 
+// dacb нужен всегда: по нему в U220_XINT1 и adjustPhaze() идёт подстройка фазы
     float b = sinf(sineB.angle) * sineB.gain + 2048; // pwm sinus
     b       = (b < 0) ? 0 : b;
     dacb    = (b > 4095) ? 4095 : b;
-    DAC_setShadowValue(myDAC1_BASE, dacb); //  A1, B7, DACB_OUT HSEC pin 11
+#if DBG_SIN_DAC
+    // dbg вывод сформированной синусоиды на ЦАП CMPSS1 (COMPDACL).
+    // dacb хранится в 12-битной шкале (0..4095), CMP1_DACL - 11-битный, поэтому >> 1
+    CMPSS_setDACValueLow(CMPSS1_BASE, dacb); // вывод на пин A1, B7, D11, CMP1_DACL
+#endif
+// -------------------------------------------------------------------------------
+
     sineB.angle = PI2sut(sineB.angle + sineB.step);
 
     EPwm1Regs.ETCLR.bit.INT = 1;
@@ -212,10 +242,9 @@ __interrupt void INT_myEPWM1_ISR(void)
     uint32_t txbrp = HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP);
 
    if (canaKadr.bit.F1_convertor == 1)
-        if ((txbrp & 2) == 0U) // проверяет Buff = 1  !!! Buff = 0,1,2,....32
+        if ((txbrp & MCAN_TXBRP_TRP1) == 0U) // проверяет Buff = 1  !!! Buff = 0,1,2,....32
         {
             uint16_t f[4] = { cmpaA, cmpaB, (int16_t)(duty*1000), sineTick };
-         //    uint16_t f[4] = { 1101, 2202, 3303, sineTick };
             Send_mbox_FD(1, f, 4);                              // 8 байт (DLC=8)
         }
 
@@ -284,15 +313,16 @@ void adjustPhaze(void)
 // ------------------------------------------------------------------------
 // DBG
 
-__interrupt void INT_myEPWM2_ISR(void)
+__interrupt void INT_myEPWM6_ISR(void)
 {
+      GpioDataRegs.GPBTOGGLE.bit.GPIO57 = 1; // scope dbg
     sineA.angle = PI2sut(sineA.angle + sineA.step);
     float a     = sinf(sineA.angle + sineA.offset) * sineA.gain + 2048; // u220
     a           = (a < 0) ? 0 : a;
     daca        = (a > 4095) ? 4095 : a;
     DAC_setShadowValue(myDAC1_BASE, daca); // A0, B15, C15 ,DACA_OUT -> HSEC pin 9
 
-    EPwm2Regs.ETCLR.bit.INT = 1;
+    EPwm6Regs.ETCLR.bit.INT = 1;
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP3);
 }
 
@@ -300,5 +330,5 @@ void change_sine(struct sine *s)
 {
     s->step       = PI2 / s->resolution;
     s->tpwm_sek   = (1.0f / s->freq) / s->resolution; // pwm period  в секундах
-    s->pwm_period = s->tpwm_sek * 60e6 + 1;           // TBPRD в циклах таймера
+    s->pwm_period = s->tpwm_sek * 75e6; //60e6*150/120;           // TBPRD в циклах таймера
 }

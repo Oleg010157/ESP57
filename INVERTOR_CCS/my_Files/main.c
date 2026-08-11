@@ -29,6 +29,7 @@
 #include "myMCAN.h"
 
 #include "myEPWM.h"
+#include "1ph_Sin.h"
 #include "main.h"
 #include "cla_shared.h"
 #include "SPI_EEPROM.h"
@@ -112,6 +113,14 @@ void main(void)
     //
 
     Board_init();
+
+#if DBG_SIN_DAC
+    dacb_CMPSS1_init(); // dbg  вывод синусоиды на пин A1, B7, D11, CMP1_DACL
+    change_sine(&sineB);
+    EPwm1Regs.TBPRD = sineB.pwm_period;
+    change_sine(&sineA);
+    EPwm6Regs.TBPRD = sineA.pwm_period;
+#endif
 
     IGBT1_Disable();
     IGBT2_Disable();
@@ -232,9 +241,9 @@ extern volatile uint16_t epwm3time;// dbg
             epwm3count = 0;
             epwmtime = epwmcount;
             epwmcount = 0;
-          
-           
 
+            Core_Temp_Update(); // температура ядра, раз в 50 мс, без прерывания
+ 
             if (cntT0 == OneSecond) // события обрабатываемые каждую секунду
             {
                  Errors_CurrentErrorWindowTick();

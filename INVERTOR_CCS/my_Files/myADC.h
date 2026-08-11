@@ -11,7 +11,9 @@
 #include "f28p55x_device.h"
 
 __interrupt void INT_myADCA_1_ISR(void);
-__interrupt void INT_myADCC_1_ISR(void);
+
+void Core_Temp_Update(void);
+void Core_Temp_Update2(void);
 
 void myADC_PPB_Init(void);
 void Adc_Calibrate(void);
@@ -79,20 +81,20 @@ typedef struct
     float Idc;
     float Udc;
     float Vin;
-   
+
 } kADCf;
 
 extern ADCpar offsets, offsets_default;
 
-extern ADCpar kadc, kadc_default;
+extern ADCpar         kadc, kadc_default;
 extern volatile kADCf kadcf;
 
-extern ADCpar dbgkadc;
-extern int16_t core_temp; // температура ядра F280039C в Цельсиях
+extern ADCpar  dbgkadc;
+extern int16_t core_temp; // температура ядра F28P55x в Цельсиях
 
-extern uint16_t  ControlSum(ADCpar *c);
-extern void floatKadc();
-void        ADC_SendOffsets(void);
-void        currentLimit(uint16_t Imax);
+extern uint16_t ControlSum(ADCpar *c);
+extern void     floatKadc();
+void            ADC_SendOffsets(void);
+void            currentLimit(uint16_t Imax);
 
 #endif /* ADC_H_ */

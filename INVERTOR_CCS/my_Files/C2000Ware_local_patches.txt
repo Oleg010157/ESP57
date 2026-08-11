@@ -171,6 +171,38 @@ warning. Confirmed harmless via the .map file. Left unsuppressed per user's choi
 silenced with --diag_suppress=10247 on the CPU1_FLASH linker if ever wanted.
 
 Change log
+- 2026-08-10: CRITICAL - found that --idiv_support=idiv0 (the default IDE setting, "enhanced integer
+  division instruction extension") produces WRONG results for int32_t/int16_t division on this
+  device+toolchain combo (ti-cgt-c2000_25.11.1.LTS, F28P55x, CPU1_FLASH config, -Ooff). Minimal
+  repro: `int32_t dbg_mul=974848; int16_t dbg_slope=25987; dbg_mul/dbg_slope` compiles to 0 on
+  target with idiv0, but the CCS debugger's own expression evaluator computes the same expression
+  (same live memory) as 37 - proving it's a real code-gen/silicon issue, not a logic error. A
+  float-cast division `(int32_t)((float)dbg_mul/(float)dbg_slope)` gave the correct 37 even with
+  idiv0 still enabled, confirming FPU division is unaffected - only the idiv0 integer path is
+  broken. This was discovered while debugging ADC_getTemperatureC() (adc.h) returning 0 for
+  core_temp instead of a plausible ~36 degC - that function's return statement does exactly this
+  int32/int16 division pattern.
+  FIX APPLIED: set CPU1_FLASH compiler flag --idiv_support=none via setToolFlags (appends after the
+  IDE's own --idiv_support=idiv0; CCS's per-option build-definition tracking makes the later value
+  win, confirmed in invertor_build.log - only "--idiv_support=none" appears in the actual cl2000
+  invocation). Verified: core_temp now reads 36 on live hardware after this change, matching hand
+  calculation. NOT YET APPLIED to CPU1_RAM config - if that config is ever used for real hardware
+  testing (not just RAM debug), apply the same flag there.
+  IMPORTANT - project-wide risk: idiv0 was the project's setting from the start, so any other
+  int32/int16 (or int32/int32 via a 16-bit-typed operand) division elsewhere in the existing
+  codebase may have been silently wrong before this fix, on F28P55x specifically. Worth an audit if
+  strange numeric behavior shows up elsewhere (protection thresholds, calibration math, etc.).
+  TODO: consider reporting to TI as a compiler/toolchain bug (ti-cgt-c2000_25.11.1.LTS,
+  --idiv_support=idiv0, F28P55x) since a wrong division result is a serious silent-corruption class
+  of bug.
+- 2026-08-10: Removed two corruption spots in the installed
+  C:\ti\C2000Ware_26_01_00_00\driverlib\f28p55x\driverlib\spi.h, both breaking the whole header's
+  parse: (1) a voice-dictation artifact ("kt 1.65") typed at the very start of the file, before the
+  opening comment banner; (2) a missing ")" in `SPI_getTxFIFOStatus(uint32_t base{` at line 717
+  (`base)\n{`). Not compatibility patches, just corruption cleanup - not numbered as a Patch. Same
+  class of artifact also hit my_Files/SPI_EEPROM_PHONE.h:22 in-repo ("ле Это ляпсус" before an if)
+  in the same session; fixed there directly since it's git-tracked. Verified via buildProject:
+  invertor now builds clean (0 errors) after both fixes.
 - 2026-07-08: Initial memo created.
 - 2026-07-08: Updated for exact applied guards (_DUAL_HEADERS + DUAL_HEADERS) and preinclude cleanup.
 - 2026-07-08: Added explicit note that SUCCESS/FAIL fix is applied in installed C2000Ware library.

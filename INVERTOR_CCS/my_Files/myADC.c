@@ -12,6 +12,7 @@
 #include "KSP.h"
 
 #include "myADC.h"
+#include "1ph_Sin.h" // DBG_SIN_DAC
 #include "cla_shared.h"
 #include "SPI_EEPROM.h"
 
@@ -47,18 +48,36 @@ __interrupt void INT_myADCB_1_ISR(void)
 #define ADC_REFERENCE ADC_REFERENCE_EXTERNAL
 #endif
 
-int16_t core_temp; // температура ядра F280039C в Цельсиях
+int16_t core_temp; // температура ядра F28P55x в Цельсиях
+int16_t core_temp2; // температура ядра F28P55x в Цельсиях
 
-
-__interrupt void INT_myADCC_1_ISR(void)
+// вызывается из фона раз в 50 мс (main.c, блок CpuTimer0) - SOC0 запускается
+// от EPWM2 непрерывно, здесь просто читаем последний готовый результат.
+void Core_Temp_Update(void)
 {
-     
     uint16_t core_temp_kod = ADC_readResult(ADCCRESULT_BASE, CORE_TEMP_SOC_NUM);
     core_temp = ADC_getTemperatureC(core_temp_kod, ADC_REFERENCE, CORE_TEMP_VREF);
-    AdccRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; // clear INT1 flag for ADCC
-    PieCtrlRegs.PIEACK.all            = PIEACK_GROUP1;
 }
 
+void Core_Temp_Update2(void)
+{
+    uint16_t core_temp_kod = ADC_readResult(ADCCRESULT_BASE, CORE_TEMP_SOC_NUM);
+    float32_t temp = (float32_t)core_temp_kod * (CORE_TEMP_VREF / 2.5F);
+    
+    int32_t slope  = (int32_t)ADC_INT_REF_TSSLOPE;   
+    int32_t offset = (int32_t)ADC_INT_REF_TSOFFSET;  
+    
+    // 1. Считаем числитель в 32-битном формате
+    int32_t numerator = ((int32_t)temp - offset);
+    
+    
+    // Теперь значение искусственно увеличилось, и деление на slope не занулится!
+    int32_t temp_scaled = (numerator * 4096) / slope; 
+    
+    // Результат будет, например, 2550 вместо 25.5 градусов.
+    // Для вывода на экран или в лог просто делим на 100 там, где это нужно.
+    core_temp2 = temp_scaled; 
+}
 
 //--------------------------------------------------------------------------------
 // метод калибровки смещения нуля каналов АЦП
@@ -191,8 +210,10 @@ void ADC_SendOffsets(void)
 
 void currentLimit(uint16_t Imax) // определяет уровни срабатывания защиты по току для компараторов
 {
+#if !DBG_SIN_DAC // при DBG_SIN_DAC модуль CMPSS1 занят отладочным ЦАП синусоиды
     Cmpss1Regs.DACHVALS.bit.DACVAL = saturU16(Imax / kadcf.Ia + offsets.Ia, 4000, 2048);
     Cmpss1Regs.DACLVALS.bit.DACVAL = saturU16(offsets.Ia - (Imax / kadcf.Ia), 2048, 96);
+#endif
 
     Cmpss3Regs.DACHVALS.bit.DACVAL = saturU16(Imax / kadcf.Ib + offsets.Ia, 4000, 2048);
     Cmpss3Regs.DACLVALS.bit.DACVAL = saturU16(offsets.Ib - (Imax / kadcf.Ia), 2048, 96);

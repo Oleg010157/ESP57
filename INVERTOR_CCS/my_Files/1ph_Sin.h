@@ -8,6 +8,10 @@
 #ifndef SIN1_H_
 #define SIN1_H_
 
+// DBG_SIN_DAC - см. config_switch.h. При 1 нижний ЦАП CMPSS1 (COMPDACL) выводит
+// синусоиду на пин A1, B7, D11 для контроля осциллографом; CMPSS1 при этом занят
+// целиком, защита по току фазы А не работает (см. myADC.c).
+
 extern float duty;           // Значение скважности ШИМ (в тактах таймера)
 extern uint16_t sineTick;   // счётчик PWM прерываний
 extern uint16_t tim0S, sine_Time; // dbg переменные для контроля времени выполнения программы
@@ -25,6 +29,9 @@ extern float sine0; // регулируемое смещение фазы син
 
 void spwmCLKDIV(uint16_t div);
 void adjustPhaze(void);
+#if DBG_SIN_DAC
+void dacb_CMPSS1_init(void); // dbg  ЦАП CMPSS1 (COMPDACL) -> пин A1, B7, D11, CMP1_DACL
+#endif
 
 #if Strob_rg  // применяется для отладки метода формирования синусоиды
 extern int strobIndex; // строб номера  ШИМ периода в последовательности синусоиды
