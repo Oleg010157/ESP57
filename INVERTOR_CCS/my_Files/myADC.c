@@ -30,12 +30,70 @@ ADCpar    kadc_default    = {90, 90, 90, 100, 100, 0};        //заводски
 void MainISR(void);
 
 //-------------------------------------------------------------------------------------------------------------
+extern uint16_t daca, dacb;
+uint16_t u220hi_kod = 2500; // u220hi_default;
+uint16_t u220low_kod = 400; // u220low_default;
+uint16_t u220_kod;
+float u220amp; // амплитуда напряжения U220
 
+// Вилка вокруг синусоиды опоры: u220hi_kod цепляется за верхушку, u220low_kod за низ.
+// Раздвигается мгновенно - любой отсчёт выше (ниже) вилки сразу становится границей.
+// Сжимается медленно - раз в u220spadDiv прерываний АЦП на 1 код с каждой стороны.
+// Прерывание АЦП идёт 100 раз за период сети, значит при 8 вилка сжимается на 12 кодов
+// за период. u220amp = половина раствора вилки.
+uint16_t u220spadDiv = 8; // чем больше, тем медленнее вилка сжимается
+uint16_t u220spadCnt = 0;
 
-__interrupt void INT_myADCB_1_ISR(void)
+#pragma CODE_SECTION(INT_myADCA_1_ISR, ".TI.ramfunc");
+
+__interrupt void INT_myADCA_1_ISR(void)
 {
-    
-}
+ 
+     u220_kod = (int16_t)AdcaResultRegs.ADCRESULT0;
+
+  //  stend.Vin = AdccResultRegs.ADCPPB3RESULT.all;
+
+    //  U220_kod для проекта K55   Кузьменкова
+    // раздвигаем вилку - сразу на весь отсчёт. Если двигать по +1, вилка не успевает
+    // за верхушкой синусоиды и садится ниже пика: при u220spadDiv = 8 недобор был
+    // 145 кодов, из-за него gain вставал на 1655 вместо 1800.
+    if (u220_kod > u220hi_kod)
+    {
+        u220hi_kod = u220_kod;
+    }
+    if (u220_kod < u220low_kod)
+    {
+        u220low_kod = u220_kod;
+    }
+
+    // сжимаем вилку - раз в u220spadDiv прерываний
+    if (++u220spadCnt >= u220spadDiv)
+    {
+        u220spadCnt = 0;
+        // Границы не должны пересечься: при пропаже опоры u220low_kod ушёл бы выше
+        // u220hi_kod, а разность беззнаковых свернулась бы в ~65000 - u220amp стала бы
+        // огромной и gain уехал бы в потолок.
+        if (u220hi_kod > u220low_kod)
+        {
+            u220hi_kod--;
+            u220low_kod++;
+        }
+    }
+
+    u220amp = (u220hi_kod - u220low_kod) / 2.0f;
+    if (u220amp > sineB.gain)
+    {
+        sineB.gain ++;
+    }
+    else
+
+    {
+        sineB.gain --;
+    }
+
+    AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;             // clear INT1 flag for ADCC
+    PieCtrlRegs.PIEACK.all            = PIEACK_GROUP1; // освобождаем для других прерываний
+}  
 
 //-------------------------------------------------------------------------------------------------------------
 

@@ -183,24 +183,10 @@ float    sine1 = 0;
 volatile uint16_t epwmcount = 0;// dbg счётчик для измерения периода прерываний
 volatile uint16_t epwmtime = 0;// dbg период прерываний
 
-// ---- Синхронизация по амплитуде ------------------------------------------
-// Опора U220 приходит на пин A0 (туда же выведен DACA с имитацией) и оцифровывается
-// myADCA SOC0 по триггеру EPWM1_SOCA - около 100 отсчётов на период сети.
-// PPB1 сам вычитает откалиброванный ноль, поэтому ADCPPB1RESULT это уже знаковое
-// мгновенное значение опоры.
-// В sine_invertor1/2 глубина модуляции задана как gain/2048, а физически она равна
-// Uвых/Vin. Отсюда gain = 2048 * U220ампл / Vin. Обе величины переводим в вольты
-// своими масштабами kadcf - делить коды разных каналов друг на друга нельзя.
-uint16_t ampSync   = 0;       // 0 - gain остаётся уставкой, 1 - следить за опорой
-uint16_t vinSource = 0;       // 0 - брать vinFixed, 1 - брать измеренное Vin
-float    vinFixed  = 60.0f;   // В. Пока вход Vin на стенде не даёт осмысленных показаний
-float    ampK      = 0.1f;    // постоянная IIR по gain
-float    gainMax   = 2000.0f; // потолок: 2048 соответствует 100% глубины модуляции
-
-int16_t u220PeakAcc; // накопитель пика опоры за текущий период сети
-float   u220Peak;    // dbg амплитуда опоры, коды АЦП
-float   vinVolt;     // dbg напряжение звена, В
-float   gainCalc;    // dbg расчётный gain до сглаживания
+// Синхронизация по амплитуде живёт не здесь, а в INT_myADCA_1_ISR (my_Files/myADC.c):
+// вилка u220hi_kod/u220low_kod ловит размах U220, sineB.gain идёт за ней. Прежний
+// вариант через ampSync (gain = 2048 * U220ампл / Vin) удалён - два регулятора дрались
+// бы за sineB.gain, а Vin на стенде всё равно не подключён.
 
 #pragma CODE_SECTION(INT_myEPWM1_ISR, ".TI.ramfunc");
 
@@ -254,14 +240,6 @@ __interrupt void INT_myEPWM1_ISR(void)
     CMPSS_setDACValueLow(CMPSS1_BASE, dacb); // вывод на пин A1, B7, D11, CMP1_DACL
 #endif
 // -------------------------------------------------------------------------------
-    // Накопление пика опоры за период сети. ADCPPB1RESULT - знаковое значение канала A0
-    // с уже вычтенным нулём. Пик забирается и обнуляется в ISR захвата.
-    {
-        int16_t uref = (int16_t)AdcaResultRegs.ADCPPB1RESULT.bit.PPBRESULT;
-        if (uref > u220PeakAcc)
-            u220PeakAcc = uref;
-    }
-
     // Угол уже увеличен на step внутри sine_invertor1()/sine_invertor2().
     // Повторное приращение здесь давало 2*step за прерывание -> выход шёл на 100 Гц
     // и подстройка фазы не успевала за дрожанием (2*step = 0.126 рад против шага 0.01).
@@ -369,32 +347,15 @@ __interrupt void INT_U220_zero_ECAP_ISR(void)
         sineB.offset = asut(sineB.offset - phaseCorr);
         // sineB.angle НЕ трогаем: угол должен идти непрерывно, иначе каждый захват
         // даёт разрыв в форме сигнала. Фазу двигает только offset.
-
-        // ---- амплитуда ----
-        u220Peak    = (float)u220PeakAcc; // пик опоры за прошедший период сети
-        u220PeakAcc = 0;                  // накопитель под следующий период
-
-        if (ampSync != 0)
-        {
-            vinVolt = (vinSource != 0) ? (kadcf.Vin * (float)AdcaResultRegs.ADCRESULT1)
-                                       : vinFixed;
-            // Деление на близкий к нулю Vin дало бы скачок глубины модуляции в потолок.
-            if (vinVolt > 1.0f)
-            {
-                gainCalc = 2048.0f * (kadcf.Udc * u220Peak) / vinVolt;
-                if (gainCalc < 0.0f)
-                    gainCalc = 0.0f;
-                else if (gainCalc > gainMax)
-                    gainCalc = gainMax;
-
-                sineB.gain += ampK * (gainCalc - sineB.gain);
-            }
-        }
     }
     else
     {
         u220_badCapture++; // dbg
     }
+
+    // Сжатие вилки U220 (u220hi_kod--/u220low_kod++) переехало в INT_myADCA_1_ISR:
+    // здесь оно шло раз за период сети против 100 раздвижек за тот же период, и вилка
+    // почти не сжималась. Скорость сжатия - u220spadDiv в myADC.c.
 
     // Без сброса глобального флага ECCLR.INT модуль eCAP больше не выдаёт
     // прерываний - ISR отрабатывает ровно один раз после прошивки.
