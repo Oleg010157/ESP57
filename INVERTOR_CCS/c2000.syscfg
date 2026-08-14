@@ -13,35 +13,42 @@
 /**
  * Import the modules used in this configuration.
  */
-const adc            = scripting.addModule("/driverlib/adc.js", {}, false);
-const adc1           = adc.addInstance();
-const adc2           = adc.addInstance();
-const adc3           = adc.addInstance();
-const analog         = scripting.addModule("/driverlib/analog.js", {}, false);
-const analog1        = analog.addInstance();
-const asysctl        = scripting.addModule("/driverlib/asysctl.js");
-const clb            = scripting.addModule("/driverlib/clb.js", {}, false);
-const clb1           = clb.addInstance();
-const dac            = scripting.addModule("/driverlib/dac.js", {}, false);
-const dac1           = dac.addInstance();
-const device_support = scripting.addModule("/driverlib/device_support.js");
-const epwm           = scripting.addModule("/driverlib/epwm.js");
-const epwm1          = epwm.addInstance();
-const epwm2          = epwm.addInstance();
-const epwm3          = epwm.addInstance();
-const epwm4          = epwm.addInstance();
-const epwm5          = epwm.addInstance();
-const epwm6          = epwm.addInstance();
-const epwm7          = epwm.addInstance();
-const gpio           = scripting.addModule("/driverlib/gpio.js", {}, false);
-const gpio1          = gpio.addInstance();
-const gpio2          = gpio.addInstance();
-const mcan           = scripting.addModule("/driverlib/mcan.js", {}, false);
-const mcan1          = mcan.addInstance();
-const spi            = scripting.addModule("/driverlib/spi.js", {}, false);
-const spi1           = spi.addInstance();
-const TILE           = scripting.addModule("/utilities/clb_tool/clb_syscfg/source/TILE", {}, false);
-const TILE1          = TILE.addInstance();
+const adc              = scripting.addModule("/driverlib/adc.js", {}, false);
+const adc1             = adc.addInstance();
+const adc2             = adc.addInstance();
+const adc3             = adc.addInstance();
+const analog           = scripting.addModule("/driverlib/analog.js", {}, false);
+const analog1          = analog.addInstance();
+const asysctl          = scripting.addModule("/driverlib/asysctl.js");
+const clb              = scripting.addModule("/driverlib/clb.js", {}, false);
+const clb1             = clb.addInstance();
+const cmpss            = scripting.addModule("/driverlib/cmpss.js", {}, false);
+const cmpss1           = cmpss.addInstance();
+const dac              = scripting.addModule("/driverlib/dac.js", {}, false);
+const dac1             = dac.addInstance();
+const device_support   = scripting.addModule("/driverlib/device_support.js");
+const ecap             = scripting.addModule("/driverlib/ecap.js", {}, false);
+const ecap1            = ecap.addInstance();
+const epwm             = scripting.addModule("/driverlib/epwm.js");
+const epwm1            = epwm.addInstance();
+const epwm2            = epwm.addInstance();
+const epwm3            = epwm.addInstance();
+const epwm4            = epwm.addInstance();
+const epwm5            = epwm.addInstance();
+const epwm6            = epwm.addInstance();
+const epwm7            = epwm.addInstance();
+const epwm8            = epwm.addInstance();
+const gpio             = scripting.addModule("/driverlib/gpio.js", {}, false);
+const gpio1            = gpio.addInstance();
+const gpio2            = gpio.addInstance();
+const inputxbar_input  = scripting.addModule("/driverlib/inputxbar_input.js", {}, false);
+const inputxbar_input1 = inputxbar_input.addInstance();
+const mcan             = scripting.addModule("/driverlib/mcan.js", {}, false);
+const mcan1            = mcan.addInstance();
+const spi              = scripting.addModule("/driverlib/spi.js", {}, false);
+const spi1             = spi.addInstance();
+const TILE             = scripting.addModule("/utilities/clb_tool/clb_syscfg/source/TILE", {}, false);
+const TILE1            = TILE.addInstance();
 
 /**
  * Write custom configuration values to the imported modules.
@@ -148,18 +155,39 @@ clb1.initTile            = true;
 const divider4       = system.clockTree["MCANACLKDIV"];
 divider4.divideValue = 1;
 
+cmpss1.$name               = "myCMPSS3";
+cmpss1.cmpssBase           = "CMPSS3_BASE";
+cmpss1.enableModule        = true;
+cmpss1.dacValHigh          = 2048;
+cmpss1.asysCMPHPMXSELValue = "2";
+cmpss1.hysteresisVal       = "4";
+cmpss1.samplePrescaleHigh  = 187;
+cmpss1.sampleWindowHigh    = 32;
+cmpss1.thresholdHigh       = 32;
+cmpss1.initFilterHigh      = true;
+cmpss1.highCTRIP           = "CMPSS_TRIP_FILTER";
+
 dac1.$name        = "myDAC1";
 dac1.gainMode     = "DAC_GAIN_TWO";
 dac1.shadowValue  = 400;
 dac1.enableOutput = true;
 scripting.suppress("The pin A0, B15, C15, DACA_OUT is also selected by the ADC module\\. The DAC output will be driving the ADC pin input\\. This is an acceptable use-case\\.", dac1, "dacDevicePinName");
+scripting.suppress("The pin A0, B15, C15, DACA_OUT is also selected by the CMPSS module\\. The DAC output will be driving the CMPSS pin input\\. This is an acceptable use-case\\.", dac1, "dacDevicePinName");
 
 analog1.$name                                              = "myANALOGPinMux0";
 adc1.analog                                                = analog1;
 adc2.analog                                                = analog1;
 adc3.analog                                                = analog1;
 dac1.analog                                                = analog1;
+cmpss1.analog                                              = analog1;
 analog1.analog["a2, b6, c9, pga1_inp, gpio224Pin"].$assign = "A2, B6, C9, PGA1_INP, GPIO224";
+
+ecap1.$name                   = "U220_zero_ECAP";
+ecap1.ecapInput               = "ECAP_INPUT_CMPSS3_CTRIP_HIGH";
+ecap1.registerInterrupts      = true;
+ecap1.enableInterrupt         = true;
+ecap1.interruptSourceCapture  = ["ECAP_ISR_SOURCE_CAPTURE_EVENT_1"];
+ecap1.ecapInt.enableInterrupt = true;
 
 epwm.generateInitFunctions = true;
 epwm.commentOutDefaultCode = true;
@@ -295,6 +323,14 @@ epwm7.epwmTimebase_counterMode   = "EPWM_COUNTER_MODE_UP";
 epwm7.epwmTimebase_period        = 65535;
 epwm7.epwm.$assign               = "EPWM7";
 
+epwm8.$name                          = "myEPWM8";
+epwm8.epwmTimebase_clockDiv          = "EPWM_CLOCK_DIVIDER_64";
+epwm8.epwmTimebase_period            = 65535;
+epwm8.epwmTimebase_counterMode       = "EPWM_COUNTER_MODE_UP";
+epwm8.epwmTimebase_syncInPulseSource = "EPWM_SYNC_IN_PULSE_SRC_DISABLE";
+epwm8.useCase                        = "CUSTOM";
+epwm8.epwm.$assign                   = "EPWM8";
+
 gpio1.$name           = "scope";
 gpio1.direction       = "GPIO_DIR_MODE_OUT";
 gpio1.gpioPin.$assign = "GPIO57";
@@ -302,6 +338,10 @@ gpio1.gpioPin.$assign = "GPIO57";
 gpio2.$name           = "strob";
 gpio2.direction       = "GPIO_DIR_MODE_OUT";
 gpio2.gpioPin.$assign = "GPIO32";
+
+inputxbar_input1.$name          = "myINPUTXBARINPUT0";
+inputxbar_input1.inputxbarInput = "XBAR_INPUT4";
+inputxbar_input1.inputxbarGpio  = "GPIO26";
 
 mcan1.loopbackMode             = false;
 mcan1.enableInterrupt          = true;

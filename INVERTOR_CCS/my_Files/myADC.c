@@ -213,10 +213,15 @@ void currentLimit(uint16_t Imax) // определяет уровни сраба
 #if !DBG_SIN_DAC // при DBG_SIN_DAC модуль CMPSS1 занят отладочным ЦАП синусоиды
     Cmpss1Regs.DACHVALS.bit.DACVAL = saturU16(Imax / kadcf.Ia + offsets.Ia, 4000, 2048);
     Cmpss1Regs.DACLVALS.bit.DACVAL = saturU16(offsets.Ia - (Imax / kadcf.Ia), 2048, 96);
-#endif
 
+    // При DBG_SIN_DAC верхний компаратор CMPSS3 работает детектором перехода U220
+    // через ноль (CTRIPH -> eCAP1). Ему нужен порог на середине шкалы (2048), который
+    // ставит myCMPSS3_init(). Уставка защиты по току уводит порог к 4000, а daca при
+    // gain = 1800 доходит лишь до 3848 - компаратор перестаёт срабатывать совсем,
+    // захваты прекращаются и синхронизация с сетью молча умирает.
     Cmpss3Regs.DACHVALS.bit.DACVAL = saturU16(Imax / kadcf.Ib + offsets.Ia, 4000, 2048);
     Cmpss3Regs.DACLVALS.bit.DACVAL = saturU16(offsets.Ib - (Imax / kadcf.Ia), 2048, 96);
+#endif
 }
 
 
