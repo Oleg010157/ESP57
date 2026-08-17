@@ -53,6 +53,14 @@
 #define Udc_Over      40 // Перенапряжение Udc
 #define IGBT_OverTemp 41 // Перегрев модуля IGBT
 
+// Сетевой режим (grid-tie), my_Files/grid_tie.c
+#define gt_noGrid    60 // Пропала сеть: нет захватов нуля U220 более 1.5 периода
+#define gt_overIpri  61 // Превышен ток первички трансформатора
+#define gt_overIsec  62 // Превышен ток вторички (ток в сеть)
+#define gt_UdcRange  63 // Напряжение АКБ вне рабочего окна
+#define gt_mSat      64 // Систематический упор индекса модуляции: не хватает Udc или n
+#define gt_syncLost  65 // Потерян синхронизм с сетью (частота, амплитуда или фаза)
+
 //  EEPROM
 #define Offsets_ERR 50   // не совпадает контрольная сумма offsets считанных из EEPROM.
 #define Offsets_NOCAL 51 // не совпадает контрольная сумма offsets считанных из EEPROM.

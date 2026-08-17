@@ -216,3 +216,18 @@ Change log
   %LOCALAPPDATA%. Also tried and reverted the git-portable variant (define in the project compiler
   options) - it breaks the CLA build, see "Rejected alternative" under Patch 4.
 - 2026-07-26: Found CPU1_FLASH was (unlike CPU1_RAM) compiling all installed C2000Ware driverlib/*.c files directly as project sources, redundant with the already-linked prebuilt driverlib.lib - this caused SDK-internal warnings (e.g. pmbus.c #179-D unused variables) that never showed up for CPU1_RAM (whose makefile has no driverlib subdir_rules.mk include, so it only links driverlib.lib). Fixed by excluding the driverlib source folder from CPU1_FLASH's build in the IDE, matching CPU1_RAM. All CPU1_FLASH errors/warnings resolved after this.
+- 2026-08-17: Added grid-tie fault codes to the out-of-repo error table.
+  File: C:\Work\K55\bin\ErrorCodes.h  (shared with the C# UI; outside the INVERTOR_CCS
+  folder but still tracked - the git root is C:\Work\K55, so this edit IS version-controlled)
+  Reason: my_Files/grid_tie.c registers its own faults through the existing
+  RegisterSessionEvent() mechanism, which indexes ErrBuff[] by these codes.
+  Applied form (inserted before the EEPROM block, indices 60..65 were free):
+    #define gt_noGrid    60 // Пропала сеть: нет захватов нуля U220 более 1.5 периода
+    #define gt_overIpri  61 // Превышен ток первички трансформатора
+    #define gt_overIsec  62 // Превышен ток вторички (ток в сеть)
+    #define gt_UdcRange  63 // Напряжение АКБ вне рабочего окна
+    #define gt_mSat      64 // Систематический упор индекса модуляции: не хватает Udc или n
+    #define gt_syncLost  65 // Потерян синхронизм с сетью (частота, амплитуда или фаза)
+  Note: ERR_BUFF_SIZE is 100 (KSP/Errors.h), so the indices fit. The C# side reads
+  the same header for error names - it needs no change, but the operator will see the
+  new codes only after the UI is rebuilt against this file.

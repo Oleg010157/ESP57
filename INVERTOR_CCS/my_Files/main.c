@@ -30,6 +30,7 @@
 
 #include "myEPWM.h"
 #include "1ph_Sin.h"
+#include "grid_tie.h"
 #include "main.h"
 #include "cla_shared.h"
 #include "SPI_EEPROM.h"
@@ -177,6 +178,7 @@ void main(void)
     CpuTimer0Regs.TCR.bit.TSS = 0;           // запускаем таймер Т0
 
     CLA_shared_Init();
+    grid_tie_init();
 
 #if MCANA
 //    mcan_init();
@@ -194,6 +196,13 @@ extern volatile uint16_t epwm3time;// dbg
     while (1)
     {
         CMPSS_BackgroundCheck();
+
+        // Сетевой режим: закрытие IGBT и запись аварии в журнал. Из прерывания
+        // это звать нельзя - IGBT*_Disable() делает EINT внутри себя (вложенное
+        // прерывание посреди ISR), а RegisterSessionEvent() лезет в историю
+        // ошибок. Само отключение выхода уже произошло в ISR: там m = 0, то есть
+        // мост даёт нулевое напряжение начиная со следующего периода ШИМ.
+        grid_tie_background();
 
 
         // DBG измеритель времени прохождения фонового цикла

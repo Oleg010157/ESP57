@@ -641,6 +641,14 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             {
                 sine_metod = data1;
             }
+            // Метод 1 удалён 17.08.2026 (асимметрия плеч -> постоянная
+            // составляющая -> насыщение трансформатора, см. grid_tie.txt).
+            // Зажимаем в 2, чтобы обратное чтение говорило правду: оператор
+            // увидит, что установка не принята, а не решит, что метод 1 работает.
+            if (sine_metod != 2)
+            {
+                sine_metod = 2;
+            }
             data1 = sine_metod;
             SendAck(data1, data2, data3, cmd);
             break;

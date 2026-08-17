@@ -50,7 +50,9 @@ struct sine
     uint16_t amplitude;
 };
 
-void sine_invertor1( struct sine *s );
+// sine_invertor1 удалён 17.08.2026: каждая полуволна формировалась своим
+// плечом, из-за чего любая асимметрия плеч превращалась в постоянную
+// составляющую и намагничивала трансформатор. Разбор - my_Files/grid_tie.txt.
 void sine_invertor2( struct sine *s );
 void change_sine(struct sine *s);
 
