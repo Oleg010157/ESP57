@@ -135,9 +135,14 @@ void main(void)
 
     TRIP_Clear();
     XbarRegs.XBARCLR1.all = 0xffffffff;
-    // TRIP4: оставляем только входы от драйверов, отключаем источники от CMPSS
+    // TRIP4: оставляем только входы от драйверов, отключаем источники от CMPSS.
+    // MUX00 = CMPSS1_CTRIPH, MUX04 = CMPSS3_CTRIPH - это вывод dacb и детектор
+    // нуля U220, ни тому ни другому на аварийной линии делать нечего.
     XBAR_disableEPWMMux(XBAR_TRIP4, XBAR_MUX00 | XBAR_MUX04);
     XBAR_enableEPWMMux(XBAR_TRIP4, XBAR_MUX01 | XBAR_MUX07);
+
+    // TRIP5: токовая защита от CMPSS2 (Ia) и CMPSS4 (Ib), обе полярности.
+    TRIP_Init();
 
     REF_init(&REF);
     motor_init(&motor1);
@@ -170,6 +175,11 @@ void main(void)
     }
 
     checkEE();
+
+    // Рабочие уставки токовой защиты. Ставятся именно здесь: checkEE() в конце
+    // вызывает floatKadc(), а без готовых масштабов kadcf currentLimit() выйдет
+    // сразу и пороги останутся раскрытыми настежь (см. TRIP_Init).
+    currentLimit(Imax);
     // -----------------------------------------------------------------------------------------------
 
     // команда запуска REF кадра по CANA

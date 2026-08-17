@@ -24,6 +24,9 @@ const clb              = scripting.addModule("/driverlib/clb.js", {}, false);
 const clb1             = clb.addInstance();
 const cmpss            = scripting.addModule("/driverlib/cmpss.js", {}, false);
 const cmpss1           = cmpss.addInstance();
+const cmpss2           = cmpss.addInstance();
+const cmpss3           = cmpss.addInstance();
+const cmpss4           = cmpss.addInstance();
 const dac              = scripting.addModule("/driverlib/dac.js", {}, false);
 const dac1             = dac.addInstance();
 const device_support   = scripting.addModule("/driverlib/device_support.js");
@@ -94,10 +97,8 @@ adc2.enabledSOCs                    = ["ADC_SOC_NUMBER0","ADC_SOC_NUMBER1"];
 adc2.enabledInts                    = ["ADC_INT_NUMBER1"];
 adc2.enabledPPBs                    = ["ADC_PPB_NUMBER1","ADC_PPB_NUMBER2"];
 adc2.soc0Name                       = "SOC0_Ia";
-adc2.soc0Channel                    = "ADC_CH_ADCIN1";
 adc2.soc0SampleWindow               = 120;
 adc2.soc1Name                       = "SOC1_Ib";
-adc2.soc1Channel                    = "ADC_CH_ADCIN7";
 adc2.soc1SampleWindow               = 12;
 adc2.enableInterrupt1               = true;
 adc2.interrupt1SOCSource            = "ADC_INT_TRIGGER_EOC1";
@@ -107,6 +108,8 @@ adc2.ppb2SOCNumber                  = "ADC_SOC_NUMBER1";
 adc2.ppb2ReferenceOffset            = 2048;
 adc2.soc0Trigger                    = "ADC_TRIGGER_EPWM1_SOCA";
 adc2.soc1Trigger                    = "ADC_TRIGGER_EPWM1_SOCA";
+adc2.soc0Channel                    = "ADC_CH_ADCIN1";
+adc2.soc1Channel                    = "ADC_CH_ADCIN4";
 
 adc3.$name                          = "myADCC";
 adc3.adcBase                        = "ADCC_BASE";
@@ -169,6 +172,24 @@ cmpss1.thresholdHigh       = 32;
 cmpss1.initFilterHigh      = true;
 cmpss1.highCTRIP           = "CMPSS_TRIP_FILTER";
 
+cmpss2.$name               = "myCMPSS1";
+cmpss2.enableModule        = true;
+cmpss2.dacValHigh          = 3500;
+cmpss2.dacValLow           = 400;
+cmpss2.asysCMPLPMXSELValue = "4";
+
+cmpss3.$name               = "myCMPSS2";
+cmpss3.cmpssBase           = "CMPSS2_BASE";
+cmpss3.asysCMPHPMXSELValue = "3";
+cmpss3.dacValHigh          = 3800;
+cmpss3.dacValLow           = 400;
+cmpss3.asysCMPLPMXSELValue = "3";
+cmpss3.enableModule        = true;
+
+cmpss4.$name        = "myCMPSS4";
+cmpss4.cmpssBase    = "CMPSS4_BASE";
+cmpss4.enableModule = true;
+
 dac1.$name        = "myDAC1";
 dac1.gainMode     = "DAC_GAIN_TWO";
 dac1.shadowValue  = 400;
@@ -182,6 +203,9 @@ adc2.analog                                                = analog1;
 adc3.analog                                                = analog1;
 dac1.analog                                                = analog1;
 cmpss1.analog                                              = analog1;
+cmpss2.analog                                              = analog1;
+cmpss3.analog                                              = analog1;
+cmpss4.analog                                              = analog1;
 analog1.analog["a2, b6, c9, pga1_inp, gpio224Pin"].$assign = "A2, B6, C9, PGA1_INP, GPIO224";
 
 ecap1.$name                   = "U220_zero_ECAP";

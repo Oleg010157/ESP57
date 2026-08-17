@@ -13,6 +13,7 @@
 
 #include "myADC.h"
 #include "1ph_Sin.h" // DBG_SIN_DAC
+#include "grid_tie.h" // gt.n - коэффициент трансформации для порога первички
 #include "cla_shared.h"
 #include "SPI_EEPROM.h"
 
@@ -266,20 +267,50 @@ void ADC_SendOffsets(void)
 
 //---------------------------------------------------------------------
 
-void currentLimit(uint16_t Imax) // определяет уровни срабатывания защиты по току для компараторов
-{
-#if !DBG_SIN_DAC // при DBG_SIN_DAC модуль CMPSS1 занят отладочным ЦАП синусоиды
-    Cmpss1Regs.DACHVALS.bit.DACVAL = saturU16(Imax / kadcf.Ia + offsets.Ia, 4000, 2048);
-    Cmpss1Regs.DACLVALS.bit.DACVAL = saturU16(offsets.Ia - (Imax / kadcf.Ia), 2048, 96);
+// Запас на ток намагничивания для порога первички. Ток намагничивания течёт
+// ТОЛЬКО в первичке и в отражённый ток нагрузки не входит, поэтому порог
+// первички - это не просто n * порог вторички.
+float currentLimitMagK = 1.3f;
 
-    // При DBG_SIN_DAC верхний компаратор CMPSS3 работает детектором перехода U220
-    // через ноль (CTRIPH -> eCAP1). Ему нужен порог на середине шкалы (2048), который
-    // ставит myCMPSS3_init(). Уставка защиты по току уводит порог к 4000, а daca при
-    // gain = 1800 доходит лишь до 3848 - компаратор перестаёт срабатывать совсем,
-    // захваты прекращаются и синхронизация с сетью молча умирает.
-    Cmpss3Regs.DACHVALS.bit.DACVAL = saturU16(Imax / kadcf.Ib + offsets.Ia, 4000, 2048);
-    Cmpss3Regs.DACLVALS.bit.DACVAL = saturU16(offsets.Ib - (Imax / kadcf.Ia), 2048, 96);
-#endif
+/* Уровни срабатывания аппаратной токовой защиты.
+ *
+ * Раскладка компараторов (подробно - my_Files/grid_tie.txt, раздел 10):
+ *   CMPSS1 - вывод dacb через DACL. Компаратор не используется, НЕ ТРОГАТЬ.
+ *   CMPSS2 - защита Ia, ток первички
+ *   CMPSS3 - детектор нуля U220 -> eCAP1. Порог 2048. НЕ ТРОГАТЬ.
+ *   CMPSS4 - защита Ib, ток вторички (ток в сеть)
+ *
+ * Прежняя редакция писала в Cmpss1 и Cmpss3 - раскладка досталась от старого
+ * проекта. Cmpss3 в K55 это детектор нуля сети: одна команда CAN 53 переставляла
+ * ему порог с 2048 на токовую уставку, компаратор переставал срабатывать,
+ * захваты eCAP прекращались, и синхронизация с сетью молча умирала.
+ *
+ * Imax - предел по току ВТОРИЧКИ (тот, что уходит в сеть), А. Именно его
+ * ограничивает команда CAN 53, и именно он имеет физический смысл уставки.
+ */
+void currentLimit(uint16_t Imax)
+{
+    // До вызова floatKadc() масштабы нулевые. Делить на них нельзя: получится
+    // бесконечность, а её преобразование в целое не определено.
+    if ((kadcf.Ia <= 0.0f) || (kadcf.Ib <= 0.0f))
+    {
+        return;
+    }
+
+    float ImaxSec = (float)Imax;
+    float ImaxPri = ImaxSec * gt.n * currentLimitMagK;
+
+    long dPri = (long)(ImaxPri / kadcf.Ia); // отклонение порога от нуля, коды
+    long dSec = (long)(ImaxSec / kadcf.Ib);
+
+    // Считаем в знаковом типе: при большой уставке offsets - d уходит ниже нуля,
+    // а в uint16_t это свернулось бы в ~65000 и ограничитель принял бы его
+    // за превышение сверху.
+    Cmpss2Regs.DACHVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.Ia + dPri, 4000, 2048);
+    Cmpss2Regs.DACLVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.Ia - dPri, 2048, 96);
+
+    Cmpss4Regs.DACHVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.Ib + dSec, 4000, 2048);
+    Cmpss4Regs.DACLVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.Ib - dSec, 2048, 96);
 }
 
 
