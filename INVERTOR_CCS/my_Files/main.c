@@ -115,6 +115,11 @@ void main(void)
 
     Board_init();
 
+    // Такт управления живёт на ADCB INT1 (EOC1), а не на прерывании EPWM1: контур
+    // должен читать отсчёты ТЕКУЩЕГО периода, а не прошлого - см. шапку
+    // INT_myADCB_1_ISR в 1ph_Sin.c. Прежний источник гасить из кода не нужно,
+    // галка "Enable Interrupt" у myEPWM1 снята в SysConfig, вектор не регистрируется.
+
 #if DBG_SIN_DAC
     dacb_CMPSS1_init(); // dbg  вывод синусоиды на пин A1, B7, D11, CMP1_DACL
     change_sine(&sineB);

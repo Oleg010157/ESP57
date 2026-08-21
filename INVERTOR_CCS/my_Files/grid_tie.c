@@ -47,6 +47,34 @@ extern void IGBT2_Disable(void);
 struct GridTie gt;
 uint16_t       gridMode = 0; // 0 = старый режим синусоиды, 1 = сетевой
 
+// dbg Команда пуска/останова из окна Watch. Смысл и коды - в grid_tie.h.
+volatile uint16_t gtCmd = 0;
+
+//---------------------------------------------------------------------------
+// Трассировка формы сигналов. Объявления и смысл - в grid_tie.h,
+// как этим пользоваться - grid_tie.txt, раздел 6.1.
+//
+// gtTrcRun = 2 - однократный снимок: буфер заполняется один раз и запись
+// встаёт сама. Так ловится переходный процесс - поставил 2 одновременно
+// с возмущением и получил ровно два периода вокруг него, а не бесконечную
+// ленту, в которой момент возмущения уже затёрт.
+//---------------------------------------------------------------------------
+// Сами буферы - в RAMGS1. В .bss им места нет: он привязан к ОДНОМУ блоку
+// RAMLS5 (0x800 слов), и четыре массива по 200 float (1600 слов) кладут
+// линковку намертво. RAMGS1 - 0x2000 слов и пуст; приём в проекте уже
+// применяется, см. ErrHistory в KSP/Errors.c.
+#pragma DATA_SECTION(gtTrcIref, "ramgs1");
+#pragma DATA_SECTION(gtTrcIb, "ramgs1");
+#pragma DATA_SECTION(gtTrcIa, "ramgs1");
+#pragma DATA_SECTION(gtTrcM, "ramgs1");
+
+uint16_t gtTrcRun = 1;
+uint16_t gtTrcIdx = 0;
+float    gtTrcIref[GT_TRC_LEN];
+float    gtTrcIb[GT_TRC_LEN];
+float    gtTrcIa[GT_TRC_LEN];
+float    gtTrcM[GT_TRC_LEN];
+
 // TBCLK1 = 150 МГц / 2 (HSPCLKDIV=2 по сбросу) = 75 МГц, режим UP_DOWN даёт
 // 2*TBPRD тактов на период. Отсюда Ts = TBPRD / 37.5e6.
 #define TB1_TICKS_PER_SECOND_HALF 37.5e6f
@@ -57,10 +85,13 @@ uint16_t       gridMode = 0; // 0 = старый режим синусоиды, 
 // Все коэффициенты - float в структуре gt, чтобы крутить их в отладчике
 // на живой цели, не пересобирая проект.
 //
-// Kp = 2*PI*f_bw*L, где f_bw ~ 300 Гц - потолок полосы при Ts = 200 мкс
-// и полной задержке контура около 1.5 такта (АЦП стартует по тому же
-// событию, что и прерывание, поэтому в начале ISR готов отсчёт предыдущего
-// периода; плюс полпериода на загрузку CMPA из теневого регистра).
+// Kp = 2*PI*f_bw*L. Значение f_bw ~ 300 Гц осталось от прежней схемы, когда
+// такт управления сидел на прерывании EPWM1 и полная задержка контура была
+// около 1.5 такта. Теперь обработчик висит на ADCB INT1 и задержка равна
+// 0.5 такта (одна теневая загрузка CMPA), то есть на 300 Гц освободилось
+// порядка 21 градуса фазового запаздывания. Потолок полосы от этого вырос,
+// но НАСКОЛЬКО - надо мерить на железе, а не назначать: Ts = 200 мкс и шаг
+// резонатора никуда не делись. Пока Kp оставлен прежним.
 //
 // Ki = Kp*w_r, w_r ~ 2*PI*20 - нулевая ошибка на 50 Гц примерно за 50 мс.
 //---------------------------------------------------------------------------
@@ -105,8 +136,8 @@ void grid_tie_init(void)
     gt.mDC     = 0.0f;
     gt.kDC     = 0.0005f; // установление около секунды
     gt.mDCmax  = 0.02f;
-    gt.iPriAcc = 0.0f;
-    gt.iPriCnt = 0;
+    gt.Ia_sum = 0.0f;
+    gt.Ia_cnt = 0;
 
     gt.ImaxPri   = 100.0f; // уточнить по датчику первички
     gt.ImaxSec   = 25.0f;  // 3 кВт -> 19.3 А пика, запас 30 %
@@ -120,6 +151,7 @@ void grid_tie_init(void)
     gt.satCount  = 0;
     gt.satLimit  = 10; // из 100 тактов периода
     gt.satLast   = 0;
+    gt.syncBad   = 0;
     gt.noGrid    = 0;
     gt.noGridMax = 150; // 1.5 периода сети
 
@@ -195,6 +227,26 @@ void grid_tie_stop(void)
 //---------------------------------------------------------------------------
 void grid_tie_background(void)
 {
+    // Команда из отладчика. Стоит ПЕРЕД разбором shutdownReq не случайно:
+    // grid_tie_stop() его как раз и взводит, и ключи должны закрыться в этом
+    // же проходе фона, а не в следующем.
+    if (gtCmd)
+    {
+        uint16_t cmd = gtCmd;
+        gtCmd        = 0;
+
+        // Автомат живёт в прерывании, поэтому его состояние меняем с
+        // закрытыми прерываниями. Иначе такт контура успеет влезть между
+        // сбросом резонатора и сменой State и досчитает период с
+        // полуобнулённым состоянием.
+        DINT;
+        if (cmd == 1)
+            grid_tie_stop();
+        else if (cmd == 2)
+            grid_tie_start();
+        EINT;
+    }
+
     if (gt.shutdownReq)
     {
         gt.shutdownReq = 0;
@@ -210,7 +262,7 @@ void grid_tie_background(void)
 }
 
 //---------------------------------------------------------------------------
-// Такт контура тока. Вызывается из INT_myEPWM1_ISR, 100 раз за период сети.
+// Такт контура тока. Вызывается из INT_myADCB_1_ISR, 100 раз за период сети.
 //
 // Порядок важен: сначала модель отрабатывает ПРЕДЫДУЩИЙ индекс модуляции
 // (тот, что реально стоял в CMPA последний период), и только потом считается
@@ -241,13 +293,13 @@ void grid_tie_step(void)
         gt.Udc = gt.UdcFixed;
     }
 
-    // Токи. ADCB стартует по тому же событию EPWM1, что и это прерывание,
-    // поэтому здесь готов результат ПРЕДЫДУЩЕГО периода. Это осознанная
-    // задержка на такт, она заложена в расчёт Kp.
-    gt.iPriKod = (int16_t)AdcbResultRegs.ADCPPB1RESULT.bit.PPBRESULT;
-    gt.iSecKod = (int16_t)AdcbResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
-    gt.iPri    = gt.iSign * kadcf.Ia * (float)gt.iPriKod;
-    gt.iSec    = gt.iSign * kadcf.Ib * (float)gt.iSecKod;
+    // Токи. Мы сами и есть прерывание по концу преобразования ADCB (EOC1),
+    // так что здесь лежат отсчёты ТЕКУЩЕГО периода. Прежней задержки на такт
+    // больше нет, осталась только теневая загрузка CMPA по TBCTR = 0.
+    gt.Ia_kod = (int16_t)AdcbResultRegs.ADCPPB1RESULT.bit.PPBRESULT;
+    gt.Ib_kod = (int16_t)AdcbResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
+    gt.Ia_amp    = gt.iSign * kadcf.Ia * (float)gt.Ia_kod;
+    gt.Ib_amp    = gt.iSign * kadcf.Ib * (float)gt.Ib_kod;
 
     //-----------------------------------------------------------------
     // 2. Модель вместо железа
@@ -271,8 +323,8 @@ void grid_tie_step(void)
             gt.iSim = 0.0f;
         }
 
-        gt.iSec = gt.iSim;
-        gt.iPri = gt.iSim * gt.n;
+        gt.Ib_amp = gt.iSim;
+        gt.Ia_amp = gt.iSim * gt.n;
     }
 
     //-----------------------------------------------------------------
@@ -290,9 +342,9 @@ void grid_tie_step(void)
 
     if (gt.State == GT_RAMP || gt.State == GT_RUN)
     {
-        if (fabsf(gt.iPri) > gt.ImaxPri)
+        if (fabsf(gt.Ia_amp) > gt.ImaxPri)
             grid_tie_fault(gt_overIpri);
-        else if (fabsf(gt.iSec) > gt.ImaxSec)
+        else if (fabsf(gt.Ib_amp) > gt.ImaxSec)
             grid_tie_fault(gt_overIsec);
         else if (gt.UdcSrc && ((gt.Udc < gt.UdcMin) || (gt.Udc > gt.UdcMax)))
             grid_tie_fault(gt_UdcRange);
@@ -317,7 +369,7 @@ void grid_tie_step(void)
         if ((gt.Iq != 0.0f) && (gt.State != GT_SYNC))
             gt.iref += gt.Iq * cosf(theta);
 
-        gt.ierr = gt.iref - gt.iSec;
+        gt.ierr = gt.iref - gt.Ib_amp;
 
         // PR: пропорциональная часть плюс резонатор ровно на частоте сети.
         // Состояние сохраняем - при упоре по m его придётся откатить.
@@ -354,8 +406,8 @@ void grid_tie_step(void)
         }
 
         // Накопитель среднего тока первички для контура подавления DC.
-        gt.iPriAcc += gt.iPri;
-        gt.iPriCnt++;
+        gt.Ia_sum += gt.Ia_amp;
+        gt.Ia_cnt++;
     }
     else
     {
@@ -414,6 +466,28 @@ void grid_tie_step(void)
     // и dacb, и детектор нуля.
     //-----------------------------------------------------------------
     sineB.angle = asut(sineB.angle + sineB.step);
+
+    //-----------------------------------------------------------------
+    // 7. Трассировка формы. Четыре записи в ОЗУ, на такт незаметно.
+    //
+    // Пишется в самом конце: к этому моменту в gt лежит согласованный
+    // срез одного и того же такта - iref, измеренный ток и тот m, который
+    // только что ушёл в CMPA.
+    //-----------------------------------------------------------------
+    if (gtTrcRun)
+    {
+        gtTrcIref[gtTrcIdx] = gt.iref;
+        gtTrcIb[gtTrcIdx]   = gt.Ib_amp;
+        gtTrcIa[gtTrcIdx]   = gt.Ia_amp;
+        gtTrcM[gtTrcIdx]    = gt.m;
+
+        if (++gtTrcIdx >= GT_TRC_LEN)
+        {
+            gtTrcIdx = 0;
+            if (gtTrcRun == 2)
+                gtTrcRun = 0; // однократный снимок сделан
+        }
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -448,15 +522,15 @@ void grid_tie_onGridZero(void)
     // ток, как с дросселем, - оно намагничивает сердечник, и тот за
     // несколько периодов уходит в насыщение.
     //-----------------------------------------------------------------
-    if (gt.iPriCnt > 0)
+    if (gt.Ia_cnt > 0)
     {
-        gt.iPriMean = gt.iPriAcc / (float)gt.iPriCnt;
-        gt.iPriAcc  = 0.0f;
-        gt.iPriCnt  = 0;
+        gt.Ia_av = gt.Ia_sum / (float)gt.Ia_cnt;
+        gt.Ia_sum  = 0.0f;
+        gt.Ia_cnt  = 0;
 
         if (gt.State == GT_RAMP || gt.State == GT_RUN)
         {
-            gt.mDC -= gt.kDC * gt.iPriMean;
+            gt.mDC -= gt.kDC * gt.Ia_av;
 
             if (gt.mDC > gt.mDCmax)
                 gt.mDC = gt.mDCmax;
@@ -473,6 +547,19 @@ void grid_tie_onGridZero(void)
                        (fabsf(phaseErr) < gt.phaseOk))
                           ? 1U
                           : 0U;
+
+    // dbg Разложение того же условия по причинам. Условия ЗЕРКАЛЬНЫ к gridOk
+    // выше (там >= и <=, здесь < и >), иначе значение на самой границе окна
+    // дало бы gridOk = 0 при пустой маске - и разбор увёл бы не туда.
+    //
+    // В GT_FAULT замирает: маска и нужна как снимок момента срыва. Смысл
+    // битов и комбинаций - в grid_tie.h.
+    if (gt.State != GT_FAULT)
+    {
+        gt.syncBad = (((u220freq < gt.freqMin) || (u220freq > gt.freqMax)) ? 1U : 0U) |
+                     (((u220amp < gt.ampMin) || (u220amp > gt.ampMax)) ? 2U : 0U) |
+                     ((fabsf(phaseErr) >= gt.phaseOk) ? 4U : 0U);
+    }
 
     //-----------------------------------------------------------------
     // Систематический упор по m - это не помеха, а диагноз: либо просел
