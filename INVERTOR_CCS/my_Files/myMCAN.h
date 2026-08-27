@@ -46,6 +46,10 @@ void MCAN_initAllTxBuffers(void);
 // Без этого INT_myMCANA_1_ISR зарегистрирован в PIE, но никогда не вызывается.
 void MCAN_enableLine1Routing(void);
 
+// Вернуть модуль на шину, если он с неё ушёл. Зовётся из фонового цикла.
+// Лечит уход в CCCR.INIT после остановки отладчиком — разбор в myMCAN.c.
+void MCAN_keepOnBus(void);
+
 void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd);
 
 // ⚡ УЛЬТРА-FAST версия: без проверок, только чтение 8 байт
