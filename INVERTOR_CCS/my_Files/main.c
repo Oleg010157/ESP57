@@ -18,8 +18,20 @@
 #include <hw_mcan.h>
 
 
-// bitfield include
-#include "f28x_project.h"
+//
+// Битовые поля подключаются напрямую через f28p55x_device.h, а не через
+// f28x_project.h. Разница в том, что f28x_project.h тянет за собой
+// f28p55x_examples.h, а тот - f28p55x_globalprototypes.h, где символы
+// линкера RamfuncsLoadStart..RamfuncsRunSize объявлены как Uint16.
+// Сгенерированный syscfg/device.h объявляет их же как uint16_t, и на C28x
+// это разные типы: Uint16 - это unsigned short, а uint16_t - unsigned int
+// (C2000Ware 26.01, f28p55x_device.h:191 против stdint.h). Под -D_FLASH оба
+// заголовка попадают в этот файл, и компилятор останавливается на error #148.
+//
+// f28p55x_device.h сам по себе globalprototypes не включает, поэтому
+// конфликта нет. Так же подключены битовые поля во всех файлах K56.
+//
+#include "f28p55x_device.h"
 #include "math.h"
 
 #include "KSP.h"

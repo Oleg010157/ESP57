@@ -94,8 +94,6 @@ void Gain_Selector(motor *m, int data1, int data2, int data3, uint16_t cmd);
 
 void Reset_stend_filtr(void);
 
-//void   DC_PWM1_Init(void);
-uint16_t Deselect_imit(void);
 
 //06/02/2018
 motor        *mot28 = &motor1; //определяет номер (адресс) АИНа
@@ -109,8 +107,7 @@ uint16_t     BrRes2_Val = 0;
 motor       *mK60       = &motor1;
 MODEs        MODE; // Структура для описания переменных для различных режимов
 extern float pi_kIqd;
-MODE_SW      RealMOD_def = MODE_SW_DEFAULTS;
-MODE_SW      RealMOD     = MODE_SW_DEFAULTS; // Битовая стркутура для выбора режима
+
 
 //union CCS ccs;
 union SHARP2     sharp2;
@@ -223,8 +220,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
             IGBT1_Disable();
             IGBT2_Disable();
-
-            RealMOD = RealMOD_def;
+        
             SplMode = 0;
 
             SendAck(data1, data2, data3, cmd);
@@ -406,67 +402,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             SendAck((uint16_t)(mot28->clark.ku01 * 100 + 0.5), data2, data3, cmd);
             break;
 
-        case 28: //  Команда для отправления всех данных АЦП напрямую в GUI
-            RealMOD.adc_transmitt = 1;
-            break;
-
-        case 29:
-            RealMOD.adc_transmitt = 0;
-            break;
-
-            //   30+i -- включили соответствующий блок имитации, 40+i -- выключили
-        case 30:
-            RealMOD.Udci = 1;
-            break;
-        case 31:
-            RealMOD.Ia1 = 1;
-            break;
-        case 32:
-            RealMOD.Ib1 = 1;
-            break;
-        case 33:
-            RealMOD.Ic1 = 1;
-            break;
-        case 34:
-            RealMOD.Ia2 = 1;
-            break;
-        case 35:
-            RealMOD.Ib2 = 1;
-            break;
-        case 36:
-            RealMOD.Ic2 = 1;
-            break;
-        case 37:
-            RealMOD.Error = 1;
-            break;
-        case 40:
-            RealMOD.Udci = Deselect_imit();
-            break;
-        case 41:
-            RealMOD.Ia1 = Deselect_imit();
-            break;
-        case 42:
-            RealMOD.Ib1 = Deselect_imit();
-            break;
-        case 43:
-            RealMOD.Ic1 = Deselect_imit();
-            break;
-        case 44:
-            RealMOD.Ia2 = Deselect_imit();
-            break;
-        case 45:
-            RealMOD.Ib1 = Deselect_imit();
-            break;
-        case 46:
-            RealMOD.Ic2 = Deselect_imit();
-            break;
-        case 47:
-            RealMOD.Error = Deselect_imit();
-            break;
-        case 48:
-            RealMOD               = RealMOD_def;
-            RealMOD.adc_transmitt = 1;
-            break;
+    
 
         case 49:
             change_motID(mot28);
@@ -1599,15 +1535,4 @@ void Gain_Selector(motor *m, int data1, int data2, int data3, uint16_t cmd)
         iout = rounding(out);
 
     SendAck(iout, data2, m->mode.bit.umode, cmd);
-}
-
-/****************************************************************************************************
- *  Функция Deselect_imit выключает имитацию данной ножки АЦП                                       *
- *  и запускает переклибровку по истинным значениям (реальным данным с АЦП)                         *
- ****************************************************************************************************/
-uint16_t Deselect_imit(void)
-{
-    RealMOD.CALIBR        = 1;
-    sflag.bit.offset_flag = 1;
-    return 0;
 }
