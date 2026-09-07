@@ -40,15 +40,9 @@
             this.Tbar_Gain1 = new System.Windows.Forms.TrackBar();
             this.Tbar_Load1 = new System.Windows.Forms.TrackBar();
             this.groupBox_AIN2 = new System.Windows.Forms.GroupBox();
-            this.CIKL2_StepSek = new System.Windows.Forms.Label();
-            this.CIKL2_Pause = new System.Windows.Forms.Button();
-            this.CIKL2_Start_Stop = new System.Windows.Forms.Button();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.Udc = new System.Windows.Forms.Label();
             this.Udc_value = new System.Windows.Forms.Label();
-            this.CIKL2_sekToCiklEnd = new System.Windows.Forms.Label();
-            this.CIKL2_sekToStepEnd = new System.Windows.Forms.Label();
-            this.CIKL2_StepNumber = new System.Windows.Forms.Label();
             this.AIN2_Enable = new System.Windows.Forms.CheckBox();
             this.AIN2_flag = new System.Windows.Forms.TextBox();
             this.M2_Revers = new System.Windows.Forms.CheckBox();
@@ -239,7 +233,6 @@
             this.Load_Sym = new System.Windows.Forms.CheckBox();
             this.btnTblLoad1 = new System.Windows.Forms.Button();
             this.btnTblLoad2 = new System.Windows.Forms.Button();
-            this.timer1 = new System.Windows.Forms.Timer(this.components);
             this.ResolverInverse = new System.Windows.Forms.CheckBox();
             this.tKadr60 = new System.Windows.Forms.TextBox();
             this.F2kadr_text = new System.Windows.Forms.Label();
@@ -256,7 +249,6 @@
             this.groupBox14 = new System.Windows.Forms.GroupBox();
             this.Udc_name = new System.Windows.Forms.Label();
             this.Urms1_value = new System.Windows.Forms.Label();
-            this.CIKL1_sekToStepEnd = new System.Windows.Forms.Label();
             this.groupBox17 = new System.Windows.Forms.GroupBox();
             this.I1rms_selector = new System.Windows.Forms.Label();
             this.Idc_label = new System.Windows.Forms.Label();
@@ -318,12 +310,7 @@
             this.M1_Revers = new System.Windows.Forms.CheckBox();
             this.AIN1_Enable = new System.Windows.Forms.CheckBox();
             this.AIN1_flag = new System.Windows.Forms.TextBox();
-            this.CIKL1_StepNumber = new System.Windows.Forms.Label();
-            this.CIKL1_StepSek = new System.Windows.Forms.Label();
             this.groupBox_AIN1 = new System.Windows.Forms.GroupBox();
-            this.CIKL1_sekToCiklEnd = new System.Windows.Forms.Label();
-            this.CIKL1_Pause = new System.Windows.Forms.Button();
-            this.CIKL1_Start = new System.Windows.Forms.Button();
             this.timer_1sek = new System.Windows.Forms.Timer(this.components);
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.timer_Yokogawa = new System.Windows.Forms.Timer(this.components);
@@ -430,7 +417,7 @@
             this.Tbar_speed.Maximum = 6000;
             this.Tbar_speed.Name = "Tbar_speed";
             this.Tbar_speed.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.Tbar_speed.Size = new System.Drawing.Size(56, 457);
+            this.Tbar_speed.Size = new System.Drawing.Size(45, 457);
             this.Tbar_speed.TabIndex = 185;
             this.Tbar_speed.TickStyle = System.Windows.Forms.TickStyle.None;
             this.Tbar_speed.ValueChanged += new System.EventHandler(this.Tbar_speed_ValueChanged);
@@ -441,12 +428,12 @@
             this.contextMenuStrip2.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.настройкиToolStripMenuItem});
             this.contextMenuStrip2.Name = "contextMenuStrip2";
-            this.contextMenuStrip2.Size = new System.Drawing.Size(70, 26);
+            this.contextMenuStrip2.Size = new System.Drawing.Size(68, 26);
             // 
             // настройкиToolStripMenuItem
             // 
             this.настройкиToolStripMenuItem.Name = "настройкиToolStripMenuItem";
-            this.настройкиToolStripMenuItem.Size = new System.Drawing.Size(69, 22);
+            this.настройкиToolStripMenuItem.Size = new System.Drawing.Size(67, 22);
             // 
             // Tbar_Gain1
             // 
@@ -456,7 +443,7 @@
             this.Tbar_Gain1.Maximum = 10001;
             this.Tbar_Gain1.Name = "Tbar_Gain1";
             this.Tbar_Gain1.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.Tbar_Gain1.Size = new System.Drawing.Size(56, 457);
+            this.Tbar_Gain1.Size = new System.Drawing.Size(45, 457);
             this.Tbar_Gain1.TabIndex = 209;
             this.Tbar_Gain1.TickStyle = System.Windows.Forms.TickStyle.None;
             this.Tbar_Gain1.Scroll += new System.EventHandler(this.Tbar_Gain1_Scroll);
@@ -469,7 +456,7 @@
             this.Tbar_Load1.Maximum = 500;
             this.Tbar_Load1.Name = "Tbar_Load1";
             this.Tbar_Load1.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.Tbar_Load1.Size = new System.Drawing.Size(56, 457);
+            this.Tbar_Load1.Size = new System.Drawing.Size(45, 457);
             this.Tbar_Load1.TabIndex = 211;
             this.Tbar_Load1.TickStyle = System.Windows.Forms.TickStyle.None;
             this.Tbar_Load1.Scroll += new System.EventHandler(this.Tbar_Load1_Scroll);
@@ -478,13 +465,7 @@
             // groupBox_AIN2
             // 
             this.groupBox_AIN2.BackColor = System.Drawing.SystemColors.GradientActiveCaption;
-            this.groupBox_AIN2.Controls.Add(this.CIKL2_StepSek);
-            this.groupBox_AIN2.Controls.Add(this.CIKL2_Pause);
-            this.groupBox_AIN2.Controls.Add(this.CIKL2_Start_Stop);
             this.groupBox_AIN2.Controls.Add(this.groupBox1);
-            this.groupBox_AIN2.Controls.Add(this.CIKL2_sekToCiklEnd);
-            this.groupBox_AIN2.Controls.Add(this.CIKL2_sekToStepEnd);
-            this.groupBox_AIN2.Controls.Add(this.CIKL2_StepNumber);
             this.groupBox_AIN2.Controls.Add(this.AIN2_Enable);
             this.groupBox_AIN2.Controls.Add(this.AIN2_flag);
             this.groupBox_AIN2.Controls.Add(this.M2_Revers);
@@ -526,39 +507,6 @@
             this.groupBox_AIN2.TabStop = false;
             this.groupBox_AIN2.Text = "АИН 2";
             // 
-            // CIKL2_StepSek
-            // 
-            this.CIKL2_StepSek.AutoSize = true;
-            this.CIKL2_StepSek.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.CIKL2_StepSek.Location = new System.Drawing.Point(168, 77);
-            this.CIKL2_StepSek.Name = "CIKL2_StepSek";
-            this.CIKL2_StepSek.Size = new System.Drawing.Size(25, 28);
-            this.CIKL2_StepSek.TabIndex = 345;
-            this.CIKL2_StepSek.Text = "0";
-            this.toolTip1.SetToolTip(this.CIKL2_StepSek, "Время шага цикла в секундах");
-            // 
-            // CIKL2_Pause
-            // 
-            this.CIKL2_Pause.AutoSize = true;
-            this.CIKL2_Pause.Location = new System.Drawing.Point(56, 77);
-            this.CIKL2_Pause.Name = "CIKL2_Pause";
-            this.CIKL2_Pause.Size = new System.Drawing.Size(71, 30);
-            this.CIKL2_Pause.TabIndex = 344;
-            this.CIKL2_Pause.Text = "Pause";
-            this.CIKL2_Pause.UseVisualStyleBackColor = true;
-            this.CIKL2_Pause.Click += new System.EventHandler(this.CIKL2_Pause_Click);
-            // 
-            // CIKL2_Start_Stop
-            // 
-            this.CIKL2_Start_Stop.AutoSize = true;
-            this.CIKL2_Start_Stop.Location = new System.Drawing.Point(0, 77);
-            this.CIKL2_Start_Stop.Name = "CIKL2_Start_Stop";
-            this.CIKL2_Start_Stop.Size = new System.Drawing.Size(60, 30);
-            this.CIKL2_Start_Stop.TabIndex = 343;
-            this.CIKL2_Start_Stop.Text = "Start";
-            this.CIKL2_Start_Stop.UseVisualStyleBackColor = true;
-            this.CIKL2_Start_Stop.Click += new System.EventHandler(this.CIKL2_Start_Click);
-            // 
             // groupBox1
             // 
             this.groupBox1.Controls.Add(this.Udc);
@@ -576,7 +524,7 @@
             this.Udc.ForeColor = System.Drawing.Color.Brown;
             this.Udc.Location = new System.Drawing.Point(4, 12);
             this.Udc.Name = "Udc";
-            this.Udc.Size = new System.Drawing.Size(52, 28);
+            this.Udc.Size = new System.Drawing.Size(41, 22);
             this.Udc.TabIndex = 4;
             this.Udc.Text = "Udc";
             this.toolTip1.SetToolTip(this.Udc, "Напряжение на входе инвертора");
@@ -587,44 +535,11 @@
             this.Udc_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Udc_value.Location = new System.Drawing.Point(95, 15);
             this.Udc_value.Name = "Udc_value";
-            this.Udc_value.Size = new System.Drawing.Size(22, 34);
+            this.Udc_value.Size = new System.Drawing.Size(17, 28);
             this.Udc_value.TabIndex = 188;
             this.Udc_value.Text = "0";
             this.toolTip1.SetToolTip(this.Udc_value, "Напряжение на входе инвертора");
             this.Udc_value.UseCompatibleTextRendering = true;
-            // 
-            // CIKL2_sekToCiklEnd
-            // 
-            this.CIKL2_sekToCiklEnd.AutoSize = true;
-            this.CIKL2_sekToCiklEnd.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.CIKL2_sekToCiklEnd.Location = new System.Drawing.Point(277, 77);
-            this.CIKL2_sekToCiklEnd.Name = "CIKL2_sekToCiklEnd";
-            this.CIKL2_sekToCiklEnd.Size = new System.Drawing.Size(25, 28);
-            this.CIKL2_sekToCiklEnd.TabIndex = 339;
-            this.CIKL2_sekToCiklEnd.Text = "0";
-            this.toolTip1.SetToolTip(this.CIKL2_sekToCiklEnd, "Время до окончания циклограммы в секундах");
-            // 
-            // CIKL2_sekToStepEnd
-            // 
-            this.CIKL2_sekToStepEnd.AutoSize = true;
-            this.CIKL2_sekToStepEnd.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.CIKL2_sekToStepEnd.Location = new System.Drawing.Point(229, 77);
-            this.CIKL2_sekToStepEnd.Name = "CIKL2_sekToStepEnd";
-            this.CIKL2_sekToStepEnd.Size = new System.Drawing.Size(25, 28);
-            this.CIKL2_sekToStepEnd.TabIndex = 340;
-            this.CIKL2_sekToStepEnd.Text = "0";
-            this.toolTip1.SetToolTip(this.CIKL2_sekToStepEnd, "Время до окончания шага цикла в секундах");
-            // 
-            // CIKL2_StepNumber
-            // 
-            this.CIKL2_StepNumber.AutoSize = true;
-            this.CIKL2_StepNumber.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.CIKL2_StepNumber.Location = new System.Drawing.Point(133, 77);
-            this.CIKL2_StepNumber.Name = "CIKL2_StepNumber";
-            this.CIKL2_StepNumber.Size = new System.Drawing.Size(25, 28);
-            this.CIKL2_StepNumber.TabIndex = 338;
-            this.CIKL2_StepNumber.Text = "0";
-            this.toolTip1.SetToolTip(this.CIKL2_StepNumber, "Номер шага циклограммы");
             // 
             // AIN2_Enable
             // 
@@ -634,7 +549,7 @@
             this.AIN2_Enable.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.AIN2_Enable.Location = new System.Drawing.Point(172, 25);
             this.AIN2_Enable.Name = "AIN2_Enable";
-            this.AIN2_Enable.Size = new System.Drawing.Size(81, 22);
+            this.AIN2_Enable.Size = new System.Drawing.Size(71, 19);
             this.AIN2_Enable.TabIndex = 235;
             this.AIN2_Enable.Text = "Enable";
             this.AIN2_Enable.UseVisualStyleBackColor = true;
@@ -646,7 +561,7 @@
             this.AIN2_flag.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.AIN2_flag.Location = new System.Drawing.Point(255, 22);
             this.AIN2_flag.Name = "AIN2_flag";
-            this.AIN2_flag.Size = new System.Drawing.Size(43, 26);
+            this.AIN2_flag.Size = new System.Drawing.Size(43, 23);
             this.AIN2_flag.TabIndex = 333;
             this.AIN2_flag.Text = "Вкл.";
             this.AIN2_flag.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
@@ -657,7 +572,7 @@
             this.M2_Revers.AutoSize = true;
             this.M2_Revers.Location = new System.Drawing.Point(74, 45);
             this.M2_Revers.Name = "M2_Revers";
-            this.M2_Revers.Size = new System.Drawing.Size(97, 24);
+            this.M2_Revers.Size = new System.Drawing.Size(80, 21);
             this.M2_Revers.TabIndex = 331;
             this.M2_Revers.Text = "Реверс";
             this.M2_Revers.UseVisualStyleBackColor = true;
@@ -668,7 +583,7 @@
             this.FOC2.AutoSize = true;
             this.FOC2.Location = new System.Drawing.Point(10, 45);
             this.FOC2.Name = "FOC2";
-            this.FOC2.Size = new System.Drawing.Size(69, 24);
+            this.FOC2.Size = new System.Drawing.Size(58, 21);
             this.FOC2.TabIndex = 330;
             this.FOC2.Text = "FOC";
             this.FOC2.UseVisualStyleBackColor = true;
@@ -692,7 +607,7 @@
             this.EPSi_2.ForeColor = System.Drawing.Color.DarkBlue;
             this.EPSi_2.Location = new System.Drawing.Point(4, 5);
             this.EPSi_2.Name = "EPSi_2";
-            this.EPSi_2.Size = new System.Drawing.Size(59, 28);
+            this.EPSi_2.Size = new System.Drawing.Size(46, 22);
             this.EPSi_2.TabIndex = 189;
             this.EPSi_2.Text = "EPSi";
             // 
@@ -702,7 +617,7 @@
             this.epsi2.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.epsi2.Location = new System.Drawing.Point(74, 5);
             this.epsi2.Name = "epsi2";
-            this.epsi2.Size = new System.Drawing.Size(25, 28);
+            this.epsi2.Size = new System.Drawing.Size(21, 22);
             this.epsi2.TabIndex = 193;
             this.epsi2.Text = "0";
             // 
@@ -724,7 +639,7 @@
             this.EPSv_2.ForeColor = System.Drawing.Color.DarkBlue;
             this.EPSv_2.Location = new System.Drawing.Point(4, 5);
             this.EPSv_2.Name = "EPSv_2";
-            this.EPSv_2.Size = new System.Drawing.Size(64, 28);
+            this.EPSv_2.Size = new System.Drawing.Size(51, 22);
             this.EPSv_2.TabIndex = 187;
             this.EPSv_2.Text = "EPSv";
             // 
@@ -734,7 +649,7 @@
             this.epsv2.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.epsv2.Location = new System.Drawing.Point(93, 5);
             this.epsv2.Name = "epsv2";
-            this.epsv2.Size = new System.Drawing.Size(25, 28);
+            this.epsv2.Size = new System.Drawing.Size(21, 22);
             this.epsv2.TabIndex = 191;
             this.epsv2.Text = "0";
             // 
@@ -765,7 +680,7 @@
             this.PF2_Name.ForeColor = System.Drawing.Color.DarkBlue;
             this.PF2_Name.Location = new System.Drawing.Point(4, 5);
             this.PF2_Name.Name = "PF2_Name";
-            this.PF2_Name.Size = new System.Drawing.Size(39, 28);
+            this.PF2_Name.Size = new System.Drawing.Size(31, 22);
             this.PF2_Name.TabIndex = 190;
             this.PF2_Name.Text = "PF";
             // 
@@ -787,7 +702,7 @@
             this.cos2_Name.ForeColor = System.Drawing.Color.DarkBlue;
             this.cos2_Name.Location = new System.Drawing.Point(4, 5);
             this.cos2_Name.Name = "cos2_Name";
-            this.cos2_Name.Size = new System.Drawing.Size(46, 28);
+            this.cos2_Name.Size = new System.Drawing.Size(36, 22);
             this.cos2_Name.TabIndex = 189;
             this.cos2_Name.Text = "cos";
             // 
@@ -797,7 +712,7 @@
             this.cos2_val.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.cos2_val.Location = new System.Drawing.Point(74, 5);
             this.cos2_val.Name = "cos2_val";
-            this.cos2_val.Size = new System.Drawing.Size(25, 28);
+            this.cos2_val.Size = new System.Drawing.Size(21, 22);
             this.cos2_val.TabIndex = 193;
             this.cos2_val.Text = "0";
             // 
@@ -819,7 +734,7 @@
             this.label_Pabc2.ForeColor = System.Drawing.Color.DarkBlue;
             this.label_Pabc2.Location = new System.Drawing.Point(4, 5);
             this.label_Pabc2.Name = "label_Pabc2";
-            this.label_Pabc2.Size = new System.Drawing.Size(52, 28);
+            this.label_Pabc2.Size = new System.Drawing.Size(41, 22);
             this.label_Pabc2.TabIndex = 188;
             this.label_Pabc2.Text = "SΣB";
             // 
@@ -851,7 +766,7 @@
             this.label_Pa2.ForeColor = System.Drawing.Color.DarkBlue;
             this.label_Pa2.Location = new System.Drawing.Point(4, 5);
             this.label_Pa2.Name = "label_Pa2";
-            this.label_Pa2.Size = new System.Drawing.Size(54, 28);
+            this.label_Pa2.Size = new System.Drawing.Size(43, 22);
             this.label_Pa2.TabIndex = 187;
             this.label_Pa2.Text = "PΣB";
             // 
@@ -872,7 +787,7 @@
             this.Vq2_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Vq2_value.Location = new System.Drawing.Point(252, 491);
             this.Vq2_value.Name = "Vq2_value";
-            this.Vq2_value.Size = new System.Drawing.Size(25, 28);
+            this.Vq2_value.Size = new System.Drawing.Size(21, 22);
             this.Vq2_value.TabIndex = 207;
             this.Vq2_value.Text = "0";
             // 
@@ -904,7 +819,7 @@
             this.Ir2_label.ForeColor = System.Drawing.Color.DarkGreen;
             this.Ir2_label.Location = new System.Drawing.Point(4, 12);
             this.Ir2_label.Name = "Ir2_label";
-            this.Ir2_label.Size = new System.Drawing.Size(33, 28);
+            this.Ir2_label.Size = new System.Drawing.Size(27, 22);
             this.Ir2_label.TabIndex = 203;
             this.Ir2_label.Text = "In";
             // 
@@ -914,7 +829,7 @@
             this.Id2_name.Font = new System.Drawing.Font("Cambria", 13F);
             this.Id2_name.Location = new System.Drawing.Point(12, 469);
             this.Id2_name.Name = "Id2_name";
-            this.Id2_name.Size = new System.Drawing.Size(31, 26);
+            this.Id2_name.Size = new System.Drawing.Size(26, 21);
             this.Id2_name.TabIndex = 200;
             this.Id2_name.Text = "Id";
             this.Id2_name.DoubleClick += new System.EventHandler(this.Id2_name_DoubleClick);
@@ -936,7 +851,7 @@
             this.Torq_label.Font = new System.Drawing.Font("Cambria", 14F);
             this.Torq_label.Location = new System.Drawing.Point(4, 5);
             this.Torq_label.Name = "Torq_label";
-            this.Torq_label.Size = new System.Drawing.Size(60, 28);
+            this.Torq_label.Size = new System.Drawing.Size(47, 22);
             this.Torq_label.TabIndex = 186;
             this.Torq_label.Text = "Torq";
             // 
@@ -946,7 +861,7 @@
             this.Torq_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Torq_value.Location = new System.Drawing.Point(74, 5);
             this.Torq_value.Name = "Torq_value";
-            this.Torq_value.Size = new System.Drawing.Size(25, 28);
+            this.Torq_value.Size = new System.Drawing.Size(21, 22);
             this.Torq_value.TabIndex = 185;
             this.Torq_value.Text = "0";
             // 
@@ -958,7 +873,7 @@
             this.Id2_value.Location = new System.Drawing.Point(101, 469);
             this.Id2_value.Margin = new System.Windows.Forms.Padding(0);
             this.Id2_value.Name = "Id2_value";
-            this.Id2_value.Size = new System.Drawing.Size(25, 28);
+            this.Id2_value.Size = new System.Drawing.Size(21, 22);
             this.Id2_value.TabIndex = 201;
             this.Id2_value.Text = "0";
             this.Id2_value.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -981,7 +896,7 @@
             this.Im2_name.ForeColor = System.Drawing.Color.DarkGreen;
             this.Im2_name.Location = new System.Drawing.Point(4, 5);
             this.Im2_name.Name = "Im2_name";
-            this.Im2_name.Size = new System.Drawing.Size(40, 28);
+            this.Im2_name.Size = new System.Drawing.Size(32, 22);
             this.Im2_name.TabIndex = 196;
             this.Im2_name.Text = "Im";
             // 
@@ -991,7 +906,7 @@
             this.Im2_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Im2_value.Location = new System.Drawing.Point(74, 5);
             this.Im2_value.Name = "Im2_value";
-            this.Im2_value.Size = new System.Drawing.Size(25, 28);
+            this.Im2_value.Size = new System.Drawing.Size(21, 22);
             this.Im2_value.TabIndex = 197;
             this.Im2_value.Text = "0";
             // 
@@ -1002,7 +917,7 @@
             this.Vq2_name.ForeColor = System.Drawing.Color.Brown;
             this.Vq2_name.Location = new System.Drawing.Point(182, 493);
             this.Vq2_name.Name = "Vq2_name";
-            this.Vq2_name.Size = new System.Drawing.Size(35, 26);
+            this.Vq2_name.Size = new System.Drawing.Size(30, 21);
             this.Vq2_name.TabIndex = 206;
             this.Vq2_name.Text = "Vq";
             this.Vq2_name.DoubleClick += new System.EventHandler(this.Vq2_name_DoubleClick);
@@ -1033,7 +948,7 @@
             this.label24.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.label24.Location = new System.Drawing.Point(4, 14);
             this.label24.Name = "label24";
-            this.label24.Size = new System.Drawing.Size(46, 23);
+            this.label24.Size = new System.Drawing.Size(38, 19);
             this.label24.TabIndex = 183;
             this.label24.Text = "rpm";
             // 
@@ -1043,7 +958,7 @@
             this.rpm2_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.rpm2_value.Location = new System.Drawing.Point(76, 11);
             this.rpm2_value.Name = "rpm2_value";
-            this.rpm2_value.Size = new System.Drawing.Size(25, 28);
+            this.rpm2_value.Size = new System.Drawing.Size(21, 22);
             this.rpm2_value.TabIndex = 184;
             this.rpm2_value.Text = "0";
             // 
@@ -1054,7 +969,7 @@
             this.Vd2_name.ForeColor = System.Drawing.Color.Brown;
             this.Vd2_name.Location = new System.Drawing.Point(182, 469);
             this.Vd2_name.Name = "Vd2_name";
-            this.Vd2_name.Size = new System.Drawing.Size(35, 26);
+            this.Vd2_name.Size = new System.Drawing.Size(30, 21);
             this.Vd2_name.TabIndex = 202;
             this.Vd2_name.Text = "Vd";
             this.Vd2_name.DoubleClick += new System.EventHandler(this.Vd2_name_DoubleClick);
@@ -1075,7 +990,7 @@
             this.label25.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.label25.Location = new System.Drawing.Point(4, 14);
             this.label25.Name = "label25";
-            this.label25.Size = new System.Drawing.Size(69, 23);
+            this.label25.Size = new System.Drawing.Size(57, 19);
             this.label25.TabIndex = 181;
             this.label25.Text = "f.поля:";
             // 
@@ -1085,7 +1000,7 @@
             this.field2_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.field2_value.Location = new System.Drawing.Point(76, 11);
             this.field2_value.Name = "field2_value";
-            this.field2_value.Size = new System.Drawing.Size(25, 28);
+            this.field2_value.Size = new System.Drawing.Size(21, 22);
             this.field2_value.TabIndex = 182;
             this.field2_value.Text = "0";
             // 
@@ -1095,7 +1010,7 @@
             this.Vd2_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Vd2_value.Location = new System.Drawing.Point(252, 468);
             this.Vd2_value.Name = "Vd2_value";
-            this.Vd2_value.Size = new System.Drawing.Size(25, 28);
+            this.Vd2_value.Size = new System.Drawing.Size(21, 22);
             this.Vd2_value.TabIndex = 203;
             this.Vd2_value.Text = "0";
             // 
@@ -1115,7 +1030,7 @@
             this.label_f22.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.label_f22.Location = new System.Drawing.Point(5, 15);
             this.label_f22.Name = "label_f22";
-            this.label_f22.Size = new System.Drawing.Size(50, 23);
+            this.label_f22.Size = new System.Drawing.Size(41, 19);
             this.label_f22.TabIndex = 166;
             this.label_f22.Text = "f.зад";
             // 
@@ -1125,7 +1040,7 @@
             this.fref2_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.fref2_value.Location = new System.Drawing.Point(76, 11);
             this.fref2_value.Name = "fref2_value";
-            this.fref2_value.Size = new System.Drawing.Size(25, 28);
+            this.fref2_value.Size = new System.Drawing.Size(21, 22);
             this.fref2_value.TabIndex = 180;
             this.fref2_value.Text = "0";
             // 
@@ -1135,7 +1050,7 @@
             this.Iq2_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Iq2_value.Location = new System.Drawing.Point(101, 496);
             this.Iq2_value.Name = "Iq2_value";
-            this.Iq2_value.Size = new System.Drawing.Size(25, 28);
+            this.Iq2_value.Size = new System.Drawing.Size(21, 22);
             this.Iq2_value.TabIndex = 205;
             this.Iq2_value.Text = "0";
             this.Iq2_value.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -1157,7 +1072,7 @@
             this.S2abs_label.Font = new System.Drawing.Font("Cambria", 14F);
             this.S2abs_label.Location = new System.Drawing.Point(4, 5);
             this.S2abs_label.Name = "S2abs_label";
-            this.S2abs_label.Size = new System.Drawing.Size(59, 28);
+            this.S2abs_label.Size = new System.Drawing.Size(46, 22);
             this.S2abs_label.TabIndex = 199;
             this.S2abs_label.Text = "Sabs";
             this.S2abs_label.DoubleClick += new System.EventHandler(this.S2_procent_label_DoubleClick);
@@ -1180,7 +1095,7 @@
             this.Iq2_name.Font = new System.Drawing.Font("Cambria", 13F);
             this.Iq2_name.Location = new System.Drawing.Point(12, 493);
             this.Iq2_name.Name = "Iq2_name";
-            this.Iq2_name.Size = new System.Drawing.Size(31, 26);
+            this.Iq2_name.Size = new System.Drawing.Size(26, 21);
             this.Iq2_name.TabIndex = 204;
             this.Iq2_name.Text = "Iq";
             this.Iq2_name.DoubleClick += new System.EventHandler(this.Iq2_name_DoubleClick);
@@ -1202,7 +1117,7 @@
             this.input24.ForeColor = System.Drawing.Color.DarkGreen;
             this.input24.Location = new System.Drawing.Point(4, 12);
             this.input24.Name = "input24";
-            this.input24.Size = new System.Drawing.Size(31, 28);
+            this.input24.Size = new System.Drawing.Size(24, 22);
             this.input24.TabIndex = 176;
             this.input24.Text = "Ic";
             // 
@@ -1233,7 +1148,7 @@
             this.input23.ForeColor = System.Drawing.Color.DarkGreen;
             this.input23.Location = new System.Drawing.Point(4, 12);
             this.input23.Name = "input23";
-            this.input23.Size = new System.Drawing.Size(33, 28);
+            this.input23.Size = new System.Drawing.Size(26, 22);
             this.input23.TabIndex = 172;
             this.input23.Text = "Ib";
             // 
@@ -1265,7 +1180,7 @@
             this.I2rms_selector.ForeColor = System.Drawing.Color.Black;
             this.I2rms_selector.Location = new System.Drawing.Point(119, 15);
             this.I2rms_selector.Name = "I2rms_selector";
-            this.I2rms_selector.Size = new System.Drawing.Size(44, 23);
+            this.I2rms_selector.Size = new System.Drawing.Size(36, 19);
             this.I2rms_selector.TabIndex = 175;
             this.I2rms_selector.Text = "rms";
             this.I2rms_selector.DoubleClick += new System.EventHandler(this.label_Irms_DoubleClick);
@@ -1277,7 +1192,7 @@
             this.input22.ForeColor = System.Drawing.Color.DarkGreen;
             this.input22.Location = new System.Drawing.Point(4, 12);
             this.input22.Name = "input22";
-            this.input22.Size = new System.Drawing.Size(32, 28);
+            this.input22.Size = new System.Drawing.Size(25, 22);
             this.input22.TabIndex = 171;
             this.input22.Text = "Ia";
             // 
@@ -1308,7 +1223,7 @@
             this.Urms2_name.ForeColor = System.Drawing.Color.Brown;
             this.Urms2_name.Location = new System.Drawing.Point(4, 12);
             this.Urms2_name.Name = "Urms2_name";
-            this.Urms2_name.Size = new System.Drawing.Size(68, 28);
+            this.Urms2_name.Size = new System.Drawing.Size(54, 22);
             this.Urms2_name.TabIndex = 178;
             this.Urms2_name.Text = "Urms";
             this.Urms2_name.DoubleClick += new System.EventHandler(this.Urms2_name_DoubleClick);
@@ -1319,7 +1234,7 @@
             this.Urms2_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Urms2_value.Location = new System.Drawing.Point(76, 12);
             this.Urms2_value.Name = "Urms2_value";
-            this.Urms2_value.Size = new System.Drawing.Size(25, 28);
+            this.Urms2_value.Size = new System.Drawing.Size(21, 22);
             this.Urms2_value.TabIndex = 179;
             this.Urms2_value.Text = "0";
             // 
@@ -1340,7 +1255,7 @@
             this.Ugen_name.ForeColor = System.Drawing.Color.Brown;
             this.Ugen_name.Location = new System.Drawing.Point(5, 15);
             this.Ugen_name.Name = "Ugen_name";
-            this.Ugen_name.Size = new System.Drawing.Size(52, 28);
+            this.Ugen_name.Size = new System.Drawing.Size(41, 22);
             this.Ugen_name.TabIndex = 170;
             this.Ugen_name.Text = "Udc";
             // 
@@ -1350,7 +1265,7 @@
             this.Ugen_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Ugen_value.Location = new System.Drawing.Point(95, 13);
             this.Ugen_value.Name = "Ugen_value";
-            this.Ugen_value.Size = new System.Drawing.Size(25, 28);
+            this.Ugen_value.Size = new System.Drawing.Size(21, 22);
             this.Ugen_value.TabIndex = 173;
             this.Ugen_value.Text = "0";
             // 
@@ -1361,7 +1276,7 @@
             this.DG2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.DG2.Location = new System.Drawing.Point(313, 22);
             this.DG2.Name = "DG2";
-            this.DG2.Size = new System.Drawing.Size(27, 27);
+            this.DG2.Size = new System.Drawing.Size(21, 22);
             this.DG2.TabIndex = 202;
             this.DG2.Text = "Г";
             this.DG2.Click += new System.EventHandler(this.DG2_Click);
@@ -1396,7 +1311,7 @@
             this.chkCanLog.AutoSize = true;
             this.chkCanLog.Location = new System.Drawing.Point(767, 32);
             this.chkCanLog.Name = "chkCanLog";
-            this.chkCanLog.Size = new System.Drawing.Size(146, 21);
+            this.chkCanLog.Size = new System.Drawing.Size(116, 17);
             this.chkCanLog.TabIndex = 0;
             this.chkCanLog.Text = "CAN логирование";
             this.chkCanLog.UseVisualStyleBackColor = true;
@@ -1408,7 +1323,7 @@
             this.label15.BackColor = System.Drawing.Color.PowderBlue;
             this.label15.Location = new System.Drawing.Point(3, 19);
             this.label15.Name = "label15";
-            this.label15.Size = new System.Drawing.Size(71, 17);
+            this.label15.Size = new System.Drawing.Size(57, 13);
             this.label15.TabIndex = 229;
             this.label15.Text = "Макс. ток";
             // 
@@ -1434,7 +1349,7 @@
             this.label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.label4.Location = new System.Drawing.Point(124, 45);
             this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(21, 20);
+            this.label4.Size = new System.Drawing.Size(17, 17);
             this.label4.TabIndex = 324;
             this.label4.Text = "C";
             // 
@@ -1442,7 +1357,7 @@
             // 
             this.textBox_температура.Location = new System.Drawing.Point(77, 45);
             this.textBox_температура.Name = "textBox_температура";
-            this.textBox_температура.Size = new System.Drawing.Size(43, 23);
+            this.textBox_температура.Size = new System.Drawing.Size(43, 20);
             this.textBox_температура.TabIndex = 323;
             this.textBox_температура.Text = "50";
             this.textBox_температура.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
@@ -1457,7 +1372,7 @@
             this.label_температура.BackColor = System.Drawing.Color.PowderBlue;
             this.label_температура.Location = new System.Drawing.Point(6, 47);
             this.label_температура.Name = "label_температура";
-            this.label_температура.Size = new System.Drawing.Size(85, 17);
+            this.label_температура.Size = new System.Drawing.Size(68, 13);
             this.label_температура.TabIndex = 322;
             this.label_температура.Text = "Макс. темп.";
             this.toolTip1.SetToolTip(this.label_температура, "порог температуры модулей IGBT для формирования предупреждения");
@@ -1466,7 +1381,7 @@
             // 
             this.Imax_Value.Location = new System.Drawing.Point(77, 17);
             this.Imax_Value.Name = "Imax_Value";
-            this.Imax_Value.Size = new System.Drawing.Size(43, 23);
+            this.Imax_Value.Size = new System.Drawing.Size(43, 20);
             this.Imax_Value.TabIndex = 321;
             this.Imax_Value.Text = "500";
             this.Imax_Value.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
@@ -1480,7 +1395,7 @@
             this.label23.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.label23.Location = new System.Drawing.Point(122, 17);
             this.label23.Name = "label23";
-            this.label23.Size = new System.Drawing.Size(20, 20);
+            this.label23.Size = new System.Drawing.Size(17, 17);
             this.label23.TabIndex = 230;
             this.label23.Text = "A";
             // 
@@ -1494,7 +1409,7 @@
             // 
             this.tsmConnect.BackColor = System.Drawing.Color.DarkSeaGreen;
             this.tsmConnect.Name = "tsmConnect";
-            this.tsmConnect.Size = new System.Drawing.Size(109, 26);
+            this.tsmConnect.Size = new System.Drawing.Size(89, 20);
             this.tsmConnect.Text = "Подключить";
             this.tsmConnect.Click += new System.EventHandler(this.connectToolStripMenuItem_Click);
             // 
@@ -1505,27 +1420,27 @@
             this.срабатываниеРезистораToolStripMenuItem,
             this.параметрыToolStripMenuItem1});
             this.параметрыToolStripMenuItem.Name = "параметрыToolStripMenuItem";
-            this.параметрыToolStripMenuItem.Size = new System.Drawing.Size(104, 26);
+            this.параметрыToolStripMenuItem.Size = new System.Drawing.Size(83, 20);
             this.параметрыToolStripMenuItem.Text = "Параметры";
             // 
             // установкиДвигателяToolStripMenuItem
             // 
             this.установкиДвигателяToolStripMenuItem.Name = "установкиДвигателяToolStripMenuItem";
-            this.установкиДвигателяToolStripMenuItem.Size = new System.Drawing.Size(270, 26);
+            this.установкиДвигателяToolStripMenuItem.Size = new System.Drawing.Size(213, 22);
             this.установкиДвигателяToolStripMenuItem.Text = "Установки двигателя";
             this.установкиДвигателяToolStripMenuItem.Click += new System.EventHandler(this.установкиДвигателяToolStripMenuItem_Click);
             // 
             // срабатываниеРезистораToolStripMenuItem
             // 
             this.срабатываниеРезистораToolStripMenuItem.Name = "срабатываниеРезистораToolStripMenuItem";
-            this.срабатываниеРезистораToolStripMenuItem.Size = new System.Drawing.Size(270, 26);
+            this.срабатываниеРезистораToolStripMenuItem.Size = new System.Drawing.Size(213, 22);
             this.срабатываниеРезистораToolStripMenuItem.Text = "Срабатывание резистора";
             this.срабатываниеРезистораToolStripMenuItem.Click += new System.EventHandler(this.срабатываниеРезистораToolStripMenuItem_Click);
             // 
             // параметрыToolStripMenuItem1
             // 
             this.параметрыToolStripMenuItem1.Name = "параметрыToolStripMenuItem1";
-            this.параметрыToolStripMenuItem1.Size = new System.Drawing.Size(270, 26);
+            this.параметрыToolStripMenuItem1.Size = new System.Drawing.Size(213, 22);
             this.параметрыToolStripMenuItem1.Text = "Параметры";
             // 
             // гToolStripMenuItem
@@ -1537,13 +1452,13 @@
             this.motK60ToolStripMenuItem});
             this.гToolStripMenuItem.Enabled = false;
             this.гToolStripMenuItem.Name = "гToolStripMenuItem";
-            this.гToolStripMenuItem.Size = new System.Drawing.Size(73, 26);
+            this.гToolStripMenuItem.Size = new System.Drawing.Size(60, 20);
             this.гToolStripMenuItem.Text = "График";
             // 
             // aDCToolStripMenuItem
             // 
             this.aDCToolStripMenuItem.Name = "aDCToolStripMenuItem";
-            this.aDCToolStripMenuItem.Size = new System.Drawing.Size(172, 26);
+            this.aDCToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
             this.aDCToolStripMenuItem.Text = "Измерения";
             this.aDCToolStripMenuItem.Click += new System.EventHandler(this.aDCToolStripMenuItem_Click);
             // 
@@ -1554,25 +1469,24 @@
             this.msToolStripMenuItem,
             this.секToolStripMenuItem});
             this.кадрF2ToolStripMenuItem.Name = "кадрF2ToolStripMenuItem";
-            this.кадрF2ToolStripMenuItem.Size = new System.Drawing.Size(172, 26);
+            this.кадрF2ToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
             this.кадрF2ToolStripMenuItem.Text = "Кадр F2";
             // 
             // toolStripTextBox1
             // 
-            this.toolStripTextBox1.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.toolStripTextBox1.Name = "toolStripTextBox1";
-            this.toolStripTextBox1.Size = new System.Drawing.Size(100, 27);
+            this.toolStripTextBox1.Size = new System.Drawing.Size(100, 23);
             // 
             // msToolStripMenuItem
             // 
             this.msToolStripMenuItem.Name = "msToolStripMenuItem";
-            this.msToolStripMenuItem.Size = new System.Drawing.Size(174, 26);
+            this.msToolStripMenuItem.Size = new System.Drawing.Size(160, 22);
             this.msToolStripMenuItem.Text = " 60 ms";
             // 
             // секToolStripMenuItem
             // 
             this.секToolStripMenuItem.Name = "секToolStripMenuItem";
-            this.секToolStripMenuItem.Size = new System.Drawing.Size(174, 26);
+            this.секToolStripMenuItem.Size = new System.Drawing.Size(160, 22);
             this.секToolStripMenuItem.Text = " 1 сек";
             // 
             // motfastToolStripMenuItem
@@ -1581,25 +1495,25 @@
             this.m1ToolStripMenuItem,
             this.m2ToolStripMenuItem});
             this.motfastToolStripMenuItem.Name = "motfastToolStripMenuItem";
-            this.motfastToolStripMenuItem.Size = new System.Drawing.Size(172, 26);
+            this.motfastToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
             this.motfastToolStripMenuItem.Text = "motfast";
             // 
             // m1ToolStripMenuItem
             // 
             this.m1ToolStripMenuItem.Name = "m1ToolStripMenuItem";
-            this.m1ToolStripMenuItem.Size = new System.Drawing.Size(113, 26);
+            this.m1ToolStripMenuItem.Size = new System.Drawing.Size(91, 22);
             this.m1ToolStripMenuItem.Text = "M1";
             // 
             // m2ToolStripMenuItem
             // 
             this.m2ToolStripMenuItem.Name = "m2ToolStripMenuItem";
-            this.m2ToolStripMenuItem.Size = new System.Drawing.Size(113, 26);
+            this.m2ToolStripMenuItem.Size = new System.Drawing.Size(91, 22);
             this.m2ToolStripMenuItem.Text = "M2";
             // 
             // motK60ToolStripMenuItem
             // 
             this.motK60ToolStripMenuItem.Name = "motK60ToolStripMenuItem";
-            this.motK60ToolStripMenuItem.Size = new System.Drawing.Size(172, 26);
+            this.motK60ToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
             this.motK60ToolStripMenuItem.Text = "motK60";
             // 
             // menuStrip1
@@ -1616,7 +1530,7 @@
             this.debugToolStripMenuItem});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
-            this.menuStrip1.Size = new System.Drawing.Size(1062, 30);
+            this.menuStrip1.Size = new System.Drawing.Size(1062, 24);
             this.menuStrip1.TabIndex = 54;
             this.menuStrip1.Text = "menuStrip1";
             // 
@@ -1625,19 +1539,19 @@
             this.видToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.tsmChView});
             this.видToolStripMenuItem.Name = "видToolStripMenuItem";
-            this.видToolStripMenuItem.Size = new System.Drawing.Size(49, 26);
+            this.видToolStripMenuItem.Size = new System.Drawing.Size(39, 20);
             this.видToolStripMenuItem.Text = "Вид";
             // 
             // tsmChView
             // 
             this.tsmChView.Name = "tsmChView";
-            this.tsmChView.Size = new System.Drawing.Size(190, 26);
+            this.tsmChView.Size = new System.Drawing.Size(150, 22);
             this.tsmChView.Text = "Изменить вид";
             // 
             // МенюУправленияToolStripMenuItem
             // 
             this.МенюУправленияToolStripMenuItem.Name = "МенюУправленияToolStripMenuItem";
-            this.МенюУправленияToolStripMenuItem.Size = new System.Drawing.Size(108, 26);
+            this.МенюУправленияToolStripMenuItem.Size = new System.Drawing.Size(85, 20);
             this.МенюУправленияToolStripMenuItem.Text = "Управление";
             // 
             // управлениеToolStripMenuItem
@@ -1645,7 +1559,7 @@
             this.управлениеToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.yokogawaWTToolStripMenuItem});
             this.управлениеToolStripMenuItem.Name = "управлениеToolStripMenuItem";
-            this.управлениеToolStripMenuItem.Size = new System.Drawing.Size(120, 26);
+            this.управлениеToolStripMenuItem.Size = new System.Drawing.Size(97, 20);
             this.управлениеToolStripMenuItem.Text = "Подключения";
             this.управлениеToolStripMenuItem.DropDownItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.управлениеToolStripMenuItem_DropDownItemClicked);
             this.управлениеToolStripMenuItem.Click += new System.EventHandler(this.управлениеToolStripMenuItem_Click);
@@ -1653,7 +1567,7 @@
             // yokogawaWTToolStripMenuItem
             // 
             this.yokogawaWTToolStripMenuItem.Name = "yokogawaWTToolStripMenuItem";
-            this.yokogawaWTToolStripMenuItem.Size = new System.Drawing.Size(160, 26);
+            this.yokogawaWTToolStripMenuItem.Size = new System.Drawing.Size(128, 22);
             this.yokogawaWTToolStripMenuItem.Text = "Yokogawa";
             this.yokogawaWTToolStripMenuItem.Click += new System.EventHandler(this.yokogawaWTToolStripMenuItem_Click);
             // 
@@ -1663,13 +1577,13 @@
             this.IGBT_Temperatures_Menu,
             this.откалиброватьToolStripMenuItem});
             this.измеренияToolStripMenuItem.Name = "измеренияToolStripMenuItem";
-            this.измеренияToolStripMenuItem.Size = new System.Drawing.Size(103, 26);
+            this.измеренияToolStripMenuItem.Size = new System.Drawing.Size(81, 20);
             this.измеренияToolStripMenuItem.Text = "Измерения";
             // 
             // IGBT_Temperatures_Menu
             // 
             this.IGBT_Temperatures_Menu.Name = "IGBT_Temperatures_Menu";
-            this.IGBT_Temperatures_Menu.Size = new System.Drawing.Size(341, 26);
+            this.IGBT_Temperatures_Menu.Size = new System.Drawing.Size(273, 22);
             this.IGBT_Temperatures_Menu.Text = "Датчики температуры и тока утечки";
             this.IGBT_Temperatures_Menu.Click += new System.EventHandler(this.IGBT_Temperatures_Menu_Click);
             // 
@@ -1682,42 +1596,42 @@
             this.lдатчикВходногоНапрVinToolStripMenuItem,
             this.сохранитьКалибровкиToolStripMenuItem});
             this.откалиброватьToolStripMenuItem.Name = "откалиброватьToolStripMenuItem";
-            this.откалиброватьToolStripMenuItem.Size = new System.Drawing.Size(341, 26);
+            this.откалиброватьToolStripMenuItem.Size = new System.Drawing.Size(273, 22);
             this.откалиброватьToolStripMenuItem.Text = "Откалибровать нуль датчиков";
             this.откалиброватьToolStripMenuItem.Click += new System.EventHandler(this.откалиброватьToolStripMenuItem_Click);
             // 
             // токиФазIabcToolStripMenuItem
             // 
             this.токиФазIabcToolStripMenuItem.Name = "токиФазIabcToolStripMenuItem";
-            this.токиФазIabcToolStripMenuItem.Size = new System.Drawing.Size(274, 26);
+            this.токиФазIabcToolStripMenuItem.Size = new System.Drawing.Size(217, 22);
             this.токиФазIabcToolStripMenuItem.Text = "все датчики";
             this.токиФазIabcToolStripMenuItem.Click += new System.EventHandler(this.откалиброватьВсеДатчикиToolStripMenuItem_Click);
             // 
             // токиФазIabcToolStripMenuItem1
             // 
             this.токиФазIabcToolStripMenuItem1.Name = "токиФазIabcToolStripMenuItem1";
-            this.токиФазIabcToolStripMenuItem1.Size = new System.Drawing.Size(274, 26);
+            this.токиФазIabcToolStripMenuItem1.Size = new System.Drawing.Size(217, 22);
             this.токиФазIabcToolStripMenuItem1.Text = "датчики токов фаз Iabc";
             this.токиФазIabcToolStripMenuItem1.Click += new System.EventHandler(this.откалиброватьToolStripMenuItem_Click);
             // 
             // датчикUdcToolStripMenuItem
             // 
             this.датчикUdcToolStripMenuItem.Name = "датчикUdcToolStripMenuItem";
-            this.датчикUdcToolStripMenuItem.Size = new System.Drawing.Size(274, 26);
+            this.датчикUdcToolStripMenuItem.Size = new System.Drawing.Size(217, 22);
             this.датчикUdcToolStripMenuItem.Text = "датчик Udc";
             this.датчикUdcToolStripMenuItem.Click += new System.EventHandler(this.откалиброватьUdcToolStripMenuItem_Click);
             // 
             // lдатчикВходногоНапрVinToolStripMenuItem
             // 
             this.lдатчикВходногоНапрVinToolStripMenuItem.Name = "lдатчикВходногоНапрVinToolStripMenuItem";
-            this.lдатчикВходногоНапрVinToolStripMenuItem.Size = new System.Drawing.Size(274, 26);
+            this.lдатчикВходногоНапрVinToolStripMenuItem.Size = new System.Drawing.Size(217, 22);
             this.lдатчикВходногоНапрVinToolStripMenuItem.Text = "датчик входного напр. Vin";
             this.lдатчикВходногоНапрVinToolStripMenuItem.Click += new System.EventHandler(this.откалиброватьVinToolStripMenuItem_Click);
             // 
             // сохранитьКалибровкиToolStripMenuItem
             // 
             this.сохранитьКалибровкиToolStripMenuItem.Name = "сохранитьКалибровкиToolStripMenuItem";
-            this.сохранитьКалибровкиToolStripMenuItem.Size = new System.Drawing.Size(274, 26);
+            this.сохранитьКалибровкиToolStripMenuItem.Size = new System.Drawing.Size(217, 22);
             this.сохранитьКалибровкиToolStripMenuItem.Text = "сохранить калибровки";
             this.сохранитьКалибровкиToolStripMenuItem.Click += new System.EventHandler(this.сохранитьКалибровкиToolStripMenuItem_Click);
             // 
@@ -1733,61 +1647,61 @@
             this.toolStripSeparatorCanLog,
             this.convertLastCanLogToolStripMenuItem});
             this.debugToolStripMenuItem.Name = "debugToolStripMenuItem";
-            this.debugToolStripMenuItem.Size = new System.Drawing.Size(68, 26);
+            this.debugToolStripMenuItem.Size = new System.Drawing.Size(54, 20);
             this.debugToolStripMenuItem.Text = "Debug";
             // 
             // имитацияДанныхToolStripMenuItem1
             // 
             this.имитацияДанныхToolStripMenuItem1.CheckOnClick = true;
             this.имитацияДанныхToolStripMenuItem1.Name = "имитацияДанныхToolStripMenuItem1";
-            this.имитацияДанныхToolStripMenuItem1.Size = new System.Drawing.Size(230, 26);
+            this.имитацияДанныхToolStripMenuItem1.Size = new System.Drawing.Size(185, 22);
             this.имитацияДанныхToolStripMenuItem1.Text = "Имитация ADC";
             this.имитацияДанныхToolStripMenuItem1.Click += new System.EventHandler(this.имитацияДанныхToolStripMenuItem1_Click);
             // 
             // сбросToolStripMenuItem
             // 
             this.сбросToolStripMenuItem.Name = "сбросToolStripMenuItem";
-            this.сбросToolStripMenuItem.Size = new System.Drawing.Size(230, 26);
+            this.сбросToolStripMenuItem.Size = new System.Drawing.Size(185, 22);
             this.сбросToolStripMenuItem.Text = "Сброс";
             this.сбросToolStripMenuItem.Click += new System.EventHandler(this.сбросToolStripMenuItem_Click);
             // 
             // tsmBootLoader
             // 
             this.tsmBootLoader.Name = "tsmBootLoader";
-            this.tsmBootLoader.Size = new System.Drawing.Size(230, 26);
+            this.tsmBootLoader.Size = new System.Drawing.Size(185, 22);
             this.tsmBootLoader.Text = "Update CCS";
             this.tsmBootLoader.Click += new System.EventHandler(this.updateFlashToolStripMenuItem_Click);
             // 
             // MenuErrorView
             // 
             this.MenuErrorView.Name = "MenuErrorView";
-            this.MenuErrorView.Size = new System.Drawing.Size(230, 26);
+            this.MenuErrorView.Size = new System.Drawing.Size(185, 22);
             this.MenuErrorView.Text = "Просмотр ошибок";
             this.MenuErrorView.Click += new System.EventHandler(this.MenuErrorView_Click);
             // 
             // resetPiREGToolStripMenuItem
             // 
             this.resetPiREGToolStripMenuItem.Name = "resetPiREGToolStripMenuItem";
-            this.resetPiREGToolStripMenuItem.Size = new System.Drawing.Size(230, 26);
+            this.resetPiREGToolStripMenuItem.Size = new System.Drawing.Size(185, 22);
             this.resetPiREGToolStripMenuItem.Text = "Reset pi_REG";
             this.resetPiREGToolStripMenuItem.Click += new System.EventHandler(this.resetPiREGToolStripMenuItem_Click);
             // 
             // rECALLNvRAMToolStripMenuItem
             // 
             this.rECALLNvRAMToolStripMenuItem.Name = "rECALLNvRAMToolStripMenuItem";
-            this.rECALLNvRAMToolStripMenuItem.Size = new System.Drawing.Size(230, 26);
+            this.rECALLNvRAMToolStripMenuItem.Size = new System.Drawing.Size(185, 22);
             this.rECALLNvRAMToolStripMenuItem.Text = "RECALL nvRAM";
             this.rECALLNvRAMToolStripMenuItem.Click += new System.EventHandler(this.rECALLNvRAMToolStripMenuItem_Click);
             // 
             // toolStripSeparatorCanLog
             // 
             this.toolStripSeparatorCanLog.Name = "toolStripSeparatorCanLog";
-            this.toolStripSeparatorCanLog.Size = new System.Drawing.Size(227, 6);
+            this.toolStripSeparatorCanLog.Size = new System.Drawing.Size(182, 6);
             // 
             // convertLastCanLogToolStripMenuItem
             // 
             this.convertLastCanLogToolStripMenuItem.Name = "convertLastCanLogToolStripMenuItem";
-            this.convertLastCanLogToolStripMenuItem.Size = new System.Drawing.Size(230, 26);
+            this.convertLastCanLogToolStripMenuItem.Size = new System.Drawing.Size(185, 22);
             this.convertLastCanLogToolStripMenuItem.Text = "Convert last CAN log";
             this.convertLastCanLogToolStripMenuItem.Click += new System.EventHandler(this.convertLastCanLogToolStripMenuItem_Click);
             // 
@@ -1797,7 +1711,7 @@
             this.label35.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.label35.Location = new System.Drawing.Point(936, 606);
             this.label35.Name = "label35";
-            this.label35.Size = new System.Drawing.Size(29, 20);
+            this.label35.Size = new System.Drawing.Size(24, 17);
             this.label35.TabIndex = 251;
             this.label35.Text = "Rx";
             // 
@@ -1807,7 +1721,7 @@
             this.label36.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.label36.Location = new System.Drawing.Point(994, 606);
             this.label36.Name = "label36";
-            this.label36.Size = new System.Drawing.Size(27, 20);
+            this.label36.Size = new System.Drawing.Size(23, 17);
             this.label36.TabIndex = 252;
             this.label36.Text = "Tx";
             // 
@@ -1817,7 +1731,7 @@
             this.label_rpm_ramp.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.label_rpm_ramp.Location = new System.Drawing.Point(21, 58);
             this.label_rpm_ramp.Name = "label_rpm_ramp";
-            this.label_rpm_ramp.Size = new System.Drawing.Size(62, 18);
+            this.label_rpm_ramp.Size = new System.Drawing.Size(51, 15);
             this.label_rpm_ramp.TabIndex = 260;
             this.label_rpm_ramp.Text = "rpm/sec";
             // 
@@ -1828,7 +1742,7 @@
             this.Tbar_Gain2.Maximum = 10002;
             this.Tbar_Gain2.Name = "Tbar_Gain2";
             this.Tbar_Gain2.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.Tbar_Gain2.Size = new System.Drawing.Size(56, 457);
+            this.Tbar_Gain2.Size = new System.Drawing.Size(45, 457);
             this.Tbar_Gain2.TabIndex = 264;
             this.Tbar_Gain2.TickStyle = System.Windows.Forms.TickStyle.None;
             this.Tbar_Gain2.Scroll += new System.EventHandler(this.Tbar_Gain2_Scroll);
@@ -1853,7 +1767,7 @@
             this.label_GainBar1_unit.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.label_GainBar1_unit.Location = new System.Drawing.Point(273, 572);
             this.label_GainBar1_unit.Name = "label_GainBar1_unit";
-            this.label_GainBar1_unit.Size = new System.Drawing.Size(17, 18);
+            this.label_GainBar1_unit.Size = new System.Drawing.Size(14, 15);
             this.label_GainBar1_unit.TabIndex = 272;
             this.label_GainBar1_unit.Text = "V";
             this.label_GainBar1_unit.Visible = false;
@@ -1864,7 +1778,7 @@
             this.label_GainBar2_unit.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.label_GainBar2_unit.Location = new System.Drawing.Point(340, 571);
             this.label_GainBar2_unit.Name = "label_GainBar2_unit";
-            this.label_GainBar2_unit.Size = new System.Drawing.Size(17, 18);
+            this.label_GainBar2_unit.Size = new System.Drawing.Size(14, 15);
             this.label_GainBar2_unit.TabIndex = 274;
             this.label_GainBar2_unit.Text = "V";
             this.label_GainBar2_unit.Visible = false;
@@ -1874,7 +1788,7 @@
             this.Separate_cbox.AutoSize = true;
             this.Separate_cbox.Location = new System.Drawing.Point(12, 625);
             this.Separate_cbox.Name = "Separate_cbox";
-            this.Separate_cbox.Size = new System.Drawing.Size(88, 21);
+            this.Separate_cbox.Size = new System.Drawing.Size(69, 17);
             this.Separate_cbox.TabIndex = 282;
             this.Separate_cbox.Text = "Separate";
             this.Separate_cbox.UseVisualStyleBackColor = true;
@@ -1889,7 +1803,7 @@
             0,
             0});
             this.NUD_Gain2.Name = "NUD_Gain2";
-            this.NUD_Gain2.Size = new System.Drawing.Size(50, 23);
+            this.NUD_Gain2.Size = new System.Drawing.Size(50, 20);
             this.NUD_Gain2.TabIndex = 288;
             this.NUD_Gain2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.NUD_Gain2.ValueChanged += new System.EventHandler(this.NUD_Gain2_ValueChanged);
@@ -2000,7 +1914,7 @@
             this.zero.AutoSize = true;
             this.zero.Location = new System.Drawing.Point(908, 643);
             this.zero.Name = "zero";
-            this.zero.Size = new System.Drawing.Size(36, 17);
+            this.zero.Size = new System.Drawing.Size(27, 13);
             this.zero.TabIndex = 312;
             this.zero.Text = "zero";
             // 
@@ -2082,7 +1996,7 @@
             0,
             0});
             this.NUD_Gain1.Name = "NUD_Gain1";
-            this.NUD_Gain1.Size = new System.Drawing.Size(50, 23);
+            this.NUD_Gain1.Size = new System.Drawing.Size(50, 20);
             this.NUD_Gain1.TabIndex = 298;
             this.NUD_Gain1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.NUD_Gain1.ValueChanged += new System.EventHandler(this.NUD_Gain1_ValueChanged);
@@ -2096,7 +2010,7 @@
             this.lb_gain1_ccs.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.lb_gain1_ccs.Location = new System.Drawing.Point(356, 607);
             this.lb_gain1_ccs.Name = "lb_gain1_ccs";
-            this.lb_gain1_ccs.Size = new System.Drawing.Size(58, 23);
+            this.lb_gain1_ccs.Size = new System.Drawing.Size(47, 19);
             this.lb_gain1_ccs.TabIndex = 301;
             this.lb_gain1_ccs.Text = "gain1";
             // 
@@ -2106,7 +2020,7 @@
             this.value_gain1_ccs.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.value_gain1_ccs.Location = new System.Drawing.Point(409, 607);
             this.value_gain1_ccs.Name = "value_gain1_ccs";
-            this.value_gain1_ccs.Size = new System.Drawing.Size(25, 28);
+            this.value_gain1_ccs.Size = new System.Drawing.Size(21, 22);
             this.value_gain1_ccs.TabIndex = 302;
             this.value_gain1_ccs.Text = "0";
             // 
@@ -2116,7 +2030,7 @@
             this.lb_gain2_ccs.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.lb_gain2_ccs.Location = new System.Drawing.Point(539, 610);
             this.lb_gain2_ccs.Name = "lb_gain2_ccs";
-            this.lb_gain2_ccs.Size = new System.Drawing.Size(58, 23);
+            this.lb_gain2_ccs.Size = new System.Drawing.Size(47, 19);
             this.lb_gain2_ccs.TabIndex = 303;
             this.lb_gain2_ccs.Text = "gain2";
             // 
@@ -2126,7 +2040,7 @@
             this.label_gain2_ccs.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.label_gain2_ccs.Location = new System.Drawing.Point(588, 610);
             this.label_gain2_ccs.Name = "label_gain2_ccs";
-            this.label_gain2_ccs.Size = new System.Drawing.Size(25, 28);
+            this.label_gain2_ccs.Size = new System.Drawing.Size(21, 22);
             this.label_gain2_ccs.TabIndex = 304;
             this.label_gain2_ccs.Text = "0";
             // 
@@ -2157,7 +2071,7 @@
             this.cBox_Gain_Limit.CheckState = System.Windows.Forms.CheckState.Checked;
             this.cBox_Gain_Limit.Location = new System.Drawing.Point(295, 649);
             this.cBox_Gain_Limit.Name = "cBox_Gain_Limit";
-            this.cBox_Gain_Limit.Size = new System.Drawing.Size(63, 21);
+            this.cBox_Gain_Limit.Size = new System.Drawing.Size(50, 17);
             this.cBox_Gain_Limit.TabIndex = 307;
             this.cBox_Gain_Limit.Text = " Limit";
             this.cBox_Gain_Limit.UseVisualStyleBackColor = true;
@@ -2180,12 +2094,12 @@
             this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.очиститьLogфайлToolStripMenuItem});
             this.contextMenuStrip1.Name = "contextMenuStrip1";
-            this.contextMenuStrip1.Size = new System.Drawing.Size(70, 26);
+            this.contextMenuStrip1.Size = new System.Drawing.Size(68, 26);
             // 
             // очиститьLogфайлToolStripMenuItem
             // 
             this.очиститьLogфайлToolStripMenuItem.Name = "очиститьLogфайлToolStripMenuItem";
-            this.очиститьLogфайлToolStripMenuItem.Size = new System.Drawing.Size(69, 22);
+            this.очиститьLogфайлToolStripMenuItem.Size = new System.Drawing.Size(67, 22);
             // 
             // NUD_RPM
             // 
@@ -2196,7 +2110,7 @@
             0,
             0});
             this.NUD_RPM.Name = "NUD_RPM";
-            this.NUD_RPM.Size = new System.Drawing.Size(45, 23);
+            this.NUD_RPM.Size = new System.Drawing.Size(45, 20);
             this.NUD_RPM.TabIndex = 311;
             this.NUD_RPM.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.NUD_RPM.ValueChanged += new System.EventHandler(this.NUD_RPM_ValueChanged);
@@ -2219,7 +2133,7 @@
             0,
             0});
             this.NUD_Load1.Name = "NUD_Load1";
-            this.NUD_Load1.Size = new System.Drawing.Size(50, 23);
+            this.NUD_Load1.Size = new System.Drawing.Size(50, 20);
             this.NUD_Load1.TabIndex = 312;
             this.NUD_Load1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.NUD_Load1.ValueChanged += new System.EventHandler(this.NUD_Load1_ValueChanged);
@@ -2263,7 +2177,7 @@
             // 
             this.rpm_ramp.Location = new System.Drawing.Point(24, 80);
             this.rpm_ramp.Name = "rpm_ramp";
-            this.rpm_ramp.Size = new System.Drawing.Size(45, 23);
+            this.rpm_ramp.Size = new System.Drawing.Size(45, 20);
             this.rpm_ramp.TabIndex = 316;
             this.rpm_ramp.Text = "50";
             this.rpm_ramp.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
@@ -2364,7 +2278,7 @@
             // 
             this.SlipMax_Value.Location = new System.Drawing.Point(92, 80);
             this.SlipMax_Value.Name = "SlipMax_Value";
-            this.SlipMax_Value.Size = new System.Drawing.Size(45, 23);
+            this.SlipMax_Value.Size = new System.Drawing.Size(45, 20);
             this.SlipMax_Value.TabIndex = 326;
             this.SlipMax_Value.Text = "20";
             this.SlipMax_Value.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
@@ -2378,7 +2292,7 @@
             this.Sabs_max1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Sabs_max1.Location = new System.Drawing.Point(87, 58);
             this.Sabs_max1.Name = "Sabs_max1";
-            this.Sabs_max1.Size = new System.Drawing.Size(54, 18);
+            this.Sabs_max1.Size = new System.Drawing.Size(46, 15);
             this.Sabs_max1.TabIndex = 327;
             this.Sabs_max1.Text = "S_max";
             // 
@@ -2387,7 +2301,7 @@
             this.Reverse_cbox.AutoSize = true;
             this.Reverse_cbox.Location = new System.Drawing.Point(387, 41);
             this.Reverse_cbox.Name = "Reverse_cbox";
-            this.Reverse_cbox.Size = new System.Drawing.Size(77, 21);
+            this.Reverse_cbox.Size = new System.Drawing.Size(63, 17);
             this.Reverse_cbox.TabIndex = 328;
             this.Reverse_cbox.Text = "Реверс";
             this.Reverse_cbox.UseVisualStyleBackColor = true;
@@ -2419,7 +2333,7 @@
             this.Sabs_max2.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Sabs_max2.Location = new System.Drawing.Point(149, 58);
             this.Sabs_max2.Name = "Sabs_max2";
-            this.Sabs_max2.Size = new System.Drawing.Size(54, 18);
+            this.Sabs_max2.Size = new System.Drawing.Size(46, 15);
             this.Sabs_max2.TabIndex = 335;
             this.Sabs_max2.Text = "S_max";
             // 
@@ -2427,7 +2341,7 @@
             // 
             this.SlipMax_Value2.Location = new System.Drawing.Point(150, 80);
             this.SlipMax_Value2.Name = "SlipMax_Value2";
-            this.SlipMax_Value2.Size = new System.Drawing.Size(45, 23);
+            this.SlipMax_Value2.Size = new System.Drawing.Size(45, 20);
             this.SlipMax_Value2.TabIndex = 334;
             this.SlipMax_Value2.Text = "20";
             this.SlipMax_Value2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
@@ -2461,7 +2375,7 @@
             0,
             0});
             this.NUD_Load2.Name = "NUD_Load2";
-            this.NUD_Load2.Size = new System.Drawing.Size(50, 23);
+            this.NUD_Load2.Size = new System.Drawing.Size(50, 20);
             this.NUD_Load2.TabIndex = 332;
             this.NUD_Load2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.NUD_Load2.ValueChanged += new System.EventHandler(this.NUD_Load2_ValueChanged);
@@ -2476,7 +2390,7 @@
             this.Tbar_Load2.Maximum = 1000;
             this.Tbar_Load2.Name = "Tbar_Load2";
             this.Tbar_Load2.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.Tbar_Load2.Size = new System.Drawing.Size(56, 457);
+            this.Tbar_Load2.Size = new System.Drawing.Size(45, 457);
             this.Tbar_Load2.TabIndex = 330;
             this.Tbar_Load2.TickStyle = System.Windows.Forms.TickStyle.None;
             this.Tbar_Load2.Scroll += new System.EventHandler(this.Tbar_Load2_Scroll);
@@ -2497,11 +2411,11 @@
             this.dgvAIN1.AllowUserToDeleteRows = false;
             this.dgvAIN1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dgvAIN1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.dgvAIN1.Location = new System.Drawing.Point(3, 19);
+            this.dgvAIN1.Location = new System.Drawing.Point(3, 16);
             this.dgvAIN1.Name = "dgvAIN1";
             this.dgvAIN1.ReadOnly = true;
             this.dgvAIN1.RowHeadersWidth = 51;
-            this.dgvAIN1.Size = new System.Drawing.Size(345, 479);
+            this.dgvAIN1.Size = new System.Drawing.Size(345, 482);
             this.dgvAIN1.TabIndex = 0;
             // 
             // gbAIN2_2
@@ -2519,11 +2433,11 @@
             this.dgvAIN2.AllowUserToDeleteRows = false;
             this.dgvAIN2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dgvAIN2.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.dgvAIN2.Location = new System.Drawing.Point(3, 19);
+            this.dgvAIN2.Location = new System.Drawing.Point(3, 16);
             this.dgvAIN2.Name = "dgvAIN2";
             this.dgvAIN2.ReadOnly = true;
             this.dgvAIN2.RowHeadersWidth = 51;
-            this.dgvAIN2.Size = new System.Drawing.Size(345, 479);
+            this.dgvAIN2.Size = new System.Drawing.Size(345, 482);
             this.dgvAIN2.TabIndex = 0;
             // 
             // Load_Sym
@@ -2557,18 +2471,12 @@
             this.btnTblLoad2.Text = "*";
             this.btnTblLoad2.UseVisualStyleBackColor = true;
             // 
-            // timer1
-            // 
-            this.timer1.Enabled = true;
-            this.timer1.Interval = 250;
-            this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
-            // 
             // ResolverInverse
             // 
             this.ResolverInverse.AutoSize = true;
             this.ResolverInverse.Location = new System.Drawing.Point(387, 66);
             this.ResolverInverse.Name = "ResolverInverse";
-            this.ResolverInverse.Size = new System.Drawing.Size(122, 21);
+            this.ResolverInverse.Size = new System.Drawing.Size(98, 17);
             this.ResolverInverse.TabIndex = 251;
             this.ResolverInverse.Text = "Резолвер Инв";
             this.ResolverInverse.UseVisualStyleBackColor = true;
@@ -2578,7 +2486,7 @@
             // 
             this.tKadr60.Location = new System.Drawing.Point(719, 32);
             this.tKadr60.Name = "tKadr60";
-            this.tKadr60.Size = new System.Drawing.Size(30, 23);
+            this.tKadr60.Size = new System.Drawing.Size(30, 20);
             this.tKadr60.TabIndex = 317;
             this.tKadr60.Text = "60";
             this.tKadr60.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
@@ -2592,7 +2500,7 @@
             this.F2kadr_text.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.F2kadr_text.Location = new System.Drawing.Point(494, 37);
             this.F2kadr_text.Name = "F2kadr_text";
-            this.F2kadr_text.Size = new System.Drawing.Size(64, 18);
+            this.F2kadr_text.Size = new System.Drawing.Size(53, 15);
             this.F2kadr_text.TabIndex = 318;
             this.F2kadr_text.Text = "F2 Кадр";
             this.F2kadr_text.Click += new System.EventHandler(this.F2kadr_text_Click);
@@ -2604,10 +2512,12 @@
             this.F2_Kadr_Name.Items.AddRange(new object[] {
             "F1_convertor",
             "F1_invertor",
-            "F3_invertor"});
+            "F3_invertor",
+            "F3_convertor",
+            "Kadr60"});
             this.F2_Kadr_Name.Location = new System.Drawing.Point(612, 31);
             this.F2_Kadr_Name.Name = "F2_Kadr_Name";
-            this.F2_Kadr_Name.Size = new System.Drawing.Size(105, 24);
+            this.F2_Kadr_Name.Size = new System.Drawing.Size(105, 21);
             this.F2_Kadr_Name.TabIndex = 322;
             // 
             // F2_motK60
@@ -2627,7 +2537,7 @@
             this.F3_label.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.F3_label.Location = new System.Drawing.Point(494, 59);
             this.F3_label.Name = "F3_label";
-            this.F3_label.Size = new System.Drawing.Size(64, 18);
+            this.F3_label.Size = new System.Drawing.Size(53, 15);
             this.F3_label.TabIndex = 343;
             this.F3_label.Text = "F3 Кадр";
             // 
@@ -2674,7 +2584,7 @@
             this.DG1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.DG1.Location = new System.Drawing.Point(298, 23);
             this.DG1.Name = "DG1";
-            this.DG1.Size = new System.Drawing.Size(32, 27);
+            this.DG1.Size = new System.Drawing.Size(24, 22);
             this.DG1.TabIndex = 201;
             this.DG1.Text = "Д";
             this.DG1.Click += new System.EventHandler(this.DG1_Click);
@@ -2696,7 +2606,7 @@
             this.Vin.ForeColor = System.Drawing.Color.Brown;
             this.Vin.Location = new System.Drawing.Point(2, 15);
             this.Vin.Name = "Vin";
-            this.Vin.Size = new System.Drawing.Size(46, 28);
+            this.Vin.Size = new System.Drawing.Size(37, 22);
             this.Vin.TabIndex = 4;
             this.Vin.Text = "Vin";
             this.toolTip1.SetToolTip(this.Vin, "Напряжение на входе преобразователя");
@@ -2707,7 +2617,7 @@
             this.Vin_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Vin_value.Location = new System.Drawing.Point(95, 15);
             this.Vin_value.Name = "Vin_value";
-            this.Vin_value.Size = new System.Drawing.Size(25, 28);
+            this.Vin_value.Size = new System.Drawing.Size(21, 22);
             this.Vin_value.TabIndex = 188;
             this.Vin_value.Text = "0";
             this.Vin_value.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -2729,7 +2639,7 @@
             this.Udc_name.ForeColor = System.Drawing.Color.Brown;
             this.Udc_name.Location = new System.Drawing.Point(4, 12);
             this.Udc_name.Name = "Udc_name";
-            this.Udc_name.Size = new System.Drawing.Size(52, 28);
+            this.Udc_name.Size = new System.Drawing.Size(41, 22);
             this.Udc_name.TabIndex = 168;
             this.Udc_name.Text = "Udc";
             this.toolTip1.SetToolTip(this.Udc_name, "Udc_av");
@@ -2741,20 +2651,9 @@
             this.Urms1_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Urms1_value.Location = new System.Drawing.Point(76, 12);
             this.Urms1_value.Name = "Urms1_value";
-            this.Urms1_value.Size = new System.Drawing.Size(25, 28);
+            this.Urms1_value.Size = new System.Drawing.Size(21, 22);
             this.Urms1_value.TabIndex = 169;
             this.Urms1_value.Text = "0";
-            // 
-            // CIKL1_sekToStepEnd
-            // 
-            this.CIKL1_sekToStepEnd.AutoSize = true;
-            this.CIKL1_sekToStepEnd.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.CIKL1_sekToStepEnd.Location = new System.Drawing.Point(228, 80);
-            this.CIKL1_sekToStepEnd.Name = "CIKL1_sekToStepEnd";
-            this.CIKL1_sekToStepEnd.Size = new System.Drawing.Size(25, 28);
-            this.CIKL1_sekToStepEnd.TabIndex = 335;
-            this.CIKL1_sekToStepEnd.Text = "0";
-            this.toolTip1.SetToolTip(this.CIKL1_sekToStepEnd, "Время до окончания шага цикла в секундах");
             // 
             // groupBox17
             // 
@@ -2774,7 +2673,7 @@
             this.I1rms_selector.ForeColor = System.Drawing.Color.Black;
             this.I1rms_selector.Location = new System.Drawing.Point(119, 15);
             this.I1rms_selector.Name = "I1rms_selector";
-            this.I1rms_selector.Size = new System.Drawing.Size(44, 23);
+            this.I1rms_selector.Size = new System.Drawing.Size(36, 19);
             this.I1rms_selector.TabIndex = 190;
             this.I1rms_selector.Text = "rms";
             this.I1rms_selector.DoubleClick += new System.EventHandler(this.I1rms_DoubleClick);
@@ -2786,7 +2685,7 @@
             this.Idc_label.ForeColor = System.Drawing.Color.DarkGreen;
             this.Idc_label.Location = new System.Drawing.Point(4, 12);
             this.Idc_label.Name = "Idc_label";
-            this.Idc_label.Size = new System.Drawing.Size(44, 28);
+            this.Idc_label.Size = new System.Drawing.Size(35, 22);
             this.Idc_label.TabIndex = 5;
             this.Idc_label.Text = "Idc";
             this.toolTip1.SetToolTip(this.Idc_label, "Входной ток инвертора");
@@ -2820,7 +2719,7 @@
             this.input3.ForeColor = System.Drawing.Color.DarkGreen;
             this.input3.Location = new System.Drawing.Point(4, 12);
             this.input3.Name = "input3";
-            this.input3.Size = new System.Drawing.Size(33, 28);
+            this.input3.Size = new System.Drawing.Size(26, 22);
             this.input3.TabIndex = 6;
             this.input3.Text = "Ib";
             // 
@@ -2851,7 +2750,7 @@
             this.input4.ForeColor = System.Drawing.Color.DarkGreen;
             this.input4.Location = new System.Drawing.Point(4, 12);
             this.input4.Name = "input4";
-            this.input4.Size = new System.Drawing.Size(31, 28);
+            this.input4.Size = new System.Drawing.Size(24, 22);
             this.input4.TabIndex = 166;
             this.input4.Text = "Ic";
             // 
@@ -2882,7 +2781,7 @@
             this.Im1_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Im1_value.Location = new System.Drawing.Point(74, 4);
             this.Im1_value.Name = "Im1_value";
-            this.Im1_value.Size = new System.Drawing.Size(25, 28);
+            this.Im1_value.Size = new System.Drawing.Size(21, 22);
             this.Im1_value.TabIndex = 193;
             this.Im1_value.Text = "0";
             // 
@@ -2893,7 +2792,7 @@
             this.Im1_name.ForeColor = System.Drawing.Color.DarkGreen;
             this.Im1_name.Location = new System.Drawing.Point(4, 5);
             this.Im1_name.Name = "Im1_name";
-            this.Im1_name.Size = new System.Drawing.Size(40, 28);
+            this.Im1_name.Size = new System.Drawing.Size(32, 22);
             this.Im1_name.TabIndex = 192;
             this.Im1_name.Text = "Im";
             // 
@@ -2914,7 +2813,7 @@
             this.S1abs_label.Font = new System.Drawing.Font("Cambria", 14F);
             this.S1abs_label.Location = new System.Drawing.Point(4, 5);
             this.S1abs_label.Name = "S1abs_label";
-            this.S1abs_label.Size = new System.Drawing.Size(59, 28);
+            this.S1abs_label.Size = new System.Drawing.Size(46, 22);
             this.S1abs_label.TabIndex = 194;
             this.S1abs_label.Text = "Sabs";
             this.S1abs_label.DoubleClick += new System.EventHandler(this.S1procent_label_DoubleClick);
@@ -2947,7 +2846,7 @@
             this.Udc_ref.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Udc_ref.Location = new System.Drawing.Point(5, 15);
             this.Udc_ref.Name = "Udc_ref";
-            this.Udc_ref.Size = new System.Drawing.Size(47, 23);
+            this.Udc_ref.Size = new System.Drawing.Size(39, 19);
             this.Udc_ref.TabIndex = 165;
             this.Udc_ref.Text = "Uref";
             this.toolTip1.SetToolTip(this.Udc_ref, "заданный Udc");
@@ -2958,7 +2857,7 @@
             this.fref1_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.fref1_value.Location = new System.Drawing.Point(76, 12);
             this.fref1_value.Name = "fref1_value";
-            this.fref1_value.Size = new System.Drawing.Size(25, 28);
+            this.fref1_value.Size = new System.Drawing.Size(21, 22);
             this.fref1_value.TabIndex = 170;
             this.fref1_value.Text = "0";
             // 
@@ -2978,7 +2877,7 @@
             this.Field1_Text.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Field1_Text.Location = new System.Drawing.Point(5, 15);
             this.Field1_Text.Name = "Field1_Text";
-            this.Field1_Text.Size = new System.Drawing.Size(69, 23);
+            this.Field1_Text.Size = new System.Drawing.Size(57, 19);
             this.Field1_Text.TabIndex = 173;
             this.Field1_Text.Text = "f.поля:";
             // 
@@ -2988,7 +2887,7 @@
             this.field1_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.field1_value.Location = new System.Drawing.Point(76, 12);
             this.field1_value.Name = "field1_value";
-            this.field1_value.Size = new System.Drawing.Size(25, 28);
+            this.field1_value.Size = new System.Drawing.Size(21, 22);
             this.field1_value.TabIndex = 174;
             this.field1_value.Text = "0";
             // 
@@ -3008,7 +2907,7 @@
             this.rpm1_Text.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.rpm1_Text.Location = new System.Drawing.Point(5, 15);
             this.rpm1_Text.Name = "rpm1_Text";
-            this.rpm1_Text.Size = new System.Drawing.Size(46, 23);
+            this.rpm1_Text.Size = new System.Drawing.Size(38, 19);
             this.rpm1_Text.TabIndex = 175;
             this.rpm1_Text.Text = "rpm";
             // 
@@ -3018,7 +2917,7 @@
             this.rpm1_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.rpm1_value.Location = new System.Drawing.Point(76, 12);
             this.rpm1_value.Name = "rpm1_value";
-            this.rpm1_value.Size = new System.Drawing.Size(25, 28);
+            this.rpm1_value.Size = new System.Drawing.Size(21, 22);
             this.rpm1_value.TabIndex = 176;
             this.rpm1_value.Text = "0";
             // 
@@ -3039,7 +2938,7 @@
             this.S1proc_label.Font = new System.Drawing.Font("Cambria", 14F);
             this.S1proc_label.Location = new System.Drawing.Point(4, 5);
             this.S1proc_label.Name = "S1proc_label";
-            this.S1proc_label.Size = new System.Drawing.Size(45, 28);
+            this.S1proc_label.Size = new System.Drawing.Size(36, 22);
             this.S1proc_label.TabIndex = 177;
             this.S1proc_label.Text = "S%";
             // 
@@ -3049,7 +2948,7 @@
             this.S1_proc.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.S1_proc.Location = new System.Drawing.Point(74, 5);
             this.S1_proc.Name = "S1_proc";
-            this.S1_proc.Size = new System.Drawing.Size(25, 28);
+            this.S1_proc.Size = new System.Drawing.Size(21, 22);
             this.S1_proc.TabIndex = 178;
             this.S1_proc.Text = "0";
             // 
@@ -3081,7 +2980,7 @@
             this.Ir1_label.ForeColor = System.Drawing.Color.DarkGreen;
             this.Ir1_label.Location = new System.Drawing.Point(4, 12);
             this.Ir1_label.Name = "Ir1_label";
-            this.Ir1_label.Size = new System.Drawing.Size(33, 28);
+            this.Ir1_label.Size = new System.Drawing.Size(27, 22);
             this.Ir1_label.TabIndex = 202;
             this.Ir1_label.Text = "In";
             // 
@@ -3092,7 +2991,7 @@
             this.Id1_name.ForeColor = System.Drawing.Color.DarkGreen;
             this.Id1_name.Location = new System.Drawing.Point(17, 469);
             this.Id1_name.Name = "Id1_name";
-            this.Id1_name.Size = new System.Drawing.Size(31, 26);
+            this.Id1_name.Size = new System.Drawing.Size(26, 21);
             this.Id1_name.TabIndex = 218;
             this.Id1_name.Text = "Id";
             this.Id1_name.DoubleClick += new System.EventHandler(this.Id1_name_DoubleClick);
@@ -3103,7 +3002,7 @@
             this.Id1_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Id1_value.Location = new System.Drawing.Point(98, 467);
             this.Id1_value.Name = "Id1_value";
-            this.Id1_value.Size = new System.Drawing.Size(25, 28);
+            this.Id1_value.Size = new System.Drawing.Size(21, 22);
             this.Id1_value.TabIndex = 219;
             this.Id1_value.Text = "0";
             // 
@@ -3125,7 +3024,7 @@
             this.label_Pa1.ForeColor = System.Drawing.Color.DarkBlue;
             this.label_Pa1.Location = new System.Drawing.Point(4, 5);
             this.label_Pa1.Name = "label_Pa1";
-            this.label_Pa1.Size = new System.Drawing.Size(38, 28);
+            this.label_Pa1.Size = new System.Drawing.Size(30, 22);
             this.label_Pa1.TabIndex = 179;
             this.label_Pa1.Text = "Pa";
             this.toolTip1.SetToolTip(this.label_Pa1, "активная мощность, Вт");
@@ -3151,7 +3050,7 @@
             this.Vd1_name.ForeColor = System.Drawing.Color.Brown;
             this.Vd1_name.Location = new System.Drawing.Point(183, 465);
             this.Vd1_name.Name = "Vd1_name";
-            this.Vd1_name.Size = new System.Drawing.Size(37, 28);
+            this.Vd1_name.Size = new System.Drawing.Size(31, 22);
             this.Vd1_name.TabIndex = 220;
             this.Vd1_name.Text = "Vd";
             this.Vd1_name.DoubleClick += new System.EventHandler(this.Vd1_name_DoubleClick);
@@ -3174,7 +3073,7 @@
             this.label_Px1.ForeColor = System.Drawing.Color.DarkBlue;
             this.label_Px1.Location = new System.Drawing.Point(4, 5);
             this.label_Px1.Name = "label_Px1";
-            this.label_Px1.Size = new System.Drawing.Size(37, 28);
+            this.label_Px1.Size = new System.Drawing.Size(30, 22);
             this.label_Px1.TabIndex = 180;
             this.label_Px1.Text = "Pz";
             this.toolTip1.SetToolTip(this.label_Px1, "полная мощность, Вольт-ампер");
@@ -3195,7 +3094,7 @@
             this.Vd1_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Vd1_value.Location = new System.Drawing.Point(254, 465);
             this.Vd1_value.Name = "Vd1_value";
-            this.Vd1_value.Size = new System.Drawing.Size(25, 28);
+            this.Vd1_value.Size = new System.Drawing.Size(21, 22);
             this.Vd1_value.TabIndex = 221;
             this.Vd1_value.Text = "0";
             this.Vd1_value.TextAlign = System.Drawing.ContentAlignment.TopRight;
@@ -3218,7 +3117,7 @@
             this.label_mPx.ForeColor = System.Drawing.Color.DarkBlue;
             this.label_mPx.Location = new System.Drawing.Point(4, 5);
             this.label_mPx.Name = "label_mPx";
-            this.label_mPx.Size = new System.Drawing.Size(38, 28);
+            this.label_mPx.Size = new System.Drawing.Size(30, 22);
             this.label_mPx.TabIndex = 181;
             this.label_mPx.Text = "Px";
             this.toolTip1.SetToolTip(this.label_mPx, "реактивная мощность, Вт");
@@ -3229,7 +3128,7 @@
             this.cos1_clark_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.cos1_clark_value.Location = new System.Drawing.Point(74, 5);
             this.cos1_clark_value.Name = "cos1_clark_value";
-            this.cos1_clark_value.Size = new System.Drawing.Size(25, 28);
+            this.cos1_clark_value.Size = new System.Drawing.Size(21, 22);
             this.cos1_clark_value.TabIndex = 185;
             this.cos1_clark_value.Text = "0";
             // 
@@ -3251,7 +3150,7 @@
             this.label_PF1.ForeColor = System.Drawing.Color.DarkBlue;
             this.label_PF1.Location = new System.Drawing.Point(4, 5);
             this.label_PF1.Name = "label_PF1";
-            this.label_PF1.Size = new System.Drawing.Size(39, 28);
+            this.label_PF1.Size = new System.Drawing.Size(31, 22);
             this.label_PF1.TabIndex = 182;
             this.label_PF1.Text = "PF";
             // 
@@ -3270,7 +3169,7 @@
             this.Iq1_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Iq1_value.Location = new System.Drawing.Point(98, 492);
             this.Iq1_value.Name = "Iq1_value";
-            this.Iq1_value.Size = new System.Drawing.Size(25, 28);
+            this.Iq1_value.Size = new System.Drawing.Size(21, 22);
             this.Iq1_value.TabIndex = 197;
             this.Iq1_value.Text = "0";
             // 
@@ -3281,7 +3180,7 @@
             this.Vq1_name.ForeColor = System.Drawing.Color.Brown;
             this.Vq1_name.Location = new System.Drawing.Point(184, 494);
             this.Vq1_name.Name = "Vq1_name";
-            this.Vq1_name.Size = new System.Drawing.Size(35, 26);
+            this.Vq1_name.Size = new System.Drawing.Size(30, 21);
             this.Vq1_name.TabIndex = 198;
             this.Vq1_name.Text = "Vq";
             this.Vq1_name.DoubleClick += new System.EventHandler(this.Vq1_name_DoubleClick);
@@ -3293,7 +3192,7 @@
             this.Iq1_name.ForeColor = System.Drawing.Color.DarkGreen;
             this.Iq1_name.Location = new System.Drawing.Point(15, 493);
             this.Iq1_name.Name = "Iq1_name";
-            this.Iq1_name.Size = new System.Drawing.Size(31, 26);
+            this.Iq1_name.Size = new System.Drawing.Size(26, 21);
             this.Iq1_name.TabIndex = 196;
             this.Iq1_name.Text = "Iq";
             this.Iq1_name.DoubleClick += new System.EventHandler(this.Iq1_name_DoubleClick);
@@ -3316,7 +3215,7 @@
             this.CoreTemp.ForeColor = System.Drawing.Color.DarkBlue;
             this.CoreTemp.Location = new System.Drawing.Point(4, 5);
             this.CoreTemp.Name = "CoreTemp";
-            this.CoreTemp.Size = new System.Drawing.Size(75, 28);
+            this.CoreTemp.Size = new System.Drawing.Size(59, 22);
             this.CoreTemp.TabIndex = 179;
             this.CoreTemp.Text = "CoreT";
             // 
@@ -3326,7 +3225,7 @@
             this.epsv1.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.epsv1.Location = new System.Drawing.Point(92, 4);
             this.epsv1.Name = "epsv1";
-            this.epsv1.Size = new System.Drawing.Size(22, 34);
+            this.epsv1.Size = new System.Drawing.Size(17, 28);
             this.epsv1.TabIndex = 183;
             this.epsv1.Text = "0";
             this.epsv1.UseCompatibleTextRendering = true;
@@ -3337,7 +3236,7 @@
             this.Vq1_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Vq1_value.Location = new System.Drawing.Point(255, 493);
             this.Vq1_value.Name = "Vq1_value";
-            this.Vq1_value.Size = new System.Drawing.Size(25, 28);
+            this.Vq1_value.Size = new System.Drawing.Size(21, 22);
             this.Vq1_value.TabIndex = 199;
             this.Vq1_value.Text = "0";
             // 
@@ -3359,7 +3258,7 @@
             this.EPSi_1.ForeColor = System.Drawing.Color.DarkBlue;
             this.EPSi_1.Location = new System.Drawing.Point(4, 5);
             this.EPSi_1.Name = "EPSi_1";
-            this.EPSi_1.Size = new System.Drawing.Size(59, 28);
+            this.EPSi_1.Size = new System.Drawing.Size(46, 22);
             this.EPSi_1.TabIndex = 181;
             this.EPSi_1.Text = "EPSi";
             // 
@@ -3369,7 +3268,7 @@
             this.epsi1.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.epsi1.Location = new System.Drawing.Point(74, 5);
             this.epsi1.Name = "epsi1";
-            this.epsi1.Size = new System.Drawing.Size(25, 28);
+            this.epsi1.Size = new System.Drawing.Size(21, 22);
             this.epsi1.TabIndex = 185;
             this.epsi1.Text = "0";
             // 
@@ -3378,7 +3277,7 @@
             this.PID.AutoSize = true;
             this.PID.Location = new System.Drawing.Point(9, 45);
             this.PID.Name = "PID";
-            this.PID.Size = new System.Drawing.Size(62, 24);
+            this.PID.Size = new System.Drawing.Size(52, 21);
             this.PID.TabIndex = 329;
             this.PID.Text = "PID";
             this.PID.UseVisualStyleBackColor = true;
@@ -3389,7 +3288,7 @@
             this.M1_Revers.AutoSize = true;
             this.M1_Revers.Location = new System.Drawing.Point(72, 45);
             this.M1_Revers.Name = "M1_Revers";
-            this.M1_Revers.Size = new System.Drawing.Size(97, 24);
+            this.M1_Revers.Size = new System.Drawing.Size(80, 21);
             this.M1_Revers.TabIndex = 330;
             this.M1_Revers.Text = "Реверс";
             this.M1_Revers.UseVisualStyleBackColor = true;
@@ -3403,7 +3302,7 @@
             this.AIN1_Enable.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.AIN1_Enable.Location = new System.Drawing.Point(164, 26);
             this.AIN1_Enable.Name = "AIN1_Enable";
-            this.AIN1_Enable.Size = new System.Drawing.Size(78, 23);
+            this.AIN1_Enable.Size = new System.Drawing.Size(64, 20);
             this.AIN1_Enable.TabIndex = 226;
             this.AIN1_Enable.Text = "Enable";
             this.AIN1_Enable.UseCompatibleTextRendering = true;
@@ -3417,45 +3316,15 @@
             this.AIN1_flag.Location = new System.Drawing.Point(232, 22);
             this.AIN1_flag.Name = "AIN1_flag";
             this.AIN1_flag.ReadOnly = true;
-            this.AIN1_flag.Size = new System.Drawing.Size(43, 26);
+            this.AIN1_flag.Size = new System.Drawing.Size(43, 23);
             this.AIN1_flag.TabIndex = 331;
             this.AIN1_flag.Text = "Вкл.";
             this.AIN1_flag.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.AIN1_flag.DoubleClick += new System.EventHandler(this.AIN1_flag_DoubleClick);
             // 
-            // CIKL1_StepNumber
-            // 
-            this.CIKL1_StepNumber.AutoSize = true;
-            this.CIKL1_StepNumber.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.CIKL1_StepNumber.Location = new System.Drawing.Point(131, 80);
-            this.CIKL1_StepNumber.Name = "CIKL1_StepNumber";
-            this.CIKL1_StepNumber.Size = new System.Drawing.Size(25, 28);
-            this.CIKL1_StepNumber.TabIndex = 334;
-            this.CIKL1_StepNumber.Text = "0";
-            this.CIKL1_StepNumber.TextAlign = System.Drawing.ContentAlignment.TopRight;
-            this.toolTip1.SetToolTip(this.CIKL1_StepNumber, "Номер шага циклограммы");
-            this.CIKL1_StepNumber.Click += new System.EventHandler(this.CIKL1_Step_Click);
-            // 
-            // CIKL1_StepSek
-            // 
-            this.CIKL1_StepSek.AutoSize = true;
-            this.CIKL1_StepSek.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.CIKL1_StepSek.Location = new System.Drawing.Point(173, 80);
-            this.CIKL1_StepSek.Name = "CIKL1_StepSek";
-            this.CIKL1_StepSek.Size = new System.Drawing.Size(25, 28);
-            this.CIKL1_StepSek.TabIndex = 335;
-            this.CIKL1_StepSek.Text = "0";
-            this.toolTip1.SetToolTip(this.CIKL1_StepSek, "Время шага цикла в секундах");
-            // 
             // groupBox_AIN1
             // 
             this.groupBox_AIN1.BackColor = System.Drawing.Color.DarkKhaki;
-            this.groupBox_AIN1.Controls.Add(this.CIKL1_sekToCiklEnd);
-            this.groupBox_AIN1.Controls.Add(this.CIKL1_Pause);
-            this.groupBox_AIN1.Controls.Add(this.CIKL1_Start);
-            this.groupBox_AIN1.Controls.Add(this.CIKL1_sekToStepEnd);
-            this.groupBox_AIN1.Controls.Add(this.CIKL1_StepSek);
-            this.groupBox_AIN1.Controls.Add(this.CIKL1_StepNumber);
             this.groupBox_AIN1.Controls.Add(this.AIN1_flag);
             this.groupBox_AIN1.Controls.Add(this.AIN1_Enable);
             this.groupBox_AIN1.Controls.Add(this.M1_Revers);
@@ -3498,39 +3367,6 @@
             this.groupBox_AIN1.TabStop = false;
             this.groupBox_AIN1.Text = "АИН 1 ";
             // 
-            // CIKL1_sekToCiklEnd
-            // 
-            this.CIKL1_sekToCiklEnd.AutoSize = true;
-            this.CIKL1_sekToCiklEnd.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.CIKL1_sekToCiklEnd.Location = new System.Drawing.Point(281, 80);
-            this.CIKL1_sekToCiklEnd.Name = "CIKL1_sekToCiklEnd";
-            this.CIKL1_sekToCiklEnd.Size = new System.Drawing.Size(25, 28);
-            this.CIKL1_sekToCiklEnd.TabIndex = 338;
-            this.CIKL1_sekToCiklEnd.Text = "0";
-            this.toolTip1.SetToolTip(this.CIKL1_sekToCiklEnd, "Время до окончания циклограммы в секундах");
-            // 
-            // CIKL1_Pause
-            // 
-            this.CIKL1_Pause.AutoSize = true;
-            this.CIKL1_Pause.Location = new System.Drawing.Point(62, 77);
-            this.CIKL1_Pause.Name = "CIKL1_Pause";
-            this.CIKL1_Pause.Size = new System.Drawing.Size(71, 30);
-            this.CIKL1_Pause.TabIndex = 337;
-            this.CIKL1_Pause.Text = "Pause";
-            this.CIKL1_Pause.UseVisualStyleBackColor = true;
-            this.CIKL1_Pause.Click += new System.EventHandler(this.CIKL1_Pause_Click);
-            // 
-            // CIKL1_Start
-            // 
-            this.CIKL1_Start.AutoSize = true;
-            this.CIKL1_Start.Location = new System.Drawing.Point(6, 77);
-            this.CIKL1_Start.Name = "CIKL1_Start";
-            this.CIKL1_Start.Size = new System.Drawing.Size(60, 30);
-            this.CIKL1_Start.TabIndex = 336;
-            this.CIKL1_Start.Text = "Start";
-            this.CIKL1_Start.UseVisualStyleBackColor = true;
-            this.CIKL1_Start.Click += new System.EventHandler(this.CIKL1_Start_Click);
-            // 
             // timer_1sek
             // 
             this.timer_1sek.Interval = 1000;
@@ -3554,10 +3390,10 @@
             // 
             // Form1
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(212)))), ((int)(((byte)(208)))), ((int)(((byte)(200)))));
-            this.ClientSize = new System.Drawing.Size(1062, 673);
+            this.ClientSize = new System.Drawing.Size(1062, 681);
             this.Controls.Add(this.mFast_Motor);
             this.Controls.Add(this.F3_label);
             this.Controls.Add(this.F2_motK60);
@@ -3948,7 +3784,6 @@
         public System.Windows.Forms.Button btnTblLoad2;
         public System.Windows.Forms.Button btnTblLoad1;
         private System.Windows.Forms.CheckBox FOC2;
-        private System.Windows.Forms.Timer timer1;
         private System.Windows.Forms.CheckBox M2_Revers;
         private System.Windows.Forms.TextBox AIN2_flag;
         private System.Windows.Forms.ToolStripMenuItem motfastToolStripMenuItem;
@@ -3964,9 +3799,6 @@
         private System.Windows.Forms.CheckBox ResolverInverse;
         private System.Windows.Forms.ToolStripTextBox toolStripTextBox1;
         public System.Windows.Forms.GroupBox groupBox_AIN1;
-        public System.Windows.Forms.Label CIKL1_sekToStepEnd;
-        public System.Windows.Forms.Label CIKL1_StepSek;
-        public System.Windows.Forms.Label CIKL1_StepNumber;
         private System.Windows.Forms.TextBox AIN1_flag;
         private System.Windows.Forms.CheckBox AIN1_Enable;
         private System.Windows.Forms.CheckBox M1_Revers;
@@ -4037,19 +3869,10 @@
         private System.Windows.Forms.Label DG1;
         private System.Windows.Forms.Button button_ain1_plot;
         public System.Windows.Forms.Button AIN1_motorName;
-        public System.Windows.Forms.Label CIKL2_sekToCiklEnd;
-        public System.Windows.Forms.Label CIKL2_sekToStepEnd;
-        public System.Windows.Forms.Label CIKL2_StepNumber;
-        private System.Windows.Forms.Button CIKL1_Start;
         private System.Windows.Forms.Timer timer_1sek;
-        private System.Windows.Forms.Button CIKL1_Pause;
-        private System.Windows.Forms.Button CIKL2_Pause;
-        private System.Windows.Forms.Button CIKL2_Start_Stop;
         private System.Windows.Forms.GroupBox groupBox1;
         public System.Windows.Forms.Label Udc;
         public System.Windows.Forms.Label Udc_value;
-        public System.Windows.Forms.Label CIKL1_sekToCiklEnd;
-        public System.Windows.Forms.Label CIKL2_StepSek;
         private System.Windows.Forms.ToolTip toolTip1;
         private System.Windows.Forms.Timer timer_Yokogawa;
         private System.Windows.Forms.Label label4;

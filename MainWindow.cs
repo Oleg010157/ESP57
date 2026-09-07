@@ -47,11 +47,6 @@ namespace ICDIBasic
 
         public Motor motK60;  // указатель на объект класса Motor
 
-
-        public const ushort cikl_off = 0;
-        public const ushort cikl_pause = 1;
-        public const ushort cikl_run = 2;
-
         // CAN UI logger fields moved to `CanUiLogger.cs` (partial class) to keep logging logic in one file.
 
         
@@ -428,9 +423,6 @@ namespace ICDIBasic
 
         }
 
-        #region Основной таймер. Циклограмма.
-
-        #endregion Основной таймер. Циклограмма.
         #endregion Основной таймер. 
 
         #region Режим Бутлоудера
@@ -714,22 +706,6 @@ namespace ICDIBasic
             public Button Name;
             public MotPar Par;
 
-            // Циклограмма
-            public ushort cikl_mode;  // определяет состояние процесса выполнения циклограммы
-            public int[,] cikl_array; // двумерный массив в строке данные точки заданного режима работы двигателя.
-
-            public ushort cikl_step;  //номер этапа выполнения  циклограммы то есть индекс строки массива
-            public int cikl_sek_total; // время до окончания цикла в секундах
-            public int cikl_sek; // полное время цикла в секундах
-            public int cikl_count;  // счётчик времени выполнения этапа циклограммы
-            public Button Cikl_Start_Stop;
-            public Button Cikl_Pause;
-            public Label CIKL_StepNumber;
-            public Label CIKL_StepSek;
-            public Label CIKL_sekToStepEnd;
-            public Label Cikl_sekToCiklEnd;
-            public GroupBox gboxAIN;
-
         }
 
         public Motor M1 = new Motor();
@@ -739,10 +715,6 @@ namespace ICDIBasic
         private void M1_def()
         {
             M1.ccs.UrmsF = 0;
-            M1.gboxAIN = groupBox_AIN1;
-            M1.cikl_array = new int[,] { { 900, 3000 }, { 300, -4653 }, { 900, 3000 }, { 300, -4653 }, { 900, 3000 }, { 300, -4653 } };
-            //         M1.cikl_array = new int[,] { { 3, 300 }, { 5, -465 }, { 6, -300 }, { 7 ,465 }, { 8, 300 }, { 9, -465 } };
-            M1.Cikl_sekToCiklEnd = CIKL1_sekToCiklEnd;
             // ---------------  Gain -----------------------------
             M1.gain.nud = NUD_Gain1;
             M1.gain.tbar = Tbar_Gain1;
@@ -815,16 +787,6 @@ namespace ICDIBasic
 
             M1.Name = AIN1_motorName;
             M1.Par = SetMotorPar(M1.Name);
-
-            M1.cikl_count = 0;
-            M1.Cikl_Start_Stop = CIKL1_Start;
-            M1.Cikl_Pause = CIKL1_Pause;
-            M1.CIKL_StepNumber = CIKL1_StepNumber;
-            M1.CIKL_StepSek = CIKL1_StepSek;
-            M1.CIKL_sekToStepEnd = CIKL1_sekToStepEnd;
-
-
-
         }
 
         private void _tblLoad1_TableChanged(Dgt sender, EventArgs e)
@@ -851,11 +813,7 @@ namespace ICDIBasic
 
         private void M2_def()
         {
-            M2.gboxAIN = groupBox_AIN2;
-            M2.cikl_array = new int[,] { { 900, 3000 }, { 300, -4653 }, { 900, 3000 }, { 300, -4653 }, { 900, 3000 }, { 300, -4653 } };
-            //         M2.cikl_array = new int[,] { { 10, 300 }, { 10, -465 }, { 10, -300 }, { 10, 465 }, { 10, 300 }, { 10, -465 } };
-            M2.Cikl_sekToCiklEnd = CIKL2_sekToCiklEnd;     //CIKL2_StepSek;
-                                                           // ---------------  Gain -----------------------------
+            // ---------------  Gain -----------------------------
             M2.gain.nud = NUD_Gain2;
             M2.gain.tbar = Tbar_Gain2;
 
@@ -924,15 +882,6 @@ namespace ICDIBasic
 
             M2.Name = AIN2_motorName;
             M2.Par = SetMotorPar(M2.Name);
-
-            M2.cikl_count = 0;
-            M2.Cikl_Start_Stop = CIKL2_Start_Stop;
-            M2.Cikl_Pause = CIKL2_Pause;
-            M2.CIKL_StepNumber = CIKL2_StepNumber;
-            M2.CIKL_StepSek = CIKL2_StepSek;
-            M2.CIKL_sekToStepEnd = CIKL2_sekToStepEnd;
-
-
         }
 
         private void _tblLoad2_TableChanged(Dgt sender, EventArgs e)
@@ -4263,12 +4212,6 @@ else
             NUD_Load1.ForeColor = Color.Black;
         }
 
-        private void CIKL1_Step_Click(object sender, EventArgs e)
-        {
-
-        }
-
-
         private void NUD_Load1_KeyPress(object sender, KeyPressEventArgs e)
         {
             NUD_Load1.ForeColor = Color.Black;
@@ -4302,29 +4245,6 @@ else
         private void NUD_Load1_Leave(object sender, EventArgs e)
         {
             NUD_Leave(M1.load);
-        }
-
-        private void timer1_Tick(object sender, EventArgs e)
-        {
-            color_blink(M1);
-            //   color_blink(M2);
-
-        }
-
-        private void color_blink(Motor m)
-        {
-            if (m.Cikl_Pause.Text == "END")
-            {
-                if (m.Cikl_Pause.BackColor == Color.Yellow)
-                {
-                    m.Cikl_Pause.BackColor = m.gboxAIN.BackColor;
-                }
-                else
-                {
-                    m.Cikl_Pause.BackColor = Color.Yellow;
-                }
-                //               Console.Beep();
-            }
         }
 
         private void Load1_ModeH_Click(object sender, EventArgs e)
@@ -4574,9 +4494,6 @@ else
             _tblLoad1 = new Dgt(btnTblLoad1, this, TblLoad1SaveFx, TblLoad1LoadFx);
             _tblLoad2 = new Dgt(btnTblLoad2, this, TblLoad2SaveFx, TblLoad2LoadFx);
 
-            //          tblCIKL1 = new Dgt(CIKL1_StepNumber, this, TblLoad2SaveFx, TblLoad2LoadFx);
-
-
             #region Таблица Gain1
             _tblGain1.Pars.Add(new Dgt.Params { Name = "Gain Max", Value = 1000 });
             _tblGain1.Pars.Add(new Dgt.Params { Name = "Urms Max", Value = 1000 });
@@ -4753,7 +4670,7 @@ else
         }
         #endregion FOC on/off
 
-        #region Циклограмма + timer_1sek
+        #region timer_1sek
 
         private ushort HiTempBox = 0;    // время паузы в секундах после нажатия кнопки ОК в MessageBox
         private int IGBT_alarm = 0;   // порог температуры модуля IGBT, для включения вентилятора
@@ -4767,12 +4684,6 @@ else
             if (_adcInfoKsp != null)
             {
                 adcOffsets = _adcInfoKsp._adcOffsets;
-            }
-
-            if (Separate_cbox.Checked)
-            {
-                Ciklogramma(M1);
-                Ciklogramma(M2);
             }
 
             // Warning Message OverTemperature---------------------------------------------------------------------------------------------------------
@@ -4858,172 +4769,7 @@ else
             }
         }
 
-        private void CIKL1_Start_Stop_MouseClick(object sender, MouseEventArgs e)
-        {
-            //           cikl_Start_Stop(M1);
-            //          cikl_Start_Stop(M2);
-        }
-        private void CIKL1_Pause_Click(object sender, EventArgs e)
-        {
-            cikl_pause_click(M1);
-        }
-
-        private void CIKL2_Pause_Click(object sender, EventArgs e)
-        {
-            cikl_pause_click(M2);
-        }
-
-        private void cikl_pause_click(Motor m)
-        {
-            m.Cikl_Pause.BackColor = m.gboxAIN.BackColor;
-            if (m.Cikl_Pause.Text == "Pause")
-            {
-                m.Cikl_Pause.Text = "Run";
-            }
-            else
-            {
-                m.Cikl_Pause.Text = "Pause";
-            }
-        }
-        private void cikl_Start_Stop(Motor m)
-        {
-            if (!Separate_cbox.Checked)
-            {
-                return;
-            }
-
-            cikl_Time(m);
-            switch (m.Cikl_Start_Stop.Text)
-            {
-                case "Start":
-                    m.cikl_mode = cikl_run;
-                    m.Cikl_Start_Stop.Text = "Stop";
-                    m.Cikl_Pause.Text = "Run";
-                    cikl_Time(m);
-                    break;
-
-                case "Stop":
-                    m.Cikl_Start_Stop.Text = "Start";
-                    m.Cikl_Pause.Text = "Pause";
-                    m.cikl_mode = cikl_off;
-                    break;
-
-                default:
-                    m.cikl_mode = cikl_off;
-                    m.Cikl_Start_Stop.Text = "Start";
-                    break;
-            }
-
-            m.CIKL_StepNumber.Text = "0"; // Convert.ToString(m.cikl_step);
-            m.CIKL_StepSek.Text = "0";// Convert.ToString(m.cikl_array[0, 0]);
-            m.CIKL_sekToStepEnd.Text = "0";
-            m.Cikl_sekToCiklEnd.Text = Convert.ToString(m.cikl_sek_total);
-            m.cikl_count = 0;
-            m.cikl_step = 0;
-            m.Cikl_Pause.BackColor = m.gboxAIN.BackColor;
-        }
-        private void cikl_Time(Motor m)
-        {
-            m.cikl_sek_total = 0;
-            for (int i = 0; i < m.cikl_array.GetLength(0); i++)
-            {
-                m.cikl_sek_total = m.cikl_sek_total + m.cikl_array[i, 0];
-
-            }
-            ;
-            m.cikl_sek = m.cikl_sek_total;
-            m.Cikl_sekToCiklEnd.Text = Convert.ToString(m.cikl_sek_total);
-        }
-        public void Ciklogramma(Motor m)
-        {
-
-            if (m.cikl_mode == cikl_off)
-            {
-                return;
-            }
-
-            if (m.cikl_mode == cikl_pause)
-            {
-                return;
-            }
-
-            if (m.cikl_mode == cikl_run)
-            {
-
-                int rpm_tabl = m.cikl_array[m.cikl_step, 1];
-                if (rpm_tabl < 0)
-                {
-                    m.Revers.Checked = true;
-                    rpm_tabl = -rpm_tabl;
-                }
-                else
-                {
-                    m.Revers.Checked = false;
-                }
-
-                var d1 = (ushort)(rpm_tabl * m.load.kNT);
-                m.load.tbar.Value = Satur(d1, m.load.tbar.Minimum, m.load.tbar.Maximum);  // загружаем заданные обороты в tbar 
-                m.load.nud.Value = Satur(d1, m.load.nud.Minimum, m.load.nud.Maximum);  // загружаем заданные обороты в tbar 
-                m.CIKL_StepNumber.Text = Convert.ToString(m.cikl_step);
-                m.CIKL_StepSek.Text = Convert.ToString(m.cikl_array[m.cikl_step, 0]);
-                m.CIKL_sekToStepEnd.Text = Convert.ToString(m.cikl_array[m.cikl_step, 0] - m.cikl_count);
-
-
-                if (m.cikl_count >= m.cikl_array[m.cikl_step, 0]) // проверяем на длину текущего шага цикла
-                {
-                    m.cikl_count = 0;
-                    m.cikl_step++;  // переходим к следующей шагу цикла
-                    if (m.cikl_step == m.cikl_array.GetLength(0))  // проверяем на количество шагов в цикле
-                    {
-
-                        m.cikl_mode = cikl_off;
-                        m.cikl_step = 0;
-                        m.Cikl_Start_Stop.Text = "Start";
-                        m.Cikl_Pause.Text = "END";
-
-                        m.CIKL_StepNumber.Text = "0";
-                        m.CIKL_StepSek.Text = "0";
-                        m.CIKL_sekToStepEnd.Text = "0";
-                        m.CIKL_sekToStepEnd.Text = "0";
-                        return;
-                    }
-                    else
-                    {
-
-                    }
-
-
-                }
-                else
-                {
-                    if (m.Cikl_Pause.Text == "Pause")
-                    {
-                        if (m.cikl_sek_total > 0)
-                        {
-                            m.cikl_count++;  // увеличиваем время текущего шага
-                            m.CIKL_sekToStepEnd.Text = Convert.ToString(m.cikl_array[m.cikl_step, 0] - m.cikl_count);
-                            m.cikl_sek_total--; // уменьшаем время до окончания цикла
-                        }
-                        m.Cikl_sekToCiklEnd.Text = Convert.ToString(m.cikl_sek_total);
-                    }
-
-                }
-
-
-            }
-
-        }
-
-        private void CIKL1_Start_Click(object sender, EventArgs e)
-        {
-            cikl_Start_Stop(M1);
-        }
-
-        private void CIKL2_Start_Click(object sender, EventArgs e)
-        {
-            cikl_Start_Stop(M2);
-        }
-        #endregion  Циклограмма
+        #endregion timer_1sek
 
 
         #region Закрытие формы Form1
