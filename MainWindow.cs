@@ -84,51 +84,6 @@ namespace ICDIBasic
             */
         }
 
-        private void Reverse_cbox_Click(object sender, EventArgs e)
-        {
-            Reverse_send();
-            M1.Revers.Checked = !M1.Revers.Checked;
-            M2.Revers.Checked = !M2.Revers.Checked;
-        }
-
-        public void Reverse_send()
-        {
-            Reverse_cbox.BackColor = Color.Yellow;
-            ushort d1 = 0;
-            if (Reverse_cbox.Checked)
-            {
-                d1 = 1;
-            }
-
-            uint_128(d1, 3333, 0, 16);
-
-
-        }
-
-
-        public void Send_Mot_Rotation(Motor m)
-        {
-            ushort d1 = 0;
-            m.Revers.BackColor = Color.Yellow;
-            if (m.Revers.Checked)
-            {
-                d1 = 1;
-            }
-
-            uint_128(d1, 0, 0, m.cmd_Revers);
-        }
-
-        private void M1_Revers_Click(object sender, EventArgs e)
-        {
-            Send_Mot_Rotation(M1);
-        }
-
-        private void M2_Revers_Click(object sender, EventArgs e)
-        {
-            Send_Mot_Rotation(M2);
-        }
-
-
         //----------------------------------------------------------------------------------------------------------------
         private void DG1_Click(object sender, EventArgs e)
         {
@@ -168,19 +123,6 @@ namespace ICDIBasic
             }
 
             uint_128(d1, 0, 0, cmd);
-        }
-
-        //---------------------------------------------------------------------------------------------------------------------------
-        private void ResolverInverse_Click(object sender, EventArgs e)
-        {
-            ushort d1 = 0;
-            ResolverInverse.BackColor = Color.Yellow;
-            if (ResolverInverse.Checked)
-            {
-                d1 = 1;
-            }
-
-            uint_128(d1, 0, 0, 15);
         }
 
         private void button_Field_Click(object sender, EventArgs e)
@@ -561,6 +503,7 @@ namespace ICDIBasic
             TbInit();
             M1_def();
             M2_def();
+            InitGridTieUi();
 
 
 
@@ -599,10 +542,8 @@ namespace ICDIBasic
             textBox_температура.Text = Settings.Default.IGBT_temp_max;
             Gain_Sym.Checked = Settings.Default.Symmetry;
             Load_Sym.Checked = Settings.Default.LSymmetry;
-            ResolverInverse.Checked = Settings.Default.ResolverReverse;
             SlipMax_Value.Text = Settings.Default.S_max;
             SlipMax_Value2.Text = Settings.Default.S_max2;
-            Reverse_cbox.Checked = Settings.Default.Reverse;
             DG1.Text = Settings.Default.ДГ1;
             DG2.Text = Settings.Default.ДГ2;
 
@@ -610,12 +551,6 @@ namespace ICDIBasic
             M1.load.modeL_kod = Settings.Default.Load1_Lkod;
             M2.load.modeH_kod = Settings.Default.Load2_Hkod;
             M2.load.modeL_kod = Settings.Default.Load2_Lkod;
-
-            M1.Revers.Checked = Settings.Default.Reverse1;
-            M2.Revers.Checked = Settings.Default.Reverse2;
-
-            M1.FOC.Checked = Settings.Default.FOC1;
-            M2.FOC.Checked = Settings.Default.FOC2;
 
             M1.AIN_Enable.Checked = Settings.Default.AIN1_Enable;
             M2.AIN_Enable.Checked = Settings.Default.AIN2_Enable;
@@ -678,12 +613,9 @@ namespace ICDIBasic
         public class Motor
         {
             public mccs ccs = new mccs();
-            public ushort cmd_Revers;
             public NT gain = new NT();
             public NT load = new NT();
             public Parkinson park = new Parkinson();
-            public CheckBox Revers;
-            public CheckBox FOC;
             public CheckBox AIN_Enable;
             public TextBox AIN_Flag;
             public GroupBox AIN;
@@ -754,8 +686,6 @@ namespace ICDIBasic
             _tblLoad1.TableChanged += _tblLoad1_TableChanged;
 
             M1.load.Adjust = _tblLoad1;
-            M1.Revers = M1_Revers;
-            M1.cmd_Revers = 18;
             M1.load.modeL.Text = Settings.Default.load1_Ltext;
             M1.load.modeH.Text = Settings.Default.load1_Htext;
             //--------------------------------------------------------------
@@ -763,7 +693,6 @@ namespace ICDIBasic
 
             M1.AIN_Flag = AIN1_flag;
             M1.DG = DG1;
-            M1.FOC = PID;
             M1.AIN_Enable = AIN1_Enable;
 
             M1.SabsName = S1abs_label;
@@ -854,14 +783,10 @@ namespace ICDIBasic
             M2.load.modeL.Text = Settings.Default.load2_Ltext;
             M2.load.modeH.Text = Settings.Default.load2_Htext;
 
-            M2.Revers = M2_Revers;
-            M2.cmd_Revers = 19;
-
             //--------------------------------------------------------------
             M2.AIN = groupBox_AIN2;
             M2.AIN_Flag = AIN2_flag;
             M2.DG = DG2;
-            M2.FOC = FOC2;
             M2.AIN_Enable = AIN2_Enable;
 
             M2.SabsName = S2abs_label;
@@ -1229,9 +1154,7 @@ namespace ICDIBasic
             tKadr60_send();
             DG_send(DG1, 60);
             DG_send(DG2, 61);
-            ResolverInverse_Click(null, null);
 
-            Reverse_send();
             Imax_Send();
             I1rms_selector.Text = "rms";
             uint_128(0, 0, 0, 9);
@@ -1263,9 +1186,6 @@ namespace ICDIBasic
             M2.ccs.freq = 0;
             Load_Mode_Refresh(M2);
 
-            Send_Mot_Rotation(M1);
-            Send_Mot_Rotation(M2);
-
             Load_Sym_Click(null, null);
             if (Gain_Sym.Checked)
             {
@@ -1276,9 +1196,6 @@ namespace ICDIBasic
             {
                 Copy_NT(M2.load, M1.load);
             }
-
-            PID_Click(null, null);
-            FOC2_Click(null, null);
 
             AIN1_Enable_Click(null, null);
             AIN2_Enable_Click(null, null);
@@ -4644,31 +4561,6 @@ else
             uint_128(0, 0, 0, cmd);
         }
         #endregion Tbar_all
-        #region FOC on/off
-        private void PID_Click(object sender, EventArgs e)
-        {
-            PID.BackColor = Color.Yellow;
-            ushort d1 = 0;
-            if (PID.Checked)
-            {
-                d1 = 1;
-            }
-
-            uint_128(d1, 0, 0, 20);
-        }
-
-        private void FOC2_Click(object sender, EventArgs e)
-        {
-            FOC2.BackColor = Color.Yellow;
-            ushort d1 = 0;
-            if (FOC2.Checked)
-            {
-                d1 = 1;
-            }
-
-            uint_128(d1, 0, 0, 21);
-        }
-        #endregion FOC on/off
 
         #region timer_1sek
 
@@ -4787,9 +4679,6 @@ else
                 }
 
                 // помещаем текущее значение в переменную
-                Settings.Default.Reverse = Reverse_cbox.Checked;
-                Settings.Default.Reverse1 = M1.Revers.Checked;
-                Settings.Default.Reverse2 = M2.Revers.Checked;
                 Settings.Default.Separate = Separate_cbox.Checked;
 
                 Settings.Default.AIN1_motor = AIN1_motorName.Text;
@@ -4798,7 +4687,6 @@ else
                 Settings.Default.IGBT_temp_max = textBox_температура.Text;
                 Settings.Default.Symmetry = Gain_Sym.Checked;
                 Settings.Default.LSymmetry = Load_Sym.Checked;
-                Settings.Default.ResolverReverse = ResolverInverse.Checked;
                 Settings.Default.S_max = SlipMax_Value.Text;
                 Settings.Default.S_max2 = SlipMax_Value2.Text;
                 Settings.Default.ДГ1 = DG1.Text;
@@ -4821,9 +4709,6 @@ else
 
                 Settings.Default.Gain2_HText = M2.gain.modeH.Text;
                 Settings.Default.Gain2_LText = M2.gain.modeL.Text;
-
-                Settings.Default.FOC1 = M1.FOC.Checked;
-                Settings.Default.FOC2 = M2.FOC.Checked;
 
                 Settings.Default.AIN1_Enable = M1.AIN_Enable.Checked;
                 Settings.Default.AIN2_Enable = M2.AIN_Enable.Checked;

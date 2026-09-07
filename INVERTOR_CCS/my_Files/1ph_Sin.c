@@ -61,6 +61,42 @@ float duty; // Значение скважности ШИМ (в тактах т�
 //DBG
 struct sine sineA = {.resolution = 256, .freq = 50, .gain = 1800};
 struct sine sineB = {.resolution = 100, .freq = 50, .gain = 1800};
+
+int16_t iPri_kod = 0;
+float   iPri_amp = 0.0f;
+float   iPri_rms = 0.0f;
+int16_t iSec_kod = 0;
+float   iSec_amp = 0.0f;
+float   iSec_rms = 0.0f;
+
+static float    iPri_sum2 = 0.0f;
+static float    iSec_sum2 = 0.0f;
+static uint16_t iRmsCnt   = 0;
+
+#pragma CODE_SECTION(xfmr_currents_from_adc, ".TI.ramfunc");
+static void xfmr_currents_from_adc(void)
+{
+    iPri_kod = (int16_t)AdcbResultRegs.ADCPPB1RESULT.bit.PPBRESULT;
+    iSec_kod = (int16_t)AdcbResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
+    iPri_amp = gt.iSign * kadcf.Ia * (float)iPri_kod;
+    iSec_amp = gt.iSign * kadcf.Ib * (float)iSec_kod;
+}
+
+#pragma CODE_SECTION(xfmr_currents_rms, ".TI.ramfunc");
+static void xfmr_currents_rms(void)
+{
+    iPri_sum2 += iPri_amp * iPri_amp;
+    iSec_sum2 += iSec_amp * iSec_amp;
+    if ((++iRmsCnt >= sineB.resolution) && (iRmsCnt > 0))
+    {
+        float n = (float)iRmsCnt;
+        iPri_rms  = sqrtf(iPri_sum2 / n);
+        iSec_rms  = sqrtf(iSec_sum2 / n);
+        iPri_sum2 = 0.0f;
+        iSec_sum2 = 0.0f;
+        iRmsCnt   = 0;
+    }
+}
 //---------------------------------------------------------------------------------------------------
 #if Strob_rg // применяется для отладки метода формирования синусоиды
 
@@ -184,12 +220,12 @@ uint16_t dacb  = 2048; // dbg
 //
 // Обе переменные крутятся в отладчике на живой цели.
 //--------------------------------------------------------------------------------------
-uint16_t dacDbgSrc = 0;     // 0 = dacb, 1 = gt.Ia_amp, 2 = gt.Ib_amp, 3 = gt.m
+uint16_t dacDbgSrc = 0;     // 0 = dacb, 1 = iPri_amp, 2 = iSec_amp, 3 = gt.m
 float    kDacDbg   = 50.0f; // код на ампер: 2048/40 -> шкала +-40 А первички
 uint16_t dacDbg    = 2048;  // dbg что реально ушло на пин
 
 //--------------------------------------------------------------------------------------
-// dbg  Телеметрия быстрого кадра (ID 103, буфер 1, DLC=8) для Wscope.
+//  Телеметрия быстрого кадра (ID 103, буфер 1) для Wscope(запись в файл ) или Oscilloscope(реальный осциллограф).
 //
 // Кадр включается командой CAN 1001 с data3 = 1 (canaKadr.bit.F1_convertor).
 // Три значения плюс счётчик тактов - формат кадра менять нельзя, его разбирает
@@ -276,7 +312,9 @@ __interrupt void INT_myADCB_1_ISR(void)
 {
     tim0S = EPwm7Regs.TBCTR;
     epwmcount++;
-   
+
+    xfmr_currents_from_adc();
+
     if (gridMode)
     {
         // Сетевой режим: мост работает источником тока, CMPA считает замкнутый
@@ -288,6 +326,8 @@ __interrupt void INT_myADCB_1_ISR(void)
         // Метод один. Ветка по sine_metod убрана вместе с sine_invertor1.
         sine_invertor2(&sineB);
     }
+
+    xfmr_currents_rms();
     //---------------------------------------------------------------------
     // DBG  daca -это синусоидальный сигнал, который выводится на вход АЦП для иммитации сигнала u220
 
@@ -329,8 +369,8 @@ __interrupt void INT_myADCB_1_ISR(void)
         float d;
         switch (dacDbgSrc)
         {
-            case 1:  d = 2048.0f + kDacDbg * gt.Ia_amp; break; // ток первички
-            case 2:  d = 2048.0f + kDacDbg * gt.Ib_amp; break; // ток вторички
+            case 1:  d = 2048.0f + kDacDbg * iPri_amp; break; // ток первички
+            case 2:  d = 2048.0f + kDacDbg * iSec_amp; break; // ток вторички
             case 3:  d = 2048.0f + 2048.0f * gt.m;      break; // индекс модуляции
             default: d = (float)dacb;                   break; // синусоида ШИМ, как было
         }
@@ -351,56 +391,82 @@ __interrupt void INT_myADCB_1_ISR(void)
     ADC_clearInterruptStatus(myADCB_BASE, ADC_INT_NUMBER1);
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP1);
 
-//   uint32_t txbrp = McanaRegs.MCAN_TXBRP;
-    uint32_t txbrp = HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP);
+   uint32_t txbrp = HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP);
 
-   static uint16_t telCnt = 0;
+   // Оба кадра живут в одном буфере, поэтому проверка занятости у них общая.
+   // Буфер занят - пропускаем такт и идём дальше, ничего не считая: разрывы
+   // видны по счётчику тактов в самом кадре (слово 11 у F3, слово 3 у F1).
+   //
+   // Отдельной проверки "включён ли хоть один кадр" здесь тоже нет - её роль
+   // играет сама цепочка. Так убран целый класс ошибки: длина стоит литералом
+   // там же, где собран кадр, и состояния "отправляем, но неизвестно сколько"
+   // не существует. В прежней редакции длина жила в переменной, заполняемой
+   // в ветках, а от отправки при обоих выключенных битах спасала только
+   // внешняя проверка - стоило её снять, и в Send_mbox_FD уходил мусор со
+   // стека.
+   if ((txbrp & MCAN_TXBRP_TRP1) == 0U) // TRP1  проверяет Buff = 1  !!! Buff = 0,1,2,....32
+   {
+       if (canaKadr.bit.F3_convertor == 1)
+       {
+           // Раскладка и масштабы - в таблице выше. Порядок менять
+           // нельзя, приёмная сторона читает по номеру слова.
+           uint16_t f[12];
+           uint16_t tbprd = EPwm1Regs.TBPRD;
 
-   if (canaKadr.bit.F1_convertor == 1)
-        if (++telCnt >= telDiv) // telDiv = 0 вырождается в "каждое прерывание"
-        {
-            telCnt = 0;
+           f[0] = (int16_t)(10000.0f * phaseErr); // 1e-4
+           f[1] = (int16_t)(10.0f * gt.uGrid);   // 0.1 В
+           f[2] = (int16_t)(100.0f * gt.iref);   // 0.01 А
+           f[3] = (int16_t)(100.0f * iSec_amp); // 0.01 А
+           f[4] = (int16_t)(100.0f * iPri_amp); // 0.01 А
+           f[5] = (int16_t)(10000.0f * gt.m);    // 1e-4
+           f[6] = (int16_t)(10000.0f * (1.0f - (float)cmpaA / (float)tbprd));
+           f[7] = (int16_t)(10.0f * gt.Udc);       // 0.1 В
+           f[8] = (int16_t)(100000.0f * gt.mDC);   // 1e-5
+           f[9] = dacb;                            // коды, 0..4095
+           f[10] = u220_kod;                       // коды, 0..4095
+           f[11] = sineTick; // коды; ОН ЖЕ признак готовности записи для
+                             // Wscope - разбор в таблице раскладки выше
 
-            if ((txbrp & MCAN_TXBRP_TRP1) == 0U) // проверяет Buff = 1  !!! Buff = 0,1,2,....32
-            {
-                uint16_t f[4];
+           Send_mbox_FD(1, f, 12); // 24 байта, DLC = 12
+       }
+       else if (canaKadr.bit.F1_convertor == 1)
+       {
+           uint16_t f[4];
 
-                switch (telSrc)
-                {
-                    case 1: // контур тока: ierr считается в Wscope как f0 - f1
-                        f[0] = (int16_t)(100.0f * gt.iref);    // 0.01 А
-                        f[1] = (int16_t)(100.0f * gt.Ib_amp);  // 0.01 А
-                        f[2] = (int16_t)(10000.0f * gt.m);     // 1e-4
-                        break;
+           switch (telSrc)
+           {
+               case 1:                                   // контур тока: ierr считается в Wscope как f0 - f1
+                   f[0] = (int16_t)(100.0f * gt.iref);   // 0.01 А
+                   f[1] = (int16_t)(100.0f * iSec_amp); // 0.01 А
+                   f[2] = (int16_t)(10000.0f * gt.m);    // 1e-4
+                   break;
 
-                    case 2: // трансформатор и постоянная составляющая
-                        f[0] = (int16_t)(100.0f * gt.Ia_amp);  // 0.01 А
-                        f[1] = (int16_t)(10.0f * gt.uGrid);    // 0.1 В, с запасом
-                                                               // на перетарировку kU220
-                        f[2] = (int16_t)(100000.0f * gt.mDC);  // 1e-5, |mDC| < 0.02
-                        break;
+               case 2:                                   // трансформатор и постоянная составляющая
+                   f[0] = (int16_t)(100.0f * iPri_amp); // 0.01 А
+                   f[1] = (int16_t)(10.0f * gt.uGrid);   // 0.1 В, с запасом
+                                                         // на перетарировку kU220
+                   f[2] = (int16_t)(100000.0f * gt.mDC); // 1e-5, |mDC| < 0.02
+                   break;
 
-                    case 3: // синхронизация: обе опоры детектора фазы и его ошибка
-                        f[0] = dacb;                           // коды, 0..4095
-                        f[1] = u220_kod;                       // коды, 0..4095
-                        f[2] = (int16_t)(10000.0f * phaseErr); // 1e-4
-                        break;
+               case 3:                                    // синхронизация: обе опоры детектора фазы и его ошибка
+                   f[0] = dacb;                           // коды, 0..4095
+                   f[1] = u220_kod;                       // коды, 0..4095
+                   f[2] = (int16_t)(10000.0f * phaseErr); // 1e-4
+                   break;
 
-                    default: // как было
-                        f[0] = cmpaA;
-                        f[1] = cmpaB;
-                        f[2] = (int16_t)(duty * 1000);
-                        break;
-                }
+               default: // как было
+                   f[0] = cmpaA;
+                   f[1] = cmpaB;
+                   f[2] = (int16_t)(duty * 1000);
+                   break;
+           }
 
-                f[3] = sineTick; // счётчик тактов: по разрывам видны пропуски кадров
-                Send_mbox_FD(1, f, 4);                          // 8 байт (DLC=8)
-            }
-            else
-            {
-                telDrop++; // буфер 1 ещё занят предыдущим кадром
-            }
-        }
+           f[3] = sineTick; // счётчик тактов: по разрывам видны пропуски кадров
+
+           Send_mbox_FD(1, f, 4); // 8 байт, DLC = 8
+       }
+   }
+        
 
     sine_Time = EPwm7Regs.TBCTR - tim0S; // dbg монитор времени выполнения программы
 }

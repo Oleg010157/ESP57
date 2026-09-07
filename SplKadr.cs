@@ -23,6 +23,9 @@ namespace ICDIBasic
                 case "F3_invertor":
                     F3_invertor();
                     break;
+                case "F3_convertor":
+                    F3_convertor();
+                    break;
                 case "F1_convertor":
                     F1_convertor();
                     break;
@@ -54,6 +57,27 @@ namespace ICDIBasic
             spL[9] = (ushort)M1.ccs.gain; //
             spL[10] = ccs.IsrTicker;
       
+            spL[11] = ccs.k60Cnt;
+
+            FrlM = 12;
+
+        }
+        private void F3_convertor()
+        {
+            spL[0] = (ushort)M1.ccs.Ia; //
+            spL[1] = (ushort)M1.ccs.Ib; //
+            spL[2] = (ushort)M1.ccs.Ic; //
+            spL[3] = (ushort)M1.ccs.Va; //
+
+            spL[4] = (ushort)M1.ccs.Vb; //
+            spL[5] = (ushort)M1.ccs.Vc; //
+            spL[6] = (ushort)M1.ccs.radian; //
+            spL[7] = (ushort)M1.ccs.rgOut; //
+
+            spL[8] = (ushort)M1.ccs.freq; //
+            spL[9] = (ushort)M1.ccs.gain; //
+            spL[10] = ccs.IsrTicker;
+
             spL[11] = ccs.k60Cnt;
 
             FrlM = 12;

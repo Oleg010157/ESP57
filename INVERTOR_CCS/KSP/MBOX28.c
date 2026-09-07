@@ -31,6 +31,7 @@
 #include "myEPWM.h"
 #include "SPI_EEPROM.h"
 #include "1ph_Sin.h"
+#include "grid_tie.h"
 
 motor *motStrob = &motor1;
 
@@ -171,8 +172,12 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
                     canaKadr.bit.F3_invertor = 1;
                     MCAN_setFastDLC(12); // 24 байта (SPL_UI: 12 слов)
                     break;
+                case 4:
+                    canaKadr.bit.F3_convertor = 1;
+                    MCAN_setFastDLC(12); // 24 байта (SPL_UI: 12 слов)
+                    break;
 
-                case 4: // включить передачу медленного кадра по CANA
+                case 5: // включить передачу медленного кадра по CANA
                 {
                     CpuTimer1Regs.PRD.all     = mSecond(K60per); // период таймера Т1 в миллисекундах
                     CpuTimer1Regs.TCR.bit.TRB = 1;               // устанавливаем счётчик на начало периода
@@ -304,34 +309,10 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             SendAck(data1, data2, data3, cmd);
             break;
 
-        case 15:
-            sbit.bit.ResolverInverse = data1;
-            break;
-
-        case 16: // On/Off  Режим Реверса
-            sbit.bit.Reverse = data1;
-            break;
-
         case 17:
             if (data2 == 3333)
                 mot28->delay = data1;
             SendAck(mot28->delay, data2, data3, cmd);
-            break;
-
-        case 18:
-            motor1.mbit.bit.revers = data1;
-            break;
-
-        case 19:
-            motor2.mbit.bit.revers = data1;
-            break;
-
-        case 20:
-            motor1.mbit.bit.FOC_mode = data1;
-            break;
-
-        case 21:
-            motor2.mbit.bit.FOC_mode = data1;
             break;
 
         case 22:
@@ -632,7 +613,53 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             SendAck(sineA.resolution, data2, data3, cmd);
             break;
 
-            
+        // 630..633 — однофазный инвертор 48→220 (остров / сеть).
+        // Запись: data2 = 3333. Чтение: data2 = 0, то же cmd.
+        case 630: // gridMode: 0 = остров (синус Uref), 1 = сеть (ток Iset)
+            if (data2 == 3333)
+            {
+                if (data1)
+                    gridMode = 1;
+                else
+                {
+                    grid_tie_stop();
+                    gridMode = 0;
+                    grid_tie_apply_uref();
+                }
+            }
+            SendAck(gridMode, data2, gt.State, cmd);
+            break;
+
+        case 631: // пуск/стоп сетевого автомата: 1 = stop, 2 = start
+            if (data2 == 3333)
+            {
+                if (data1 == 2)
+                {
+                    gridMode = 1;
+                    grid_tie_start();
+                }
+                else
+                    grid_tie_stop();
+            }
+            SendAck(gt.State, data2, gt.fault, cmd);
+            break;
+
+        case 632: // IsetRef, 0.01 А (амплитуда тока в сеть)
+            if (data2 == 3333)
+                gt.IsetRef = (float)data1 * 0.01f;
+            SendAck((uint16_t)(gt.IsetRef * 100.0f + 0.5f), data2, data3, cmd);
+            break;
+
+        case 633: // UrefRms, 0.1 В (остров). В GridMode только запоминаем.
+            if (data2 == 3333)
+            {
+                gt.UrefRms = (float)data1 * 0.1f;
+                if (!gridMode)
+                    grid_tie_apply_uref();
+            }
+            SendAck((uint16_t)(gt.UrefRms * 10.0f + 0.5f), data2, data3, cmd);
+            break;
+
         case 70:                     // запуск калибровки нуля выбранных АЦП каналов
             adcCalStart.all = data1; // задаёт список АЦП каналов
                                      //   DacaRegs.DACVALS.all = 2048;  // dbg

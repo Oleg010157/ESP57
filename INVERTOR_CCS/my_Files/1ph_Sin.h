@@ -8,6 +8,8 @@
 #ifndef SIN1_H_
 #define SIN1_H_
 
+#include <stdint.h>
+
 // DBG_SIN_DAC - см. config_switch.h. При 1 нижний ЦАП CMPSS1 (COMPDACL) выводит
 // синусоиду на пин A1, B7, D11 для контроля осциллографом; CMPSS1 при этом занят
 // целиком, защита по току фазы А не работает (см. myADC.c).
@@ -57,5 +59,13 @@ void sine_invertor2( struct sine *s );
 void change_sine(struct sine *s);
 
 extern struct sine sineA,sineB;
+
+// Токи обмоток трансформатора. Общие для острова и GridMode.
+extern int16_t iPri_kod; // ток первичной обмотки, коды АЦП
+extern float   iPri_amp; // ток первичной обмотки, А
+extern float   iPri_rms; // ток первичной обмотки, А rms
+extern int16_t iSec_kod; // ток вторичной обмотки, коды АЦП
+extern float   iSec_amp; // ток вторичной обмотки, А
+extern float   iSec_rms; // ток вторичной обмотки, А rms
 
 #endif /* 1ph_Sin.h */

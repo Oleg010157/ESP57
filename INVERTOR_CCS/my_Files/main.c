@@ -284,7 +284,7 @@ extern volatile uint16_t epwm3time;// dbg
             epwmtime = epwmcount;
             epwmcount = 0;
 
-            Core_Temp_Update(); // температура ядра, раз в 50 мс, без прерывания
+            Core_Temp_Update2(); // температура ядра, раз в 50 мс, без прерывания
  
             if (cntT0 == OneSecond) // события обрабатываемые каждую секунду
             {
@@ -309,7 +309,7 @@ extern volatile uint16_t epwm3time;// dbg
 #if MCANA
                 // MCAN: читаем TX Buffer Request Pending регистр
                 uint32_t txbrp = HWREG(MCANA_DRIVER_BASE + MCAN_TXBRP);
-                if ((txbrp & ref_kadr_mask) == 0) // буферы свободны
+                if ((txbrp & MCAN_TXBRP_TRP2) == 0) // буфер 2 свободен ?
                 {
                     send_REF_kadr();
                 }

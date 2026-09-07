@@ -82,14 +82,14 @@ __interrupt void INT_myADCA_1_ISR(void)
     }
 
     u220amp = (u220hi_kod - u220low_kod) / 2.0f;
-    if (u220amp > sineB.gain)
+    // В острове gain задаёт Uref. Слежение за огибающей U220 — только в GridMode
+    // (подстройка к сети перед замыканием контактора).
+    if (gridMode)
     {
-        sineB.gain ++;
-    }
-    else
-
-    {
-        sineB.gain --;
+        if (u220amp > sineB.gain)
+            sineB.gain++;
+        else
+            sineB.gain--;
     }
 
     AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;             // clear INT1 flag for ADCC
@@ -98,8 +98,8 @@ __interrupt void INT_myADCA_1_ISR(void)
 
 //-------------------------------------------------------------------------------------------------------------
 
-#define CORE_TEMP_SOC_NUM ADC_SOC_NUMBER0
-#define CORE_TEMP_VREF 3.3f
+//#define CORE_TEMP_SOC_NUM ADC_SOC_NUMBER0
+//#define CORE_TEMP_VREF 3.3f
 
 #if CONTROL_CARD
 #define ADC_REFERENCE ADC_REFERENCE_INTERNAL
@@ -111,17 +111,17 @@ int16_t core_temp; // температура ядра F28P55x в Цельсия�
 int16_t core_temp2; // температура ядра F28P55x в Цельсиях
 
 // вызывается из фона раз в 50 мс (main.c, блок CpuTimer0) - SOC0 запускается
-// от EPWM2 непрерывно, здесь просто читаем последний готовый результат.
+// от EPWM1 непрерывно, здесь просто читаем последний готовый результат.
 void Core_Temp_Update(void)
 {
-    uint16_t core_temp_kod = ADC_readResult(ADCCRESULT_BASE, CORE_TEMP_SOC_NUM);
-    core_temp = ADC_getTemperatureC(core_temp_kod, ADC_REFERENCE, CORE_TEMP_VREF);
+    uint16_t core_temp_kod = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER0);
+    core_temp = ADC_getTemperatureC(core_temp_kod, ADC_REFERENCE, 3.3f);
 }
 
 void Core_Temp_Update2(void)
 {
-    uint16_t core_temp_kod = ADC_readResult(ADCCRESULT_BASE, CORE_TEMP_SOC_NUM);
-    float32_t temp = (float32_t)core_temp_kod * (CORE_TEMP_VREF / 2.5F);
+    uint16_t core_temp_kod = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER0);
+    float32_t temp = (float32_t)core_temp_kod * (3.3f / 2.5F);
     
     int32_t slope  = (int32_t)ADC_INT_REF_TSSLOPE;   
     int32_t offset = (int32_t)ADC_INT_REF_TSOFFSET;  
@@ -131,11 +131,11 @@ void Core_Temp_Update2(void)
     
     
     // Теперь значение искусственно увеличилось, и деление на slope не занулится!
-    int32_t temp_scaled = (numerator * 4096) / slope; 
+    int32_t temp_scaled = (numerator * 4096.0f) / (float)slope; 
     
     // Результат будет, например, 2550 вместо 25.5 градусов.
     // Для вывода на экран или в лог просто делим на 100 там, где это нужно.
-    core_temp2 = temp_scaled; 
+    core_temp = temp_scaled; 
 }
 
 //--------------------------------------------------------------------------------

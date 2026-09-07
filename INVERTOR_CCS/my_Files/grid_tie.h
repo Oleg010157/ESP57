@@ -76,12 +76,11 @@ struct GridTie
     float Iset;     // ЧТО отдаём сейчас: после нарастания, А
     float IsetSlew; // скорость нарастания, А за период сети
     float Iq;       // реактивная составляющая (по cos), А. 0 = чистая активная
+    float UrefRms;  // уставка Urms острова, В (gridMode=0 → sineB.gain)
 
     //--- измерения -------------------------------------------------------
     float uGrid; // мгновенное напряжение сети (вторичка), В
     float Udc;   // мгновенное напряжение АКБ, В - то, чем делим при расчёте m
-    float Ia_amp;  // ток первички (Ia), А
-    float Ib_amp;  // ток вторички = ток в сеть (Ib), А
 
     // Udc берётся мгновенным, не сглаженным: однофазный мост тянет из АКБ
     // мощность с пульсацией 100 Гц, и прямая связь обязана её видеть.
@@ -89,8 +88,6 @@ struct GridTie
     float    UdcFixed; // подставное значение, В
 
     int16_t uGridKod; // dbg сырые знаковые отсчёты
-    int16_t Ia_kod;
-    int16_t Ib_kod;
 
     //--- масштабы --------------------------------------------------------
     // Ноль канала U220 в кодах АЦП. НЕ берётся из ADCPPB1RESULT: в PPB1
@@ -116,7 +113,7 @@ struct GridTie
     float    mDC;    // поправка к m, безразмерная
     float    kDC;    // коэффициент контура
     float    mDCmax; // жёсткий потолок |mDC|
-    float    Ia_sum; // накопитель среднего Ia_amp за период сети
+    float    Ia_sum; // накопитель среднего iPri_amp за период сети
     uint16_t Ia_cnt; // сколько отсчётов накоплено
     float    Ia_av;  // dbg среднее за прошлый период, А
 
@@ -220,5 +217,6 @@ void grid_tie_background(void); // из фонового цикла main(): вс
 void grid_tie_fault(uint16_t code);
 void grid_tie_start(void);      // запрос пуска: GT_OFF -> GT_SYNC
 void grid_tie_stop(void);       // остановка в GT_OFF, сброс аварии
+void grid_tie_apply_uref(void); // UrefRms → sineB.gain (только остров)
 
 #endif /* GRID_TIE_H_ */

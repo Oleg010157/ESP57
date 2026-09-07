@@ -268,6 +268,23 @@ namespace ICDIBasic
                 ccs.IsrTicker = U(10);
                 ccs.k60Cnt = U(11);
             }
+            if (f2kadrName == "F3_convertor")
+            {
+                M2.ccs.Ia = S(0);
+                M2.ccs.Ib = S(1);
+                M2.ccs.Ic = S(2);
+                M2.ccs.Va = S(3);
+
+                M1.ccs.Vb = S(4);
+                M1.ccs.Vc = S(5);
+                M1.ccs.radian = S(6);
+                M1.ccs.rgOut = S(7);
+
+                M1.ccs.freq = S(8);
+                M1.ccs.gain = U(9);
+                ccs.IsrTicker = U(10);
+                ccs.k60Cnt = U(11);
+            }
             else if (f2kadrName == "F1_invertor")
             {
                 ccs.Ia_kod = S(0);
@@ -684,9 +701,7 @@ namespace ICDIBasic
             bool isDG = (m.DG.Text == "Г");
 
             UpdateControlColor((mbits.Gen_Engine_SW & bits) != 0, isDG, (Control)m.DG);
-            UpdateControlColor((mbits.FOC_mode & bits) != 0, m.FOC.Checked, m.FOC);
             UpdateControlColor((mbits.AIN_Disable & bits) != 0, !m.AIN_Enable.Checked, m.AIN_Enable);
-            UpdateControlColor((mbits.revers & bits) != 0, m.Revers.Checked, m.Revers);
         }
 
         private void UpdateControlColor(bool deviceState, bool uiState, Control control)
@@ -708,8 +723,6 @@ namespace ICDIBasic
       //          tsmConnect.BackColor = Color.Yellow;
             }
 
-            UpdateBitCheckColor(Reverse_cbox, (sbit_val & sbit.Reverse) != 0, Reverse_cbox.Checked);
-            UpdateBitCheckColor(ResolverInverse, (sbit_val & sbit.ResolInverse) != 0, ResolverInverse.Checked);
             UpdateBitCheckColor(btnStartStop, (sbit_val & sbit.Pusk) != 0, btnStartStop.Text == @"Стоп");
         }
 

@@ -55,10 +55,10 @@ void send_REF_kadr()
     //100 -------------------------------------------------------------------------
 #if (ref_kadr_mask & BIT5) == BIT5    // Отправляем ошибки и флаги
   
-    tele[0] = overload.all;
-    tele[1] = motor2.error.all;
-    tele[2] = shr.all;
-    tele[3] = shrTrip.all;
+    tele[0] = 1;// overload.all;
+    tele[1] = 2;//motor2.error.all;
+    tele[2] = 3;//shr.all;
+    tele[3] = 4;//shrTrip.all;
     shrTrip.all = 0xFFFF; // сбрасываем флаги аварийнного отключения  // блок 0 -> ID 100
 
 #endif

@@ -110,6 +110,7 @@ void grid_tie_init(void)
     gt.Iset     = 0.0f;
     gt.IsetSlew = 0.1f; // А за период сети: с нуля до 5 А за секунду
     gt.Iq       = 0.0f;
+    gt.UrefRms  = 220.0f;
 
     gt.u220Zero = 2048.0f; // до первого захвата; дальше - середина вилки
     gt.kU220    = 0.152f;  // В/код: 311 В пика на 2048 кодов. Уточнить при тарировке
@@ -164,6 +165,22 @@ void grid_tie_init(void)
     gt.iSim        = 0.0f;
     gt.uDCinject   = 0.0f;
     gt.uSecApplied = 0.0f;
+
+    grid_tie_apply_uref();
+}
+
+void grid_tie_apply_uref(void)
+{
+    float udc = (gt.Udc > 1.0f) ? gt.Udc : ((gt.UdcFixed > 1.0f) ? gt.UdcFixed : 48.0f);
+    float n   = (gt.n > 0.1f) ? gt.n : 7.0f;
+    float uref = (gt.UrefRms < 0.0f) ? 0.0f : gt.UrefRms;
+    float peakPri = uref * 1.41421356f / n;
+    float g = 2048.0f * peakPri / udc;
+    if (g < 0.0f)
+        g = 0.0f;
+    if (g > 2047.0f)
+        g = 2047.0f;
+    sineB.gain = g;
 }
 
 //---------------------------------------------------------------------------
@@ -293,13 +310,9 @@ void grid_tie_step(void)
         gt.Udc = gt.UdcFixed;
     }
 
-    // Токи. Мы сами и есть прерывание по концу преобразования ADCB (EOC1),
-    // так что здесь лежат отсчёты ТЕКУЩЕГО периода. Прежней задержки на такт
-    // больше нет, осталась только теневая загрузка CMPA по TBCTR = 0.
-    gt.Ia_kod = (int16_t)AdcbResultRegs.ADCPPB1RESULT.bit.PPBRESULT;
-    gt.Ib_kod = (int16_t)AdcbResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
-    gt.Ia_amp    = gt.iSign * kadcf.Ia * (float)gt.Ia_kod;
-    gt.Ib_amp    = gt.iSign * kadcf.Ib * (float)gt.Ib_kod;
+    // Токи читаются в INT_myADCB_1_ISR() в iPri_amp / iSec_amp
+    // (и в островном режиме, и в GridMode). Здесь при необходимости
+    // подменяем их моделью.
 
     //-----------------------------------------------------------------
     // 2. Модель вместо железа
@@ -323,8 +336,8 @@ void grid_tie_step(void)
             gt.iSim = 0.0f;
         }
 
-        gt.Ib_amp = gt.iSim;
-        gt.Ia_amp = gt.iSim * gt.n;
+        iSec_amp = gt.iSim;
+        iPri_amp = gt.iSim * gt.n;
     }
 
     //-----------------------------------------------------------------
@@ -342,9 +355,9 @@ void grid_tie_step(void)
 
     if (gt.State == GT_RAMP || gt.State == GT_RUN)
     {
-        if (fabsf(gt.Ia_amp) > gt.ImaxPri)
+        if (fabsf(iPri_amp) > gt.ImaxPri)
             grid_tie_fault(gt_overIpri);
-        else if (fabsf(gt.Ib_amp) > gt.ImaxSec)
+        else if (fabsf(iSec_amp) > gt.ImaxSec)
             grid_tie_fault(gt_overIsec);
         else if (gt.UdcSrc && ((gt.Udc < gt.UdcMin) || (gt.Udc > gt.UdcMax)))
             grid_tie_fault(gt_UdcRange);
@@ -369,7 +382,7 @@ void grid_tie_step(void)
         if ((gt.Iq != 0.0f) && (gt.State != GT_SYNC))
             gt.iref += gt.Iq * cosf(theta);
 
-        gt.ierr = gt.iref - gt.Ib_amp;
+        gt.ierr = gt.iref - iSec_amp;
 
         // PR: пропорциональная часть плюс резонатор ровно на частоте сети.
         // Состояние сохраняем - при упоре по m его придётся откатить.
@@ -406,7 +419,7 @@ void grid_tie_step(void)
         }
 
         // Накопитель среднего тока первички для контура подавления DC.
-        gt.Ia_sum += gt.Ia_amp;
+        gt.Ia_sum += iPri_amp;
         gt.Ia_cnt++;
     }
     else
@@ -477,8 +490,8 @@ void grid_tie_step(void)
     if (gtTrcRun)
     {
         gtTrcIref[gtTrcIdx] = gt.iref;
-        gtTrcIb[gtTrcIdx]   = gt.Ib_amp;
-        gtTrcIa[gtTrcIdx]   = gt.Ia_amp;
+        gtTrcIb[gtTrcIdx]   = iSec_amp;
+        gtTrcIa[gtTrcIdx]   = iPri_amp;
         gtTrcM[gtTrcIdx]    = gt.m;
 
         if (++gtTrcIdx >= GT_TRC_LEN)
