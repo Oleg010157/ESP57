@@ -27,9 +27,15 @@
       "Read(//C/TI/f29h85x-sdk_26_00_00_00/**)",
       "Read(//C/TI/f29x_motorcontrol_sdk_1.00.00.00/**)",
       "Read(//C/TI/ccs2100/ccs/utils/sysconfig_1.28.0/**)",
-      "Read(//C/TI/ti_cgt_c29_2.0.0.STS/**)"
+      "Read(//C/TI/ti_cgt_c29_2.0.0.STS/**)",
+      "mcp__ccs-debug",
+      "mcp__ccs-project",
+      "mcp__ccs-sysconfig",
+      "mcp__ccs-serial"
     ],
-    "ask": [],
+    "ask": [
+      "mcp__ccs-project__changeSysConfigVersion"
+    ],
     "additionalDirectories": [
       "C:\\ti\\C2000Ware_26_01_00_00\\driverlib\\f28p55x\\driverlib\\inc"
     ]

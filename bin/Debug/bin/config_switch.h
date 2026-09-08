@@ -4,7 +4,7 @@
 #include "f28p55x_device.h"
 #include "inc/stw_types.h"
 
-#define KSP_ID_STRING "K55  08.08.2026  start F28P55"
+#define KSP_ID_STRING "K57  07.09.2026  debug fast Wscope"
 #define FAST_FRAME_STRING "F3_ui.h" // Строка ini файла быстрого кадра - имя.h
 
 #define TOOTH_FRAME_STRING "Tooth_1234.h" // Строка ini файла зуб кадра - имя.ini

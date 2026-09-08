@@ -59,9 +59,7 @@ void QEP_Calc(QEPpar *p, volatile struct EQEP_REGS *reg);
 void  Reset_stend_filtr(void);
 void  ePWM_load();
 void  ReadError();
-void  Send_FastKadr();
 void  Send_Tooth_Data(void);
-void  SPL_UI();
 float saturfloat(float input, float high, float low);
 
 #if dbgUdc
@@ -83,11 +81,11 @@ void MainISR(void)
     IsrTicker++; // номер прерывания
 
 #if (CalcMotor1)
-    MotorCalc(&motor1);
+    // MotorCalc удалён из проекта
 #endif
 
 #if (CalcMotor2)
-    MotorCalc(&motor2);
+    // MotorCalc удалён из проекта
 #endif
 
     // загрузка нового значения CMPA в PWM секцию
@@ -112,12 +110,8 @@ void MainISR(void)
  //   uint32_t txbrp = McanaRegs.MCAN_TXBRP;
     uint32_t txbrp = HWREG_BP(MCANA_DRIVER_BASE + MCAN_TXBRP);
 
-    // Быстрый кадр — все режимы на буфер 1 (DLC задан в MBOX28). Проверяем, что буфер 1 свободен.
-    if (canaKadr.bit.F3_invertor == 1)
-        if ((txbrp & 2) == 0U)
-            SPL_UI();                                           // 24 байта (DLC=12)
+    // Быстрый кадр F3 выключен вместе с CANA_UI.c
 
- 
     if (canaKadr.bit.F1_invertor == 1)
         if ((txbrp & 2) == 0U)
         {

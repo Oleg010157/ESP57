@@ -82,7 +82,7 @@ void IparkToUrms(motor *m);
 
 void CPU_TimersInit(void);
 void MainISR(void);
-void RMS(motor *m);
+
 
 
 #if MCANA
@@ -449,7 +449,6 @@ void Reset_stop(motor *v) // сброс по кнопке СТОП
     v->clark.UmF = 0;
 }
 
-//---------------------------------------------------------------------------
 void PUSK_Init(motor *v) // сброс по кнопке ПУСК
 {
     // установка положения вектора напряжения
@@ -460,15 +459,7 @@ void PUSK_Init(motor *v) // сброс по кнопке ПУСК
 
     v->error.all = 0;
 
-    // сброс аккумуляторов суммы
-
     cs.Pain_sum = 0;
-
-    // установка начала рекурентных фильтров измерения токов
-    //  Ia_rf = 0;
-    //  Ib_rf = 0;
-    //Ic_rf = 0;
-
     cla.Pabc_rf = 0;
 
     // Кларк фильтры
@@ -489,3 +480,42 @@ void PUSK_Init(motor *v) // сброс по кнопке ПУСК
     v->slip.absF  = 0;
     v->slip.procF = 0;
 }
+
+void motor_init(motor *v)
+{
+    v->park.phaza = 0;
+    v->park.VdF   = 0;
+    v->park.VqF   = 0;
+
+    v->svgen.Ta = 0.5f;
+    v->svgen.Tb = 0.5f;
+    v->svgen.Tc = 0.5f;
+
+    v->ipark.Vdf    = 0;
+    v->ipark.Vqf    = 0;
+    v->ipark.Vd_lim = 0;
+    v->ipark.Vq_lim = 0;
+
+    v->qep.n3 = 0;
+
+    v->ref.piRPM_max_Gen = 100;
+
+    v->rg.dopusk = 60.0f / 360.0f;
+    v->rg.epsv   = 0;
+    v->rg.epsi   = 0;
+
+    v->mbit.bit.Ltest = 0;
+
+    v->ramp.ref  = 0;
+    v->ramp.dout = 0;
+    v->freq      = 0;
+
+    PUSK_Init(v);
+
+    v->clark.Ia   = 0;
+    v->clark.Ib   = 0;
+    v->clark.klow = 0;
+    v->delay      = 0;
+    v->clark.ku01 = 1;
+}
+

@@ -122,102 +122,12 @@ void KeyOnInit(motor *v)
     v->park.kVq = 1 / sqrt2;
 
     v->typeID.kTe = 1;
-
-
-}
-void motID_Init(motor *v)
-{
-    //----------------- Initialize typeID on CPU Reset
-    //----------------------------------------------------
-
-    v->typeID.motID = motSRD;
-    v->typeID.pole_pair = 2;
-    v->typeID.toothNum = 80;
-
-    v->typeID.Rs = 24550; // mkOm
-    v->typeID.Rr = 11300; // mkOm
-    v->typeID.Ls = 5030;  // mkH
-    v->typeID.Lr = 1290;  // mkH
-    v->typeID.Lm = 31500; // mkH
-
-    v->typeID.Inom = 280;
-    v->typeID.Unom = 530;
-    v->typeID.Fnom = 1290;
-    v->typeID.Pnom = 80;
-    v->typeID.J = 0.1;
-
-    v->typeID.dVd_max = 1; // Volt
-    v->typeID.dVq_max = 1; // Volt
-    v->typeID.kEd = 1.016e-4;
-    v->typeID.kEq = 1.016e-4;
-    change_motID(v);
-    //-------------------------------------------------------------------------------------------
 }
 
-void motor_init(motor *v)
+void SRD_Init(motor *m)
 {
-    v->park.phaza = 0;
-    v->park.VdF = 0;
-    v->park.VqF = 0;
-//--------------------------------------------------------
-#if dbgIfull
-  v->imit.ImF = 0;
-  v->imit.Slip = 0;
-  v->imit.We = 1;
-  v->imit.Us = 0;
-  v->imit.Es = 0;
-  v->imit.Is = 0;
-  v->imit.dIs = 0;
-  v->imit.dIr = 0;
-  v->imit.Ir = 0;
-  v->imit.Im = 0;
-  v->imit.rpm = 0;
-
-#endif
-
-    v->svgen.Ta = 0.5f;
-    v->svgen.Tb = 0.5f;
-    v->svgen.Tc = 0.5f;
-  
-    v->ipark.Vdf = 0;
-    v->ipark.Vqf = 0;
-    v->ipark.Vd_lim = 0;
-    v->ipark.Vq_lim = 0;
-
-    v->qep.n3 = 0;
-
-    v->ref.piRPM_max_Gen = 100;
-
-    v->rg.dopusk = 60.0f / 360.0f; // 90 эл.градусов
-
-    v->rg.epsv = 0;
-    v->rg.epsi = 0;
-
-    v->mbit.bit.Ltest = 0;
-
-    // RAMP module
-
-    v->ramp.ref = 0;
-    v->ramp.dout = 0;
-    v->freq = 0;
-
-    PUSK_Init(v);
-    KeyOnInit(v);
-    motID_Init(v);
-
-    v->clark.Ia = 0;
-    v->clark.Ib = 0;
-    v->clark.klow = 0;
-    v->delay = 0;
-    v->clark.ku01 = 1;
-
-#if T_SHEMA
-  v->sh.We = 0;
-  v->sh.freq = 0;
-  v->sh.A_Fr = 0;
-  v->sh.A_Is = 0;
-#endif
-
+    PUSK_Init(m);
+    KeyOnInit(m);
 }
 
 //***************************************************************

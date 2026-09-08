@@ -19,7 +19,7 @@
 
 
 
-void RMS(motor *m);
+
 void Um_Lim(motor *m, float Urms);
 void fizika(motor *m);
 void tok_immit(motor *m);
@@ -28,7 +28,7 @@ void T_shema (motor *m);
 void clark(motor *v);
 
 void KeyOnInit(motor *v);
-void PUSK_Init(motor *v);
+
 void park(motor *v);
 
 
