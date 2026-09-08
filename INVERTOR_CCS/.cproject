@@ -127,7 +127,7 @@
                     <sourceEntries>
                         <entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="driverlib/inc"/>
                         <entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="driverlib/ccs"/>
-                        <entry excluding="KSP/CANA_UI.c|KSP/MotorCalc.c|KSP/Power.c|bitfield_source/f28p55x_sysctrl.c|bitfield_source/f28p55x_gpio.c|driverlib|Debug.syscfg|my_Files/Bootloader/app_boot_request.c|my_Files/Bootloader/can_bootloader.c|28p55x_generic_flash_lnk.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry excluding="bitfield_source/f28p55x_sysctrl.c|bitfield_source/f28p55x_gpio.c|driverlib|Debug.syscfg|my_Files/Bootloader/app_boot_request.c|my_Files/Bootloader/can_bootloader.c|28p55x_generic_flash_lnk.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
                     </sourceEntries>
                 </configuration>
             </storageModule>

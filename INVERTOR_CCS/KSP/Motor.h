@@ -597,14 +597,13 @@ typedef struct
 // Function prototype
 void motor_init(motor *v);
 
-void MotorCalc(motor *v);
-
 //void currentTest(motor *v);
 
 void CUR_MOD(motor *m);
 void CUR_CONST(motor *m);
 
-extern motor motor1, motor2;
-extern STEND stend;
+extern motor  motor1, motor2;
+extern motor *motors[2];
+extern STEND  stend;
 
 #endif /* MOTOR_H_ */

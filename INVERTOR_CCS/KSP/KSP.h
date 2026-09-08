@@ -15,7 +15,6 @@
 #include "PARAMS_INOUT.h"
 #include "PARAMS_ModeSwitch.h"
 #include "FLAGZ.h"
-#include "MotorCalc.h"
 #include "QEP_RPM.h"
 
 #include "Errors.h"

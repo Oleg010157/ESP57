@@ -129,34 +129,28 @@ namespace ICDIBasic
         }
 
         /// <summary>
-        /// Консолидированный медленный кадр ID 140 (64 байта) = 8 блоков по 4 слова.
-        /// Каждый блок разбирается тем же ProcessFrameXXX, что и раньше отдельный 8-байтный кадр.
-        /// Порядок блоков задаётся MCU (REF_Kadr.c send_REF_kadr): 100,101,102,106,107,109,118,116.
-        /// Порядок байт little-endian — как в Kadr60Rx.
+        /// Компактный медленный кадр ID 140: 32 байта = 16 слов.
+        /// Формат MCU (REF_Kadr.c):
+        /// 0..3   = error1,error2,sbit,shrTrip
+        /// 4..7   = Ia_rf,Ib_rf,Udc_rf,CoreT
+        /// 8..11  = f1_ref,f1_act,f2_ref,f2_act
+        /// 12..15 = gain1,gain2,flags1,flags2
         /// </summary>
         private void Parse140(TPCANMsgFD msg)
         {
             byte[] d = msg.DATA;
 
-            // Чтение 16-битного слова по абсолютному индексу слова (0..31).
             ushort W(int w) => (ushort)((d[w * 2 + 1] << 8) | d[w * 2]);
 
-            // Блок 0 (слова 0..3)   -> ID 100  (msg не используется в теле ProcessFrame100)
             ProcessFrame100(W(0), W(1), W(2), W(3));
-            // Блок 1 (слова 4..7)   -> ID 101  (цикл по u4)
-            ProcessFrame101(W(4), W(5), W(6), W(7), (short)W(4), (short)W(5), (short)W(6));
-            // Блок 2 (слова 8..11)  -> ID 102  (цикл по u4)
-            ProcessFrame102(W(8), W(9), W(10), W(11), (short)W(8), (short)W(9), (short)W(10));
-            // Блок 3 (слова 12..15) -> ID 106  (цикл по u4)
-            ProcessFrame106((short)W(12), (short)W(13), (short)W(14), (short)W(15), W(15));
-            // Блок 4 (слова 16..19) -> ID 107
-            ProcessFrame107((short)W(16), (short)W(17), (short)W(18), (short)W(19));
-            // Блок 5 (слова 20..23) -> ID 109
-            ProcessFrame109(W(20), W(21), W(22), W(23));
-            // Блок 6 (слова 24..27) -> ID 118
-            ProcessFrame118((short)W(24), (short)W(25), (short)W(26), (short)W(27));
-            // Блок 7 (слова 28..31) -> ID 116  (цикл по u4)
-            ProcessFrame116(W(28), W(29), W(30), W(31), (short)W(28), (short)W(29), (short)W(30));
+
+            M1.ccs.Ia_av  = (short)W(4);
+            M1.ccs.Ib_av  = (short)W(5);
+            ccs.Udc_av    = (short)W(6);
+            ccs.core_temp = (short)W(7);
+
+            ProcessFrame107((short)W(8), (short)W(9), (short)W(10), (short)W(11));
+            ProcessFrame109(W(12), W(13), W(14), W(15));
         }
 
         #region Frame Processors

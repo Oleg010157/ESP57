@@ -80,22 +80,15 @@ void MainISR(void)
 
     IsrTicker++; // номер прерывания
 
-#if (CalcMotor1)
-    // MotorCalc удалён из проекта
-#endif
-
-#if (CalcMotor2)
-    // MotorCalc удалён из проекта
-#endif
 
     // загрузка нового значения CMPA в PWM секцию
 
     DINT;
   
     {
-        EPwm2Regs.CMPA.bit.CMPA = timeBasePeriod * (1.0F + motor1.svgen.Ta) / 2;
-        EPwm3Regs.CMPA.bit.CMPA = timeBasePeriod * (1.0F + motor1.svgen.Tb) / 2;
-        EPwm4Regs.CMPA.bit.CMPA = timeBasePeriod * (1.0F + motor1.svgen.Tc) / 2;
+        EPwm2Regs.CMPA.bit.CMPA = timeBasePeriod * (1.0F + motors[0]->svgen.Ta) / 2;
+        EPwm3Regs.CMPA.bit.CMPA = timeBasePeriod * (1.0F + motors[0]->svgen.Tb) / 2;
+        EPwm4Regs.CMPA.bit.CMPA = timeBasePeriod * (1.0F + motors[0]->svgen.Tc) / 2;
     }
     EINT;
 

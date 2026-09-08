@@ -182,10 +182,9 @@ void MCAN_initTxBuffer(uint16_t bufNum, uint16_t msgId, uint16_t dlc, uint16_t b
 // myMCAN.h MCAN_TX_BUFF_ELEM_SIZE). Размер хранения элемента != длина кадра: мелкие кадры
 // (ACK, 131, 132, fast) по-прежнему шлются с DLC=8, просто занимают 64-байтные слоты.
 //
-// Медленная телеметрия консолидирована: 8 прежних кадров (100,101,102,106,107,109,118,116)
-// = 32 слова = ровно 64 байта -> ОДИН кадр ID 140, DLC=15 (64 байта FD+BRS), буфер 6.
-// Заполняется в send_REF_kadr() (REF_Kadr.c) через Send_mbox_FD и разбирается в UI
-// (Parse140 -> существующие ProcessFrame100..118).
+// Медленная телеметрия консолидирована в компактный кадр ID 140:
+// 16 слов = 32 байта -> DLC=13 (FD+BRS), буфер 2.
+// Заполняется в send_REF_kadr() (REF_Kadr.c) и разбирается в UI (Parse140).
 //
 // Приоритет M_CAN = по наименьшему Message ID. ACK=1 (высший), fast=103/104/110, ошибки=131/132,
 // консолидированный медленный=140 (низший) -> большой 64-байтный кадр не задерживает остальные.
@@ -196,7 +195,7 @@ void MCAN_initAllTxBuffers(void)
     MCAN_initTxBuffer(  0,   1,     8,   1,   1);  // ACK
     MCAN_initTxBuffer(  1, 103,    12,   1,   1);  // быстрый кадр: F1=8б(DLC8) / F3=24б(DLC12).
                                                   // DLC переключается в MBOX28 (MCAN_setFastDLC).
-    MCAN_initTxBuffer(  2, 140,    15,   1,   1);  //  REF кадр (64 байта)
+    MCAN_initTxBuffer(  2, 140,    13,   1,   1);  //  REF кадр (32 байта)
     MCAN_initTxBuffer(  3, 131,     8,   1,   1);  // Kadr60: K60cnt
     MCAN_initTxBuffer(  4, 132,     8,   1,   1);  // Errors/main
 }

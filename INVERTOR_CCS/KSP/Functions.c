@@ -27,7 +27,7 @@ void change_Tpwm()
  */
 
     Tpwm = (((Uint32) timeBasePeriod * 2) << EPwm2Regs.TBCTL.bit.CLKDIV) / (float) (SYSTEM_FREQUENCY);
-    motor1.rg.k_AF = motor1.typeID.pole_pair / 60.0f * PI2 * Tpwm / 1000000.0f; // радиан за миллисекунду
+    motors[0]->rg.k_AF = motors[0]->typeID.pole_pair / 60.0f * PI2 * Tpwm / 1000000.0f; // радиан за миллисекунду
 }
 
 void write_pwmCLKDIV(uint16_t div)

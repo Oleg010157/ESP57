@@ -2557,6 +2557,26 @@ namespace ICDIBasic
                     _ = zero.Focus();
                     break;
 
+                case 10: // ACK AIN1 Enable/Disable
+                    AIN1_Enable.BackColor = Color.Empty;
+                    AIN1_Enable.Checked   = (d1 == 0);
+                    break;
+
+                case 11: // ACK AIN2 Enable/Disable
+                    AIN2_Enable.BackColor = Color.Empty;
+                    AIN2_Enable.Checked   = (d1 == 0);
+                    break;
+
+                case 60: // ACK DG1
+                    DG1.BackColor = Color.Empty;
+                    DG1.Text      = (d1 == 1) ? "Г" : "Д";
+                    break;
+
+                case 61: // ACK DG2
+                    DG2.BackColor = Color.Empty;
+                    DG2.Text      = (d1 == 1) ? "Г" : "Д";
+                    break;
+
                 case 22: // кнопка "Load_Mode_L"
                     M1.load.modeL.BackColor = Color.Empty;
                     break;

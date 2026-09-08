@@ -66,7 +66,6 @@ motor       *mfast = &motor1;
 extern long fref1, fref2; // заданная частота поля АИН1, АИН2   0.1 об/мин
 //extern bool TXN, Fs;
 extern bool     Fs;
-extern uint16_t P15Kadr; // число определяет набор параметров 15-го MBOX
 
 #if dbgIfull
 extern int Udc_imit;
@@ -97,10 +96,9 @@ void Reset_stend_filtr(void);
 
 
 //06/02/2018
-motor        *mot28 = &motor1; //определяет номер (адресс) АИНа
-extern motor *mfast;
+motor       *mot28 = &motor1; //определяет номер (адресс) АИНа
 
-extern REFs  REF;
+extern REFs REF;
 SharpMode    sharpMode;
 extern float emstep; // шаг приращения EPS;
 uint16_t     BrRes1_Val = 0;
@@ -206,8 +204,8 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             IGBT1_Disable();
             IGBT2_Disable();
             // sharp2.all = 0;
-            motor_init(&motor1);
-            motor_init(&motor2);
+            motor_init(motors[0]);
+            motor_init(motors[1]);
 
             // команда запуска REF кадра по CANA
             CpuTimer0Regs.PRD.all     = mSecond(50); // период таймера Т0 в миллисекундах
@@ -267,14 +265,14 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             //------------------------------------------------------------
             // сбрасываем галочку Enable AIN
         case 10: // Disable  AIN1 data1 =1    IGBT as In Pin )
-            motor1.mbit.bit.AIN_Disable = data1;
+            motors[0]->mbit.bit.AIN_Disable = data1;
             if (data1 == 1)
                 IGBT1_Disable();
             SendAck(data1, data2, data3, cmd);
             break;
 
         case 11: // Disable  AIN2  if data1 =1  IGBT as In Pin   )
-            motor2.mbit.bit.AIN_Disable = data1;
+            motors[1]->mbit.bit.AIN_Disable = data1;
             if (data1 == 1)
                 IGBT2_Disable();
             SendAck(data1, data2, data3, cmd);
@@ -295,15 +293,15 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             if (data2 == 3333)
             {
                 if (data1 == 1)
-                    mot28 = &motor1;
+                    mot28 = motors[0];
                 else if (data1 == 2)
 
-                    mot28 = &motor2;
+                    mot28 = motors[1];
             }
 
-            if (mot28 == &motor1)
+            if (mot28 == motors[0])
                 data1 = 1;
-            else if (mot28 == &motor2)
+            else if (mot28 == motors[1])
                 data1 = 2;
 
             SendAck(data1, data2, data3, cmd);
@@ -317,14 +315,14 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
         case 22:
             if (data2 == 3333)
-                motor1.mode.bit.LL = data1;
-            SendAck(motor1.mode.bit.LL, data2, data3, cmd);
+                motors[0]->mode.bit.LL = data1;
+            SendAck(motors[0]->mode.bit.LL, data2, data3, cmd);
             break;
 
         case 23:
             if (data2 == 3333)
-                motor2.mode.bit.LL = data1;
-            SendAck(motor2.mode.bit.LL, data2, data3, cmd);
+                motors[1]->mode.bit.LL = data1;
+            SendAck(motors[1]->mode.bit.LL, data2, data3, cmd);
             break;
 
         case 24:                                        // Запрос IDprom_
@@ -336,19 +334,19 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             {
                 if (data1 == 1)
                 {
-                    mfast            = &motor1;
+                    mfast            = motors[0];
                     sbit.bit.motfast = 0;
                 }
                 else if (data1 == 2)
                 {
-                    mfast            = &motor2;
+                    mfast            = motors[1];
                     sbit.bit.motfast = 1;
                 }
             }
 
-            if (mfast == &motor1)
+            if (mfast == motors[0])
                 data1 = 1;
-            else if (mfast == &motor2)
+            else if (mfast == motors[1])
                 data1 = 2;
 
             SendAck(data1, data2, data3, cmd);
@@ -359,19 +357,19 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             {
                 if (data1 == 1)
                 {
-                    mK60            = &motor1;
+                    mK60            = motors[0];
                     sbit.bit.motK60 = 0;
                 }
                 else if (data1 == 2)
                 {
-                    mK60            = &motor2;
+                    mK60            = motors[1];
                     sbit.bit.motK60 = 1;
                 }
             }
 
-            if (mK60 == &motor1)
+            if (mK60 == motors[0])
                 data1 = 1;
-            else if (mK60 == &motor2)
+            else if (mK60 == motors[1])
                 data1 = 2;
 
             SendAck(data1, data2, data3, cmd);
@@ -393,31 +391,31 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
         case 50:
             if (data2 == 3333)
             {
-                motor1.ref.sMax         = (long)(data1) * 100000;
-                motor1.mbit.bit.sMax_On = data3; // включить или выключить ограничение по скольжению
+                motors[0]->ref.sMax         = (long)(data1) * 100000;
+                motors[0]->mbit.bit.sMax_On = data3; // включить или выключить ограничение по скольжению
             }
 
-            data3 = (motor1.mbit.bit.sMax_On) ? 1 : 0;
-            SendAck((uint16_t)(motor1.ref.sMax / 100000), data2, data3, cmd);
+            data3 = (motors[0]->mbit.bit.sMax_On) ? 1 : 0;
+            SendAck((uint16_t)(motors[0]->ref.sMax / 100000), data2, data3, cmd);
             break;
 
         case 51:
             if (data2 == 3333)
             {
-                motor2.ref.sMax         = (long)(data1) * 100000;
-                motor2.mbit.bit.sMax_On = data3; // включить или выключить ограничение по скольжению
+                motors[1]->ref.sMax         = (long)(data1) * 100000;
+                motors[1]->mbit.bit.sMax_On = data3; // включить или выключить ограничение по скольжению
             }
 
-            data3 = (motor2.mbit.bit.sMax_On) ? 1 : 0;
-            SendAck((uint16_t)(motor2.ref.sMax / 100000), data2, data3, cmd);
+            data3 = (motors[1]->mbit.bit.sMax_On) ? 1 : 0;
+            SendAck((uint16_t)(motors[1]->ref.sMax / 100000), data2, data3, cmd);
             break;
 
         case 52: // сброс интегральных составляющих пи- регуляторов
-            motor1.piRPM.i1  = 0;
-            motor1.piIq.i1   = 0;
-            motor1.piId.i1   = 0;
-            motor1.piIm.i1   = 0;
-            motor1.piEPSI.i1 = 0;
+            motors[0]->piRPM.i1  = 0;
+            motors[0]->piIq.i1   = 0;
+            motors[0]->piId.i1   = 0;
+            motors[0]->piIm.i1   = 0;
+            motors[0]->piEPSI.i1 = 0;
             break;
 
         case 53: // Защитные значения для токов ( PWM off)
@@ -495,10 +493,10 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
         case 58:
             if (data2 == 3333)
             {
-                motStrob = (data1 == 1) ? &motor1 : &motor2;
+                motStrob = (data1 == 1) ? motors[0] : motors[1];
                 qepRegs  = (data1 == 1) ? &EQep1Regs : &EQep2Regs;
             }
-            data1 = (motStrob == &motor1) ? 1 : 2;
+            data1 = (motStrob == motors[0]) ? 1 : 2;
             SendAck(data1, data2, data3, cmd);
             break;
 
@@ -512,11 +510,13 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             SendAck(sharpMode.bits.rpm_Mode, data2, data3, cmd);
             break;
         case 60:
-            motor1.mbit.bit.Gen_Engine_SW = data1;
+            motors[0]->mbit.bit.Gen_Engine_SW = data1;
+            SendAck(motors[0]->mbit.bit.Gen_Engine_SW, data2, data3, cmd);
             break;
 
         case 61:
-            motor2.mbit.bit.Gen_Engine_SW = data1;
+            motors[1]->mbit.bit.Gen_Engine_SW = data1;
+            SendAck(motors[1]->mbit.bit.Gen_Engine_SW, data2, data3, cmd);
             break;
 
         case 62: // изменение timeBasePeriod и соответственно Tpwm (data1 = период ШИМ в мкс если CLKDIV =0)
@@ -666,8 +666,8 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
                                      //   DacbRegs.DACVALS.all = 2048;  // dbg
 
 #if dbgIfull
-            motor1.imit.ImF = 0;
-            motor2.imit.ImF = 0;
+            motors[0]->imit.ImF = 0;
+            motors[1]->imit.ImF = 0;
 #endif
             break;
 
@@ -758,12 +758,12 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
         case 73: // приём sAbs
             if (data2 == 3333)
             {
-                motor1.ref.sAbs      = (long)data1;
-                motor1.mode.bit.load = data3;
+                motors[0]->ref.sAbs      = (long)data1;
+                motors[0]->mode.bit.load = data3;
             }
 
-            //     data3 = motor1.mode.bit.load;
-            SendAck((uint16_t)motor1.ref.sAbs, data2, motor1.mode.bit.load, cmd);
+            //     data3 = motors[0]->mode.bit.load;
+            SendAck((uint16_t)motors[0]->ref.sAbs, data2, motors[0]->mode.bit.load, cmd);
             break;
 
         case 74:
@@ -775,22 +775,22 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
         case 75: // приём mREF.gain1
 
-            Gain_Selector(&motor1, data1, data2, data3, cmd);
+            Gain_Selector(motors[0], data1, data2, data3, cmd);
             break;
 
         case 76: // приём REF.gain2
-            Gain_Selector(&motor2, data1, data2, data3, cmd);
+            Gain_Selector(motors[1], data1, data2, data3, cmd);
 
             break;
 
         case 77: // приём sAbs
             if (data2 == 3333)
             {
-                motor2.ref.sAbs      = (long)data1;
-                motor2.mode.bit.load = data3;
+                motors[1]->ref.sAbs      = (long)data1;
+                motors[1]->mode.bit.load = data3;
             }
-            data3 = motor2.mode.bit.load;
-            SendAck((uint16_t)motor2.ref.sAbs, data2, motor2.mode.bit.load, cmd);
+            data3 = motors[1]->mode.bit.load;
+            SendAck((uint16_t)motors[1]->ref.sAbs, data2, motors[1]->mode.bit.load, cmd);
             break;
 
             //------------------------------------------------------------------------------------------------
@@ -801,55 +801,55 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
         case 79:
             if (data2 == 3333)
             {
-                motor1.mode.bit.load = data1;
+                motors[0]->mode.bit.load = data1;
             }
-            SendAck(motor1.mode.bit.load, data2, data3, cmd);
+            SendAck(motors[0]->mode.bit.load, data2, data3, cmd);
             break;
 
         case 80:
             if (data2 == 3333)
             {
-                motor2.mode.bit.load = data1;
+                motors[1]->mode.bit.load = data1;
             }
-            SendAck(motor2.mode.bit.load, data2, data3, cmd);
+            SendAck(motors[1]->mode.bit.load, data2, data3, cmd);
             break;
             //----------------------------------------------------------------------------------------------------------------------------------
 
         case 810: // меняем тип двигателя для выбранного (mot28) АИН, если выключен  PWM
-            if (motor1.flag.bit.pwm_On == 0)
+            if (motors[0]->flag.bit.pwm_On == 0)
             {
-                motor1.typeID.motID     = data1;
-                motor1.typeID.toothNum  = data2;
-                motor1.typeID.pole_pair = data3;
+                motors[0]->typeID.motID     = data1;
+                motors[0]->typeID.toothNum  = data2;
+                motors[0]->typeID.pole_pair = data3;
 #if (QEP1_Sensor != 0)
                 //           QEP_Init(&motor1.qep, &EQep1Regs);
 #endif
             }
-            SendAck(motor1.typeID.motID, motor1.typeID.pole_pair, motor1.typeID.pole_pair, cmd);
+            SendAck(motors[0]->typeID.motID, motors[0]->typeID.pole_pair, motors[0]->typeID.pole_pair, cmd);
             break;
         case 811: // меняем параметры двигателя для АИН-1
-            motor1.typeID.Rs = data1;
-            motor1.typeID.Rr = data2;
-            motor1.typeID.Ls = data3;
-            SendAck(motor1.typeID.motID, motor1.typeID.Rr, motor1.typeID.Ls, cmd);
+            motors[0]->typeID.Rs = data1;
+            motors[0]->typeID.Rr = data2;
+            motors[0]->typeID.Ls = data3;
+            SendAck(motors[0]->typeID.motID, motors[0]->typeID.Rr, motors[0]->typeID.Ls, cmd);
             break;
         case 812: // меняем параметры двигателя для АИН-1
-            motor1.typeID.Lr   = data1;
-            motor1.typeID.Lm   = data2;
-            motor1.typeID.Inom = data3;
-            SendAck(motor1.typeID.motID, motor1.typeID.Lm, motor1.typeID.Inom, cmd);
+            motors[0]->typeID.Lr   = data1;
+            motors[0]->typeID.Lm   = data2;
+            motors[0]->typeID.Inom = data3;
+            SendAck(motors[0]->typeID.motID, motors[0]->typeID.Lm, motors[0]->typeID.Inom, cmd);
             break;
 
         case 813: // меняем параметры двигателя для АИН-1
-            motor1.typeID.Unom = data1;
-            motor1.typeID.Fnom = data2;
-            motor1.typeID.Pnom = data3;
-            SendAck(motor1.typeID.motID, 0, 0, cmd);
+            motors[0]->typeID.Unom = data1;
+            motors[0]->typeID.Fnom = data2;
+            motors[0]->typeID.Pnom = data3;
+            SendAck(motors[0]->typeID.motID, 0, 0, cmd);
 
-            change_motID(&motor1);
+            change_motID(motors[0]);
 
 #if aci_fe
-            ACIFE_CONST_CALC(&motor1);
+            ACIFE_CONST_CALC(motors[0]);
 #endif
             break;
 #if aci_fe
@@ -872,35 +872,35 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             //------------------------------------------------------------------------------------------------------------------------------------
 
         case 820:                            // меняем тип двигателя для АИН-2, если выключен  PWM2
-            if (motor2.flag.bit.pwm_On == 0) //
+            if (motors[1]->flag.bit.pwm_On == 0) //
             {
-                motor2.typeID.motID     = data1;
-                motor2.typeID.toothNum  = data2;
-                motor2.typeID.pole_pair = data3;
+                motors[1]->typeID.motID     = data1;
+                motors[1]->typeID.toothNum  = data2;
+                motors[1]->typeID.pole_pair = data3;
             }
-            SendAck(motor2.typeID.motID, motor2.typeID.pole_pair, motor2.typeID.pole_pair, cmd);
+            SendAck(motors[1]->typeID.motID, motors[1]->typeID.pole_pair, motors[1]->typeID.pole_pair, cmd);
             break;
 
         case 821: // меняем параметры двигателя для АИН-1
-            motor2.typeID.Rs = data1;
-            motor2.typeID.Rr = data2;
-            motor2.typeID.Ls = data3;
-            SendAck(motor2.typeID.motID, motor2.typeID.Rr, motor2.typeID.Ls, cmd);
+            motors[1]->typeID.Rs = data1;
+            motors[1]->typeID.Rr = data2;
+            motors[1]->typeID.Ls = data3;
+            SendAck(motors[1]->typeID.motID, motors[1]->typeID.Rr, motors[1]->typeID.Ls, cmd);
             break;
         case 822: // меняем параметры двигателя для АИН-1
-            motor2.typeID.Lr   = data1;
-            motor2.typeID.Lm   = data2;
-            motor2.typeID.Inom = data3;
-            SendAck(motor2.typeID.motID, motor2.typeID.Lm, motor2.typeID.Inom, cmd);
+            motors[1]->typeID.Lr   = data1;
+            motors[1]->typeID.Lm   = data2;
+            motors[1]->typeID.Inom = data3;
+            SendAck(motors[1]->typeID.motID, motors[1]->typeID.Lm, motors[1]->typeID.Inom, cmd);
             break;
         case 823: // меняем параметры двигателя для АИН-2
-            motor2.typeID.Unom = data1;
-            motor2.typeID.Fnom = data2;
-            motor2.typeID.Pnom = data3;
+            motors[1]->typeID.Unom = data1;
+            motors[1]->typeID.Fnom = data2;
+            motors[1]->typeID.Pnom = data3;
 
-            SendAck(motor2.typeID.motID, 0, 0, cmd);
+            SendAck(motors[1]->typeID.motID, 0, 0, cmd);
 
-            change_motID(&motor2);
+            change_motID(motors[1]);
             break;
 
             //------------------------------------------------------------------------------------------------------------------------------------
@@ -988,7 +988,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             {
                 mot28->typeID.toothNum = data1;
 
-                if (mot28 == &motor1)
+                if (mot28 == motors[0])
                 {
                     //                QEP_Init(&motor1.qep, &EQep1Regs);
                     data3 = 1;
@@ -1039,20 +1039,20 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
         case 192:
             if (data2 == 3333)
-                motor1.ref.Iq = (float)data1;
+                motors[0]->ref.Iq = (float)data1;
             if (data2 == 5555)
-                motor1.mbit.bit.Iq_ref = data3;
-            data3 = (motor1.mbit.bit.Iq_ref) ? 1 : 0;
-            SendAck(rounding(motor1.ref.Iq), data2, data3, cmd);
+                motors[0]->mbit.bit.Iq_ref = data3;
+            data3 = (motors[0]->mbit.bit.Iq_ref) ? 1 : 0;
+            SendAck(rounding(motors[0]->ref.Iq), data2, data3, cmd);
             break;
 
         case 1921:
             if (data2 == 3333)
-                motor2.ref.Iq = (float)data1;
+                motors[1]->ref.Iq = (float)data1;
             if (data2 == 5555)
-                motor2.mbit.bit.Iq_ref = data3;
-            data3 = (motor2.mbit.bit.Iq_ref) ? 1 : 0;
-            SendAck(rounding(motor2.ref.Iq), data2, data3, cmd);
+                motors[1]->mbit.bit.Iq_ref = data3;
+            data3 = (motors[1]->mbit.bit.Iq_ref) ? 1 : 0;
+            SendAck(rounding(motors[1]->ref.Iq), data2, data3, cmd);
             break;
 
         case 193:
@@ -1074,37 +1074,37 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             if (data2 == 3333)
 
             {
-                motor1.piIq.Kp = (float)data1 / 1000;
-                motor2.piIq.Kp = (float)data1 / 1000;
+                motors[0]->piIq.Kp = (float)data1 / 1000;
+                motors[1]->piIq.Kp = (float)data1 / 1000;
             }
-            SendAck(rounding(motor1.piIq.Kp * 1000.0f), data2, data3, cmd);
+            SendAck(rounding(motors[0]->piIq.Kp * 1000.0f), data2, data3, cmd);
             break;
 
         case 195:
             if (data2 == 3333)
             {
-                motor1.piIq.Ki = (float)data1 / 1000;
-                motor2.piIq.Ki = (float)data1 / 1000;
+                motors[0]->piIq.Ki = (float)data1 / 1000;
+                motors[1]->piIq.Ki = (float)data1 / 1000;
             }
-            SendAck(rounding(motor1.piIq.Ki * 1000.0f), data2, data3, cmd);
+            SendAck(rounding(motors[0]->piIq.Ki * 1000.0f), data2, data3, cmd);
             break;
 
         case 196:
             if (data2 == 3333)
             {
-                motor1.piId.Kp = (float)data1 / 1000.0f;
-                motor2.piId.Kp = (float)data1 / 1000.0f;
+                motors[0]->piId.Kp = (float)data1 / 1000.0f;
+                motors[1]->piId.Kp = (float)data1 / 1000.0f;
             }
-            SendAck(rounding(motor1.piId.Kp * 1000.0f), data2, data3, cmd);
+            SendAck(rounding(motors[0]->piId.Kp * 1000.0f), data2, data3, cmd);
             break;
 
         case 197:
             if (data2 == 3333)
             {
-                motor1.piId.Ki = (float)data1 / 1000;
-                motor2.piId.Ki = (float)data1 / 1000;
+                motors[0]->piId.Ki = (float)data1 / 1000;
+                motors[1]->piId.Ki = (float)data1 / 1000;
             }
-            SendAck(rounding(motor1.piId.Ki * 1000.0f), data2, data3, cmd);
+            SendAck(rounding(motors[0]->piId.Ki * 1000.0f), data2, data3, cmd);
             break;
             //------------------------------------------------------------------
             // установка коэф. усиления каналов АЦП через таблицу
@@ -1200,8 +1200,8 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
         case 214:
             if (data2 == 3333)
-                motor2.clark.kUa = (float)data1 / 100;
-            SendAck(rounding(motor2.clark.kUa * 100), data2, data3, cmd);
+                motors[1]->clark.kUa = (float)data1 / 100;
+            SendAck(rounding(motors[1]->clark.kUa * 100), data2, data3, cmd);
             break;
 
         case 215:
@@ -1237,20 +1237,20 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             //---------------------------------------------------------------------------------
         case 220:
             if (data2 == 3333)
-                motor2.rg.Out = (float)data1 / 180 * PI;
+                motors[1]->rg.Out = (float)data1 / 180 * PI;
             if (data2 == 5555)
-                motor2.mbit.bit.rgfix = data3;
-            data3 = (motor2.mbit.bit.rgfix) ? 1 : 0;
-            SendAck(rounding(motor2.rg.Out * 180 / PI), data2, data3, cmd);
+                motors[1]->mbit.bit.rgfix = data3;
+            data3 = (motors[1]->mbit.bit.rgfix) ? 1 : 0;
+            SendAck(rounding(motors[1]->rg.Out * 180 / PI), data2, data3, cmd);
             break;
 
         case 222:
             if (data2 == 3333)
-                motor1.rg.Out = (float)data1 / 180 * PI;
+                motors[0]->rg.Out = (float)data1 / 180 * PI;
             if (data2 == 5555)
-                motor1.mbit.bit.rgfix = data3;
-            data3 = (motor1.mbit.bit.rgfix) ? 1 : 0;
-            SendAck(rounding(motor1.rg.Out * 180 / PI), data2, data3, cmd);
+                motors[0]->mbit.bit.rgfix = data3;
+            data3 = (motors[0]->mbit.bit.rgfix) ? 1 : 0;
+            SendAck(rounding(motors[0]->rg.Out * 180 / PI), data2, data3, cmd);
             break;
 
             //-----------------------------------------------------------------------------------------------
@@ -1321,33 +1321,33 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
         case 243:
             if (data2 == 3333)
             {
-                motor1.piIm.Umax = (float)data1;
-                motor1.piIm.Umin = 0; //-(float) data1 / 1000;
+                motors[0]->piIm.Umax = (float)data1;
+                motors[0]->piIm.Umin = 0; //-(float) data1 / 1000;
             }
-            SendAck(rounding(motor1.piIm.Umax), data2, data3, cmd);
+            SendAck(rounding(motors[0]->piIm.Umax), data2, data3, cmd);
             break;
         case 244:
             if (data2 == 3333)
-                motor1.piIm.Ki = (float)data1 / 1000;
-            SendAck(rounding(motor1.piIm.Ki * 1000), data2, data3, cmd);
+                motors[0]->piIm.Ki = (float)data1 / 1000;
+            SendAck(rounding(motors[0]->piIm.Ki * 1000), data2, data3, cmd);
             break;
         case 245:
             if (data2 == 3333)
-                motor1.piIm.dumax = (float)data1;
-            SendAck(rounding(motor1.piIm.dumax), data2, data3, cmd);
+                motors[0]->piIm.dumax = (float)data1;
+            SendAck(rounding(motors[0]->piIm.dumax), data2, data3, cmd);
             break;
         case 246:
             if (data2 == 3333)
-                motor1.piIm.Kp = (float)data1 / 1000;
-            SendAck(rounding(motor1.piIm.Kp * 1000), data2, data3, cmd);
+                motors[0]->piIm.Kp = (float)data1 / 1000;
+            SendAck(rounding(motors[0]->piIm.Kp * 1000), data2, data3, cmd);
             break;
         case 247:
             if (data2 == 3333)
-                motor1.ref.Im = (float)data1 / 1000;
+                motors[0]->ref.Im = (float)data1 / 1000;
             if (data2 == 5555)
-                motor1.mbit.bit.Im = data3;
+                motors[0]->mbit.bit.Im = data3;
             data3 = (mot28->mbit.bit.Im) ? 1 : 0;
-            SendAck(rounding(motor1.ref.Im * 1000), data2, data3, cmd);
+            SendAck(rounding(motors[0]->ref.Im * 1000), data2, data3, cmd);
             break;
 
             //---------------------------------------------------------------------------------

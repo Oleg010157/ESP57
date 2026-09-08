@@ -55,9 +55,11 @@
 //
 motor     motor1;
 motor     motor2;
+motor    *motors[2] = { &motor1, &motor2 };
 CAN_kadr  canaKadr;
 STEND     stend;
 STEND_bit sbit;
+union CCS ccs;
 REFs      REF;
 void      REF_init(REFs *v);
 
@@ -102,7 +104,8 @@ extern SHR_Flags shrTrip;
 //MCAN_GlobalFiltConfig filterConfig;
 void main(void)
 {
-   
+    motors[0] = &motor1;
+    motors[1] = &motor2;
 
     //
     // Initialize device clock and peripherals
@@ -162,7 +165,7 @@ void main(void)
     TRIP_Init();
 
     REF_init(&REF);
-    motor_init(&motor1);
+    motor_init(motors[0]);
 
     SPI_setTxFifoTransmitDelay(mySPIB_BASE, 1);
 
@@ -415,11 +418,11 @@ void ReadError(void) {}
 
 void STOP(void)
 {
-    Reset_stop(&motor1);
-    Reset_stop(&motor2);
+    Reset_stop(motors[0]);
+    Reset_stop(motors[1]);
     Reset_stend_filtr();
-    motor1.error.all = 0;
-    motor2.error.all = 0;
+    motors[0]->error.all = 0;
+    motors[1]->error.all = 0;
     IGBT1_Disable();
     IGBT2_Disable();
 
@@ -428,9 +431,9 @@ void STOP(void)
 
 void PUSK(void)
 {
-    PUSK_Init(&motor1);
-    PUSK_Init(&motor2);
-    //    pi_Reset(&motor1);
+    PUSK_Init(motors[0]);
+    PUSK_Init(motors[1]);
+    //    pi_Reset(motors[0]);
     ccs.bit.Udc_IGBToff = 0;
     PWM1_On();
     PWM2_On();
