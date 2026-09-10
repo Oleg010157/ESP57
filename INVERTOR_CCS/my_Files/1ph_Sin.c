@@ -21,6 +21,7 @@
 #include "hw_mcan.h"
 #include "myDCAN.h"
 #include "myADC.h" // kadcf - масштабы каналов АЦП для синхронизации по амплитуде
+#include "cla_shared.h" // измеренные величины всех каналов АЦП
 
 #include "1ph_Sin.h"
 #include "grid_tie.h" // сетевой режим: отдача мощности в сеть
@@ -62,17 +63,9 @@ float duty; // Значение скважности ШИМ (в тактах т�
 struct sine sineA = {.resolution = 256, .freq = 50, .gain = 1800};
 struct sine sineB = {.resolution = 100, .freq = 50, .gain = 1800};
 
-int16_t iPri_kod = 0;
-float   iPri_amp = 0.0f;
-float   iPri_rms = 0.0f;
-int16_t iSec_kod = 0;
-float   iSec_amp = 0.0f;
-float   iSec_rms = 0.0f;
-
-static float    iPri_sum2 = 0.0f;
-static float    iSec_sum2 = 0.0f;
-static uint16_t iRmsCnt   = 0;
-
+// iPri_* / iSec_* переехали в CLA/cla_shared.c - туда, где объявлены все шесть
+// каналов АЦП сразу. Пишет их по-прежнему CPU, здесь же, в прерывании ADCB.
+// Накопители RMS остаются локальными: наружу они не нужны.
 #pragma CODE_SECTION(xfmr_currents_from_adc, ".TI.ramfunc");
 static void xfmr_currents_from_adc(void)
 {
@@ -82,21 +75,13 @@ static void xfmr_currents_from_adc(void)
     iSec_amp = gt.iSign * kadcf.iSec * (float)iSec_kod;
 }
 
-#pragma CODE_SECTION(xfmr_currents_rms, ".TI.ramfunc");
-static void xfmr_currents_rms(void)
-{
-    iPri_sum2 += iPri_amp * iPri_amp;
-    iSec_sum2 += iSec_amp * iSec_amp;
-    if ((++iRmsCnt >= sineB.resolution) && (iRmsCnt > 0))
-    {
-        float n = (float)iRmsCnt;
-        iPri_rms  = sqrtf(iPri_sum2 / n);
-        iSec_rms  = sqrtf(iSec_sum2 / n);
-        iPri_sum2 = 0.0f;
-        iSec_sum2 = 0.0f;
-        iRmsCnt   = 0;
-    }
-}
+// Действующие значения (iPri_rms, iSec_rms, u220_rms, uSec_rms) считает CLA,
+// Cla1Task1. Здесь стояла adc_rms_update() - четыре умножения с накоплением
+// каждый такт плюс четыре корня с делением раз за период сети, всё в
+// прерывании контура тока. Это ровно та работа, ради которой CLA и ставят.
+//
+// CPU остались мгновенные значения токов: их потребляет контур тока
+// немедленно, на EOC1, а CLA отрабатывает только к EOC3.
 //---------------------------------------------------------------------------------------------------
 #if Strob_rg // применяется для отладки метода формирования синусоиды
 
@@ -327,7 +312,7 @@ __interrupt void INT_myADCB_1_ISR(void)
         sine_invertor2(&sineB);
     }
 
-    xfmr_currents_rms();
+    // RMS здесь больше не считается - его взяла на себя CLA, Cla1Task1.
     //---------------------------------------------------------------------
     // DBG  daca -это синусоидальный сигнал, который выводится на вход АЦП для иммитации сигнала u220
 
@@ -642,4 +627,17 @@ void change_sine(struct sine *s)
     s->step       = PI2 / s->resolution;
     s->tpwm_sek   = (1.0f / s->freq) / s->resolution; // pwm period  в секундах
     s->pwm_period = s->tpwm_sek * 75e6; //60e6*150/120;           // TBPRD в циклах таймера
+
+    // Окно усреднения RMS для CLA. Копия нужна потому, что sineB лежит в
+    // обычной .data (RAMLS5/6), а CLA видит только отданные ей блоки - LS1,
+    // LS2, LS7 - и message RAM; прочитать sineB.resolution она не может.
+    //
+    // Место выбрано не случайно: change_sine() - единственный путь, которым
+    // resolution вообще меняется (команды CAN 621/622/62x в MBOX28.c и
+    // инициализация в main.c). Пока копия обновляется здесь, разъехаться с
+    // оригиналом она не может.
+    if (s == &sineB)
+    {
+        rmsWindow = s->resolution;
+    }
 }

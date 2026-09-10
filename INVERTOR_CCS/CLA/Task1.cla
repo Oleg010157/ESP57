@@ -1,3 +1,48 @@
+//---------------------------------------------------------------------------
+// Cla1Task1 - измерительная задача CLA.
+//
+// Запускается аппаратно по ADCA INT2, которая взведена на EOC3 - конец
+// ПОСЛЕДНЕГО из шести преобразований (SysConfig: myADCA.interrupt2SOCSource =
+// EOC3, myCLA0.trigger_CLA_TASK_1 = CLA_TRIGGER_ADCA2). Так задача заведомо
+// видит готовые результаты всех каналов, а не половину.
+//
+// Прерывание CPU по завершению задачи не заводится (cpuint_CLA_TASK_1 = false):
+// результат читают из фона и по отладчику.
+//
+// ЧТО СЧИТАЕТ.
+//
+//   Мгновенные значения трёх каналов - iBat, uBat, uSec. Остальные три (iPri,
+//   iSec, u220) считает CPU, и отдавать их сюда нельзя: их потребляет контур
+//   тока в INT_myADCB_1_ISR по EOC1, то есть на ~2.3 мкс РАНЬШЕ, чем
+//   отработает эта задача.
+//
+//   Действующие значения ВСЕХ ЧЕТЫРЁХ величин, у которых они имеют смысл -
+//   iPri_rms, iSec_rms, u220_rms, uSec_rms. Здесь запаздывание безразлично,
+//   поэтому считать их на CPU было незачем.
+//
+// Полный список величин и разбор, кто что пишет, - в cla_shared.c.
+//
+// ЧЕГО ЗДЕСЬ БОЛЬШЕ НЕТ. Прежняя редакция вела машину состояний precharge,
+// считала PI по Udc_ref и писала результат в EPwm1Regs.CMPA. Для K57 это было
+// неприменимо целиком:
+//
+//   - EPWM1 в K57 - плечо A моста инвертора (GPIO0/GPIO1). Ту же CMPA каждый
+//     такт пишет sine_invertor2() / grid_tie_step() из прерывания ADCB. CLA
+//     работает асинхронно к CPU, так что выходила гонка на регистре,
+//     управляющем реальными ключами;
+//   - ШИМ для DC/DC в проекте нет вообще: выходные пины назначены только у
+//     EPWM1 и EPWM2, ключи vt1..vt4 фигурируют лишь в разборе аварий по TRIP4;
+//   - "Udc" брался с ADCA PPB1, а PPB1 в K57 - это канал сети 220 В (A0).
+//     Раскладка досталась от старого проекта, как и сами имена Udc/Idc/Vin:
+//     каналы K57 зовутся iPri, iSec, iBat, u220, uBat, uSec (см. ADCpar в
+//     myADC.h), отдельного звена постоянного тока среди них нет - на входе
+//     моста стоит АКБ, канал uBat.
+//
+// Вернуть контур DC/DC можно будет, когда у преобразователя появятся свой ШИМ
+// и канал измерения. PI_update() и slewLimit() для этого оставлены в
+// cla_task1.h.
+//---------------------------------------------------------------------------
+
 #include "f28p55x_device.h"
 
 #include "myADC.h"
@@ -5,70 +50,90 @@
 #include "cla.h"
 #include "cla_shared.h"
 
+// CLAsqrt_inline. Заголовок самодостаточен - функция объявлена static inline
+// с FUNC_ALWAYS_INLINE, библиотеку линковать не нужно. Заодно перекрывает
+// sqrtf и __divf32 своими быстрыми версиями на MEINVF32/MEISQRTF32.
 #include "CLAmath.h"
 
-
-
-
-volatile uint16_t dbgtest;
-volatile uint16_t task1Time;
+// task1Start / task1Time (длительность задачи в тактах EPWM7) объявлены в
+// cla_shared.c и лежат в Cla1ToCpuMsgRAM - выделенном блоке для направления
+// CLA -> CPU.
+//
+// Накопители сумм квадратов и счётчик окна остаются здесь: это внутреннее
+// состояние задачи, а не результат, наружу отдавать нечего. Не static - пусть
+// будут видны отладчику. Лежат в .bss_cla, то есть в RAMLS2, той же памяти,
+// что отдана CLA под данные.
+volatile float    iPri_sum2;
+volatile float    iSec_sum2;
+volatile float    u220_sum2;
+volatile float    uSec_sum2;
+volatile uint16_t rmsCnt;
 
 #pragma CODE_SECTION(Cla1Task1, "Cla1Prog");
 __interrupt void Cla1Task1(void)
 {
-    dbgtest = EPwm7Regs.TBCTR;
+    task1Start = EPwm7Regs.TBCTR;
 
-    dc.Udc_kod  = (int16_t)AdcaResultRegs.ADCPPB1RESULT.bit.PPBRESULT;
+    // Ток АКБ. A12, SOC2/PPB3.
+    // Знаковый результат PPB - уже за вычетом откалиброванного нуля канала.
+    iBat_kod = (int16_t)AdcaResultRegs.ADCPPB3RESULT.bit.PPBRESULT;
+    iBat_amp = kadcf.iBat * iBat_kod;
+    iBat_rf  = 0.9f * iBat_rf + 0.1f * iBat_amp;
 
+    // Напряжение АКБ, оно же напряжение звена на входе моста. A4, SOC1/PPB2.
+    uBat_kod  = (int16_t)AdcaResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
+    uBat_volt = kadcf.uBat * uBat_kod;
+    uBat_rf   = 0.9f * uBat_rf + 0.1f * uBat_volt;
 
-#if dbgUdc
-    dc.Udc_volt = Udc_imit;
-#else
-    dc.Udc_volt = kadcf.u220 * dc.Udc_kod;
-#endif
+    // Напряжение на выходе инвертора, до контактора. A1, SOC3/PPB4.
+    // Именно окончание этого преобразования и взводит задачу.
+    uSec_kod  = (int16_t)AdcaResultRegs.ADCPPB4RESULT.bit.PPBRESULT;
+    uSec_volt = kadcf.uSec * uSec_kod;
 
-    dc.Udc_rf = 0.9f * dc.Udc_rf + 0.1f * dc.Udc_volt;
+    //-----------------------------------------------------------------------
+    // Действующие значения. Раньше это считал CPU в прерывании контура тока
+    // (adc_rms_update в 1ph_Sin.c), теперь здесь - четыре умножения с
+    // накоплением каждый такт и четыре корня раз за период сети.
+    //
+    // Слагаемые все ЭТОГО такта, задача идёт последней:
+    //   u220_volt          - CPU, прерывание ADCA по EOC0 (~1.2 мкс);
+    //   iPri_amp, iSec_amp - CPU, прерывание ADCB по EOC1 (~2.3 мкс);
+    //   uSec_volt          - строкой выше;
+    //   мы сами            - EOC3 (~4.6 мкс).
+    // Даже если прерывание ADCB чем-то задержится и токи окажутся прошлого
+    // такта, на RMS это не влияет: запаздывание одинаково для всех отсчётов
+    // окна, а сумма квадратов за целый период от сдвига по фазе не зависит.
+    //
+    // Окно - rmsWindow отсчётов, копия sineB.resolution (её кладёт
+    // change_sine(), см. cla_shared.c). Оно обязано быть ЦЕЛЫМ ЧИСЛОМ
+    // ПЕРИОДОВ сети: АЦП запускается от EPWM1_SOCA, период EPWM1 подстроен
+    // PLL так, что на период сети приходится ровно resolution отсчётов.
+    // Незамкнутый хвост периода попал бы в сумму целиком, и результат стал бы
+    // зависеть от фазы обрыва окна - та же ловушка, что разобрана в
+    // Adc_Calibrate() (myADC.c).
+    //-----------------------------------------------------------------------
+    iPri_sum2 += iPri_amp * iPri_amp;
+    iSec_sum2 += iSec_amp * iSec_amp;
+    u220_sum2 += u220_volt * u220_volt;
+    uSec_sum2 += uSec_volt * uSec_volt;
 
-    dc.Idc_kod = (int16_t)AdcaResultRegs.ADCPPB3RESULT.bit.PPBRESULT;
-    dc.Idc_amp = kadcf.iBat * dc.Idc_kod;
-    dc.Idc_rf  = 0.9f * dc.Idc_rf + 0.1f * dc.Idc_amp;
-
-    dc.Vin_kod  = (int16_t)AdcaResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
-    dc.Vin_volt = kadcf.uBat * dc.Vin_kod;
-    dc.Vin_rf   = dc.Vin_rf * 0.9f + dc.Vin_volt * 0.1f;
-
-    if (dctl.State == STATE_PRECHARGE)
+    if ((++rmsCnt >= rmsWindow) && (rmsCnt > 0))
     {
-        dctl.prechargeTicks++;
+        // Делим на фактический счётчик, а не на rmsWindow: если окно сменят
+        // командой посреди набора, деление всё равно останется верным.
+        float n = (float)rmsCnt;
 
-        if (dc.Idc_amp < dc.Idc_max)
-        {
-            dctl.dutyControl += 0.0005f;
-            if (dctl.dutyControl > 0.3f)
-                dctl.dutyControl = 0.3f;
-        }
-        else
-        {
-            dctl.dutyControl -= 0.001f;
-            if (dctl.dutyControl < 0.05f)
-                dctl.dutyControl = 0.05f;
-        }
+        iPri_rms = CLAsqrt_inline(iPri_sum2 / n);
+        iSec_rms = CLAsqrt_inline(iSec_sum2 / n);
+        u220_rms = CLAsqrt_inline(u220_sum2 / n);
+        uSec_rms = CLAsqrt_inline(uSec_sum2 / n);
 
-        if ((dc.Udc_volt > 550.0f) || (dctl.prechargeTicks > dctl.prechargeLimit))
-        {
-            dctl.State = STATE_RUN;
-        }
-    }
-    else
-    {
-        dctl.dutyControl = PI_update(&pi, dc.Udc_ref, dc.Udc_volt);
+        iPri_sum2 = 0.0f;
+        iSec_sum2 = 0.0f;
+        u220_sum2 = 0.0f;
+        uSec_sum2 = 0.0f;
+        rmsCnt    = 0;
     }
 
-    dctl.duty = 0.5f - dctl.dutyControl * 0.4f;
-    dctl.CMPA = (uint16_t)(EPwm1Regs.TBPRD * dctl.duty);
-
-    EPwm1Regs.CMPA.bit.CMPA = dctl.CMPA;
-
-    task1Time = (EPwm7Regs.TBCTR - dbgtest); // время в 1/150 мкс
+    task1Time = (EPwm7Regs.TBCTR - task1Start);
 }
-

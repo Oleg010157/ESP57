@@ -1711,10 +1711,11 @@ void pi_Reset(motor *m)
 
 void Reset_stend_filtr(void)
 {
-    dc.Udc_rf = 0;
-    dc.Idc_rf = 0;
+    uBat_rf = 0;
+    iBat_rf = 0;
 
-    dc.Idc_sum = 0;
+    // dc.Idc_sum убран: сумма квадратов входила в RMS-блок Task7, снятый
+    // вместе с ней.
 
     stend.Pa_stend = 0;
 }

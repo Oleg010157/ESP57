@@ -16,7 +16,8 @@
 
 #include "myDCAN.h"
 #include "myADC.h"
-#include "cla_shared.h"
+#include "cla_shared.h" // измеренные величины всех каналов АЦП: кадр F1
+#include "1ph_Sin.h"
 #include "myEPWM.h"
 
 #include "hw_mcanss.h"
@@ -80,17 +81,27 @@ void MainISR(void)
 
     IsrTicker++; // номер прерывания
 
-
-    // загрузка нового значения CMPA в PWM секцию
-
-    DINT;
-  
-    {
-        EPwm2Regs.CMPA.bit.CMPA = timeBasePeriod * (1.0F + motors[0]->svgen.Ta) / 2;
-        EPwm3Regs.CMPA.bit.CMPA = timeBasePeriod * (1.0F + motors[0]->svgen.Tb) / 2;
-        EPwm4Regs.CMPA.bit.CMPA = timeBasePeriod * (1.0F + motors[0]->svgen.Tc) / 2;
-    }
-    EINT;
+    // Здесь стояла загрузка CMPA из трёхфазного модулятора:
+    //
+    //     DINT;
+    //     EPwm2Regs.CMPA.bit.CMPA = timeBasePeriod * (1 + motors[0]->svgen.Ta) / 2;
+    //     EPwm3Regs.CMPA.bit.CMPA = ... svgen.Tb ...
+    //     EPwm4Regs.CMPA.bit.CMPA = ... svgen.Tc ...
+    //     EINT;
+    //
+    // Наследство трёхфазного проекта, и в K57 оно вредило. EPWM2 здесь - плечо B
+    // моста однофазного инвертора (GPIO2/GPIO3), его CMPA каждый такт считает
+    // sine_invertor2() / grid_tie_step() в INT_myADCB_1_ISR. А svgen.Ta/Tb/Tc
+    // выставлены в 0.5 один раз в main.c (PUSK_Init) и больше не обновляются -
+    // трёхфазного модулятора в проекте нет. То есть каждое прерывание EPWM3 в
+    // плечо B прилетало 0.75 * timeBasePeriod поверх синусной модуляции.
+    //
+    // EPWM3/EPWM4 выходных пинов не имеют (в SysConfig у них только
+    // $suggestSolution), работают таймерами и источниками SOC - записи в их
+    // CMPA не делали ничего.
+    //
+    // Заодно ушёл EINT посреди обработчика: он открывал окно вложенных
+    // прерываний в середине такта.
 
     //-----------------------------------------------------------------------------------------------------------
     ReadError(); // Считывание сигналов ошибок с КСП
@@ -108,7 +119,9 @@ void MainISR(void)
     if (canaKadr.bit.F1_invertor == 1)
         if ((txbrp & 2) == 0U)
         {
-            uint16_t f[4] = { c2p.Ia_kod, c2p.Ib_kod, dc.Idc_kod, IsrTicker };
+            // Токи берутся у CPU (1ph_Sin.c, xfmr_currents_from_adc), ток АКБ -
+            // у CLA: канал A12 больше никто не читает.
+            uint16_t f[4] = { iPri_kod, iSec_kod, iBat_kod, IsrTicker };
             Send_mbox_FD(1, f, 4);                              // 8 байт (DLC=8)
         }
 

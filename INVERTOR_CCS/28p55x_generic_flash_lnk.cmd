@@ -100,12 +100,60 @@ SECTIONS
                         ALIGN(8)
    #endif
 
-   /* CLA specific sections */
-   Cla1Prog        : > RAMLS1
+   /* CLA specific sections
+    *
+    * Cla1Prog и .const_cla размещаются с LOAD/RUN-разделением, а не одной
+    * строкой "> RAMLSx". Причина в том, что при сборке во флеш программу CLA
+    * надо СКОПИРОВАТЬ из флеша в LS-RAM перед стартом задач, и делает это
+    * memcpy в сгенерированном SysConfig CLA_init() (CPU1_FLASH/syscfg/board.c).
+    * Ему нужны символы границ: без LOAD_START/RUN_START/LOAD_SIZE линковка
+    * падает с "unresolved symbols: Cla1ProgLoadStart ...".
+    *
+    * Порядок в Board_init() важен и уже верен: CLA_init() (копирование, пока
+    * LS1 ещё принадлежит CPU) идёт ДО MEMCFG_init(), который отдаёт LS1 в CLA
+    * как программную память. Менять местами нельзя.
+    *
+    * RUN-блоки те же, что были: LS1 - программа, LS2 - данные, LS7 - константы.
+    * Соответствие с SysConfig обязательно (memcfg: LS1 = CLA_prog,
+    * LS2 и LS7 = CLA_data); разъедутся - задача пойдёт по чужой памяти.
+    * У F28P55x блоки LS0-LS7 видны CLA по тем же адресам, что и CPU, - алиасы
+    * 0x4000/0x6000 есть только у LS8/LS9 (см. комментарии в MEMORY выше).
+    */
+#if defined(__TI_EABI__)
+   Cla1Prog        : LOAD = FLASH_BANK0,
+                     RUN = RAMLS1,
+                     LOAD_START(Cla1ProgLoadStart),
+                     RUN_START(Cla1ProgRunStart),
+                     LOAD_SIZE(Cla1ProgLoadSize),
+                     ALIGN(4)
+#else
+   Cla1Prog        : LOAD = FLASH_BANK0,
+                     RUN = RAMLS1,
+                     LOAD_START(_Cla1ProgLoadStart),
+                     RUN_START(_Cla1ProgRunStart),
+                     LOAD_SIZE(_Cla1ProgLoadSize),
+                     ALIGN(4)
+#endif
+
    .scratchpad     : > RAMLS2
    .bss_cla        : > RAMLS2
    cla_shared      : > RAMLS2, ALIGN(4)
-   .const_cla      : > RAMLS7
+
+#if defined(__TI_EABI__)
+   .const_cla      : LOAD = FLASH_BANK0,
+                     RUN = RAMLS7,
+                     LOAD_START(Cla1ConstLoadStart),
+                     RUN_START(Cla1ConstRunStart),
+                     LOAD_SIZE(Cla1ConstLoadSize),
+                     ALIGN(4)
+#else
+   .const_cla      : LOAD = FLASH_BANK0,
+                     RUN = RAMLS7,
+                     LOAD_START(_Cla1ConstLoadStart),
+                     RUN_START(_Cla1ConstRunStart),
+                     LOAD_SIZE(_Cla1ConstLoadSize),
+                     ALIGN(4)
+#endif
 
    Cla1ToCpuMsgRAM : > CLATOCPURAM
    CpuToCla1MsgRAM : > CPUTOCLARAM

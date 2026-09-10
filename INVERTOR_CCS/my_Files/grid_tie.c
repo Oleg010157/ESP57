@@ -26,8 +26,9 @@
 #include "F28P55x_Device.h"
 
 #include "KSP.h"     // asut(), Errors.h, ErrorCodes.h
-#include "myADC.h"   // kadcf - масштабы каналов АЦП
-#include "1ph_Sin.h" // sineB: угол сети от PLL
+#include "myADC.h"     // kadcf - масштабы каналов АЦП
+#include "cla_shared.h" // измеренные величины всех каналов АЦП
+#include "1ph_Sin.h"   // sineB: угол сети от PLL
 #include "grid_tie.h"
 
 //---------------------------------------------------------------------------
@@ -36,8 +37,7 @@
 extern uint16_t daca;        // 1ph_Sin.c: имитация U220 (стенд)
 extern float    u220freq;    // 1ph_Sin.c: измеренная частота сети, Гц
 extern float    phaseErr;    // 1ph_Sin.c: ошибка фазы в единицах sin()
-extern float    u220amp;     // myADC.c:   амплитуда сети, коды АЦП
-extern uint16_t u220_kod;    // myADC.c:   сырой отсчёт канала U220, 0..4095
+// u220amp / u220_kod объявлены в cla_shared.h вместе с остальными каналами
 extern uint16_t u220hi_kod;  // myADC.c:   верхняя губа вилки огибающей
 extern uint16_t u220low_kod; // myADC.c:   нижняя губа вилки огибающей
 

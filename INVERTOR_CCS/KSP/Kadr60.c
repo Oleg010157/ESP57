@@ -12,6 +12,7 @@
 #include "FLAGZ.h"
 #include "Konstanty.h"
 #include "myDCAN.h"
+#include "cla_shared.h" // uBat_volt от Cla1Task1
 
 
 
@@ -127,7 +128,11 @@ void Send_kadr60() // заполняет область CANA Mbox значени
     p1100 = 0;
     p1101 = 0;
 #endif
-    p1103 =  cla.Udc_volt>0? (uint16_t)(cla.Udc_volt*50 + 0.5) : 0;
+    // Было cla.Udc_volt - поля с таким именем не существовало даже в старой
+    // Cla7Shared. Строка не ломала сборку только потому, что kmask60 = BIT30 и
+    // этот блок выключен препроцессором; включили бы BIT10 - не собралось бы.
+    // Напряжение на входе моста теперь считает Cla1Task1, канал uBat (A4).
+    p1103 =  uBat_volt > 0 ? (uint16_t)(uBat_volt * 50 + 0.5f) : 0;
     #endif
 
 // 111
@@ -170,7 +175,7 @@ void Send_kadr60() // заполняет область CANA Mbox значени
 #if (kmask60 & BIT17)==BIT17
     p1170 = rounding(motor1.slip.absF * 500);
     p1171 = rounding(motor2.slip.absF * 500);
-    p1172 = rounding(Idc_rf * 10); // сумарное среднее значение тока питания АИН-ов
+    p1172 = rounding(iBat_rf * 10); // сумарное среднее значение тока питания АИН-ов
     p1173 = rounding(stend.Pa_stend*0.1);    // активная мощность потребляемая стендом
 
 #endif

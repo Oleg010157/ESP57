@@ -60,12 +60,8 @@ void change_sine(struct sine *s);
 
 extern struct sine sineA,sineB;
 
-// Токи обмоток трансформатора. Общие для острова и GridMode.
-extern int16_t iPri_kod; // ток первичной обмотки, коды АЦП
-extern float   iPri_amp; // ток первичной обмотки, А
-extern float   iPri_rms; // ток первичной обмотки, А rms
-extern int16_t iSec_kod; // ток вторичной обмотки, коды АЦП
-extern float   iSec_amp; // ток вторичной обмотки, А
-extern float   iSec_rms; // ток вторичной обмотки, А rms
+// Токи обмоток трансформатора (iPri_*, iSec_*) объявлены в CLA/cla_shared.h
+// вместе с остальными четырьмя каналами АЦП. Пишет их этот файл, в прерывании
+// ADCB по EOC1.
 
 #endif /* 1ph_Sin.h */

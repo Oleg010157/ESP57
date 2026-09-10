@@ -13,7 +13,6 @@
 __interrupt void INT_myADCA_1_ISR(void);
 
 void Core_Temp_Update(void);
-void Core_Temp_Update2(void);
 
 void myADC_PPB_Init(void);
 void Adc_Calibrate(void);
@@ -112,9 +111,8 @@ typedef struct
 
 } kADCf;
 
-extern uint16_t u220_kod; // myADC.c: код измеренного напряжения сети U220, 0..4095
-extern float u220amp; // амплитуда напряжения U220
-extern int16_t uSec_kod; // myADC.c: напряжение на выходе инвертора (A1), знаковый код PPB
+// Измеренные величины всех шести каналов (u220_kod, u220amp, iPri_*, iSec_*,
+// iBat_*, uBat_*, uSec_*) объявлены в CLA/cla_shared.h - одним списком.
 
 extern ADCpar offsets, offsets_default;
 
@@ -122,7 +120,7 @@ extern ADCpar         kadc, kadc_default;
 extern volatile kADCf kadcf;
 
 extern ADCpar  dbgkadc;
-extern int16_t core_temp; // температура ядра F28P55x в Цельсиях
+extern int16_t core_temp; // температура ядра F28P55x, ГРАДУСЫ ЦЕЛЬСИЯ (не сотые)
 
 extern uint16_t ControlSum(ADCpar *c);
 extern void     floatKadc();
