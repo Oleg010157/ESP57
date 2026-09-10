@@ -51,7 +51,17 @@ uint16_t u220spadCnt = 0;
 
 __interrupt void INT_myADCA_1_ISR(void)
 {
- 
+    // Калибровка нуля каналов, если её запросили командой CAN 70. Здесь, а не
+    // в фоне: подстройка усредняет по 256 отсчётам и должна идти на такте
+    // преобразования. В обычной работе стоит один сравнение - биты сброшены.
+    //
+    // Прежде вызывалась из INT_myCLA7_ISR, но тот вектор не регистрируется:
+    // модуля CLA в активном c2000.syscfg нет, и автокалибровка не работала.
+    if (adcCalStart.all != 0)
+    {
+        Adc_Calibrate();
+    }
+
      u220_kod = (int16_t)AdcaResultRegs.ADCRESULT0;
 
   //  stend.Vin = AdccResultRegs.ADCPPB3RESULT.all;
@@ -141,16 +151,36 @@ void Core_Temp_Update2(void)
 }
 
 //--------------------------------------------------------------------------------
-// метод калибровки смещения нуля каналов АЦП
-// вызывается по команде CAN посредством установки битов в структуре adcCalStart
-// метод в цикле из 256
+// Калибровка нуля каналов АЦП.
+//
+// Запускается командой CAN 70, которая выставляет биты в adcCalStart. Вызывается
+// из INT_myADCA_1_ISR, то есть на каждом преобразовании: усреднение идёт по 256
+// отсчётам, и из фонового цикла этого не сделать.
+//
+// Как работает. Регистр ADCPPBxOFFREF вычитается из результата канала, поэтому
+// подстраивая его, мы добиваемся нуля на выходе PPB при отсутствии сигнала.
+// Сначала грубо - в OFFREF кладётся текущий отсчёт целиком. Дальше 256 тактов
+// подстройки по одному коду в сторону, обратную знаку остатка: так усредняется
+// шум, и результат не зависит от того, каким оказался один конкретный отсчёт.
+//
+// ВХОД КАНАЛА ДОЛЖЕН БЫТЬ ОБЕСТОЧЕН. Функция считает нулём то, что видит.
+//
+// Раньше подстройка сравнивала с полями c2p.Ia_kod, dc.Udc_kod и подобными -
+// их заполняли задачи CLA. Задачи не запускаются (модуля CLA нет в активном
+// c2000.syscfg), поля всегда оставались нулями, и ни одна ветвь подстройки не
+// срабатывала. Теперь знаковый остаток берётся прямо из регистров результата
+// PPB - это ровно те значения, которые считала бы CLA.
+//--------------------------------------------------------------------------------
+
+// Знаковый результат PPB: то, что осталось от канала после вычитания OFFREF.
+#define PPB_RESULT(regs, n) ((int16_t)(regs).ADCPPB##n##RESULT.bit.PPBRESULT)
 
 uint16_t ical_counter = 0;
 void     Adc_Calibrate(void)
 {
-
     if (ical_counter == 0)
     {
+        // Грубая загрузка: сырой отсчёт канала целиком идёт в OFFREF.
         if (adcCalStart.bit.iAll)
         {
             AdcbRegs.ADCPPB1OFFREF = AdcbResultRegs.ADCRESULT0; // iPri
@@ -165,35 +195,44 @@ void     Adc_Calibrate(void)
     }
     if (ical_counter < 256)
     {
+        // Точная подстройка: шаг в сторону, обратную знаку остатка.
         if (adcCalStart.bit.iAll)
         {
-            if (c2p.Ia_kod > 0)
+            int16_t iPri = PPB_RESULT(AdcbResultRegs, 1);
+            int16_t iSec = PPB_RESULT(AdcbResultRegs, 2);
+            int16_t iBat = PPB_RESULT(AdcaResultRegs, 3);
+
+            if (iPri > 0)
                 AdcbRegs.ADCPPB1OFFREF++;
-            else if (c2p.Ia_kod < 0)
+            else if (iPri < 0)
                 AdcbRegs.ADCPPB1OFFREF--;
 
-            if (c2p.Ib_kod > 0)
+            if (iSec > 0)
                 AdcbRegs.ADCPPB2OFFREF++;
-            else if (c2p.Ib_kod < 0)
+            else if (iSec < 0)
                 AdcbRegs.ADCPPB2OFFREF--;
 
-            if (dc.Idc_kod > 0)
+            if (iBat > 0)
                 AdcaRegs.ADCPPB3OFFREF++;
-            else if (dc.Idc_kod < 0)
+            else if (iBat < 0)
                 AdcaRegs.ADCPPB3OFFREF--;
         }
         if (adcCalStart.bit.u220)
         {
-            if (dc.Udc_kod > 0)
+            int16_t u220 = PPB_RESULT(AdcaResultRegs, 1);
+
+            if (u220 > 0)
                 AdcaRegs.ADCPPB1OFFREF++;
-            else if (dc.Udc_kod < 0)
+            else if (u220 < 0)
                 AdcaRegs.ADCPPB1OFFREF--;
         }
         if (adcCalStart.bit.uBat)
         {
-            if (dc.Vin_kod > 0)
+            int16_t uBat = PPB_RESULT(AdcaResultRegs, 2);
+
+            if (uBat > 0)
                 AdcaRegs.ADCPPB2OFFREF++;
-            else if (dc.Vin_kod < 0)
+            else if (uBat < 0)
                 AdcaRegs.ADCPPB2OFFREF--;
         }
 
@@ -201,10 +240,12 @@ void     Adc_Calibrate(void)
     }
     else
     {
+        // Готово: перенести OFFREF в offsets, посчитать сумму (это и есть
+        // признак "калибровка проводилась") и запросить сохранение.
         Reset_stend_filtr();
         SaveAdcOffsets();
-        adcCalStart.all        = 0;
-        ical_counter           = 0; 
+        adcCalStart.all = 0;
+        ical_counter    = 0;
     }
 }
 
