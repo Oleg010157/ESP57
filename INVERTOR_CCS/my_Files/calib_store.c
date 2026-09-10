@@ -35,6 +35,21 @@
 typedef char CALIB_FITS_IN_BANK[(CALIB_BANK_WORDS_USED <= CALIB_BANK_WORDS_AVAILABLE) ? 1 : -1];
 
 //---------------------------------------------------------------------------
+// "В банке лежит не наш формат" - взводится в calib_load(), когда запись есть,
+// но разобрать её не удалось.
+//
+// Такое бывает после изменения состава CalibBlob: при добавлении канала uSec
+// страница выросла с 24 слов до 28, и разметка банка поехала. Старые записи
+// при новой разметке попадают куда угодно, и место, которое код считает
+// чистым, на деле уже запрограммировано. Запись в непустую ячейку флеш не
+// принимает - FSM возвращает ошибку.
+//
+// Поэтому перед первой записью такой банк надо стереть. Данные в нём всё равно
+// потеряны: разобрать чужой формат нельзя.
+//---------------------------------------------------------------------------
+static uint16_t calibBankSuspect = 0;
+
+//---------------------------------------------------------------------------
 // Сумма всех слов записи, кроме самого поля sum.
 //
 // Считается по словам, а не по полям: так добавление поля в ADCpar не требует
@@ -91,16 +106,19 @@ uint16_t calib_load(void)
 
     if (blob.magic != CALIB_MAGIC)
     {
+        calibBankSuspect = 1;
         return CALIB_BAD;
     }
 
     if (blob.version != CALIB_VERSION)
     {
+        calibBankSuspect = 1;
         return CALIB_BAD;
     }
 
     if (blob.sum != calib_sum(&blob))
     {
+        calibBankSuspect = 1;
         return CALIB_BAD;
     }
 
@@ -231,7 +249,26 @@ static void calib_do_save(void)
         calibInitDone = 1;
     }
 
-    calibSaveStatus = calib_save();
+    // В банке чужой формат - стереть, иначе запись попадёт в непустую ячейку
+    // и Flash API вернёт ошибку. Подробности у объявления calibBankSuspect.
+    if (calibBankSuspect)
+    {
+        calibBankSuspect = 0;
+        EEPROM_Erase();
+    }
+
+    {
+        uint16_t faultsBefore = eepromFaultCnt;
+
+        calibSaveStatus = calib_save();
+
+        // Flash API об ошибках не сообщает возвратом - он звал Sample_Error(),
+        // а та теперь просто считает. Сравниваем счётчик до и после.
+        if (eepromFaultCnt != faultsBefore)
+        {
+            calibSaveStatus = CALIB_FLASH_ERR;
+        }
+    }
 }
 
 //---------------------------------------------------------------------------

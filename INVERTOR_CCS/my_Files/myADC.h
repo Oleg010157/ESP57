@@ -64,9 +64,10 @@ struct AdcStartCal
     uint16_t iBat : 1; // 4   ток АКБ (A12)
     uint16_t u220 : 1; // 8   напряжение сети (A0)
     uint16_t uBat : 1; // 16  напряжение АКБ (A4)
+    uint16_t uSec : 1; // 32  напряжение на выходе инвертора (A1)
 };
 
-#define ADC_CAL_ALL 31U // все пять каналов
+#define ADC_CAL_ALL 63U // все шесть каналов
 
 typedef union
 {
@@ -82,6 +83,7 @@ extern AdcCal adcCalStart;
 //   iBat - ток АКБ                (A12, ADCA SOC2/PPB3)
 //   u220 - напряжение сети после контактора (A0, ADCA SOC0/PPB1)
 //   uBat - напряжение АКБ         (A4, ADCA SOC1/PPB2)
+//   uSec - напряжение на выходе инвертора, до контактора (A1, ADCA SOC3/PPB4)
 //
 // ПОРЯДОК ПОЛЕЙ МЕНЯТЬ НЕЛЬЗЯ: структура целиком ложится в EEPROM с CRC по
 // всей длине (см. SPI_EEPROM.c) и читается с адреса первого поля. Новые поля
@@ -94,6 +96,7 @@ typedef struct
     uint16_t iBat;
     uint16_t u220;
     uint16_t uBat;
+    uint16_t uSec; // добавлено 10.09.2026, см. правило выше - в конец, перед crc
     uint16_t crc;
 
 } ADCpar;
@@ -105,11 +108,13 @@ typedef struct
     float iBat;
     float u220;
     float uBat;
+    float uSec;
 
 } kADCf;
 
 extern uint16_t u220_kod; // myADC.c: код измеренного напряжения сети U220, 0..4095
 extern float u220amp; // амплитуда напряжения U220
+extern int16_t uSec_kod; // myADC.c: напряжение на выходе инвертора (A1), знаковый код PPB
 
 extern ADCpar offsets, offsets_default;
 

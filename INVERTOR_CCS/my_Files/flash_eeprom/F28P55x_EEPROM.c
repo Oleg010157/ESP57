@@ -23,6 +23,9 @@ uint16 Erase_Blank_Check = 0;
 uint16 NUM_EEPROM_SECTORS;
 uint16 Empty_EEPROM = 1;
 
+// K57: счётчик ошибок Flash API. Растёт в Sample_Error(), см. её комментарий.
+uint16 eepromFaultCnt = 0;
+
 
 // Edit this to select Flash Sector location for EEPROM Emulation
 // NOTE: INSERT FIRST AND LAST SECTOR NUMBERS ONLY
@@ -847,9 +850,21 @@ void EEPROM_Program_64_Bits(uint16 Num_Words, uint16 * Write_Buffer)
 
 //##################### SAMPLE_ERROR ###########################
 // This is a sample error function, no error handling is implemented in this project,
+//
+// K57: ОТЛИЧИЕ ОТ ОРИГИНАЛА TI. Здесь стоял asm(" ESTOP0").
+//
+// Для примера это нормально: упёрлись в ошибку - остановились и смотрим. В
+// приборе останов процессора недопустим. Мост в этот момент модулирует, а
+// вместе с фоновым циклом умирают и связь по CAN, и закрытие IGBT по аварии,
+// и сторож пропажи сети. То есть ошибка записи во флеш - вещь неприятная, но
+// поправимая - превращалась бы в потерю управления силовой частью.
+//
+// Теперь ошибка только считается, а выполнение продолжается. Разбирает её
+// calib_store.c: сравнивает счётчик до и после записи и возвращает
+// CALIB_FLASH_ERR, если тот вырос.
 void Sample_Error() {
 
-     asm(" ESTOP0");
+    eepromFaultCnt++;
 
 }
 

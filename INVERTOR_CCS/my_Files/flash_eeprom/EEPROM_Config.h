@@ -68,24 +68,25 @@
 //
 // K57: считаем под BANK4, в 16-битных словах.
 //
-//   CalibBlob                        15 слов (2 служебных + 6 offsets +
-//                                             6 kadc + 1 сумма)
-//   после округления вверх до ECC    16 слов  (EEPROM_PAGE_DATA_SIZE)
-//   страница = 8 статуса + 16 данных 24 слова
-//   банк     = 8 + 24 * 80           1928 слов
-//   16 банков                        30848 слов
+//   CalibBlob                        17 слов (2 служебных + 7 offsets +
+//                                             7 kadc + 1 сумма)
+//   после округления вверх до ECC    20 слов  (EEPROM_PAGE_DATA_SIZE)
+//   страница = 8 статуса + 20 данных 28 слов
+//   банк     = 8 + 28 * 72           2024 слова
+//   16 банков                        32384 слова
 //   доступно в BANK4 (32 * 0x400)    32768 слов
 //
-// Итого 16*80 = 1280 сохранений до первого стирания. Калибровки пишутся
+// Итого 16*72 = 1152 сохранения до первого стирания. Калибровки пишутся
 // единицы раз за жизнь прибора, так что стирание практически не наступит.
 //
 // ЭТИ ДВА ЧИСЛА И НАДО КРУТИТЬ, если данных станет больше и перестанет
 // влезать. Проверка стоит в calib_store.c (CALIB_FITS_IN_BANK) и сработает
-// при сборке.
+// при сборке - именно так и произошло при добавлении канала uSec: страниц
+// было 80, пришлось уменьшить до 72.
 #define NUM_EEPROM_BANKS 16
 
 // Define how many EEPROM Pages for each EEPROM Bank
-#define NUM_EEPROM_PAGES 80
+#define NUM_EEPROM_PAGES 72
 
 // Define size of data to be written to EEPROM Pages (measured in 16-bit words)
 // If size is not a multiple of 4, the size of the Page data will be rounded up to the closest
@@ -160,6 +161,7 @@ extern uint16 Page_Counter;
 extern uint16 Bank_Status[8];
 extern uint16 Page_Status[8];
 extern uint16 NUM_EEPROM_SECTORS;
+extern uint16 eepromFaultCnt; // K57: счётчик ошибок Flash API, см. Sample_Error()
 extern uint16 FIRST_AND_LAST_SECTOR[2];
 
 #ifndef FLASH_PROGRAMMING_F28P55X_H_

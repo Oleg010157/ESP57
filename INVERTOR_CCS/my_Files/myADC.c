@@ -21,12 +21,12 @@
 
 AdcCal    adcCalStart; //биты запросов на запуск калибровок каналов АЦП
 EEcontrol eeprom;      //биты запросов на сохранение калибровок АЦП в EEPROM
-//                          iPri, iSec, iBat, u220, uBat, crc
-ADCpar    offsets = {2048, 2048,  2048, 200, 200, 10};
+//                    iPri, iSec, iBat, u220, uBat, uSec, crc
+ADCpar    offsets = {2048, 2048,  2048, 200, 200, 200, 10};
 
-ADCpar    offsets_default = {2048, 2048, 2048, 110,110, 0}; //заводские настройки нулей каналов АЦП
-ADCpar    kadc            = {90, 90, 90, 100, 100, 7};        //
-ADCpar    kadc_default    = {90, 90, 90, 100, 100, 0};        //заводские настройки коэффициентов каналов АЦП
+ADCpar    offsets_default = {2048, 2048, 2048, 110, 110, 110, 0}; //заводские настройки нулей каналов АЦП
+ADCpar    kadc            = {90, 90, 90, 100, 100, 100, 7};        //
+ADCpar    kadc_default    = {90, 90, 90, 100, 100, 100, 0};        //заводские настройки коэффициентов каналов АЦП
 
 
 
@@ -38,6 +38,14 @@ uint16_t u220hi_kod = 2500; // u220hi_default;
 uint16_t u220low_kod = 400; // u220low_default;
 uint16_t u220_kod;
 float u220amp; // амплитуда напряжения U220
+
+// Напряжение на выходе инвертора (до контактора), канал A1.
+// ВНИМАНИЕ: пока DBG_SIN_DAC = 1, этот же пин управляется изнутри - CMPSS1
+// через COMPDACL выводит туда отладочную синусоиду. То есть сейчас канал меряет
+// не датчик, а собственный ЦАП. Для тракта измерения это полноценный сигнал и
+// им удобно проверяться, но настоящим uSec значение станет только когда
+// DBG_SIN_DAC уйдёт в 0 и к пину подключат датчик.
+int16_t uSec_kod;
 
 // Вилка вокруг синусоиды опоры: u220hi_kod цепляется за верхушку, u220low_kod за низ.
 // Раздвигается мгновенно - любой отсчёт выше (ниже) вилки сразу становится границей.
@@ -63,6 +71,10 @@ __interrupt void INT_myADCA_1_ISR(void)
     }
 
      u220_kod = (int16_t)AdcaResultRegs.ADCRESULT0;
+
+    // Напряжение на выходе инвертора, до контактора (A1, SOC3/PPB4).
+    // Знаковый результат PPB - то есть уже за вычетом нуля канала.
+    uSec_kod = (int16_t)AdcaResultRegs.ADCPPB4RESULT.bit.PPBRESULT;
 
   //  stend.Vin = AdccResultRegs.ADCPPB3RESULT.all;
 
@@ -159,15 +171,21 @@ void Core_Temp_Update2(void)
 //
 // Как работает. Регистр ADCPPBxOFFREF вычитается из результата канала, поэтому
 // достаточно положить в него среднее значение сигнала при обесточенном входе.
-// Копим 256 сырых отсчётов и делим сдвигом.
+// Окно усреднения - целое число периодов синусоиды, см. ADC_CAL_PERIODS.
 //
 // Прежняя редакция вместо усреднения шагала по ±1 в сторону, обратную знаку
-// остатка. При шуме, перекрывающем сигнал, знак случаен, и подстройка
-// превращалась в случайное блуждание: за 256 шагов конечная точка расходилась
-// примерно на √256 ≈ 16 кодов, и калибровка давала каждый раз новое значение.
-// Измеренный на плате шум канала тока был около ±50 кодов - блуждание на этом
-// фоне и наблюдалось. Усреднение и детерминировано, и подавляет шум в √256,
-// то есть в 16 раз.
+// остатка, и делала это 256 раз. Проблем было две.
+//
+// Первая: при шуме, перекрывающем сигнал, знак остатка случаен, и подстройка
+// превращалась в случайное блуждание - за 256 шагов конечная точка расходилась
+// примерно на √256 ≈ 16 кодов. Усреднение и детерминировано, и подавляет
+// случайную составляющую в √N раз.
+//
+// Вторая, и более важная: 256 отсчётов при resolution = 100 - это 2.56 периода
+// синусоиды. Опрос жёстко связан с ней (АЦП запускается от EPWM1_SOCA), поэтому
+// незамкнутый хвост периода попадал в результат целиком, а его величина
+// зависела от фазы начала калибровки. Именно это давало разброс, а не шум сам
+// по себе: измеренные на плате ±50 кодов - в основном остаток синусоиды.
 //
 // ВХОД КАНАЛА ДОЛЖЕН БЫТЬ ОБЕСТОЧЕН. Функция считает нулём то, что видит.
 //
@@ -178,13 +196,28 @@ void Core_Temp_Update2(void)
 // PPB - это ровно те значения, которые считала бы CLA.
 //--------------------------------------------------------------------------------
 
-// Число усредняемых отсчётов. ТОЛЬКО СТЕПЕНЬ ДВОЙКИ: деление идёт сдвигом.
-#define ADC_CAL_N     256U
-#define ADC_CAL_SHIFT 8U
+// Сколько ПЕРИОДОВ синусоиды усредняем.
+//
+// Считать надо именно периодами, а не отсчётами. АЦП запускается от EPWM1_SOCA,
+// а период EPWM1 подстраивается PLL так, чтобы на период сети приходилось ровно
+// sineB.resolution отсчётов. То есть опрос ЖЁСТКО СВЯЗАН с синусоидой, и целое
+// число периодов в окне усреднения гасит её вклад точно, до нуля.
+//
+// Прежние 256 отсчётов при resolution = 100 давали 2.56 периода. Лишние
+// 0.56 периода не компенсировались, и в среднее попадал кусок синусоиды,
+// величина которого зависела от фазы начала калибровки. Каждый запуск - другая
+// фаза, другой результат; отсюда и брались "совершенно случайные" значения.
+#define ADC_CAL_PERIODS 3U
+
+// Запасное число отсчётов, если resolution окажется бессмысленным.
+#define ADC_CAL_N_FALLBACK 256U
 
 // Накопители сырых отсчётов, по одному на канал.
-// 256 * 4095 = 1 048 320 - в 32 бита укладывается с большим запасом.
-static int32_t calAcc[5];
+// 300 * 4095 = 1 228 500 - в 32 бита укладывается с большим запасом.
+static int32_t calAcc[6];
+
+// Длина окна усреднения в отсчётах, вычисляется в начале каждой калибровки.
+static uint16_t calN = ADC_CAL_N_FALLBACK;
 
 enum
 {
@@ -192,7 +225,9 @@ enum
     CAL_iSec,
     CAL_iBat,
     CAL_u220,
-    CAL_uBat
+    CAL_uBat,
+    CAL_uSec,
+    CAL_COUNT
 };
 
 uint16_t ical_counter = 0;
@@ -200,14 +235,23 @@ void     Adc_Calibrate(void)
 {
     if (ical_counter == 0)
     {
+        uint16_t res = sineB.resolution;
+
+        // Окно усреднения - целое число периодов синусоиды. Если resolution
+        // почему-то невменяем, берём запасное число: усреднение будет хуже, но
+        // калибровка не зависнет и не поделит на ноль.
+        calN = ((res >= 10U) && (res <= 1000U)) ? (uint16_t)(ADC_CAL_PERIODS * res)
+                                                : ADC_CAL_N_FALLBACK;
+
         calAcc[CAL_iPri] = 0;
         calAcc[CAL_iSec] = 0;
         calAcc[CAL_iBat] = 0;
         calAcc[CAL_u220] = 0;
         calAcc[CAL_uBat] = 0;
+        calAcc[CAL_uSec] = 0;
     }
 
-    if (ical_counter < ADC_CAL_N)
+    if (ical_counter < calN)
     {
         // Копим СЫРЫЕ отсчёты. Именно сырые: OFFREF - это и есть то, что мы
         // считаем, а ADCRESULT от его текущего значения не зависит. Поэтому
@@ -223,22 +267,30 @@ void     Adc_Calibrate(void)
             calAcc[CAL_u220] += (int32_t)AdcaResultRegs.ADCRESULT0;
         if (adcCalStart.bit.uBat)
             calAcc[CAL_uBat] += (int32_t)AdcaResultRegs.ADCRESULT1;
+        if (adcCalStart.bit.uSec)
+            calAcc[CAL_uSec] += (int32_t)AdcaResultRegs.ADCRESULT3;
 
         ical_counter++;
     }
     else
     {
-        // Среднее в OFFREF.
+        // Среднее в OFFREF. Деление, а не сдвиг: calN кратно периоду
+        // синусоиды и степенью двойки не является. Считается один раз за
+        // калибровку, так что цена не имеет значения.
+        int32_t n = (int32_t)calN;
+
         if (adcCalStart.bit.iPri)
-            AdcbRegs.ADCPPB1OFFREF = (uint16_t)(calAcc[CAL_iPri] >> ADC_CAL_SHIFT);
+            AdcbRegs.ADCPPB1OFFREF = (uint16_t)(calAcc[CAL_iPri] / n);
         if (adcCalStart.bit.iSec)
-            AdcbRegs.ADCPPB2OFFREF = (uint16_t)(calAcc[CAL_iSec] >> ADC_CAL_SHIFT);
+            AdcbRegs.ADCPPB2OFFREF = (uint16_t)(calAcc[CAL_iSec] / n);
         if (adcCalStart.bit.iBat)
-            AdcaRegs.ADCPPB3OFFREF = (uint16_t)(calAcc[CAL_iBat] >> ADC_CAL_SHIFT);
+            AdcaRegs.ADCPPB3OFFREF = (uint16_t)(calAcc[CAL_iBat] / n);
         if (adcCalStart.bit.u220)
-            AdcaRegs.ADCPPB1OFFREF = (uint16_t)(calAcc[CAL_u220] >> ADC_CAL_SHIFT);
+            AdcaRegs.ADCPPB1OFFREF = (uint16_t)(calAcc[CAL_u220] / n);
         if (adcCalStart.bit.uBat)
-            AdcaRegs.ADCPPB2OFFREF = (uint16_t)(calAcc[CAL_uBat] >> ADC_CAL_SHIFT);
+            AdcaRegs.ADCPPB2OFFREF = (uint16_t)(calAcc[CAL_uBat] / n);
+        if (adcCalStart.bit.uSec)
+            AdcaRegs.ADCPPB4OFFREF = (uint16_t)(calAcc[CAL_uSec] / n);
 
         // Перенести OFFREF в offsets, посчитать сумму (это и есть признак
         // "калибровка проводилась") и запросить сохранение.
@@ -253,6 +305,7 @@ void SaveAdcOffsets(void) //
 {
     offsets.u220           = AdcaRegs.ADCPPB1OFFREF;
     offsets.uBat           = AdcaRegs.ADCPPB2OFFREF;
+    offsets.uSec           = AdcaRegs.ADCPPB4OFFREF;
     offsets.iBat           = AdcaRegs.ADCPPB3OFFREF;
 
     offsets.iPri           = AdcbRegs.ADCPPB1OFFREF;
@@ -299,6 +352,7 @@ void LoadOffsetsToPPB()
 {
     AdcaRegs.ADCPPB1OFFREF = offsets.u220;
     AdcaRegs.ADCPPB2OFFREF = offsets.uBat;
+    AdcaRegs.ADCPPB4OFFREF = offsets.uSec;
     AdcaRegs.ADCPPB3OFFREF = offsets.iBat;
 
     AdcbRegs.ADCPPB1OFFREF = offsets.iPri;
@@ -308,7 +362,7 @@ void LoadOffsetsToPPB()
 
 uint16_t ControlSum(ADCpar *c)
 {
-    uint16_t sum = c->iPri + c->iSec + c->iBat +  c->u220 + c->uBat;
+    uint16_t sum = c->iPri + c->iSec + c->iBat + c->u220 + c->uBat + c->uSec;
     return sum;
 }
 
@@ -338,6 +392,7 @@ void floatKadc() //
     kadcf.iBat = kadc.iBat / 10000.0f;
     kadcf.u220 = kadc.u220 / 10000.0f;
     kadcf.uBat = kadc.uBat / 10000.0f;
+    kadcf.uSec = kadc.uSec / 10000.0f;
 }
 
 void ADC_SendOffsets(void)
