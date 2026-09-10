@@ -46,6 +46,7 @@
 #include "main.h"
 #include "cla_shared.h"
 #include "SPI_EEPROM.h"
+#include "calib_store.h"
 
 
 
@@ -64,6 +65,10 @@ REFs      REF;
 void      REF_init(REFs *v);
 
 uint16_t Imax = 18;
+
+// dbg Результат чтения калибровок из флеша при старте, см. CalibStatus:
+// 0 = прочитано, 1 = флеш пуст, 2 = запись повреждена или чужого формата.
+uint16_t calibLoadStatus = CALIB_EMPTY;
 
 float32_t freq = 50; // freq of sine waveform in Gz
 
@@ -177,8 +182,21 @@ void main(void)
     offsets = offsets_default;
     kadc    = kadc_default;
 
- //   EEprom_read_words(SPIB_BASE, READ0, offsets_addr, &offsets.Ia, (uint16_t)(sizeof(offsets)));
- //   EEprom_read_words(SPIB_BASE, READ0, kadc_addr, &kadc.Ia, (uint16_t)(sizeof(kadc)));
+#if CALIB_IN_FLASH
+    // Калибровки из флеша поверх заводских. Порядок важен: если во флеше
+    // пусто или запись повреждена, calib_load() НЕ трогает offsets и kadc, и
+    // остаётся то, что положено строками выше.
+    //
+    // Вызов безопасен на любом этапе: Flash API не инициализирован и не нужен,
+    // читается обычная память банка. Ничего не стирается и не пишется.
+    //
+    // Результат оставлен в глобальной переменной, чтобы его было видно в Watch:
+    //   0 = прочитано из флеша, 1 = флеш пуст, 2 = запись есть, но не наша.
+    calibLoadStatus = calib_load();
+#endif
+
+ //   EEprom_read_words(SPIB_BASE, READ0, offsets_addr, &offsets.iPri, (uint16_t)(sizeof(offsets)));
+ //   EEprom_read_words(SPIB_BASE, READ0, kadc_addr, &kadc.iPri, (uint16_t)(sizeof(kadc)));
  //   EEprom_read_words(SPIB_BASE, READ0, errors_history_addr, (uint16_t *)&ErrHistory[0], (uint16_t)(sizeof(ErrHistory) / sizeof(uint16_t)));
     ErrHistory_ClearPending();
 
@@ -217,6 +235,14 @@ MCAN_enableLine1Routing();
 #endif
 
     request_firmware_update = 0;
+
+#if CALIB_IN_FLASH
+    // Заявки, накопившиеся за инициализацию, сбрасываем: SaveAdcOffsets() при
+    // старте не вызывается, но если когда-нибудь начнёт - её заявка не должна
+    // превратиться в запись во флеш ещё до первой команды оператора.
+    calibSaveReq = 0;
+#endif
+
     EINT;
     ERTM;
 
@@ -239,6 +265,10 @@ extern volatile uint16_t epwm3time;// dbg
         // ошибок. Само отключение выхода уже произошло в ISR: там m = 0, то есть
         // мост даёт нулевое напряжение начиная со следующего периода ШИМ.
         grid_tie_background();
+
+        // dbg Сохранение калибровок во флеш по команде из отладчика
+        // (calibCmd = 1). Пока команды нет - ничего не делает.
+        calib_store_background();
 
 
         // DBG измеритель времени прохождения фонового цикла
@@ -360,7 +390,7 @@ extern volatile uint16_t epwm3time;// dbg
         //=======================================================================
 
         change_Tpwm();
-        c2p.Um_max = (Udc_volt > 0.01f) ? (Udc_volt / sqrt3) : 0.01f;
+        c2p.Um_max = (dc.Udc_volt > 0.01f) ? (dc.Udc_volt / sqrt3) : 0.01f;
 
         //=======================================================================
         // CAND вывод по 32-му MBOX

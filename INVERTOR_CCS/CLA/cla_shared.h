@@ -87,6 +87,4 @@ extern volatile CLA_RMS   rms;
 
 void CLA_shared_Init(void);
 
-#include "Task1_alias.h"
-
 #endif

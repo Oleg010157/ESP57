@@ -34,14 +34,14 @@ __interrupt void Cla1Task7(void)
 {
    
 
-   Ia_kod = (int16_t)AdcbResultRegs.ADCPPB1RESULT.bit.PPBRESULT;
-   Ib_kod = (int16_t)AdcbResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
-   Ic_kod = -Ia_kod - Ib_kod;
+   c2p.Ia_kod = (int16_t)AdcbResultRegs.ADCPPB1RESULT.bit.PPBRESULT;
+   c2p.Ib_kod = (int16_t)AdcbResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
+   c2p.Ic_kod = -c2p.Ia_kod - c2p.Ib_kod;
 
  //  if (cla.error == 0) //защёлка значений тока в момент срабатывания защиты
    {
-       c2p.Ia_amp = kadcf.Ia * Ia_kod;
-       c2p.Ib_amp = kadcf.Ib * Ib_kod;
+       c2p.Ia_amp = kadcf.iPri * c2p.Ia_kod;
+       c2p.Ib_amp = kadcf.iSec * c2p.Ib_kod;
        c2p.Ic_amp = -c2p.Ia_amp - c2p.Ib_amp;
    }
        

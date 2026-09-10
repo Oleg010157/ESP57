@@ -48,11 +48,13 @@ extern EEcontrol eeprom;
 
 extern uint16_t ical_counter;
 
+// Порядок битов задан командой CAN 70 (data1 -> adcCalStart.all) и менять его
+// нельзя: маску собирает UI. Переименованы только имена, позиции те же.
 struct AdcStartCal
 {
-    uint16_t Iabc : 1; // бит запрос на калибровку офФсетов датчиков тока.
-    uint16_t Udc : 1;  // бит запрос на калибровку офФсетов датчика напряжения Udc.
-    uint16_t Vin : 1;  // бит запрос на калибровку офФсетов датчика входного напряжения Vin.
+    uint16_t iAll : 1; // бит запрос на калибровку нулей датчиков тока (iPri, iSec, iBat).
+    uint16_t u220 : 1; // бит запрос на калибровку нуля датчика сети U220 (A0).
+    uint16_t uBat : 1; // бит запрос на калибровку нуля датчика напряжения АКБ (A4).
 };
 
 typedef union
@@ -63,26 +65,40 @@ typedef union
 
 extern AdcCal adcCalStart;
 
+// Имена полей - по точке измерения:
+//   iPri - ток первичной обмотки  (B1, ADCB SOC0/PPB1)
+//   iSec - ток вторичной обмотки  (B4, ADCB SOC1/PPB2)
+//   iBat - ток АКБ                (A12, ADCA SOC2/PPB3)
+//   u220 - напряжение сети после контактора (A0, ADCA SOC0/PPB1)
+//   uBat - напряжение АКБ         (A4, ADCA SOC1/PPB2)
+//
+// ПОРЯДОК ПОЛЕЙ МЕНЯТЬ НЕЛЬЗЯ: структура целиком ложится в EEPROM с CRC по
+// всей длине (см. SPI_EEPROM.c) и читается с адреса первого поля. Новые поля
+// добавлять только в конец, перед crc - тогда старый EEPROM не сойдётся по
+// контрольной сумме и подставит дефолты, что для нетарированного канала верно.
 typedef struct
 {
-    uint16_t Ia;
-    uint16_t Ib;
-    uint16_t Idc;
-    uint16_t Udc;
-    uint16_t Vin;
+    uint16_t iPri;
+    uint16_t iSec;
+    uint16_t iBat;
+    uint16_t u220;
+    uint16_t uBat;
     uint16_t crc;
 
 } ADCpar;
 
 typedef struct
 {
-    float Ia;
-    float Ib;
-    float Idc;
-    float Udc;
-    float Vin;
+    float iPri;
+    float iSec;
+    float iBat;
+    float u220;
+    float uBat;
 
 } kADCf;
+
+extern uint16_t u220_kod; // myADC.c: код измеренного напряжения сети U220, 0..4095
+extern float u220amp; // амплитуда напряжения U220
 
 extern ADCpar offsets, offsets_default;
 

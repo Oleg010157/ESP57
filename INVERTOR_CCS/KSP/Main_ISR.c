@@ -108,7 +108,7 @@ void MainISR(void)
     if (canaKadr.bit.F1_invertor == 1)
         if ((txbrp & 2) == 0U)
         {
-            uint16_t f[4] = { Ia_kod, Ib_kod, Idc_kod, IsrTicker };
+            uint16_t f[4] = { c2p.Ia_kod, c2p.Ib_kod, dc.Idc_kod, IsrTicker };
             Send_mbox_FD(1, f, 4);                              // 8 байт (DLC=8)
         }
 

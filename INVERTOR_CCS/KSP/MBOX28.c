@@ -23,6 +23,7 @@
 
 #include "MBOX.h"
 #include "myADC.h"
+#include "calib_store.h"
 #include "cla_shared.h"
 #include FAST_FRAME_STRING
 
@@ -1108,67 +1109,78 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             break;
             //------------------------------------------------------------------
             // установка коэф. усиления каналов АЦП через таблицу
-        case 198:
+        case 198: // масштаб канала iPri (ток первички, B1)
             if (data2 == 3333)
             {
-                kadc.Ia             = data1;
-                kadcf.Ia            = (float)data1 / 10000;
+                kadc.iPri           = data1;
+                kadcf.iPri          = (float)data1 / 10000;
                 kadc.crc            = ControlSum(&kadc);
                 eeprom.bit.SaveCoef = 1;
+                calibSaveReq        = 1; // и во флеш, см. calib_store.h
             }
-            SendAck(kadc.Ia, data2, data3, cmd);
+            SendAck(kadc.iPri, data2, data3, cmd);
             break;
 
-        case 199:
+        case 199: // масштаб канала iSec (ток вторички, B4)
             if (data2 == 3333)
             {
-                kadc.Ib             = data1;
-                kadcf.Ib            = (float)data1 / 10000;
+                kadc.iSec           = data1;
+                kadcf.iSec          = (float)data1 / 10000;
                 kadc.crc            = ControlSum(&kadc);
                 eeprom.bit.SaveCoef = 1;
+                calibSaveReq        = 1; // и во флеш, см. calib_store.h
             }
-            SendAck(kadc.Ib, data2, data3, cmd);
+            SendAck(kadc.iSec, data2, data3, cmd);
             break;
 
-        case 200:
+        case 200: // масштаб канала iBat (ток АКБ, A12)
             if (data2 == 3333)
             {
-                kadc.Idc            = data1;
-                kadcf.Idc           = (float)data1 / 10000;
+                kadc.iBat           = data1;
+                kadcf.iBat          = (float)data1 / 10000;
                 kadc.crc            = ControlSum(&kadc);
                 eeprom.bit.SaveCoef = 1;
+                calibSaveReq        = 1; // и во флеш, см. calib_store.h
             }
-            SendAck(kadc.Idc, data2, data3, cmd);
+            SendAck(kadc.iBat, data2, data3, cmd);
             break;
 
-        case 201:
-            if (data2 == 3333)
-            {
-                kadc.crc = data1;
-            }
+        case 201: // контрольная сумма kadc - ТОЛЬКО ЧТЕНИЕ
+            // Запись намеренно не выполняется, хотя data2 == 3333 сюда доходит.
+            //
+            // Сумму незачем задавать руками: её пересчитывает ControlSum() при
+            // каждом изменении коэффициента (команды 198..203) и floatKadc()
+            // при загрузке. Записанное вручную значение может только разойтись
+            // с данными - и тогда checkEE() при следующем старте посчитает
+            // калибровки испорченными и отправит их на заводские.
+            //
+            // Отвечаем фактическим значением: в таблице тарировки эта строка
+            // нужна как индикатор, а попытка её изменить вернёт то, что есть.
             SendAck(kadc.crc, data2, data3, cmd);
             break;
 
-        case 202:
+        case 202: // масштаб канала u220 (напряжение сети, A0)
             if (data2 == 3333)
             {
-                kadc.Udc            = data1;
-                kadcf.Udc           = (float)data1 / 10000;
+                kadc.u220           = data1;
+                kadcf.u220          = (float)data1 / 10000;
                 kadc.crc            = ControlSum(&kadc);
                 eeprom.bit.SaveCoef = 1;
+                calibSaveReq        = 1; // и во флеш, см. calib_store.h
             }
-            SendAck(kadc.Udc, data2, data3, cmd);
+            SendAck(kadc.u220, data2, data3, cmd);
             break;
 
-        case 203:
+        case 203: // масштаб канала uBat (напряжение АКБ, A4)
             if (data2 == 3333)
             {
-                kadc.Vin            = data1;
-                kadcf.Vin           = (float)data1 / 10000;
+                kadc.uBat           = data1;
+                kadcf.uBat          = (float)data1 / 10000;
                 kadc.crc            = ControlSum(&kadc);
                 eeprom.bit.SaveCoef = 1;
+                calibSaveReq        = 1; // и во флеш, см. calib_store.h
             }
-            SendAck(kadc.Vin, data2, data3, cmd);
+            SendAck(kadc.uBat, data2, data3, cmd);
             break;
 
         case 204:
@@ -1189,6 +1201,80 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
             eeStatusReg.all = send_EEcomand(SPIB_BASE, RDSR);
             SendAck(eeStatusReg.all, data2, data3, cmd);
+            break;
+
+        case 206: // сброс калибровок АЦП к заводским
+            //
+            // Возвращает прибор в то состояние, в котором он приходит с
+            // производства: заводские нули и масштабы, пустое хранилище во
+            // флеше. Ответ - kadc.crc, по нему видно, что сброс прошёл.
+            //
+            // Порядок важен и менять его нельзя:
+            //   1. подставить заводские значения;
+            //   2. LoadOffsetsToPPB() - новые нули в регистры PPB, иначе АЦП
+            //      продолжит вычитать старые смещения;
+            //   3. floatKadc() - пересчитать масштабы kadcf, иначе контур
+            //      считает токи по прежней калибровке;
+            //   4. currentLimit() - ПЕРЕСЧИТАТЬ ПОРОГИ ЗАЩИТЫ. Они считаются из
+            //      kadcf и offsets, и без этого шага компараторы остались бы
+            //      настроены под старую калибровку - то есть защита по току
+            //      сработала бы не там, где нужно;
+            //   5. calibCmd = 2 - фону стереть банк хранилища, чтобы при
+            //      следующем включении прибор честно сказал "не калиброван",
+            //      а не поднял старые значения из флеша.
+            if (data2 == 3333)
+            {
+                offsets = offsets_default;
+                kadc    = kadc_default;
+
+                LoadOffsetsToPPB();
+                floatKadc();
+                currentLimit(Imax);
+
+                calibCmd = 2;
+            }
+            SendAck(kadc.crc, data2, data3, cmd);
+            break;
+
+            //---------------------------------------------------------------
+            // 207..212 - нули каналов АЦП, ТОЛЬКО ЧТЕНИЕ.
+            //
+            // Нули не вводятся руками: их измеряет автокалибровка (команда 70,
+            // Adc_Calibrate), которая подстраивает регистры PPB по реальному
+            // сигналу при снятом входе, а SaveAdcOffsets() переносит результат
+            // в offsets. Значение, введённое оператором, эту работу испортило
+            // бы.
+            //
+            // Читать их при этом нужно: по ним видно, откалиброван ли прибор и
+            // не уплыли ли каналы. Поэтому команды отвечают, но не пишут - так
+            // же, как 201 для контрольной суммы масштабов.
+            //
+            // Если когда-нибудь понадобится ручной ввод, добавляйте не только
+            // присваивание, но и offsets.crc = ControlSum(&offsets) вместе с
+            // calibSaveReq = 1, иначе значение не переживёт выключение.
+            //---------------------------------------------------------------
+        case 207: // ноль канала iPri (ток первички, B1)
+            SendAck(offsets.iPri, data2, data3, cmd);
+            break;
+
+        case 208: // ноль канала iSec (ток вторички, B4)
+            SendAck(offsets.iSec, data2, data3, cmd);
+            break;
+
+        case 209: // ноль канала iBat (ток АКБ, A12)
+            SendAck(offsets.iBat, data2, data3, cmd);
+            break;
+
+        case 210: // ноль канала u220 (напряжение сети, A0)
+            SendAck(offsets.u220, data2, data3, cmd);
+            break;
+
+        case 211: // ноль канала uBat (напряжение АКБ, A4)
+            SendAck(offsets.uBat, data2, data3, cmd);
+            break;
+
+        case 212: // контрольная сумма offsets
+            SendAck(offsets.crc, data2, data3, cmd);
             break;
 
             //---------------------------------------------------------------------
@@ -1496,10 +1582,10 @@ void pi_Reset(motor *m)
 
 void Reset_stend_filtr(void)
 {
-    Udc_rf = 0;
-    Idc_rf = 0;
+    dc.Udc_rf = 0;
+    dc.Idc_rf = 0;
 
-    Idc_sum = 0;
+    dc.Idc_sum = 0;
 
     stend.Pa_stend = 0;
 }

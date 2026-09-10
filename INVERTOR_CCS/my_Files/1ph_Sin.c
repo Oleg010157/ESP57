@@ -78,8 +78,8 @@ static void xfmr_currents_from_adc(void)
 {
     iPri_kod = (int16_t)AdcbResultRegs.ADCPPB1RESULT.bit.PPBRESULT;
     iSec_kod = (int16_t)AdcbResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
-    iPri_amp = gt.iSign * kadcf.Ia * (float)iPri_kod;
-    iSec_amp = gt.iSign * kadcf.Ib * (float)iSec_kod;
+    iPri_amp = gt.iSign * kadcf.iPri * (float)iPri_kod;
+    iSec_amp = gt.iSign * kadcf.iSec * (float)iSec_kod;
 }
 
 #pragma CODE_SECTION(xfmr_currents_rms, ".TI.ramfunc");

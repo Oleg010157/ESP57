@@ -67,8 +67,8 @@ void CLA_shared_Init(void)
     cla.Ib_rf = 0;
     cla.Ic_rf = 0;
 
-    Idc_rf = 0;
-    
+    dc.Idc_rf = 0;
+
 
     // Общая структура
     cla.count = 0;
@@ -83,8 +83,8 @@ void CLA_shared_Init(void)
 
     // DutyControl
     dctl.prechargeLimit = 100000; // 50 кГц * 2 сек
-    Idc_max        = 5.0f;
-    Udc_ref        = 100.0f;
+    dc.Idc_max     = 5.0f;
+    dc.Udc_ref     = 100.0f;
 }
 //void CLAfiltersReset(void)
 

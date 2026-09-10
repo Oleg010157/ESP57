@@ -46,7 +46,7 @@ if (eeprom.bit.Recall)
 
 if (eeprom.bit.ReadOffsets)
 {
-    EEprom_read_words(SPIB_BASE, READ0, offsets_addr, &offsets.Ia,
+    EEprom_read_words(SPIB_BASE, READ0, offsets_addr, &offsets.iPri,
                        (uint16_t)(sizeof(offsets) / sizeof(uint16_t)));
     eeprom.bit.ReadOffsets = 0;
     goto endSPI;
@@ -57,7 +57,7 @@ if (eeprom.bit.ReadOffsets)
 if (eeprom.bit.SaveOffsets)
 {
     offsets.crc = ControlSum(&offsets);
-    EEprom_write_words(SPIB_BASE, WRITE0, offsets_addr, &offsets.Ia,
+    EEprom_write_words(SPIB_BASE, WRITE0, offsets_addr, &offsets.iPri,
                         (uint16_t)(sizeof(offsets) / sizeof(uint16_t)));
     eeprom.bit.SaveOffsets = 0;
     goto endSPI;
@@ -65,7 +65,7 @@ if (eeprom.bit.SaveOffsets)
 
 if (eeprom.bit.ReadCoef)
 {
-     EEprom_read_words(SPIB_BASE, READ0, kadc_addr, &kadc.Ia,
+     EEprom_read_words(SPIB_BASE, READ0, kadc_addr, &kadc.iPri,
                         (uint16_t)(sizeof(kadc) / sizeof(uint16_t)));
     eeprom.bit.ReadCoef = 0;
     goto endSPI;
@@ -73,7 +73,7 @@ if (eeprom.bit.ReadCoef)
 
 if (eeprom.bit.SaveCoef)
 {
-    EEprom_write_words(SPIB_BASE, WRITE0, kadc_addr, &kadc.Ia,
+    EEprom_write_words(SPIB_BASE, WRITE0, kadc_addr, &kadc.iPri,
                         (uint16_t)(sizeof(kadc) / sizeof(uint16_t)));
     eeprom.bit.SaveCoef = 0;
     goto endSPI;

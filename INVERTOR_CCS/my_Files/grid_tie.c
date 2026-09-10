@@ -303,7 +303,7 @@ void grid_tie_step(void)
     // Напряжение АКБ. Мгновенное, не сглаженное - см. комментарий в grid_tie.h.
     if (gt.UdcSrc)
     {
-        gt.Udc = kadcf.Vin * (float)(int16_t)AdcaResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
+        gt.Udc = kadcf.uBat * (float)(int16_t)AdcaResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
     }
     else
     {

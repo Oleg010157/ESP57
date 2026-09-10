@@ -12,6 +12,7 @@
 #include "KSP.h"
 
 #include "myADC.h"
+#include "calib_store.h"
 #include "1ph_Sin.h" // DBG_SIN_DAC
 #include "grid_tie.h" // gt.n - коэффициент трансформации для порога первички
 #include "cla_shared.h"
@@ -20,6 +21,7 @@
 
 AdcCal    adcCalStart; //биты запросов на запуск калибровок каналов АЦП
 EEcontrol eeprom;      //биты запросов на сохранение калибровок АЦП в EEPROM
+//                          iPri, iSec, iBat, u220, uBat, crc
 ADCpar    offsets = {2048, 2048,  2048, 200, 200, 10};
 
 ADCpar    offsets_default = {2048, 2048, 2048, 110,110, 0}; //заводские настройки нулей каналов АЦП
@@ -149,49 +151,49 @@ void     Adc_Calibrate(void)
 
     if (ical_counter == 0)
     {
-        if (adcCalStart.bit.Iabc)
+        if (adcCalStart.bit.iAll)
         {
-            AdcbRegs.ADCPPB1OFFREF = AdcbResultRegs.ADCRESULT0; // Ia_kod
-            AdcbRegs.ADCPPB2OFFREF = AdcbResultRegs.ADCRESULT1; // Ib_kod
-            AdcaRegs.ADCPPB3OFFREF = AdcaResultRegs.ADCRESULT2; // Idc_kod
+            AdcbRegs.ADCPPB1OFFREF = AdcbResultRegs.ADCRESULT0; // iPri
+            AdcbRegs.ADCPPB2OFFREF = AdcbResultRegs.ADCRESULT1; // iSec
+            AdcaRegs.ADCPPB3OFFREF = AdcaResultRegs.ADCRESULT2; // iBat
         }
-        if (adcCalStart.bit.Udc)
-            AdcaRegs.ADCPPB1OFFREF = AdcaResultRegs.ADCRESULT0; // cla.Udc_kod
+        if (adcCalStart.bit.u220)
+            AdcaRegs.ADCPPB1OFFREF = AdcaResultRegs.ADCRESULT0; // u220
 
-        if (adcCalStart.bit.Vin)
-            AdcaRegs.ADCPPB2OFFREF = AdcaResultRegs.ADCRESULT1; // Vin_kod
+        if (adcCalStart.bit.uBat)
+            AdcaRegs.ADCPPB2OFFREF = AdcaResultRegs.ADCRESULT1; // uBat
     }
     if (ical_counter < 256)
     {
-        if (adcCalStart.bit.Iabc)
+        if (adcCalStart.bit.iAll)
         {
-            if (Ia_kod > 0)
+            if (c2p.Ia_kod > 0)
                 AdcbRegs.ADCPPB1OFFREF++;
-            else if (Ia_kod < 0)
+            else if (c2p.Ia_kod < 0)
                 AdcbRegs.ADCPPB1OFFREF--;
 
-            if (Ib_kod > 0)
+            if (c2p.Ib_kod > 0)
                 AdcbRegs.ADCPPB2OFFREF++;
-            else if (Ib_kod < 0)
+            else if (c2p.Ib_kod < 0)
                 AdcbRegs.ADCPPB2OFFREF--;
 
-            if (Idc_kod > 0)
+            if (dc.Idc_kod > 0)
                 AdcaRegs.ADCPPB3OFFREF++;
-            else if (Idc_kod < 0)
+            else if (dc.Idc_kod < 0)
                 AdcaRegs.ADCPPB3OFFREF--;
         }
-        if (adcCalStart.bit.Udc)
+        if (adcCalStart.bit.u220)
         {
-            if (Udc_kod > 0)
+            if (dc.Udc_kod > 0)
                 AdcaRegs.ADCPPB1OFFREF++;
-            else if (Udc_kod < 0)
+            else if (dc.Udc_kod < 0)
                 AdcaRegs.ADCPPB1OFFREF--;
         }
-        if (adcCalStart.bit.Vin)
+        if (adcCalStart.bit.uBat)
         {
-            if (Vin_kod > 0)
+            if (dc.Vin_kod > 0)
                 AdcaRegs.ADCPPB2OFFREF++;
-            else if (Vin_kod < 0)
+            else if (dc.Vin_kod < 0)
                 AdcaRegs.ADCPPB2OFFREF--;
         }
 
@@ -208,47 +210,66 @@ void     Adc_Calibrate(void)
 
 void SaveAdcOffsets(void) //
 {
-    offsets.Udc            = AdcaRegs.ADCPPB1OFFREF;
-    offsets.Vin            = AdcaRegs.ADCPPB2OFFREF;
-    offsets.Idc            = AdcaRegs.ADCPPB3OFFREF;
+    offsets.u220           = AdcaRegs.ADCPPB1OFFREF;
+    offsets.uBat           = AdcaRegs.ADCPPB2OFFREF;
+    offsets.iBat           = AdcaRegs.ADCPPB3OFFREF;
 
-    offsets.Ia             = AdcbRegs.ADCPPB1OFFREF;
-    offsets.Ib             = AdcbRegs.ADCPPB2OFFREF;
+    offsets.iPri           = AdcbRegs.ADCPPB1OFFREF;
+    offsets.iSec           = AdcbRegs.ADCPPB2OFFREF;
 
-    
+
     offsets.crc            = ControlSum(&offsets);
 
-   EEprom_write_words(SPIB_BASE, WRITE0, offsets_addr, &offsets.Ia,
+    calibSaveReq = 1; // и во флеш, см. calib_store.h
+
+   // Запись с адреса первого поля структуры - оно же адрес самой структуры.
+   EEprom_write_words(SPIB_BASE, WRITE0, offsets_addr, &offsets.iPri,
                        (uint16_t)(sizeof(offsets) / sizeof(uint16_t)));
 }
 
 void LoadOffsetsToPPB()
 {
-    AdcaRegs.ADCPPB1OFFREF = offsets.Udc;
-    AdcaRegs.ADCPPB2OFFREF = offsets.Vin;
-    AdcaRegs.ADCPPB3OFFREF = offsets.Idc;
+    AdcaRegs.ADCPPB1OFFREF = offsets.u220;
+    AdcaRegs.ADCPPB2OFFREF = offsets.uBat;
+    AdcaRegs.ADCPPB3OFFREF = offsets.iBat;
 
-    AdcbRegs.ADCPPB1OFFREF = offsets.Ia;
-    AdcbRegs.ADCPPB2OFFREF = offsets.Ib;
-    
+    AdcbRegs.ADCPPB1OFFREF = offsets.iPri;
+    AdcbRegs.ADCPPB2OFFREF = offsets.iSec;
+
 }
 
 uint16_t ControlSum(ADCpar *c)
 {
-    uint16_t sum = c->Ia + c->Ib + c->Idc +  c->Udc + c->Vin;
+    uint16_t sum = c->iPri + c->iSec + c->iBat +  c->u220 + c->uBat;
     return sum;
 }
 
+//---------------------------------------------------------------------------
+// Пересчёт целых масштабов kadc в вещественные kadcf. Больше ничего.
+//
+// Раньше здесь стояли ещё две строки, и обе были неверны:
+//
+//   kadc.crc = kadc.iPri + ... + kadc.uBat;
+//       Нулевая сумма - это ПРИЗНАК того, что каналы после заводских значений
+//       не калибровались, на нём построен разбор в checkEE(): crc == 0 даёт
+//       Kadc_NOCAL, а несовпадение суммы - другую ошибку. floatKadc()
+//       вызывается при каждом старте из checkEE(), поэтому заводские значения
+//       тут же получали "правильную" сумму и прибор навсегда начинал выглядеть
+//       калиброванным, ни разу им не побывав. Сумму считает тот, кто
+//       действительно калибрует: команды CAN 198..203 для масштабов и
+//       SaveAdcOffsets() для нулей.
+//
+//   eeprom.bit.SaveCoef = 1;
+//       Запрос на сохранение при каждом включении, без единого изменения.
+//       Те же команды 198..203 ставят этот бит сами, когда есть что сохранять.
+//---------------------------------------------------------------------------
 void floatKadc() //
 {
-   
-    kadcf.Ia            = kadc.Ia / 10000.0f;
-    kadcf.Ib            = kadc.Ib / 10000.0f;
-    kadcf.Idc           = kadc.Idc / 10000.0f;
-    kadcf.Udc           = kadc.Udc / 10000.0f;
-    kadcf.Vin           = kadc.Vin / 10000.0f;
-    kadc.crc            = kadc.Ia + kadc.Ib + kadc.Idc + kadc.Udc + kadc.Vin;
-    eeprom.bit.SaveCoef = 1; // сохранить коэффициенты в SRAM EEPROM
+    kadcf.iPri = kadc.iPri / 10000.0f;
+    kadcf.iSec = kadc.iSec / 10000.0f;
+    kadcf.iBat = kadc.iBat / 10000.0f;
+    kadcf.u220 = kadc.u220 / 10000.0f;
+    kadcf.uBat = kadc.uBat / 10000.0f;
 }
 
 void ADC_SendOffsets(void)
@@ -292,7 +313,7 @@ void currentLimit(uint16_t Imax)
 {
     // До вызова floatKadc() масштабы нулевые. Делить на них нельзя: получится
     // бесконечность, а её преобразование в целое не определено.
-    if ((kadcf.Ia <= 0.0f) || (kadcf.Ib <= 0.0f))
+    if ((kadcf.iPri <= 0.0f) || (kadcf.iSec <= 0.0f))
     {
         return;
     }
@@ -300,17 +321,17 @@ void currentLimit(uint16_t Imax)
     float ImaxSec = (float)Imax;
     float ImaxPri = ImaxSec * gt.n * currentLimitMagK;
 
-    long dPri = (long)(ImaxPri / kadcf.Ia); // отклонение порога от нуля, коды
-    long dSec = (long)(ImaxSec / kadcf.Ib);
+    long dPri = (long)(ImaxPri / kadcf.iPri); // отклонение порога от нуля, коды
+    long dSec = (long)(ImaxSec / kadcf.iSec);
 
     // Считаем в знаковом типе: при большой уставке offsets - d уходит ниже нуля,
     // а в uint16_t это свернулось бы в ~65000 и ограничитель принял бы его
     // за превышение сверху.
-    Cmpss2Regs.DACHVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.Ia + dPri, 4000, 2048);
-    Cmpss2Regs.DACLVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.Ia - dPri, 2048, 96);
+    Cmpss2Regs.DACHVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.iPri + dPri, 4000, 2048);
+    Cmpss2Regs.DACLVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.iPri - dPri, 2048, 96);
 
-    Cmpss4Regs.DACHVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.Ib + dSec, 4000, 2048);
-    Cmpss4Regs.DACLVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.Ib - dSec, 2048, 96);
+    Cmpss4Regs.DACHVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.iSec + dSec, 4000, 2048);
+    Cmpss4Regs.DACLVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.iSec - dSec, 2048, 96);
 }
 
 

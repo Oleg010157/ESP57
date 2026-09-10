@@ -4,7 +4,6 @@
 
 #include "cla.h"
 #include "cla_shared.h"
-#include "Task1_alias.h"
 
 #include "CLAmath.h"
 
@@ -19,56 +18,56 @@ __interrupt void Cla1Task1(void)
 {
     dbgtest = EPwm7Regs.TBCTR;
 
-    Udc_kod  = (int16_t)AdcaResultRegs.ADCPPB1RESULT.bit.PPBRESULT;
-   
+    dc.Udc_kod  = (int16_t)AdcaResultRegs.ADCPPB1RESULT.bit.PPBRESULT;
+
 
 #if dbgUdc
-    Udc_volt = Udc_imit;
+    dc.Udc_volt = Udc_imit;
 #else
-    Udc_volt = kadcf.Udc * Udc_kod;
+    dc.Udc_volt = kadcf.u220 * dc.Udc_kod;
 #endif
 
-    Udc_rf = 0.9f * Udc_rf + 0.1f * Udc_volt;
+    dc.Udc_rf = 0.9f * dc.Udc_rf + 0.1f * dc.Udc_volt;
 
-    Idc_kod = (int16_t)AdcaResultRegs.ADCPPB3RESULT.bit.PPBRESULT;
-    Idc_amp = kadcf.Idc * Idc_kod;
-    Idc_rf  = 0.9f * Idc_rf + 0.1f * Idc_amp;
+    dc.Idc_kod = (int16_t)AdcaResultRegs.ADCPPB3RESULT.bit.PPBRESULT;
+    dc.Idc_amp = kadcf.iBat * dc.Idc_kod;
+    dc.Idc_rf  = 0.9f * dc.Idc_rf + 0.1f * dc.Idc_amp;
 
-    Vin_kod  = (int16_t)AdcaResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
-    Vin_volt = kadcf.Vin * Vin_kod;
-    Vin_rf   = Vin_rf * 0.9f + Vin_volt * 0.1f;
+    dc.Vin_kod  = (int16_t)AdcaResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
+    dc.Vin_volt = kadcf.uBat * dc.Vin_kod;
+    dc.Vin_rf   = dc.Vin_rf * 0.9f + dc.Vin_volt * 0.1f;
 
-    if (c.State == STATE_PRECHARGE)
+    if (dctl.State == STATE_PRECHARGE)
     {
-        c.prechargeTicks++;
+        dctl.prechargeTicks++;
 
-        if (Idc_amp < Idc_max)
+        if (dc.Idc_amp < dc.Idc_max)
         {
-            c.dutyControl += 0.0005f;
-            if (c.dutyControl > 0.3f)
-                c.dutyControl = 0.3f;
+            dctl.dutyControl += 0.0005f;
+            if (dctl.dutyControl > 0.3f)
+                dctl.dutyControl = 0.3f;
         }
         else
         {
-            c.dutyControl -= 0.001f;
-            if (c.dutyControl < 0.05f)
-                c.dutyControl = 0.05f;
+            dctl.dutyControl -= 0.001f;
+            if (dctl.dutyControl < 0.05f)
+                dctl.dutyControl = 0.05f;
         }
 
-        if ((Udc_volt > 550.0f) || (c.prechargeTicks > c.prechargeLimit))
+        if ((dc.Udc_volt > 550.0f) || (dctl.prechargeTicks > dctl.prechargeLimit))
         {
-            c.State = STATE_RUN;
+            dctl.State = STATE_RUN;
         }
     }
-    else 
+    else
     {
-        c.dutyControl = PI_update(&pi, Udc_ref, Udc_volt);
+        dctl.dutyControl = PI_update(&pi, dc.Udc_ref, dc.Udc_volt);
     }
 
-    c.duty = 0.5f - c.dutyControl * 0.4f;
-    c.CMPA = (uint16_t)(EPwm1Regs.TBPRD * c.duty);
+    dctl.duty = 0.5f - dctl.dutyControl * 0.4f;
+    dctl.CMPA = (uint16_t)(EPwm1Regs.TBPRD * dctl.duty);
 
-    EPwm1Regs.CMPA.bit.CMPA = c.CMPA;
+    EPwm1Regs.CMPA.bit.CMPA = dctl.CMPA;
 
     task1Time = (EPwm7Regs.TBCTR - dbgtest); // время в 1/150 мкс
 }
