@@ -13,13 +13,13 @@
 #define mSecond(msec) (Uint32)(150000*msec) //  CPU Timers 
 
 extern uint16_t Deadband;
-extern int satFlag;  // ���������� ������� ��������� �������� ���������
+extern int satFlag;  // флаг насыщения
 
 void change_Tpwm();
 void write_pwmCLKDIV(uint16_t div);
 float asut(float a);
 
-// float -> int � �����������
+// float -> int с округлением
 //#define  rounding(number) ((number >= 0)?(int)(number + 0.5):(int)(number - 0.5))
 static inline int rounding(float number)
 {

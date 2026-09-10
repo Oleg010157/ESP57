@@ -478,40 +478,6 @@ typedef struct
   
     
 
-    // RMS2 variable  ----------------------------------------
-    uint16_t count_sum; // Счётчик количества измерений для подсчёта   измерений при расчёте среднего.
-
-  
-    // activ Power  kWt
-    float Pu;  // instant (cla.c2p.I_amp* Va)  power for phase A  u
-    float sPu; // sPu = sPu +Pu
-    float Pa;  // средняя по выборке activ power Pa =sPu*3/samples;
-
-    float paz;  // мгновенная мощность paz = Udc*[Ta~-1]/(HalfPerMax*2)* cla.c2p.I_amp
-    float spaz; // spaz = spaz + paz
-    float mPaz; // средняя по выборке activ power Paz =spaz *3/samples;
-
-    float sPabc; // sPabc = sPabc + pabc_ui
-    float mPabc; // средняя по выборке activ power суммарная по всем фазам
-
-    // full Power  kVA thru Urms
-    float mPx;    //средняя по выборке реактивная мощность  mPx =sqrt((Pz*Pz)-(Pa*Pa)); for phase u
-    float mSabc;  //средняя по выборке полная мощность суммарная по всем фазам Pz= Iu_rms* v.Urms*1.732;
-    float mPF;    // коэф.мощности mPF = mPabc /mSabc
-    float cosPhi; // power factor cosPhi= Pa/Pz ; for phase u
-
-    // Power to AIN
-    float Pain;     // instant ( Ir_full * Udc_full)  activ power for AIN
-    float Sain;     // full power of AIN  Sain = Ir_rms*Udc_rms
-    float Pain_sum; // Pain_sum = Pain_sum +Pain  - накопленная активная мощность AIN
-    float Paain;    // midle activ power Paain =Pain_sum/samples;
-
-    // к.п.д.
-    float psIR; // потери на активном сопротивлении статора
-    float prIR; // потери на активном сопротивлении ротора
-
-   
-
     REFm ref; //параметры управления от PC
 
     //------------------------------------ PARK  ------------------------------------------------------------------------------
@@ -559,14 +525,6 @@ typedef struct
 
     float Tp; // крутящий момент через мощность
     float Ti; // крутящий момент через ток
-
-#if T_SHEMA
-    MatModel sh;
-#endif
-
-#if MD2
-    Model2 md2;
-#endif
 
 } motor;
 
