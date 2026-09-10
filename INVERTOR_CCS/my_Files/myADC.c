@@ -158,10 +158,16 @@ void Core_Temp_Update2(void)
 // отсчётам, и из фонового цикла этого не сделать.
 //
 // Как работает. Регистр ADCPPBxOFFREF вычитается из результата канала, поэтому
-// подстраивая его, мы добиваемся нуля на выходе PPB при отсутствии сигнала.
-// Сначала грубо - в OFFREF кладётся текущий отсчёт целиком. Дальше 256 тактов
-// подстройки по одному коду в сторону, обратную знаку остатка: так усредняется
-// шум, и результат не зависит от того, каким оказался один конкретный отсчёт.
+// достаточно положить в него среднее значение сигнала при обесточенном входе.
+// Копим 256 сырых отсчётов и делим сдвигом.
+//
+// Прежняя редакция вместо усреднения шагала по ±1 в сторону, обратную знаку
+// остатка. При шуме, перекрывающем сигнал, знак случаен, и подстройка
+// превращалась в случайное блуждание: за 256 шагов конечная точка расходилась
+// примерно на √256 ≈ 16 кодов, и калибровка давала каждый раз новое значение.
+// Измеренный на плате шум канала тока был около ±50 кодов - блуждание на этом
+// фоне и наблюдалось. Усреднение и детерминировано, и подавляет шум в √256,
+// то есть в 16 раз.
 //
 // ВХОД КАНАЛА ДОЛЖЕН БЫТЬ ОБЕСТОЧЕН. Функция считает нулём то, что видит.
 //
@@ -172,76 +178,70 @@ void Core_Temp_Update2(void)
 // PPB - это ровно те значения, которые считала бы CLA.
 //--------------------------------------------------------------------------------
 
-// Знаковый результат PPB: то, что осталось от канала после вычитания OFFREF.
-#define PPB_RESULT(regs, n) ((int16_t)(regs).ADCPPB##n##RESULT.bit.PPBRESULT)
+// Число усредняемых отсчётов. ТОЛЬКО СТЕПЕНЬ ДВОЙКИ: деление идёт сдвигом.
+#define ADC_CAL_N     256U
+#define ADC_CAL_SHIFT 8U
+
+// Накопители сырых отсчётов, по одному на канал.
+// 256 * 4095 = 1 048 320 - в 32 бита укладывается с большим запасом.
+static int32_t calAcc[5];
+
+enum
+{
+    CAL_iPri = 0,
+    CAL_iSec,
+    CAL_iBat,
+    CAL_u220,
+    CAL_uBat
+};
 
 uint16_t ical_counter = 0;
 void     Adc_Calibrate(void)
 {
     if (ical_counter == 0)
     {
-        // Грубая загрузка: сырой отсчёт канала целиком идёт в OFFREF.
-        if (adcCalStart.bit.iAll)
-        {
-            AdcbRegs.ADCPPB1OFFREF = AdcbResultRegs.ADCRESULT0; // iPri
-            AdcbRegs.ADCPPB2OFFREF = AdcbResultRegs.ADCRESULT1; // iSec
-            AdcaRegs.ADCPPB3OFFREF = AdcaResultRegs.ADCRESULT2; // iBat
-        }
-        if (adcCalStart.bit.u220)
-            AdcaRegs.ADCPPB1OFFREF = AdcaResultRegs.ADCRESULT0; // u220
-
-        if (adcCalStart.bit.uBat)
-            AdcaRegs.ADCPPB2OFFREF = AdcaResultRegs.ADCRESULT1; // uBat
+        calAcc[CAL_iPri] = 0;
+        calAcc[CAL_iSec] = 0;
+        calAcc[CAL_iBat] = 0;
+        calAcc[CAL_u220] = 0;
+        calAcc[CAL_uBat] = 0;
     }
-    if (ical_counter < 256)
+
+    if (ical_counter < ADC_CAL_N)
     {
-        // Точная подстройка: шаг в сторону, обратную знаку остатка.
-        if (adcCalStart.bit.iAll)
-        {
-            int16_t iPri = PPB_RESULT(AdcbResultRegs, 1);
-            int16_t iSec = PPB_RESULT(AdcbResultRegs, 2);
-            int16_t iBat = PPB_RESULT(AdcaResultRegs, 3);
-
-            if (iPri > 0)
-                AdcbRegs.ADCPPB1OFFREF++;
-            else if (iPri < 0)
-                AdcbRegs.ADCPPB1OFFREF--;
-
-            if (iSec > 0)
-                AdcbRegs.ADCPPB2OFFREF++;
-            else if (iSec < 0)
-                AdcbRegs.ADCPPB2OFFREF--;
-
-            if (iBat > 0)
-                AdcaRegs.ADCPPB3OFFREF++;
-            else if (iBat < 0)
-                AdcaRegs.ADCPPB3OFFREF--;
-        }
+        // Копим СЫРЫЕ отсчёты. Именно сырые: OFFREF - это и есть то, что мы
+        // считаем, а ADCRESULT от его текущего значения не зависит. Поэтому
+        // результат не зависит от того, с какого офсета начали, и грубая
+        // предзагрузка не нужна.
+        if (adcCalStart.bit.iPri)
+            calAcc[CAL_iPri] += (int32_t)AdcbResultRegs.ADCRESULT0;
+        if (adcCalStart.bit.iSec)
+            calAcc[CAL_iSec] += (int32_t)AdcbResultRegs.ADCRESULT1;
+        if (adcCalStart.bit.iBat)
+            calAcc[CAL_iBat] += (int32_t)AdcaResultRegs.ADCRESULT2;
         if (adcCalStart.bit.u220)
-        {
-            int16_t u220 = PPB_RESULT(AdcaResultRegs, 1);
-
-            if (u220 > 0)
-                AdcaRegs.ADCPPB1OFFREF++;
-            else if (u220 < 0)
-                AdcaRegs.ADCPPB1OFFREF--;
-        }
+            calAcc[CAL_u220] += (int32_t)AdcaResultRegs.ADCRESULT0;
         if (adcCalStart.bit.uBat)
-        {
-            int16_t uBat = PPB_RESULT(AdcaResultRegs, 2);
-
-            if (uBat > 0)
-                AdcaRegs.ADCPPB2OFFREF++;
-            else if (uBat < 0)
-                AdcaRegs.ADCPPB2OFFREF--;
-        }
+            calAcc[CAL_uBat] += (int32_t)AdcaResultRegs.ADCRESULT1;
 
         ical_counter++;
     }
     else
     {
-        // Готово: перенести OFFREF в offsets, посчитать сумму (это и есть
-        // признак "калибровка проводилась") и запросить сохранение.
+        // Среднее в OFFREF.
+        if (adcCalStart.bit.iPri)
+            AdcbRegs.ADCPPB1OFFREF = (uint16_t)(calAcc[CAL_iPri] >> ADC_CAL_SHIFT);
+        if (adcCalStart.bit.iSec)
+            AdcbRegs.ADCPPB2OFFREF = (uint16_t)(calAcc[CAL_iSec] >> ADC_CAL_SHIFT);
+        if (adcCalStart.bit.iBat)
+            AdcaRegs.ADCPPB3OFFREF = (uint16_t)(calAcc[CAL_iBat] >> ADC_CAL_SHIFT);
+        if (adcCalStart.bit.u220)
+            AdcaRegs.ADCPPB1OFFREF = (uint16_t)(calAcc[CAL_u220] >> ADC_CAL_SHIFT);
+        if (adcCalStart.bit.uBat)
+            AdcaRegs.ADCPPB2OFFREF = (uint16_t)(calAcc[CAL_uBat] >> ADC_CAL_SHIFT);
+
+        // Перенести OFFREF в offsets, посчитать сумму (это и есть признак
+        // "калибровка проводилась") и запросить сохранение.
         Reset_stend_filtr();
         SaveAdcOffsets();
         adcCalStart.all = 0;
@@ -266,6 +266,33 @@ void SaveAdcOffsets(void) //
    // Запись с адреса первого поля структуры - оно же адрес самой структуры.
    EEprom_write_words(SPIB_BASE, WRITE0, offsets_addr, &offsets.iPri,
                        (uint16_t)(sizeof(offsets) / sizeof(uint16_t)));
+}
+
+//--------------------------------------------------------------------------------
+// Применить изменённые вручную нули: пересчитать сумму, отдать значения железу
+// и запросить сохранение.
+//
+// Вызывается из обработчиков команд CAN 207..211, когда оператор правит ноль
+// канала из таблицы Offsets.ini. Автокалибровка сюда не заходит - у неё свой
+// путь через SaveAdcOffsets().
+//
+// Порядок тот же, что при сбросе к заводским, и по тем же причинам:
+//   crc            иначе checkEE() при следующем старте сочтёт нули
+//                  испорченными и откатит их на заводские;
+//   LoadOffsetsToPPB()  иначе АЦП продолжит вычитать прежнее смещение;
+//   currentLimit()      пороги защиты отсчитываются от нуля канала;
+//   calibSaveReq        иначе правка не переживёт выключение.
+//--------------------------------------------------------------------------------
+void Offsets_Apply(void)
+{
+    extern uint16_t Imax;
+
+    offsets.crc = ControlSum(&offsets);
+
+    LoadOffsetsToPPB();
+    currentLimit(Imax);
+
+    calibSaveReq = 1;
 }
 
 void LoadOffsetsToPPB()

@@ -4292,7 +4292,11 @@ else
 
         private void откалиброватьВсеДатчикиToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            uint_128(7, 0, 0, 70);
+            // 31 - маска всех пяти каналов (ADC_CAL_ALL в myADC.h):
+            // 1 iPri, 2 iSec, 4 iBat, 8 u220, 16 uBat.
+            // 3333 во втором поле означает запись: без него прошивка команду
+            // игнорирует и только отвечает текущим состоянием маски.
+            uint_128(31, 3333, 0, 70);
         }
 
         private void сохранитьКалибровкиToolStripMenuItem_Click(object sender, EventArgs e)
