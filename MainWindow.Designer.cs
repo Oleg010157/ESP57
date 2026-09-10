@@ -305,6 +305,16 @@
             this.AIN1_Enable = new System.Windows.Forms.CheckBox();
             this.AIN1_flag = new System.Windows.Forms.TextBox();
             this.groupBox_AIN1 = new System.Windows.Forms.GroupBox();
+            this.gbGridTie = new System.Windows.Forms.GroupBox();
+            this.chkGridMode = new System.Windows.Forms.CheckBox();
+            this.btnGridStart = new System.Windows.Forms.Button();
+            this.btnGridStop = new System.Windows.Forms.Button();
+            this.lblGridIset = new System.Windows.Forms.Label();
+            this.nudGridIset = new System.Windows.Forms.NumericUpDown();
+            this.lblGridUref = new System.Windows.Forms.Label();
+            this.nudGridUref = new System.Windows.Forms.NumericUpDown();
+            this.lblGridFreq = new System.Windows.Forms.Label();
+            this.nudGridFreq = new System.Windows.Forms.NumericUpDown();
             this.timer_1sek = new System.Windows.Forms.Timer(this.components);
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.timer_Yokogawa = new System.Windows.Forms.Timer(this.components);
@@ -375,6 +385,10 @@
             this.panel3.SuspendLayout();
             this.panel1.SuspendLayout();
             this.groupBox_AIN1.SuspendLayout();
+            this.gbGridTie.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.nudGridIset)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudGridUref)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudGridFreq)).BeginInit();
             this.SuspendLayout();
             // 
             // openFileDialog
@@ -3231,6 +3245,7 @@
             // groupBox_AIN1
             // 
             this.groupBox_AIN1.BackColor = System.Drawing.Color.DarkKhaki;
+            this.groupBox_AIN1.Controls.Add(this.gbGridTie);
             this.groupBox_AIN1.Controls.Add(this.AIN1_flag);
             this.groupBox_AIN1.Controls.Add(this.AIN1_Enable);
             this.groupBox_AIN1.Controls.Add(this.panel1);
@@ -3269,7 +3284,148 @@
             this.groupBox_AIN1.Size = new System.Drawing.Size(351, 521);
             this.groupBox_AIN1.TabIndex = 22;
             this.groupBox_AIN1.TabStop = false;
-            this.groupBox_AIN1.Text = "АИН 1 ";
+            this.groupBox_AIN1.Text = "Однофазный Инвертор";
+            // 
+            // gbGridTie
+            // 
+            this.gbGridTie.Controls.Add(this.chkGridMode);
+            this.gbGridTie.Controls.Add(this.btnGridStart);
+            this.gbGridTie.Controls.Add(this.btnGridStop);
+            this.gbGridTie.Controls.Add(this.lblGridIset);
+            this.gbGridTie.Controls.Add(this.nudGridIset);
+            this.gbGridTie.Controls.Add(this.lblGridUref);
+            this.gbGridTie.Controls.Add(this.nudGridUref);
+            this.gbGridTie.Controls.Add(this.lblGridFreq);
+            this.gbGridTie.Controls.Add(this.nudGridFreq);
+            this.gbGridTie.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.gbGridTie.Location = new System.Drawing.Point(4, 52);
+            this.gbGridTie.Name = "gbGridTie";
+            this.gbGridTie.Size = new System.Drawing.Size(342, 61);
+            this.gbGridTie.TabIndex = 332;
+            this.gbGridTie.TabStop = false;
+            this.gbGridTie.Text = "1ф 48→220";
+            // 
+            // chkGridMode
+            // 
+            this.chkGridMode.AutoSize = true;
+            this.chkGridMode.Location = new System.Drawing.Point(9, 28);
+            this.chkGridMode.Name = "chkGridMode";
+            this.chkGridMode.Size = new System.Drawing.Size(61, 21);
+            this.chkGridMode.TabIndex = 1;
+            this.chkGridMode.Text = "Сеть";
+            this.chkGridMode.UseVisualStyleBackColor = true;
+            this.chkGridMode.Click += new System.EventHandler(this.GridMode_Click);
+            // 
+            // btnGridStart
+            // 
+            this.btnGridStart.Location = new System.Drawing.Point(62, 26);
+            this.btnGridStart.Name = "btnGridStart";
+            this.btnGridStart.Size = new System.Drawing.Size(48, 24);
+            this.btnGridStart.TabIndex = 2;
+            this.btnGridStart.Text = "Пуск";
+            this.btnGridStart.UseVisualStyleBackColor = true;
+            this.btnGridStart.Click += new System.EventHandler(this.GridStart_Click);
+            // 
+            // btnGridStop
+            // 
+            this.btnGridStop.Location = new System.Drawing.Point(108, 25);
+            this.btnGridStop.Name = "btnGridStop";
+            this.btnGridStop.Size = new System.Drawing.Size(48, 24);
+            this.btnGridStop.TabIndex = 3;
+            this.btnGridStop.Text = "Стоп";
+            this.btnGridStop.UseVisualStyleBackColor = true;
+            this.btnGridStop.Click += new System.EventHandler(this.GridStop_Click);
+            // 
+            // lblGridIset
+            // 
+            this.lblGridIset.AutoSize = true;
+            this.lblGridIset.Location = new System.Drawing.Point(162, 10);
+            this.lblGridIset.Name = "lblGridIset";
+            this.lblGridIset.Size = new System.Drawing.Size(43, 17);
+            this.lblGridIset.TabIndex = 4;
+            this.lblGridIset.Text = "Iset A";
+            // 
+            // nudGridIset
+            // 
+            this.nudGridIset.DecimalPlaces = 2;
+            this.nudGridIset.Increment = new decimal(new int[] {
+            1,
+            0,
+            0,
+            65536});
+            this.nudGridIset.Location = new System.Drawing.Point(162, 26);
+            this.nudGridIset.Maximum = new decimal(new int[] {
+            25,
+            0,
+            0,
+            0});
+            this.nudGridIset.Name = "nudGridIset";
+            this.nudGridIset.Size = new System.Drawing.Size(52, 23);
+            this.nudGridIset.TabIndex = 5;
+            this.nudGridIset.KeyDown += new System.Windows.Forms.KeyEventHandler(this.GridNud_KeyDown);
+            this.nudGridIset.Leave += new System.EventHandler(this.GridIset_Commit);
+            // 
+            // lblGridUref
+            // 
+            this.lblGridUref.AutoSize = true;
+            this.lblGridUref.Location = new System.Drawing.Point(222, 10);
+            this.lblGridUref.Name = "lblGridUref";
+            this.lblGridUref.Size = new System.Drawing.Size(48, 17);
+            this.lblGridUref.TabIndex = 6;
+            this.lblGridUref.Text = "Uref V";
+            // 
+            // nudGridUref
+            // 
+            this.nudGridUref.DecimalPlaces = 1;
+            this.nudGridUref.Location = new System.Drawing.Point(222, 26);
+            this.nudGridUref.Maximum = new decimal(new int[] {
+            250,
+            0,
+            0,
+            0});
+            this.nudGridUref.Name = "nudGridUref";
+            this.nudGridUref.Size = new System.Drawing.Size(52, 23);
+            this.nudGridUref.TabIndex = 7;
+            this.nudGridUref.Value = new decimal(new int[] {
+            220,
+            0,
+            0,
+            0});
+            this.nudGridUref.KeyDown += new System.Windows.Forms.KeyEventHandler(this.GridNud_KeyDown);
+            this.nudGridUref.Leave += new System.EventHandler(this.GridUref_Commit);
+            // 
+            // lblGridFreq
+            // 
+            this.lblGridFreq.AutoSize = true;
+            this.lblGridFreq.Location = new System.Drawing.Point(282, 10);
+            this.lblGridFreq.Name = "lblGridFreq";
+            this.lblGridFreq.Size = new System.Drawing.Size(37, 17);
+            this.lblGridFreq.TabIndex = 8;
+            this.lblGridFreq.Text = "F Hz";
+            // 
+            // nudGridFreq
+            // 
+            this.nudGridFreq.Location = new System.Drawing.Point(282, 26);
+            this.nudGridFreq.Maximum = new decimal(new int[] {
+            70,
+            0,
+            0,
+            0});
+            this.nudGridFreq.Minimum = new decimal(new int[] {
+            40,
+            0,
+            0,
+            0});
+            this.nudGridFreq.Name = "nudGridFreq";
+            this.nudGridFreq.Size = new System.Drawing.Size(52, 23);
+            this.nudGridFreq.TabIndex = 9;
+            this.nudGridFreq.Value = new decimal(new int[] {
+            50,
+            0,
+            0,
+            0});
+            this.nudGridFreq.KeyDown += new System.Windows.Forms.KeyEventHandler(this.GridNud_KeyDown);
+            this.nudGridFreq.Leave += new System.EventHandler(this.GridFreq_Commit);
             // 
             // timer_1sek
             // 
@@ -3499,6 +3655,11 @@
             this.panel1.PerformLayout();
             this.groupBox_AIN1.ResumeLayout(false);
             this.groupBox_AIN1.PerformLayout();
+            this.gbGridTie.ResumeLayout(false);
+            this.gbGridTie.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.nudGridIset)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudGridUref)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudGridFreq)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -3697,6 +3858,16 @@
         private System.Windows.Forms.TextBox tKadr60;
         private System.Windows.Forms.ToolStripTextBox toolStripTextBox1;
         public System.Windows.Forms.GroupBox groupBox_AIN1;
+        public System.Windows.Forms.GroupBox gbGridTie;
+        public System.Windows.Forms.CheckBox chkGridMode;
+        public System.Windows.Forms.Button btnGridStart;
+        public System.Windows.Forms.Button btnGridStop;
+        private System.Windows.Forms.Label lblGridIset;
+        public System.Windows.Forms.NumericUpDown nudGridIset;
+        private System.Windows.Forms.Label lblGridUref;
+        public System.Windows.Forms.NumericUpDown nudGridUref;
+        private System.Windows.Forms.Label lblGridFreq;
+        public System.Windows.Forms.NumericUpDown nudGridFreq;
         private System.Windows.Forms.TextBox AIN1_flag;
         private System.Windows.Forms.CheckBox AIN1_Enable;
         private System.Windows.Forms.Panel panel1;

@@ -503,7 +503,6 @@ namespace ICDIBasic
             TbInit();
             M1_def();
             M2_def();
-            InitGridTieUi();
 
 
 
