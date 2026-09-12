@@ -171,6 +171,65 @@ warning. Confirmed harmless via the .map file. Left unsuppressed per user's choi
 silenced with --diag_suppress=10247 on the CPU1_FLASH linker if ever wanted.
 
 Change log
+- 2026-09-12: idiv0 struck again, this time on CPU1_RAM - exactly the case the 2026-08-10 entry
+  deferred ("NOT YET APPLIED to CPU1_RAM config"). Symptom: ADC zero calibration always ended with
+  offsets = {0,0,0,0,0,0}, crc 0. Averaging was fine (calAcc[u220] = 612287, calN = 300 read live off
+  the target); only the quotient came out 0, so 0 went into ADCPPBxOFFREF and SaveAdcOffsets() read it
+  straight back into the whole offsets struct. Proof on target: put marker 1234 into ADCPPB4OFFREF,
+  ran a uSec calibration, marker became 0 with a valid 612287/300 in the accumulator.
+  FIX: CPU1_RAM IDIV_SUPPORT idiv0 -> none (setToolFlags; CCS replaced the enum in place, no duplicate
+  flag in .cproject). Verified after rebuild by the user.
+  OPEN QUESTION FROM 2026-09-11 IS NOW RESOLVED - absence of the flag IS equivalent to none. Proved by
+  A/B compiling one line, `(uint16_t)(acc / n)`, with the same cl2000 and otherwise identical options:
+    with --idiv_support=idiv0 : ABSI32DIV32 + 8x SUBC4UI32 + NEGI32DIV32  (inline FID)
+    with the option omitted   : LCR __c28xabi_divl                        (software divide)
+  So CPU1_FLASH, which has no IDIV_SUPPORT element at all, is safe as it stands; the 2026-08-10
+  "--idiv_support=none" there was redundant, which is why removing it on 09-11 broke nothing. The
+  2026-08-10 finding is NOT superseded - it is correct and still applies. Note both flags are accepted
+  together, last one wins (tested), but CCS's option tracking makes that moot.
+  WHY the device lacks it, for good: CCS's own device database is the authority -
+  ccs_base/common/targetdb/devices/<device>.xml, property "CompilerBuildOptions". For f28p550sj6 it
+  reads --float_support=fpu32 --cla_support=cla2 --vcu_support=vcrc --tmu_support=tmu1, no idiv. Across
+  the whole database idiv_support appears for exactly 14 devices: F28002x and F2838x. F28003x
+  (f280039c) does NOT have it either, despite being older. -v28 selects only the core; --idiv_support,
+  --tmu_support, --vcu_support and --float_support are promises about the silicon, and the compiler
+  takes them on trust - no build error, no trap on target, just a zero quotient.
+  BLAST RADIUS in that RAM image: 11 divisions total - 6 in Adc_Calibrate, 3 in cmd_MBOX28, 2 in
+  ADC_getTemperatureC (core_temp read 0 again, with a live sensor code of 1511). None in any
+  real-time path: the current loop, MainISR and CLA Task1 contain no integer division, and float /
+  TMU math was never affected. Cost of the software divide: RPT #31 || SUBCUL, ~50 cycles (0.33 us at
+  150 MHz) against ~10, paid once per calibration run and once per 50 ms for the temperature.
+- 2026-09-11: Moved to a new PC (repo now C:\Users\OlegW11\Desktop\Work\K57, was C:\Users\M4800\...\K1).
+  Reapplied the out-of-repo patches, which do NOT travel with git:
+  - Patch 2 (stw_types.h) and Patch 3 (f28p55x_globalprototypes.h) were absent -> reapplied, .bak saved.
+  - Patch 4 (%LOCALAPPDATA%\clangd\config.yaml) was absent -> recreated. Its PathMatch was pinned to
+    "Work\K55"; generalized to "Work\K5[0-9]" so it keeps matching after the K55->K57 move.
+  BUILD DID NOT RUN AT ALL for ~30 min and this looked like the patch had failed. It had not. Cause:
+  CCS 21.0.1.00010 was installed over 21.0.0 earlier the same day (12:12-12:23; C:\ti\ccs2100 and
+  C:\ti\ccs2101 now coexist), and after its "restarting ccstudio" step the project was only half
+  registered in the workspace. Symptom pattern worth remembering:
+  - getProjectDescriptors works (it reads .project/.cproject off disk) and getActiveProjectName
+    returns "invertor", BUT getToolFlags fails with "Project 'invertor' cannot be found".
+  - buildProject returns {"status":"completed"} while compiling nothing: it replays the previous
+    console buffer, so the log looks normal and identical each time (233 lines, byte-for-byte).
+  - Reliable test is timestamps, not the log: .obj/.out mtime never advances. Deleting one .obj and
+    rebuilding did not recreate it.
+  Fix: importProject on the project directory. It times out (MCP error -32001) but DOES take effect -
+  getToolFlags starts answering and builds run again. Verified: CPU1_RAM rebuilt clean, 32 files,
+  0 warnings, #48-D for SUCCESS/FAIL gone.
+  Side effects of the re-import to check afterwards:
+  - Active build configuration was reset to CPU1_RAM (was CPU1_FLASH). No MCP tool sets it; must be
+    done in the IDE (Project -> Build Configurations -> Set Active).
+  - CPU1_FLASH has NO IDIV_SUPPORT option at all (the only one in .cproject is CPU1_RAM's idiv0), and
+    it is not in the committed .cproject either, so the 2026-08-10 --idiv_support=none entry below does
+    not describe the current state. It was briefly re-added via setToolFlags during this session and
+    then REMOVED again on the user's explicit instruction ("не нужно, мы это уже проходили").
+    OPEN QUESTION - do not re-add it without asking: the 2026-08-10 entry below still claims idiv0
+    produces wrong int32/int16 division results and calls the fix CRITICAL. Either that finding was
+    later superseded (and the entry below needs correcting), or absence of the flag is already
+    equivalent to none. Not resolved here; the user has the context. Note cl2000 -h documents only the
+    bare-flag default (idiv0) and says nothing about the flag being omitted entirely.
+  - CPU1_FLASH SysConfig flags survived intact (explicit -s .../sdk.json -d F28P55x -p 100PZ -r ...).
 - 2026-08-10: CRITICAL - found that --idiv_support=idiv0 (the default IDE setting, "enhanced integer
   division instruction extension") produces WRONG results for int32_t/int16_t division on this
   device+toolchain combo (ti-cgt-c2000_25.11.1.LTS, F28P55x, CPU1_FLASH config, -Ooff). Minimal
