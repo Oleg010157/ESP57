@@ -1,5 +1,5 @@
 ---
-name: ti-clang-code-coverage
+name: ti-ccstudio-clang-code-coverage
 description: Generate a code coverage or profiling report for a TI Clang project. Use when the user asks for code coverage, coverage report, profiling instrumentation, or wants to measure test coverage on an embedded target. Supports both TI Arm Clang (TMS470) and TI C29 Clang (C2000) compilers.
 allowed-tools: Bash, Read, Glob, Grep
 ---
