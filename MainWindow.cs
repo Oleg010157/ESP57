@@ -1323,10 +1323,15 @@ namespace ICDIBasic
         #endregion CANA
 
         #region Дизайн текущего окна -- регион содержит подрегионы
-        private void откалиброватьToolStripMenuItem_Click(object sender, EventArgs e)
+        // Пункт "токи iPri, iSec, iBat". Маска 7 = 1|2|4, см. AdcStartCal в myADC.h.
+        //
+        // Раньше здесь стояло uint_128(1, 0, 0, 70): маска 1 от трёхфазного проекта
+        // (там это были токи фаз Iabc) и data2 = 0. С тех пор как команда 70 обзавелась
+        // условием data2 == 3333, посылка с нулём не выполнялась вовсе - прошивка
+        // только отвечала текущей маской, то есть нулём. Пункт меню молчал.
+        private void откалиброватьТокиToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            // cmd_128(70);
-            uint_128(1, 0, 0, 70);  // откалибровать Iabc
+            uint_128(7, 3333, 0, 70);
         }
 
         #region Шестеренка и стрелочки
@@ -4279,14 +4284,27 @@ else
             }
         }
 
-        private void откалиброватьUdcToolStripMenuItem_Click(object sender, EventArgs e)
+        // Пункт "напряжение АКБ uBat". Маска 16.
+        //
+        // Был "датчик Udc" с маской 2 и data2 = 0. Имя Udc досталось от проекта, где
+        // у преобразователя было своё звено постоянного тока; в K57 на входе моста
+        // стоит АКБ, и это канал uBat (A4, PPB2). Маска 2 указывала на iSec.
+        private void откалиброватьUbatToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            uint_128(2, 0, 0, 70);
+            uint_128(16, 3333, 0, 70);
         }
 
-        private void откалиброватьVinToolStripMenuItem_Click(object sender, EventArgs e)
+        // Пункт "напряжение сети u220". Маска 8.
+        //
+        // Был "датчик входного напр. Vin" с маской 4 и data2 = 0. Входное напряжение
+        // в K57 - это сеть, канал u220 (A0, PPB1). Маска 4 указывала на iBat.
+        //
+        // Канал вынесен отдельным пунктом намеренно: на стенде на A0 сидит отладочная
+        // синусоида с ЦАП, и калибровать по ней ноль сети смысла нет - см. шапку
+        // Offsets.ini. Поэтому "все датчики" на стенде не всегда уместны.
+        private void откалиброватьU220ToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            uint_128(4, 0, 0, 70);
+            uint_128(8, 3333, 0, 70);
         }
 
 
