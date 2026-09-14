@@ -136,6 +136,17 @@ extern uint16_t data1,data2, data3, cmd;
 
 void Send_kadr60();
 void send_REF_kadr();
+
+// Ключ выбора набора величин в словах 4..7 кадра 140 (REF_Kadr.c).
+// Наблюдать все три набора одновременно смысла нет, а слов в кадре нет лишних,
+// поэтому один и тот же слот показывает то, что выбрал оператор командой 634.
+//   0 = сырые коды АЦП
+//   1 = мгновенные физические значения
+//   2 = действующие за период сети (считает CLA)
+#define TELE_KOD 0
+#define TELE_INS 1
+#define TELE_RMS 2
+extern uint16_t teleSel;
 void CAN_rxFIFOread(void);
 void SendViaIF1(uint32_t base, uint32_t mailbox, const uint16_t *data);
 void Send_mbox(uint16_t ObjID, uint16_t d1, uint16_t d2, uint16_t d3, uint16_t d4);

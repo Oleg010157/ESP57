@@ -130,11 +130,16 @@ namespace ICDIBasic
 
         /// <summary>
         /// Компактный медленный кадр ID 140: 32 байта = 16 слов.
-        /// Формат MCU (REF_Kadr.c):
+        /// Формат MCU (KSP/REF_Kadr.c, send_REF_kadr):
         /// 0..3   = error1,error2,sbit,shrTrip
-        /// 4..7   = Ia_rf,Ib_rf,Udc_rf,CoreT
-        /// 8..11  = f1_ref,f1_act,f2_ref,f2_act
-        /// 12..15 = gain1,gain2,flags1,flags2
+        /// 4..7   = iPri,iSec,u220,uSec - набор задаёт ключ teleSel (слово 13)
+        /// 8..9   = Udc АКБ (0.1 В), CoreT
+        /// 10     = gt.State | gt.fault &lt;&lt; 8
+        /// 11     = gt.Iset (0.01 А)
+        /// 12..15 = sineB.gain, teleSel, flags1, flags2
+        ///
+        /// Слова 4..7 приходят в единицах 0.1 (В или А), кроме набора кодов
+        /// АЦП - там целые коды. Знаковые величины MCU кладёт как int16_t.
         /// </summary>
         private void Parse140(TPCANMsgFD msg)
         {
@@ -144,13 +149,41 @@ namespace ICDIBasic
 
             ProcessFrame100(W(0), W(1), W(2), W(3));
 
-            M1.ccs.Ia_av  = (short)W(4);
-            M1.ccs.Ib_av  = (short)W(5);
-            ccs.Udc_av    = (short)W(6);
-            ccs.core_temp = (short)W(7);
+            ccs.teleSel = W(13);
 
-            ProcessFrame107((short)W(8), (short)W(9), (short)W(10), (short)W(11));
-            ProcessFrame109(W(12), W(13), W(14), W(15));
+            // Коды АЦП показываем как есть, физику делим на 10. u220 в кодах
+            // беззнаковый (сырой отсчёт 0..4095), остальные три - знаковые.
+            if (ccs.teleSel == TeleKod)
+            {
+                ccs.iPri = (short)W(4);
+                ccs.iSec = (short)W(5);
+                ccs.u220 = W(6);
+                ccs.uSec = (short)W(7);
+            }
+            else
+            {
+                ccs.iPri = (short)W(4) * 0.1;
+                ccs.iSec = (short)W(5) * 0.1;
+                ccs.u220 = (short)W(6) * 0.1;
+                ccs.uSec = (short)W(7) * 0.1;
+            }
+
+            ccs.UdcBat    = (short)W(8) * 0.1;
+            ccs.core_temp = (short)W(9);
+
+            ushort gt = W(10);
+            ccs.gtState = (ushort)(gt & 0xFF);
+            ccs.gtFault = (ushort)(gt >> 8);
+
+            ccs.gtIset   = W(11) * 0.01;
+            ccs.sineGain = W(12);
+
+            // Индикатор "gain" рядом с движком Gain1 на однофазном мосте
+            // показывает sineB.gain: модуляция здесь одна, и это она.
+            M1.ccs.gain = ccs.sineGain;
+
+            M1.ccs.flags = W(14);
+            M2.ccs.flags = W(15);
         }
 
         #region Frame Processors

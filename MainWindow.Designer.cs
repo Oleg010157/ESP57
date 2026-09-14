@@ -1,4 +1,4 @@
-﻿namespace ICDIBasic
+namespace ICDIBasic
 {
     partial class Form1
     {
@@ -306,13 +306,9 @@
             this.AIN1_flag = new System.Windows.Forms.TextBox();
             this.groupBox_AIN1 = new System.Windows.Forms.GroupBox();
             this.gbGridTie = new System.Windows.Forms.GroupBox();
-            this.chkGridMode = new System.Windows.Forms.CheckBox();
-            this.btnGridStart = new System.Windows.Forms.Button();
+            this.btnModeInv = new System.Windows.Forms.Button();
+            this.btnModeGrid = new System.Windows.Forms.Button();
             this.btnGridStop = new System.Windows.Forms.Button();
-            this.lblGridIset = new System.Windows.Forms.Label();
-            this.nudGridIset = new System.Windows.Forms.NumericUpDown();
-            this.lblGridUref = new System.Windows.Forms.Label();
-            this.nudGridUref = new System.Windows.Forms.NumericUpDown();
             this.lblGridFreq = new System.Windows.Forms.Label();
             this.nudGridFreq = new System.Windows.Forms.NumericUpDown();
             this.timer_1sek = new System.Windows.Forms.Timer(this.components);
@@ -386,8 +382,6 @@
             this.panel1.SuspendLayout();
             this.groupBox_AIN1.SuspendLayout();
             this.gbGridTie.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.nudGridIset)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudGridUref)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudGridFreq)).BeginInit();
             this.SuspendLayout();
             // 
@@ -2556,7 +2550,7 @@
             this.Vin.Name = "Vin";
             this.Vin.Size = new System.Drawing.Size(46, 28);
             this.Vin.TabIndex = 4;
-            this.Vin.Text = "Vin";
+            this.Vin.Text = "u220";
             // 
             // Vin_value
             // 
@@ -2588,7 +2582,7 @@
             this.Udc_name.Name = "Udc_name";
             this.Udc_name.Size = new System.Drawing.Size(52, 28);
             this.Udc_name.TabIndex = 168;
-            this.Udc_name.Text = "Udc";
+            this.Udc_name.Text = "uSec";
             this.Udc_name.DoubleClick += new System.EventHandler(this.Udc_name_DoubleClick);
             // 
             // Urms1_value
@@ -2622,7 +2616,7 @@
             this.I1rms_selector.Size = new System.Drawing.Size(44, 23);
             this.I1rms_selector.TabIndex = 190;
             this.I1rms_selector.Text = "rms";
-            this.I1rms_selector.DoubleClick += new System.EventHandler(this.I1rms_DoubleClick);
+            this.I1rms_selector.DoubleClick += new System.EventHandler(this.TeleSel_DoubleClick);
             // 
             // Idc_label
             // 
@@ -2633,7 +2627,7 @@
             this.Idc_label.Name = "Idc_label";
             this.Idc_label.Size = new System.Drawing.Size(44, 28);
             this.Idc_label.TabIndex = 5;
-            this.Idc_label.Text = "Idc";
+            this.Idc_label.Text = "iPri";
             // 
             // I1a_value
             // 
@@ -2666,7 +2660,7 @@
             this.input3.Name = "input3";
             this.input3.Size = new System.Drawing.Size(33, 28);
             this.input3.TabIndex = 6;
-            this.input3.Text = "Ib";
+            this.input3.Text = "iSec";
             // 
             // I1b_value
             // 
@@ -2937,7 +2931,7 @@
             this.Id1_name.Name = "Id1_name";
             this.Id1_name.Size = new System.Drawing.Size(31, 26);
             this.Id1_name.TabIndex = 218;
-            this.Id1_name.Text = "Id";
+            this.Id1_name.Text = "Iset";
             this.Id1_name.DoubleClick += new System.EventHandler(this.Id1_name_DoubleClick);
             // 
             // Id1_value
@@ -2995,7 +2989,7 @@
             this.Vd1_name.Name = "Vd1_name";
             this.Vd1_name.Size = new System.Drawing.Size(37, 28);
             this.Vd1_name.TabIndex = 220;
-            this.Vd1_name.Text = "Vd";
+            this.Vd1_name.Text = "Udc";
             this.Vd1_name.DoubleClick += new System.EventHandler(this.Vd1_name_DoubleClick);
             // 
             // panel13
@@ -3123,7 +3117,7 @@
             this.Vq1_name.Name = "Vq1_name";
             this.Vq1_name.Size = new System.Drawing.Size(35, 26);
             this.Vq1_name.TabIndex = 198;
-            this.Vq1_name.Text = "Vq";
+            this.Vq1_name.Text = "Err";
             this.Vq1_name.DoubleClick += new System.EventHandler(this.Vq1_name_DoubleClick);
             // 
             // Iq1_name
@@ -3135,7 +3129,7 @@
             this.Iq1_name.Name = "Iq1_name";
             this.Iq1_name.Size = new System.Drawing.Size(31, 26);
             this.Iq1_name.TabIndex = 196;
-            this.Iq1_name.Text = "Iq";
+            this.Iq1_name.Text = "GT";
             this.Iq1_name.DoubleClick += new System.EventHandler(this.Iq1_name_DoubleClick);
             // 
             // panel3
@@ -3287,13 +3281,9 @@
             // 
             // gbGridTie
             // 
-            this.gbGridTie.Controls.Add(this.chkGridMode);
-            this.gbGridTie.Controls.Add(this.btnGridStart);
+            this.gbGridTie.Controls.Add(this.btnModeInv);
+            this.gbGridTie.Controls.Add(this.btnModeGrid);
             this.gbGridTie.Controls.Add(this.btnGridStop);
-            this.gbGridTie.Controls.Add(this.lblGridIset);
-            this.gbGridTie.Controls.Add(this.nudGridIset);
-            this.gbGridTie.Controls.Add(this.lblGridUref);
-            this.gbGridTie.Controls.Add(this.nudGridUref);
             this.gbGridTie.Controls.Add(this.lblGridFreq);
             this.gbGridTie.Controls.Add(this.nudGridFreq);
             this.gbGridTie.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
@@ -3304,94 +3294,35 @@
             this.gbGridTie.TabStop = false;
             this.gbGridTie.Text = "1ф 48→220";
             // 
-            // chkGridMode
-            // 
-            this.chkGridMode.AutoSize = true;
-            this.chkGridMode.Location = new System.Drawing.Point(9, 28);
-            this.chkGridMode.Name = "chkGridMode";
-            this.chkGridMode.Size = new System.Drawing.Size(61, 21);
-            this.chkGridMode.TabIndex = 1;
-            this.chkGridMode.Text = "Сеть";
-            this.chkGridMode.UseVisualStyleBackColor = true;
-            this.chkGridMode.Click += new System.EventHandler(this.GridMode_Click);
-            // 
-            // btnGridStart
-            // 
-            this.btnGridStart.Location = new System.Drawing.Point(62, 26);
-            this.btnGridStart.Name = "btnGridStart";
-            this.btnGridStart.Size = new System.Drawing.Size(48, 24);
-            this.btnGridStart.TabIndex = 2;
-            this.btnGridStart.Text = "Пуск";
-            this.btnGridStart.UseVisualStyleBackColor = true;
-            this.btnGridStart.Click += new System.EventHandler(this.GridStart_Click);
-            // 
+            // btnModeInv
+            //
+            this.btnModeInv.Location = new System.Drawing.Point(9, 25);
+            this.btnModeInv.Name = "btnModeInv";
+            this.btnModeInv.Size = new System.Drawing.Size(78, 24);
+            this.btnModeInv.TabIndex = 1;
+            this.btnModeInv.Text = "Инвертор";
+            this.btnModeInv.UseVisualStyleBackColor = true;
+            this.btnModeInv.Click += new System.EventHandler(this.ModeInv_Click);
+            //
+            // btnModeGrid
+            //
+            this.btnModeGrid.Location = new System.Drawing.Point(91, 25);
+            this.btnModeGrid.Name = "btnModeGrid";
+            this.btnModeGrid.Size = new System.Drawing.Size(60, 24);
+            this.btnModeGrid.TabIndex = 2;
+            this.btnModeGrid.Text = "Сеть";
+            this.btnModeGrid.UseVisualStyleBackColor = true;
+            this.btnModeGrid.Click += new System.EventHandler(this.ModeGrid_Click);
+            //
             // btnGridStop
-            // 
-            this.btnGridStop.Location = new System.Drawing.Point(108, 25);
+            //
+            this.btnGridStop.Location = new System.Drawing.Point(155, 25);
             this.btnGridStop.Name = "btnGridStop";
-            this.btnGridStop.Size = new System.Drawing.Size(48, 24);
+            this.btnGridStop.Size = new System.Drawing.Size(60, 24);
             this.btnGridStop.TabIndex = 3;
             this.btnGridStop.Text = "Стоп";
             this.btnGridStop.UseVisualStyleBackColor = true;
             this.btnGridStop.Click += new System.EventHandler(this.GridStop_Click);
-            // 
-            // lblGridIset
-            // 
-            this.lblGridIset.AutoSize = true;
-            this.lblGridIset.Location = new System.Drawing.Point(162, 10);
-            this.lblGridIset.Name = "lblGridIset";
-            this.lblGridIset.Size = new System.Drawing.Size(43, 17);
-            this.lblGridIset.TabIndex = 4;
-            this.lblGridIset.Text = "Iset A";
-            // 
-            // nudGridIset
-            // 
-            this.nudGridIset.DecimalPlaces = 2;
-            this.nudGridIset.Increment = new decimal(new int[] {
-            1,
-            0,
-            0,
-            65536});
-            this.nudGridIset.Location = new System.Drawing.Point(162, 26);
-            this.nudGridIset.Maximum = new decimal(new int[] {
-            25,
-            0,
-            0,
-            0});
-            this.nudGridIset.Name = "nudGridIset";
-            this.nudGridIset.Size = new System.Drawing.Size(52, 23);
-            this.nudGridIset.TabIndex = 5;
-            this.nudGridIset.KeyDown += new System.Windows.Forms.KeyEventHandler(this.GridNud_KeyDown);
-            this.nudGridIset.Leave += new System.EventHandler(this.GridIset_Commit);
-            // 
-            // lblGridUref
-            // 
-            this.lblGridUref.AutoSize = true;
-            this.lblGridUref.Location = new System.Drawing.Point(222, 10);
-            this.lblGridUref.Name = "lblGridUref";
-            this.lblGridUref.Size = new System.Drawing.Size(48, 17);
-            this.lblGridUref.TabIndex = 6;
-            this.lblGridUref.Text = "Uref V";
-            // 
-            // nudGridUref
-            // 
-            this.nudGridUref.DecimalPlaces = 1;
-            this.nudGridUref.Location = new System.Drawing.Point(222, 26);
-            this.nudGridUref.Maximum = new decimal(new int[] {
-            250,
-            0,
-            0,
-            0});
-            this.nudGridUref.Name = "nudGridUref";
-            this.nudGridUref.Size = new System.Drawing.Size(52, 23);
-            this.nudGridUref.TabIndex = 7;
-            this.nudGridUref.Value = new decimal(new int[] {
-            220,
-            0,
-            0,
-            0});
-            this.nudGridUref.KeyDown += new System.Windows.Forms.KeyEventHandler(this.GridNud_KeyDown);
-            this.nudGridUref.Leave += new System.EventHandler(this.GridUref_Commit);
             // 
             // lblGridFreq
             // 
@@ -3656,8 +3587,6 @@
             this.groupBox_AIN1.PerformLayout();
             this.gbGridTie.ResumeLayout(false);
             this.gbGridTie.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.nudGridIset)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudGridUref)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudGridFreq)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -3858,13 +3787,9 @@
         private System.Windows.Forms.ToolStripTextBox toolStripTextBox1;
         public System.Windows.Forms.GroupBox groupBox_AIN1;
         public System.Windows.Forms.GroupBox gbGridTie;
-        public System.Windows.Forms.CheckBox chkGridMode;
-        public System.Windows.Forms.Button btnGridStart;
+        public System.Windows.Forms.Button btnModeInv;
+        public System.Windows.Forms.Button btnModeGrid;
         public System.Windows.Forms.Button btnGridStop;
-        private System.Windows.Forms.Label lblGridIset;
-        public System.Windows.Forms.NumericUpDown nudGridIset;
-        private System.Windows.Forms.Label lblGridUref;
-        public System.Windows.Forms.NumericUpDown nudGridUref;
         private System.Windows.Forms.Label lblGridFreq;
         public System.Windows.Forms.NumericUpDown nudGridFreq;
         private System.Windows.Forms.TextBox AIN1_flag;

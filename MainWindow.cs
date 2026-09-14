@@ -222,24 +222,12 @@ namespace ICDIBasic
 
             #region ======== Вывод  данных на окно индикации ==========
 
-            Vin_value.Text = $@"{ccs.Vin_av *0.01f:0.00}"; // напряжение на входе DC/DC преобразователя, Вольт.
             Udc_value.Text = $@"{ccs.Udc_av * 0.1f:0.0}"; // фильтрованное напряжение на входе инвертора
 
-            if (I1rms_selector.Text == @"rms")
-            {
-                I1a_value.Text = $@"{M1.ccs.Ia_rms * 0.01:0.00}";
-                I1b_value.Text = $@"{M1.ccs.Ib_rms * 0.01:0.00}";
-                I1c_value.Text = $@"{M1.ccs.Ic_rms * 0.01:0.00}";
-                Ir1_value.Text = $@"{M1.ccs.In_rms * 0.01:0.00}";
+            Invertor_view(); // четыре канала моста: iPri, iSec, u220, uSec
 
-            }
-            else
-            {
-                I1a_value.Text = $@"{M1.ccs.Ia_av * 0.01:0.0}";
-                I1b_value.Text = $@"{M1.ccs.Ib_av * 0.01:0.0}";
-                I1c_value.Text = $@"{M1.ccs.Ic_av * 0.01:0.0}";
-                Ir1_value.Text = $@"{M1.ccs.In_av * 0.01:0.00}";
-            }
+            I1c_value.Text = $@"{M1.ccs.Ic_rms * 0.01:0.00}";
+            Ir1_value.Text = $@"{M1.ccs.In_rms * 0.01:0.00}";
 
             if (I2rms_selector.Text == @"rms")
             {
@@ -416,6 +404,24 @@ namespace ICDIBasic
                     break;
             }
         }
+        //---------------------------------------------------------------------------------
+        // Четыре канала однофазного моста. Что именно в них лежит - коды АЦП,
+        // мгновенные значения или rms - решает ключ teleSel, и подпись рядом
+        // ставится по эху ключа из кадра, а не по нажатию оператора: пока
+        // прибор не ответил, метка не должна обещать того, чего в полях нет.
+        //---------------------------------------------------------------------------------
+        private void Invertor_view()
+        {
+            I1rms_selector.Text = TeleSelName(ccs.teleSel);
+
+            var f = ccs.teleSel == TeleKod ? "0" : "0.00";
+
+            I1a_value.Text   = ccs.iPri.ToString(f);
+            I1b_value.Text   = ccs.iSec.ToString(f);
+            Vin_value.Text   = ccs.u220.ToString(f);
+            Urms1_value.Text = ccs.uSec.ToString(f);
+        }
+
         private void Vd_view(Motor m)
         {
             switch (m.Vd_Name.Text)
@@ -425,6 +431,9 @@ namespace ICDIBasic
                     break;
                 case @"uVd":
                     m.Vd_Value.Text = $@"{m.ccs.uVd * 0.1:##0.0}";
+                    break;
+                case @"Udc": // напряжение АКБ, оно же звено моста
+                    m.Vd_Value.Text = $@"{ccs.UdcBat:##0.0}";
                     break;
             }
         }
@@ -437,6 +446,9 @@ namespace ICDIBasic
                     break;
                 case @"uVq":
                     m.Vq_Value.Text = $@"{m.ccs.uVq * 0.1:##0.0}";
+                    break;
+                case @"Err": // код последней аварии сетевого режима
+                    m.Vq_Value.Text = $@"{ccs.gtFault:0}";
                     break;
             }
         }
@@ -463,6 +475,9 @@ namespace ICDIBasic
                 case @"uId":
                     m.Id_Value.Text = $@"{m.ccs.uIdF * 0.1:0.00}";
                     break;
+                case @"Iset": // сетевой режим: ток после нарастания, а не уставка
+                    m.Id_Value.Text = $@"{ccs.gtIset:0.00}";
+                    break;
             }
         }
 
@@ -475,6 +490,11 @@ namespace ICDIBasic
                     break;
                 case @"uIq":
                     m.Iq_Value.Text = $@"{m.ccs.uIqF * 0.1:0.00}";
+                    break;
+                case @"GT": // состояние автомата подключения к сети
+                    m.Iq_Value.Text = ccs.gtState < GtStateName.Length
+                        ? GtStateName[ccs.gtState]
+                        : $@"{ccs.gtState:0}";
                     break;
             }
         }
@@ -1155,8 +1175,7 @@ namespace ICDIBasic
             DG_send(DG2, 61);
 
             Imax_Send();
-            I1rms_selector.Text = "rms";
-            uint_128(0, 0, 0, 9);
+            uint_128(0, 0, 0, CmdTeleSel); // спросить ключ телеметрии: подпись поставит ответ
             I2rms_selector.Text = "rms";
             uint_128(0, 0, 0, 17);
 
@@ -2367,22 +2386,6 @@ namespace ICDIBasic
         }
         #endregion
         #region Режим Стабилизации Udc
-        private void I1rms_DoubleClick(object sender, EventArgs e)
-        {
-            if (I1rms_selector.Text == "rms")
-            {
-                I1rms_selector.Text = "av";
-                ParSelector = ParSelector | Bit.Bit0; // set bit 1
-                uint_128(1, 0, 0, 9);
-            }
-            else
-            {
-                I1rms_selector.Text = "rms"; //bit.I1av =1
-                ParSelector = ParSelector & ~Bit.Bit0; // clr bit 0
-                uint_128(0, 0, 0, 9);
-            }
-        }
-
         private void label_Irms_DoubleClick(object sender, EventArgs e)
         {
             if (I2rms_selector.Text == "rms")
@@ -3256,7 +3259,13 @@ namespace ICDIBasic
                         case @"Urms":
                             up.Text = @"U/F";
                             break;
+                        // Движок Gain1 - он же задатчик действующего напряжения
+                        // однофазного моста в режиме острова. У мотора 2 такого
+                        // режима нет: команда 633 одна на прибор.
                         case @"U/F":
+                            up.Text = x == M1 ? @"Uref" : @"gain";
+                            break;
+                        case @"Uref":
                             up.Text = @"gain";
                             break;
                     }
@@ -3479,7 +3488,27 @@ namespace ICDIBasic
                     NT_Mode_Change(x, m.ccs.Im, 10m);
                     break;
 
+                // Действующее напряжение однофазного моста в режиме острова.
+                // kNT = 10 даёт шаг движка 0.1 В - ровно единицу команды 633,
+                // то есть движок ходит без округлений на всю свою длину.
+                case "Uref":
+                    x.cmd = CmdUrefRms;
+                    x.modeH_kod = 0;
+                    x.kNT = 10;
+                    x.unit.Text = "V";
+                    x.nud.DecimalPlaces = 1;
+                    x.nud.Increment = 0.1m;
+                    x.nud.Maximum = 250m;
+                    NT_Mode_Change(x, (int)Math.Round(_urefSet * 10m), 10m, false);
+                    break;
+
             }
+
+            // Вернуть движку его обычную команду, если ушли из инверторного
+            // режима: cmd - поле NT, и переключение режима его больше не
+            // восстанавливало бы само.
+            if (x.modeH.Text != @"Uref")
+                x.cmd = m == M1 ? (ushort)75 : (ushort)76;
         }
 
         public void UF_Mode(Motor m)
@@ -3796,6 +3825,10 @@ namespace ICDIBasic
             Id_Name_switch(M1);
         }
 
+        // Нижний ряд панели АИН1 - это ещё и приборы однофазного моста: Iset,
+        // GT, Udc и Err. Третья позиция в цикле есть только у M1: у мотора 2
+        // сетевого режима нет, и ставить ему подпись, под которой никогда
+        // ничего не появится, незачем.
         private void Id_Name_switch(Motor m)
         {
             switch (m.Id_Name.Text)
@@ -3804,6 +3837,9 @@ namespace ICDIBasic
                     m.Id_Name.Text = @"uId";
                     break;
                 case @"uId":
+                    m.Id_Name.Text = m == M1 ? @"Iset" : @"Id";
+                    break;
+                default:
                     m.Id_Name.Text = @"Id";
                     break;
             }
@@ -3816,6 +3852,9 @@ namespace ICDIBasic
                     m.Iq_Name.Text = @"uIq";
                     break;
                 case @"uIq":
+                    m.Iq_Name.Text = m == M1 ? @"GT" : @"Iq";
+                    break;
+                default:
                     m.Iq_Name.Text = @"Iq";
                     break;
             }
@@ -3857,6 +3896,9 @@ namespace ICDIBasic
                     m.Vd_Name.Text = @"uVd";
                     break;
                 case @"uVd":
+                    m.Vd_Name.Text = m == M1 ? @"Udc" : @"Vd";
+                    break;
+                default:
                     m.Vd_Name.Text = @"Vd";
                     break;
             }
@@ -3869,6 +3911,9 @@ namespace ICDIBasic
                     m.Vq_Name.Text = @"uVq";
                     break;
                 case @"uVq":
+                    m.Vq_Name.Text = m == M1 ? @"Err" : @"Vq";
+                    break;
+                default:
                     m.Vq_Name.Text = @"Vq";
                     break;
             }
@@ -3971,6 +4016,18 @@ namespace ICDIBasic
                     NT_Mode_Change(x, m.ccs.freq, 5);
                     break;
 
+                // Амплитуда тока в сеть. kNT = 100 даёт шаг движка 0.01 А -
+                // единицу команды 632.
+                case @"Iset":
+                    x.cmd = CmdIsetRef;
+                    x.modeH_kod = 0;
+                    x.kNT = 100;
+                    x.nud.DecimalPlaces = 2;
+                    x.nud.Increment = 0.01M;
+                    x.nud.Maximum = 25M;
+                    NT_Mode_Change(x, (int)Math.Round(_isetSet * 100m), 100m, false);
+                    break;
+
                 default:
                     x.modeH_kod = 0;
                     x.kNT = KSabs;
@@ -3982,6 +4039,11 @@ namespace ICDIBasic
 
 
             }
+
+            // См. такой же хвост в Gain_Mode_Refresh: команда - поле NT,
+            // и уход из инверторного режима должен её вернуть.
+            if (up.Text != @"Iset")
+                x.cmd = m == M1 ? (ushort)73 : (ushort)77;
         }
 
         private void F2kadr_text_Click(object sender, EventArgs e)
@@ -4076,10 +4138,13 @@ else
 
 
 
-        private void NT_Mode_Change(NT x, int ccs, decimal Kfiz)
+        private void NT_Mode_Change(NT x, int ccs, decimal Kfiz, bool resetLoad = true)
         {
             // int ccs - текущее значение параметра из CCS
             // Kfiz - коэффициент преобразования параметра из CCS в физику. Физическое значение = ccs / Kfiz .
+            // resetLoad - сбрасывать ли нагрузку М2 в конце. Инверторные режимы
+            //   (Uref, Iset) к моторам отношения не имеют, и сброс чужой
+            //   нагрузки при смене их масштаба - действие исподтишка.
             x.tbar.Maximum = (int)(x.nud.Maximum * x.kNT);
             var val = Math.Abs(ccs / Kfiz);
             x.nud.Value = Satur(val, x.nud.Minimum, x.nud.Maximum);
@@ -4091,8 +4156,9 @@ else
                 uint_128((ushort)x.tbar.Value, 3333, x.modeH_kod, x.cmd); //принудительно посылаем команду когда нет изменения tbar
             }
 
-            // !!! всегда сбрасываем нагрузку 
-            uint_128(M2.load.modeL_kod, 3333, 0, M2.load.cmd_LL);
+            // !!! всегда сбрасываем нагрузку
+            if (resetLoad)
+                uint_128(M2.load.modeL_kod, 3333, 0, M2.load.cmd_LL);
         }
 
         private void Load_Sym_Click(object sender, EventArgs e)
@@ -4583,8 +4649,13 @@ else
             x.nud.ForeColor = Color.Black;
             x.nud.BackColor = Color.Yellow;
 
-        
-           
+            // Уставки инвертора обратно из прибора не приходят: в кадре 140
+            // для них нет слова. Запоминаем последнее посланное - иначе после
+            // ухода в моторный режим и обратно движок встал бы в ноль, а мост
+            // продолжал бы работать со старой уставкой.
+            if (x.cmd == CmdUrefRms) _urefSet = x.nud.Value;
+            else if (x.cmd == CmdIsetRef) _isetSet = x.nud.Value;
+
             uint_128((ushort)x.tbar.Value, 3333, x.modeH_kod, x.cmd);
         }
 

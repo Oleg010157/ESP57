@@ -240,6 +240,22 @@ namespace ICDIBasic
 
         public static short core_temp=0;      // температура ядра F280039C в Цельсиях
 
+        //140 Однофазный мост 48->220. Четыре канала приходят одним набором,
+        //    какой именно - говорит teleSel (он же ключ команды 634):
+        //    0 = коды АЦП, 1 = мгновенные значения, 2 = rms.
+        //    В кодах величины целые, в остальных наборах - В или А.
+        public static double iPri = 0;      // ток первичной обмотки (сторона 48 В)
+        public static double iSec = 0;      // ток вторичной обмотки (ток в сеть)
+        public static double u220 = 0;      // напряжение сети после контактора
+        public static double uSec = 0;      // напряжение на выходе моста, до контактора
+        public static ushort teleSel = 2;   // эхо ключа из кадра: что именно в четвёрке выше
+
+        public static double UdcBat = 0;    // напряжение АКБ (звено моста), Вольт
+        public static double gtIset = 0;    // сетевой режим: что реально отдаём, Ампер
+        public static ushort gtState = 0;   // автомат подключения: 0 OFF, 1 SYNC, 2 RAMP, 3 RUN, 4 FAULT
+        public static ushort gtFault = 0;   // код последней аварии сетевого режима
+        public static ushort sineGain = 0;  // sineB.gain - амплитуда синуса в кодах
+
         public static ushort P101Kadr = 0;  // номер группы параметров по 108 mbox
 
         //103
