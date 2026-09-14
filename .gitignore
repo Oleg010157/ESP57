@@ -34,6 +34,15 @@ WscopeE.ini
 **/.jxbrowser.userdata/
 /3ph_Invertor/.cproject
 
+# Конфигурация ИИ-агентов: машинно-зависимая, у каждого ПК своя.
+# .mcp.json генерирует CCStudio с абсолютными путями своей версии
+# (дома ccs2100, на работе ccs2101) - в git ездить не должна.
+# В config.toml лежит личный API-ключ, ему в репозитории не место.
+# Общее содержимое .claude/skills/ и .codex/skills/ отслеживается по-прежнему.
+.mcp.json
+**/.claude/settings.local.json
+**/.codex/config.toml
+
 
 # === Артефакты сборки и временные файлы ===
 *.out
