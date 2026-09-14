@@ -31,6 +31,11 @@ namespace ICDIBasic
         private decimal _urefSet = 220m;
         private decimal _isetSet;
 
+        // Последний ПОДТВЕРЖДЁННЫЙ прибором режим: 0 = остров, 1 = сеть.
+        // Ставит только ACK 630 - от него зависит и надпись на кнопке, и то,
+        // что сделает "Пуск". Нажатие само по себе режима не меняет.
+        private ushort _gridMode;
+
         private void GridNud_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode != Keys.Enter) return;
@@ -40,54 +45,88 @@ namespace ICDIBasic
         }
 
         //-------------------------------------------------------------------
-        // Выбор режима. Каждая кнопка сама доводит прибор до рабочего
-        // состояния: отдельного "Пуска" нет, потому что промежуточное
-        // состояние "режим выбран, но не запущен" оператору не нужно, а забыть
-        // про него легко.
+        // Управление разделено на две вещи, потому что это две разные вещи:
         //
-        // Уставки живут на движках: Uref на Gain1, Iset на Load1. Кнопка
-        // ставит движку нужный режим - иначе после переключения на панели
-        // остался бы движок от прошлого режима, посылающий не ту команду.
+        //   btnGridMode  - ЧТО делаем: остров (синус Uref) или сеть (ток Iset).
+        //                  Одна кнопка с меняющейся надписью, как ModeH у
+        //                  движков: текст и есть состояние.
+        //   Пуск / Стоп  - ДЕЛАЕМ ЛИ. Ключи и автомат сети.
+        //
+        // Раньше ключи жили в двух других местах (галочка Enable и двойной
+        // клик по "Вкл."), и по кнопке режима было не понять, поедет мост или
+        // нет. Теперь "Пуск" доводит до работы сам.
         //-------------------------------------------------------------------
-        private void ModeInv_Click(object sender, EventArgs e)
+        private void GridMode_Click(object sender, EventArgs e)
         {
-            // Прошивка по этой команде сама делает grid_tie_stop(), gridMode = 0
-            // и пересчитывает UrefRms -> sineB.gain.
-            uint_128(0, 3333, 0, CmdGridMode);
-
-            GridMode_Buttons(false);
-
-            M1.gain.modeL.Text = @"U";
-            M1.gain.modeH.Text = @"Uref";
-            Gain_Mode_Refresh(M1); // выставляет масштаб и шлёт текущую уставку
+            btnGridMode.BackColor = Color.Yellow;
+            uint_128((ushort)(_gridMode == 0 ? 1 : 0), 3333, 0, CmdGridMode);
         }
 
-        private void ModeGrid_Click(object sender, EventArgs e)
+        private void GridStart_Click(object sender, EventArgs e)
         {
-            uint_128(1, 3333, 0, CmdGridMode);
+            btnGridStart.BackColor = Color.Yellow;
 
-            GridMode_Buttons(true);
+            uint_128(0, 0, 0, 10); // снять запрет блока (ACK поставит галочку Enable)
+            uint_128(0, 0, 0, 12); // PWM1_On - собственно ключи
 
-            M1.load.modeH.Text = @"Iset";
-            Load_Mode_Refresh(M1); // масштаб + текущая уставка тока
-
-            uint_128(2, 3333, 0, CmdGridRun); // GT_OFF -> GT_SYNC
+            // Автомат синхронизации нужен только сетевому режиму. В острове
+            // мост поехал уже от одних ключей: там синус берётся из таблицы,
+            // а не из контура.
+            if (_gridMode == 1)
+                uint_128(2, 3333, 0, CmdGridRun);
         }
 
         private void GridStop_Click(object sender, EventArgs e)
         {
-            uint_128(1, 3333, 0, CmdGridRun);
+            btnGridStop.BackColor = Color.Yellow;
+
+            uint_128(1, 3333, 0, CmdGridRun); // GT_OFF, заодно снимает аварию
+            uint_128(1, 0, 0, 10);            // IGBT1_Disable
+
+            // Уставку в ноль: иначе следующий "Пуск" начался бы сразу с
+            // полного тока или полного напряжения, чего оператор от кнопки
+            // "Пуск" не ждёт.
+            GridSetpoint_Zero();
         }
 
-        // Активный режим - жёлтым, как у кнопок режима движков.
-        private void GridMode_Buttons(bool grid)
+        private void GridSetpoint_Zero()
         {
-            btnModeInv.BackColor = grid ? SystemColors.Control : Color.Yellow;
-            btnModeGrid.BackColor = grid ? Color.Yellow : SystemColors.Control;
+            if (M1.gain.modeH.Text == @"Uref") M1.gain.tbar.Value = 0;
+            if (M1.load.modeH.Text == @"Iset") M1.load.tbar.Value = 0;
+        }
+
+        //-------------------------------------------------------------------
+        // ACK 630: режим пришёл из прибора. Надпись и движок ставим здесь,
+        // а не по нажатию - иначе кнопка показывала бы намерение оператора,
+        // а не то, в чём прибор на самом деле.
+        //-------------------------------------------------------------------
+        private void GridMode_Ack(ushort d1)
+        {
+            _gridMode = (ushort)(d1 == 0 ? 0 : 1);
+
+            btnGridMode.BackColor = Color.Empty;
+            btnGridMode.ForeColor = Color.Green;
+            btnGridMode.Text = _gridMode == 0 ? @"Инвертор" : @"Сеть";
+
+            // Движок под уставку этого режима: Uref на Gain1, Iset на Load1.
+            // Иначе на панели остался бы движок от прошлого режима, шлющий
+            // не ту команду.
+            if (_gridMode == 0)
+            {
+                M1.gain.modeL.Text = @"U";
+                M1.gain.modeH.Text = @"Uref";
+                Gain_Mode_Refresh(M1);
+            }
+            else
+            {
+                M1.load.modeH.Text = @"Iset";
+                Load_Mode_Refresh(M1);
+            }
         }
 
         private void GridFreq_Commit(object sender, EventArgs e)
         {
+            nudGridFreq.BackColor = Color.Yellow;
             uint_128((ushort)nudGridFreq.Value, 3333, 0, CmdGridFreq);
         }
 
@@ -96,14 +135,20 @@ namespace ICDIBasic
         // АЦП, то мгновенные значения, то rms - смотреть все три сразу незачем,
         // а слов в кадре нет лишних.
         //
-        // Подпись меняем не сами: её ставит эхо ключа из слова 13, когда
-        // прибор ответит. Иначе после потери связи метка врала бы о том, что
-        // показывают четыре поля рядом.
+        // Подпись меняет ACK, а не щелчок: пока прибор не ответил, метка не
+        // должна обещать того, чего в четырёх полях рядом нет.
         //-------------------------------------------------------------------
         private void TeleSel_DoubleClick(object sender, EventArgs e)
         {
-            ushort next = (ushort)((ccs.teleSel + 1) % 3);
-            uint_128(next, 3333, 0, CmdTeleSel);
+            I1rms_selector.BackColor = Color.Yellow;
+            uint_128((ushort)((ccs.teleSel + 1) % 3), 3333, 0, CmdTeleSel);
+        }
+
+        private void TeleSel_Ack(ushort d1)
+        {
+            I1rms_selector.BackColor = Color.Empty;
+            I1rms_selector.ForeColor = Color.Green;
+            I1rms_selector.Text = TeleSelName(d1);
         }
 
         private static string TeleSelName(ushort sel)

@@ -1,4 +1,4 @@
-namespace ICDIBasic
+﻿namespace ICDIBasic
 {
     partial class Form1
     {
@@ -306,8 +306,8 @@ namespace ICDIBasic
             this.AIN1_flag = new System.Windows.Forms.TextBox();
             this.groupBox_AIN1 = new System.Windows.Forms.GroupBox();
             this.gbGridTie = new System.Windows.Forms.GroupBox();
-            this.btnModeInv = new System.Windows.Forms.Button();
-            this.btnModeGrid = new System.Windows.Forms.Button();
+            this.btnGridMode = new System.Windows.Forms.Button();
+            this.btnGridStart = new System.Windows.Forms.Button();
             this.btnGridStop = new System.Windows.Forms.Button();
             this.lblGridFreq = new System.Windows.Forms.Label();
             this.nudGridFreq = new System.Windows.Forms.NumericUpDown();
@@ -2548,7 +2548,7 @@ namespace ICDIBasic
             this.Vin.ForeColor = System.Drawing.Color.Brown;
             this.Vin.Location = new System.Drawing.Point(2, 15);
             this.Vin.Name = "Vin";
-            this.Vin.Size = new System.Drawing.Size(46, 28);
+            this.Vin.Size = new System.Drawing.Size(64, 28);
             this.Vin.TabIndex = 4;
             this.Vin.Text = "u220";
             // 
@@ -2580,7 +2580,7 @@ namespace ICDIBasic
             this.Udc_name.ForeColor = System.Drawing.Color.Brown;
             this.Udc_name.Location = new System.Drawing.Point(4, 12);
             this.Udc_name.Name = "Udc_name";
-            this.Udc_name.Size = new System.Drawing.Size(52, 28);
+            this.Udc_name.Size = new System.Drawing.Size(60, 28);
             this.Udc_name.TabIndex = 168;
             this.Udc_name.Text = "uSec";
             this.Udc_name.DoubleClick += new System.EventHandler(this.Udc_name_DoubleClick);
@@ -2625,7 +2625,7 @@ namespace ICDIBasic
             this.Idc_label.ForeColor = System.Drawing.Color.DarkGreen;
             this.Idc_label.Location = new System.Drawing.Point(4, 12);
             this.Idc_label.Name = "Idc_label";
-            this.Idc_label.Size = new System.Drawing.Size(44, 28);
+            this.Idc_label.Size = new System.Drawing.Size(50, 28);
             this.Idc_label.TabIndex = 5;
             this.Idc_label.Text = "iPri";
             // 
@@ -2658,7 +2658,7 @@ namespace ICDIBasic
             this.input3.ForeColor = System.Drawing.Color.DarkGreen;
             this.input3.Location = new System.Drawing.Point(4, 12);
             this.input3.Name = "input3";
-            this.input3.Size = new System.Drawing.Size(33, 28);
+            this.input3.Size = new System.Drawing.Size(54, 28);
             this.input3.TabIndex = 6;
             this.input3.Text = "iSec";
             // 
@@ -2929,7 +2929,7 @@ namespace ICDIBasic
             this.Id1_name.ForeColor = System.Drawing.Color.DarkGreen;
             this.Id1_name.Location = new System.Drawing.Point(17, 469);
             this.Id1_name.Name = "Id1_name";
-            this.Id1_name.Size = new System.Drawing.Size(31, 26);
+            this.Id1_name.Size = new System.Drawing.Size(46, 26);
             this.Id1_name.TabIndex = 218;
             this.Id1_name.Text = "Iset";
             this.Id1_name.DoubleClick += new System.EventHandler(this.Id1_name_DoubleClick);
@@ -2987,7 +2987,7 @@ namespace ICDIBasic
             this.Vd1_name.ForeColor = System.Drawing.Color.Brown;
             this.Vd1_name.Location = new System.Drawing.Point(183, 465);
             this.Vd1_name.Name = "Vd1_name";
-            this.Vd1_name.Size = new System.Drawing.Size(37, 28);
+            this.Vd1_name.Size = new System.Drawing.Size(52, 28);
             this.Vd1_name.TabIndex = 220;
             this.Vd1_name.Text = "Udc";
             this.Vd1_name.DoubleClick += new System.EventHandler(this.Vd1_name_DoubleClick);
@@ -3115,7 +3115,7 @@ namespace ICDIBasic
             this.Vq1_name.ForeColor = System.Drawing.Color.Brown;
             this.Vq1_name.Location = new System.Drawing.Point(184, 494);
             this.Vq1_name.Name = "Vq1_name";
-            this.Vq1_name.Size = new System.Drawing.Size(35, 26);
+            this.Vq1_name.Size = new System.Drawing.Size(43, 26);
             this.Vq1_name.TabIndex = 198;
             this.Vq1_name.Text = "Err";
             this.Vq1_name.DoubleClick += new System.EventHandler(this.Vq1_name_DoubleClick);
@@ -3127,7 +3127,7 @@ namespace ICDIBasic
             this.Iq1_name.ForeColor = System.Drawing.Color.DarkGreen;
             this.Iq1_name.Location = new System.Drawing.Point(15, 493);
             this.Iq1_name.Name = "Iq1_name";
-            this.Iq1_name.Size = new System.Drawing.Size(31, 26);
+            this.Iq1_name.Size = new System.Drawing.Size(38, 26);
             this.Iq1_name.TabIndex = 196;
             this.Iq1_name.Text = "GT";
             this.Iq1_name.DoubleClick += new System.EventHandler(this.Iq1_name_DoubleClick);
@@ -3281,8 +3281,8 @@ namespace ICDIBasic
             // 
             // gbGridTie
             // 
-            this.gbGridTie.Controls.Add(this.btnModeInv);
-            this.gbGridTie.Controls.Add(this.btnModeGrid);
+            this.gbGridTie.Controls.Add(this.btnGridMode);
+            this.gbGridTie.Controls.Add(this.btnGridStart);
             this.gbGridTie.Controls.Add(this.btnGridStop);
             this.gbGridTie.Controls.Add(this.lblGridFreq);
             this.gbGridTie.Controls.Add(this.nudGridFreq);
@@ -3294,29 +3294,29 @@ namespace ICDIBasic
             this.gbGridTie.TabStop = false;
             this.gbGridTie.Text = "1ф 48→220";
             // 
-            // btnModeInv
+            // btnGridMode
             //
-            this.btnModeInv.Location = new System.Drawing.Point(9, 25);
-            this.btnModeInv.Name = "btnModeInv";
-            this.btnModeInv.Size = new System.Drawing.Size(78, 24);
-            this.btnModeInv.TabIndex = 1;
-            this.btnModeInv.Text = "Инвертор";
-            this.btnModeInv.UseVisualStyleBackColor = true;
-            this.btnModeInv.Click += new System.EventHandler(this.ModeInv_Click);
+            this.btnGridMode.Location = new System.Drawing.Point(9, 25);
+            this.btnGridMode.Name = "btnGridMode";
+            this.btnGridMode.Size = new System.Drawing.Size(85, 24);
+            this.btnGridMode.TabIndex = 1;
+            this.btnGridMode.Text = "Инвертор";
+            this.btnGridMode.UseVisualStyleBackColor = true;
+            this.btnGridMode.Click += new System.EventHandler(this.GridMode_Click);
             //
-            // btnModeGrid
+            // btnGridStart
             //
-            this.btnModeGrid.Location = new System.Drawing.Point(91, 25);
-            this.btnModeGrid.Name = "btnModeGrid";
-            this.btnModeGrid.Size = new System.Drawing.Size(60, 24);
-            this.btnModeGrid.TabIndex = 2;
-            this.btnModeGrid.Text = "Сеть";
-            this.btnModeGrid.UseVisualStyleBackColor = true;
-            this.btnModeGrid.Click += new System.EventHandler(this.ModeGrid_Click);
+            this.btnGridStart.Location = new System.Drawing.Point(100, 25);
+            this.btnGridStart.Name = "btnGridStart";
+            this.btnGridStart.Size = new System.Drawing.Size(55, 24);
+            this.btnGridStart.TabIndex = 2;
+            this.btnGridStart.Text = "Пуск";
+            this.btnGridStart.UseVisualStyleBackColor = true;
+            this.btnGridStart.Click += new System.EventHandler(this.GridStart_Click);
             //
             // btnGridStop
             //
-            this.btnGridStop.Location = new System.Drawing.Point(155, 25);
+            this.btnGridStop.Location = new System.Drawing.Point(159, 25);
             this.btnGridStop.Name = "btnGridStop";
             this.btnGridStop.Size = new System.Drawing.Size(60, 24);
             this.btnGridStop.TabIndex = 3;
@@ -3787,8 +3787,8 @@ namespace ICDIBasic
         private System.Windows.Forms.ToolStripTextBox toolStripTextBox1;
         public System.Windows.Forms.GroupBox groupBox_AIN1;
         public System.Windows.Forms.GroupBox gbGridTie;
-        public System.Windows.Forms.Button btnModeInv;
-        public System.Windows.Forms.Button btnModeGrid;
+        public System.Windows.Forms.Button btnGridMode;
+        public System.Windows.Forms.Button btnGridStart;
         public System.Windows.Forms.Button btnGridStop;
         private System.Windows.Forms.Label lblGridFreq;
         public System.Windows.Forms.NumericUpDown nudGridFreq;

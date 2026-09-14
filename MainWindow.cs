@@ -412,8 +412,9 @@ namespace ICDIBasic
         //---------------------------------------------------------------------------------
         private void Invertor_view()
         {
-            I1rms_selector.Text = TeleSelName(ccs.teleSel);
-
+            // Подпись ключа ставит ACK 634, а не этот таймер: иначе жёлтая
+            // метка "жду ответа" гасла бы сама собой на первом же кадре.
+            // Отсюда берётся только формат - в кодах дробная часть не нужна.
             var f = ccs.teleSel == TeleKod ? "0" : "0.00";
 
             I1a_value.Text   = ccs.iPri.ToString(f);
@@ -1175,7 +1176,11 @@ namespace ICDIBasic
             DG_send(DG2, 61);
 
             Imax_Send();
-            uint_128(0, 0, 0, CmdTeleSel); // спросить ключ телеметрии: подпись поставит ответ
+            // Спрашиваем режим моста и ключ телеметрии: надписи на кнопке и
+            // метке поставят ответы. Своего мнения о состоянии прибора у GUI
+            // при подключении нет.
+            uint_128(0, 0, 0, CmdGridMode);
+            uint_128(0, 0, 0, CmdTeleSel);
             I2rms_selector.Text = "rms";
             uint_128(0, 0, 0, 17);
 
@@ -2569,6 +2574,10 @@ namespace ICDIBasic
                     AIN1_Enable.Checked   = (d1 == 0);
                     break;
 
+                case 12: // ACK PWM1_On - кнопка "Пуск" однофазного моста
+                    btnGridStart.BackColor = Color.Empty;
+                    break;
+
                 case 11: // ACK AIN2 Enable/Disable
                     AIN2_Enable.BackColor = Color.Empty;
                     AIN2_Enable.Checked   = (d1 == 0);
@@ -2703,7 +2712,42 @@ namespace ICDIBasic
                     ccs_To_NUD(M2.gain, d1, d2, d3);
                     NUD_Gain2.ValueChanged += NUD_Gain2_ValueChanged;
                     Tbar_Gain2.ValueChanged += Tbar_Gain2_ValueChanged;
-                   
+
+                    break;
+
+                //---- однофазный мост 48->220 --------------------------------
+                case 624: // ACK частоты синусоиды sineB
+                    nudGridFreq.BackColor = Color.Empty;
+                    nudGridFreq.ForeColor = Color.Green;
+                    break;
+
+                case 630: // ACK режима: d1 = gridMode, d3 = gt.State
+                    GridMode_Ack(d1);
+                    break;
+
+                case 631: // ACK автомата сети: d1 = gt.State, d3 = gt.fault
+                    btnGridStart.BackColor = btnGridStop.BackColor = Color.Empty;
+                    break;
+
+                case 632: // уставка тока в сеть - движок Load1 в режиме Iset
+                    NUD_Load1.ValueChanged -= NUD_Load1_ValueChanged;
+                    Tbar_Load1.ValueChanged -= Tbar_Load1_ValueChanged;
+                    ccs_To_NUD(M1.load, d1, d2, d3);
+                    NUD_Load1.ValueChanged += NUD_Load1_ValueChanged;
+                    Tbar_Load1.ValueChanged += Tbar_Load1_ValueChanged;
+                    break;
+
+                case 633: // уставка Urms острова - движок Gain1 в режиме Uref
+                    NUD_Gain1.ValueChanged -= NUD_Gain1_ValueChanged;
+                    Tbar_Gain1.ValueChanged -= Tbar_Gain1_ValueChanged;
+                    Gain1_ModeH.BackColor = Gain1_ModeL.BackColor = Color.Empty;
+                    ccs_To_NUD(M1.gain, d1, d2, d3);
+                    NUD_Gain1.ValueChanged += NUD_Gain1_ValueChanged;
+                    Tbar_Gain1.ValueChanged += Tbar_Gain1_ValueChanged;
+                    break;
+
+                case 634: // ACK ключа телеметрии
+                    TeleSel_Ack(d1);
                     break;
 
                 case 100: // подтверждение команды для запуска записи фаст spf кадра по нажатию F3
