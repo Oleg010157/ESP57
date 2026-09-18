@@ -60,8 +60,11 @@ uint16_t cmpaB;
 float duty; // Значение скважности ШИМ (в тактах таймера TBCLK)
 
 //DBG
-struct sine sineA = {.resolution = 256, .freq = 50, .gain = 1800};
-struct sine sineB = {.resolution = 100, .freq = 50, .gain = 1800};
+// upDown - режим счёта таймера, которому синусоида отдаёт pwm_period, см.
+// struct sine в 1ph_Sin.h. EPWM6 под sineA считает только вверх, EPWM1 под
+// sineB - вверх-вниз (CTRMODE = UP_DOWN), и период у него вдвое длиннее TBPRD.
+struct sine sineA = {.resolution = 256, .freq = 50, .gain = 1800};              // EPWM6
+struct sine sineB = {.resolution = 100, .freq = 50, .gain = 1800, .upDown = 1}; // EPWM1
 
 // iPri_* / iSec_* переехали в CLA/cla_shared.c - туда, где объявлены все шесть
 // каналов АЦП сразу. Пишет их по-прежнему CPU, здесь же, в прерывании ADCB.
@@ -644,7 +647,20 @@ void change_sine(struct sine *s)
 {
     s->step       = PI2 / s->resolution;
     s->tpwm_sek   = (1.0f / s->freq) / s->resolution; // pwm period  в секундах
-    s->pwm_period = s->tpwm_sek * 75e6; //60e6*150/120;           // TBPRD в циклах таймера
+    // TBPRD в тактах TBCLK. TBCLK1 = TBCLK6 = 150 МГц / 2 (HSPCLKDIV = 2 по
+    // сбросу, CLKDIV = 1) = 75 МГц.
+    //
+    // Делитель зависит от РЕЖИМА СЧЁТА, а не только от частоты. EPWM1 (sineB)
+    // идёт UP_DOWN: за период счётчик проходит TBPRD вверх и столько же вниз,
+    // значит в TBPRD кладётся полпериода - 37.5e6 вместо 75e6. EPWM6 (sineA)
+    // считает только вверх, там делить нечего.
+    //
+    // Прежде здесь стояло 75e6 для обоих, и у моста выходная частота выходила
+    // ВДВОЕ НИЖЕ заданной: при sineB.freq = 60 на пине было 30 Гц. В АИН это
+    // ничем не компенсировалось. В слежении за сетью не всплывало: там TBPRD
+    // переписывает захват eCAP (tbperEPWM1 выше по файлу), и он-то полпериода
+    // учитывает. Те же полпериода учитывает и gt.Ts в grid_tie.c.
+    s->pwm_period = s->tpwm_sek * (s->upDown ? 37.5e6f : 75e6f);
 
     // Окно усреднения RMS для CLA. Копия нужна потому, что sineB лежит в
     // обычной .data (RAMLS5/6), а CLA видит только отданные ей блоки - LS1,
