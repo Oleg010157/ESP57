@@ -50,6 +50,15 @@ namespace ICDIBasic
 
         private static readonly string[] GridModeName = { "АИН", "Слежение", "Выход в сеть" };
 
+        // Обычный фон кнопок моста.
+        //
+        // Color.Empty здесь НЕ ГОДИТСЯ, хотя в остальном окне он и означает
+        // "ничего особенного". BackColor - амбиентное свойство: пустое значение
+        // значит не "цвет кнопки по умолчанию", а "наследовать от родителя".
+        // Родитель здесь - groupBox_AIN1 с DarkKhaki, и кнопка от такого сброса
+        // просто растворяется в фоне группы.
+        private static readonly Color BtnIdle = SystemColors.ControlLight;
+
         // Подсказка к каждому положению. На кнопке помещается только короткое
         // имя, а "АИН" без расшифровки не говорит ничего - и не всякому
         // очевидно, что слежение от выхода в сеть отличается одним контактором.
@@ -163,8 +172,7 @@ namespace ICDIBasic
         {
             _mode = d1 < GridModeName.Length ? d1 : GridModeOff;
 
-            btnGridMode.BackColor = Color.Empty;
-            btnGridMode.ForeColor = Color.Green;
+            btnGridMode.BackColor = BtnIdle;
             btnGridMode.Text = GridModeName[_mode];
             GridMode_Hint();
 
@@ -225,12 +233,12 @@ namespace ICDIBasic
             string text = on ? @"Вкл" : @"Выкл";
             if (btnInvPower.Text != text) btnInvPower.Text = text;
 
-            Color back = on ? Color.FromArgb(0, 192, 0) : Color.Empty;
+            Color back = on ? Color.FromArgb(0, 192, 0) : BtnIdle;
             if (btnInvPower.BackColor != back) btnInvPower.BackColor = back;
 
-            // Авария автомата гасит зелень режима: в GT_FAULT мост закрыт, и
+            // Авария автомата видна на кнопке режима: в GT_FAULT мост закрыт, и
             // надпись "Выход в сеть" без этого обещала бы работу, которой нет.
-            Color mode = (ccs.gtState == 4) ? Color.Red : Color.Empty;
+            Color mode = (ccs.gtState == 4) ? Color.Red : BtnIdle;
             if (btnGridMode.BackColor != Color.Yellow && btnGridMode.BackColor != mode)
                 btnGridMode.BackColor = mode;
         }
