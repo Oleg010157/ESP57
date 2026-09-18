@@ -43,6 +43,14 @@ namespace ICDIBasic
         private ushort _mode;
         private ushort _gridEn;
 
+        // Что сейчас НАРИСОВАНО на кнопке питания. Не состояние прибора -
+        // состояние живёт в бите pwm_On, - а защёлка против перерисовки на
+        // каждом тике таймера: подсказку нельзя переставлять без нужды, иначе
+        // она гаснет прямо под курсором. null = кнопку ещё не рисовали, и
+        // первый же тик обязан её оформить, даже если надпись из дизайнера
+        // случайно совпала.
+        private bool? _invShown;
+
         // Режимы моста. Те же номера в прошивке - GRID_MODE_* в grid_tie.h.
         public const ushort GridModeOff = 0;  // АИН, автономный инвертор напряжения
         public const ushort GridModeSync = 1; // слежение, контактор разомкнут
@@ -76,6 +84,21 @@ namespace ICDIBasic
             "Выход в сеть.\n" +
             "То же слежение плюс замкнутый контактор и токовый контур.\n" +
             "Пускает только галочка \"Enable сеть\"."
+        };
+
+        // Подсказка к кнопке питания. Надпись на ней - СОСТОЯНИЕ ("Выкл" - это
+        // не приказ, а то, в чём ключи сейчас), и по-русски она одинаково
+        // читается как состояние и как команда. Подсказка разводит одно с
+        // другим: первая строка - что есть, вторая - что сделает нажатие.
+        private static readonly string[] InvPowerHint =
+        {
+            "Ключи АИН-1 закрыты, моста на выходе нет.\n" +
+            "Нажать - включить ключи.",
+
+            "Ключи АИН-1 открыты, мост работает.\n" +
+            "Нажать - выключить ключи.\n" +
+            "Выключение заодно сбрасывает уставку в ноль,\n" +
+            "чтобы следующий пуск не начался с полного напряжения."
         };
 
         private void GridNud_KeyDown(object sender, KeyEventArgs e)
@@ -230,11 +253,13 @@ namespace ICDIBasic
         {
             bool on = InvPower_On();
 
-            string text = on ? @"Вкл" : @"Выкл";
-            if (btnInvPower.Text != text) btnInvPower.Text = text;
-
-            Color back = on ? Color.FromArgb(0, 192, 0) : BtnIdle;
-            if (btnInvPower.BackColor != back) btnInvPower.BackColor = back;
+            if (_invShown != on)
+            {
+                _invShown = on;
+                btnInvPower.Text = on ? @"Вкл" : @"Выкл";
+                btnInvPower.BackColor = on ? Color.FromArgb(0, 192, 0) : BtnIdle;
+                toolTip1.SetToolTip(btnInvPower, InvPowerHint[on ? 1 : 0]);
+            }
 
             // Авария автомата видна на кнопке режима: в GT_FAULT мост закрыт, и
             // надпись "Выход в сеть" без этого обещала бы работу, которой нет.
