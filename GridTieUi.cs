@@ -5,7 +5,10 @@ using FlagMask; // mflag.pwm_On - бит ключей в слове 14 кадр�
 
 namespace ICDIBasic
 {
-    // Обработчики панели "1ф 48→220" (gbGridTie).
+    // Обработчики строки управления однофазным мостом: режим, уставка
+    // напряжения, частота. Своей рамки у неё больше нет - органы лежат прямо
+    // в groupBox_AIN1: рамка с подписью "1ф 48→220" съедала полтора десятка
+    // точек по высоте и налезала на строку показаний U220/Usec под ней.
     // Сами контролы живут в MainWindow.Designer.cs и правятся в конструкторе форм.
     public partial class Form1
     {
@@ -107,6 +110,7 @@ namespace ICDIBasic
             e.SuppressKeyPress = true;
 
             if (sender == nudGridFreq) GridFreq_Commit(sender, EventArgs.Empty);
+            if (sender == nudGridUref) GridUref_Commit(sender, EventArgs.Empty);
         }
 
         //-------------------------------------------------------------------
@@ -177,6 +181,51 @@ namespace ICDIBasic
         private void GridMode_Hint()
         {
             toolTip1.SetToolTip(btnGridMode, GridModeHint[_mode]);
+            toolTip1.SetToolTip(lblGridMode, GridModeHint[_mode]);
+        }
+
+        //-------------------------------------------------------------------
+        // Подсказки к двум уставкам панели. Ставятся один раз при запуске -
+        // в отличие от подсказки к кнопке режима, они от состояния не зависят.
+        //
+        // Подпись получает ту же подсказку, что и поле: наводят курсор на то,
+        // что непонятно, а непонятно обычно как раз название.
+        //-------------------------------------------------------------------
+        private void GridTie_Hints()
+        {
+            const string uref =
+                "Действующее напряжение на выходе моста, В rms.\n" +
+                "\n" +
+                "То же число, что на движке Gain1 в режиме Uref - это два вида\n" +
+                "на одну уставку, они ведут друг друга.\n" +
+                "\n" +
+                "Действует только в АИН: в слежении и в сети амплитуду ведёт\n" +
+                "сеть, а мост отдаёт ток (уставка Iset на движке Load1).\n" +
+                "\n" +
+                "Шаг 0.1 В - ровно единица команды прибора, мельче он не умеет.";
+
+            const string freq =
+                "Частота автономного инвертора, Гц.\n" +
+                "\n" +
+                "То же число, что на большом движке слева, пока мост в АИН.\n" +
+                "\n" +
+                "Действует только в АИН: в двух верхних режимах частоту диктует\n" +
+                "сеть, и поле там погашено.\n" +
+                "\n" +
+                "Частота умножается на число точек синусоиды (sineB.ini) и даёт\n" +
+                "частоту ШИМ: 50 Гц при 100 точках - это 5 кГц на ключах.";
+
+            const string send =
+                "\n\nСтрелки и набор с клавиатуры шлют команду сами, через 0.4 с\n" +
+                "после последнего изменения. Enter и уход из поля - немедленно.\n" +
+                "Жёлтый - ответа ещё нет. Остался жёлтым с вашим числом - прибор\n" +
+                "принял другое, нажмите Enter ещё раз.";
+
+            toolTip1.SetToolTip(nudGridUref, uref + send);
+            toolTip1.SetToolTip(lblGridUref, uref + send);
+
+            toolTip1.SetToolTip(nudGridFreq, freq + send);
+            toolTip1.SetToolTip(lblGridFreq, freq + send);
         }
 
         private void GridSetpoint_Zero()
@@ -203,6 +252,13 @@ namespace ICDIBasic
             // верхних режимах её диктует сеть, и поле обязано это показывать,
             // иначе введённое число молча ничего не изменит.
             nudGridFreq.Enabled = _mode == GridModeOff;
+
+            // Уставка напряжения - тоже дело одного АИН: в двух верхних
+            // режимах амплитуду ведёт слежение за сетью, а мост отдаёт ток.
+            // Прибор команду 633 примет в любом режиме, но применит её только
+            // в острове (grid_tie_apply_uref при !gridMode), и поле обязано
+            // это показывать.
+            nudGridUref.Enabled = _mode == GridModeOff;
 
             // Там же, где поле, подменяется и большой движок: в АИН он задаёт
             // частоту, в остальных режимах возвращается к оборотам.
@@ -345,6 +401,103 @@ namespace ICDIBasic
 
             nudGridFreq.BackColor = Color.Yellow;
             uint_128((ushort)nudGridFreq.Value, 3333, 0, CmdGridFreq);
+        }
+
+        //-------------------------------------------------------------------
+        // Уставка напряжения рядом с частотой.
+        //
+        // Действующее значение - другого у неё и нет: gt.UrefRms в прошивке
+        // задан в вольтах rms, и пересчёт в амплитуду делает grid_tie_apply_uref
+        // вместе с коэффициентом трансформации и напряжением звена.
+        //
+        // Число то же, что на движке Gain1 в режиме Uref, - это второй вид на
+        // одну уставку, а не вторая уставка. Поле удобнее, когда значение
+        // известно заранее ("хочу 220"), движок - когда его подбирают на ходу.
+        // Оба шлют 633, оба ведут друг друга и оба гаснут по ответу на неё.
+        //
+        // Единицы команды - 0.1 В, поэтому у поля один знак после запятой и
+        // шаг 0.1: шаг мельче единицы команды был бы обманом, крупнее - терял
+        // бы разрешение, которое прибор умеет.
+        //-------------------------------------------------------------------
+        private readonly Timer _gridUrefT = new Timer();
+
+        private void GridUref_Init()
+        {
+            _gridUrefT.Interval = 400;
+            _gridUrefT.Tick += (s, e) =>
+            {
+                _gridUrefT.Stop();
+                GridUref_Commit(null, EventArgs.Empty);
+            };
+        }
+
+        private void GridUref_Changed(object sender, EventArgs e)
+        {
+            nudGridUref.BackColor = Color.Yellow;
+
+            _gridUrefT.Stop();
+            _gridUrefT.Start();
+        }
+
+        private void GridUref_Commit(object sender, EventArgs e)
+        {
+            _gridUrefT.Stop();
+
+            ushort kod = (ushort)Math.Round(nudGridUref.Value * 10m);
+
+            // Движок ведём за полем - как GridFreq_Commit ведёт движок
+            // оборотов. Без этого сверка в ccs_To_NUD шла бы со старым
+            // tbar.Value, и жёлтый на Gain1 не погас бы никогда.
+            //
+            // Только если движок сейчас действительно под Uref: в моторном
+            // режиме у него своя команда, и класть туда вольты нельзя.
+            if (M1.gain.modeH.Text == @"Uref")
+            {
+                NUD_Gain1.ValueChanged -= NUD_Gain1_ValueChanged;
+                Tbar_Gain1.ValueChanged -= Tbar_Gain1_ValueChanged;
+
+                M1.gain.nud.Value = Satur(nudGridUref.Value, M1.gain.nud.Minimum, M1.gain.nud.Maximum);
+                M1.gain.tbar.Value = Satur((int)kod, M1.gain.tbar.Minimum, M1.gain.tbar.Maximum);
+                M1.gain.nud.BackColor = Color.Yellow;
+
+                Tbar_Gain1.ValueChanged += Tbar_Gain1_ValueChanged;
+                NUD_Gain1.ValueChanged += NUD_Gain1_ValueChanged;
+            }
+
+            // Та же память, что ведёт Tbar_Send: уставка обратно из прибора не
+            // приходит, и после ухода в моторный режим и обратно движок должен
+            // встать на неё, а не в ноль.
+            _urefSet = nudGridUref.Value;
+
+            nudGridUref.BackColor = Color.Yellow;
+            uint_128(kod, 3333, 0, CmdUrefRms);
+        }
+
+        //-------------------------------------------------------------------
+        // ACK 633 в части поля. Движок разбирает ccs_To_NUD там же, в case 633.
+        // Закон тот же, что у частоты: на чтение присваиваем, на запись гасим
+        // жёлтый только при совпадении, иначе оставляем заданное на виду.
+        //-------------------------------------------------------------------
+        private void GridUref_Ack(ushort d1, ushort d2)
+        {
+            decimal volts = d1 / 10m;
+
+            if (d2 != 3333)
+            {
+                _gridUrefT.Stop();
+
+                nudGridUref.ValueChanged -= GridUref_Changed;
+                nudGridUref.Value = Satur(volts, nudGridUref.Minimum, nudGridUref.Maximum);
+                nudGridUref.ValueChanged += GridUref_Changed;
+
+                nudGridUref.BackColor = Color.Empty;
+                nudGridUref.ForeColor = Color.Green;
+            }
+            else if (volts == nudGridUref.Value)
+            {
+                nudGridUref.BackColor = Color.Empty;
+                nudGridUref.ForeColor = Color.Green;
+            }
         }
 
         //-------------------------------------------------------------------

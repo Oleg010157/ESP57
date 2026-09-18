@@ -303,11 +303,12 @@
             this.epsi1 = new System.Windows.Forms.Label();
             this.AIN1_Enable = new System.Windows.Forms.CheckBox();
             this.groupBox_AIN1 = new System.Windows.Forms.GroupBox();
-            this.gbGridTie = new System.Windows.Forms.GroupBox();
             this.lblGridMode = new System.Windows.Forms.Label();
             this.btnGridMode = new System.Windows.Forms.Button();
             this.lblGridFreq = new System.Windows.Forms.Label();
             this.nudGridFreq = new System.Windows.Forms.NumericUpDown();
+            this.lblGridUref = new System.Windows.Forms.Label();
+            this.nudGridUref = new System.Windows.Forms.NumericUpDown();
             this.timer_1sek = new System.Windows.Forms.Timer(this.components);
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.timer_Yokogawa = new System.Windows.Forms.Timer(this.components);
@@ -378,8 +379,8 @@
             this.panel3.SuspendLayout();
             this.panel1.SuspendLayout();
             this.groupBox_AIN1.SuspendLayout();
-            this.gbGridTie.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudGridFreq)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudGridUref)).BeginInit();
             this.SuspendLayout();
             // 
             // openFileDialog
@@ -2493,10 +2494,10 @@
             // btnInvPower
             // 
             this.btnInvPower.BackColor = System.Drawing.SystemColors.ControlLight;
-            this.btnInvPower.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.btnInvPower.Location = new System.Drawing.Point(6, 22);
+            this.btnInvPower.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.btnInvPower.Location = new System.Drawing.Point(6, 20);
             this.btnInvPower.Name = "btnInvPower";
-            this.btnInvPower.Size = new System.Drawing.Size(83, 24);
+            this.btnInvPower.Size = new System.Drawing.Size(90, 28);
             this.btnInvPower.TabIndex = 163;
             this.btnInvPower.Text = "Выкл";
             this.btnInvPower.UseVisualStyleBackColor = false;
@@ -3209,7 +3210,12 @@
             // groupBox_AIN1
             // 
             this.groupBox_AIN1.BackColor = System.Drawing.Color.DarkKhaki;
-            this.groupBox_AIN1.Controls.Add(this.gbGridTie);
+            this.groupBox_AIN1.Controls.Add(this.lblGridMode);
+            this.groupBox_AIN1.Controls.Add(this.btnGridMode);
+            this.groupBox_AIN1.Controls.Add(this.lblGridUref);
+            this.groupBox_AIN1.Controls.Add(this.nudGridUref);
+            this.groupBox_AIN1.Controls.Add(this.lblGridFreq);
+            this.groupBox_AIN1.Controls.Add(this.nudGridFreq);
             this.groupBox_AIN1.Controls.Add(this.AIN1_Enable);
             this.groupBox_AIN1.Controls.Add(this.panel1);
             this.groupBox_AIN1.Controls.Add(this.Vq1_value);
@@ -3248,24 +3254,11 @@
             this.groupBox_AIN1.TabStop = false;
             this.groupBox_AIN1.Text = "Однофазный Инвертор";
             // 
-            // gbGridTie
-            // 
-            this.gbGridTie.Controls.Add(this.lblGridMode);
-            this.gbGridTie.Controls.Add(this.btnGridMode);
-            this.gbGridTie.Controls.Add(this.lblGridFreq);
-            this.gbGridTie.Controls.Add(this.nudGridFreq);
-            this.gbGridTie.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.gbGridTie.Location = new System.Drawing.Point(4, 52);
-            this.gbGridTie.Name = "gbGridTie";
-            this.gbGridTie.Size = new System.Drawing.Size(342, 61);
-            this.gbGridTie.TabIndex = 332;
-            this.gbGridTie.TabStop = false;
-            this.gbGridTie.Text = "1ф 48→220";
-            // 
             // lblGridMode
             // 
             this.lblGridMode.AutoSize = true;
-            this.lblGridMode.Location = new System.Drawing.Point(9, 29);
+            this.lblGridMode.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.lblGridMode.Location = new System.Drawing.Point(8, 52);
             this.lblGridMode.Name = "lblGridMode";
             this.lblGridMode.Size = new System.Drawing.Size(42, 13);
             this.lblGridMode.TabIndex = 1;
@@ -3274,9 +3267,10 @@
             // btnGridMode
             // 
             this.btnGridMode.BackColor = System.Drawing.SystemColors.ControlLight;
-            this.btnGridMode.Location = new System.Drawing.Point(62, 25);
+            this.btnGridMode.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.btnGridMode.Location = new System.Drawing.Point(8, 72);
             this.btnGridMode.Name = "btnGridMode";
-            this.btnGridMode.Size = new System.Drawing.Size(120, 24);
+            this.btnGridMode.Size = new System.Drawing.Size(150, 28);
             this.btnGridMode.TabIndex = 2;
             this.btnGridMode.Text = "АИН";
             this.btnGridMode.UseVisualStyleBackColor = false;
@@ -3285,7 +3279,8 @@
             // lblGridFreq
             // 
             this.lblGridFreq.AutoSize = true;
-            this.lblGridFreq.Location = new System.Drawing.Point(282, 10);
+            this.lblGridFreq.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.lblGridFreq.Location = new System.Drawing.Point(258, 52);
             this.lblGridFreq.Name = "lblGridFreq";
             this.lblGridFreq.Size = new System.Drawing.Size(29, 13);
             this.lblGridFreq.TabIndex = 8;
@@ -3294,7 +3289,7 @@
             // nudGridFreq
             // 
             this.nudGridFreq.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.nudGridFreq.Location = new System.Drawing.Point(282, 24);
+            this.nudGridFreq.Location = new System.Drawing.Point(258, 72);
             this.nudGridFreq.Maximum = new decimal(new int[] {
             70,
             0,
@@ -3317,6 +3312,44 @@
             this.nudGridFreq.KeyDown += new System.Windows.Forms.KeyEventHandler(this.GridNud_KeyDown);
             this.nudGridFreq.Leave += new System.EventHandler(this.GridFreq_Commit);
             this.nudGridFreq.ValueChanged += new System.EventHandler(this.GridFreq_Changed);
+            //
+            // lblGridUref
+            //
+            this.lblGridUref.AutoSize = true;
+            this.lblGridUref.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.lblGridUref.Location = new System.Drawing.Point(166, 52);
+            this.lblGridUref.Name = "lblGridUref";
+            this.lblGridUref.Size = new System.Drawing.Size(37, 13);
+            this.lblGridUref.TabIndex = 10;
+            this.lblGridUref.Text = "U rms";
+            //
+            // nudGridUref
+            //
+            this.nudGridUref.DecimalPlaces = 1;
+            this.nudGridUref.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.nudGridUref.Increment = new decimal(new int[] {
+            1,
+            0,
+            0,
+            65536});
+            this.nudGridUref.Location = new System.Drawing.Point(166, 72);
+            this.nudGridUref.Maximum = new decimal(new int[] {
+            250,
+            0,
+            0,
+            0});
+            this.nudGridUref.Name = "nudGridUref";
+            this.nudGridUref.Size = new System.Drawing.Size(86, 26);
+            this.nudGridUref.TabIndex = 11;
+            this.nudGridUref.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.nudGridUref.Value = new decimal(new int[] {
+            220,
+            0,
+            0,
+            0});
+            this.nudGridUref.KeyDown += new System.Windows.Forms.KeyEventHandler(this.GridNud_KeyDown);
+            this.nudGridUref.Leave += new System.EventHandler(this.GridUref_Commit);
+            this.nudGridUref.ValueChanged += new System.EventHandler(this.GridUref_Changed);
             // 
             // timer_1sek
             // 
@@ -3546,9 +3579,8 @@
             this.panel1.PerformLayout();
             this.groupBox_AIN1.ResumeLayout(false);
             this.groupBox_AIN1.PerformLayout();
-            this.gbGridTie.ResumeLayout(false);
-            this.gbGridTie.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudGridFreq)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudGridUref)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -3747,11 +3779,12 @@
         private System.Windows.Forms.TextBox tKadr60;
         private System.Windows.Forms.ToolStripTextBox toolStripTextBox1;
         public System.Windows.Forms.GroupBox groupBox_AIN1;
-        public System.Windows.Forms.GroupBox gbGridTie;
         private System.Windows.Forms.Label lblGridMode;
         public System.Windows.Forms.Button btnGridMode;
         private System.Windows.Forms.Label lblGridFreq;
         public System.Windows.Forms.NumericUpDown nudGridFreq;
+        private System.Windows.Forms.Label lblGridUref;
+        public System.Windows.Forms.NumericUpDown nudGridUref;
         private System.Windows.Forms.CheckBox AIN1_Enable;
         private System.Windows.Forms.Panel panel1;
         public System.Windows.Forms.Label EPSi_1;

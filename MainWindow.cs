@@ -737,8 +737,20 @@ namespace ICDIBasic
             // в Designer. Дальше её меняет ответ прибора - GridMode_Ack().
             GridMode_Hint();
 
-            // Таймер отложенной посылки частоты - см. GridFreq_Changed.
+            // Таймеры отложенной посылки - см. GridFreq_Changed/GridUref_Changed.
             GridFreq_Init();
+            GridUref_Init();
+
+            GridTie_Hints();
+
+            // Слот Iq/uIq/GT создаётся с той надписью, что осталась от прошлого
+            // сеанса, поэтому подсказку надо поставить и на старте, а не только
+            // при переключении двойным щелчком.
+            //
+            // Только для M1: поля M2 привязываются в своём блоке ниже по файлу,
+            // и здесь они ещё null. Для M2 такой же вызов стоит в конце того
+            // блока.
+            Iq_Name_Hint(M1);
         }
 
         private void _tblLoad1_TableChanged(Dgt sender, EventArgs e)
@@ -830,6 +842,11 @@ namespace ICDIBasic
 
             M2.Name = AIN2_motorName;
             M2.Par = SetMotorPar(M2.Name);
+
+            // Стартовая подсказка слота Iq/uIq - только здесь, после привязки
+            // полей. В блоке M1 её ставить нельзя: он выполняется раньше, и
+            // M2.Iq_Name там ещё null.
+            Iq_Name_Hint(M2);
         }
 
         private void _tblLoad2_TableChanged(Dgt sender, EventArgs e)
@@ -2741,6 +2758,7 @@ namespace ICDIBasic
                     ccs_To_NUD(M1.gain, d1, d2, d3);
                     NUD_Gain1.ValueChanged += NUD_Gain1_ValueChanged;
                     Tbar_Gain1.ValueChanged += Tbar_Gain1_ValueChanged;
+                    GridUref_Ack(d1, d2); // то же число в поле U rms на панели моста
                     break;
 
                 case 634: // ACK ключа телеметрии
@@ -3903,6 +3921,64 @@ namespace ICDIBasic
                     m.Iq_Name.Text = @"Iq";
                     break;
             }
+
+            Iq_Name_Hint(m);
+        }
+
+        //-------------------------------------------------------------------
+        // Подсказка под тем, что слот показывает сейчас.
+        //
+        // Ставится при СМЕНЕ имени, а не в Iq_view: тот зовётся из таймера, и
+        // SetToolTip на каждом тике гасил бы подсказку прямо под курсором.
+        //
+        // GT расписан по состояниям: буквы в поле короткие, а автомат за ними
+        // решает, замкнут ли контактор и идёт ли ток в сеть, - помнить это
+        // наизусть незачем.
+        //-------------------------------------------------------------------
+        private void Iq_Name_Hint(Motor m)
+        {
+            // Поля мотора привязываются к контролам двумя разными блоками, и
+            // зовут эту функцию в том числе оттуда. Проверка не про аккуратность
+            // - она про порядок инициализации, который из тела функции не виден.
+            if (m == null || m.Iq_Name == null || m.Iq_Value == null)
+                return;
+
+            string hint;
+
+            switch (m.Iq_Name.Text)
+            {
+                case @"GT":
+                    hint =
+                        "Состояние автомата подключения к сети (enum GridState,\n" +
+                        "my_Files/grid_tie.h). Двойной щелчок переключает слот.\n" +
+                        "\n" +
+                        "OFF   - автомат стоит. Это режим АИН либо мост выключен:\n" +
+                        "        за сетью не следим, контактор разомкнут.\n" +
+                        "\n" +
+                        "SYNC  - ловим сеть: ждём подряд идущих хороших периодов\n" +
+                        "        (gt.syncNeed) по частоте, амплитуде и фазе.\n" +
+                        "        Контактор разомкнут, тока в сеть нет.\n" +
+                        "\n" +
+                        "RAMP  - захват состоялся, ток поднимается от нуля к\n" +
+                        "        уставке со скоростью gt.IsetSlew.\n" +
+                        "\n" +
+                        "RUN   - рабочий режим, ток держится на уставке Iset.\n" +
+                        "\n" +
+                        "FAULT - авария, мост закрыт. Код в gt.fault; защёлкнут\n" +
+                        "        до следующего пуска автомата.";
+                    break;
+
+                case @"uIq":
+                    hint = "Напряжение по оси q, В.\nДвойной щелчок переключает слот.";
+                    break;
+
+                default:
+                    hint = "Ток по оси q, А.\nДвойной щелчок переключает слот.";
+                    break;
+            }
+
+            toolTip1.SetToolTip(m.Iq_Name, hint);
+            toolTip1.SetToolTip(m.Iq_Value, hint);
         }
 
         private void Iq1_name_DoubleClick(object sender, EventArgs e)
@@ -4698,7 +4774,19 @@ else
             // для них нет слова. Запоминаем последнее посланное - иначе после
             // ухода в моторный режим и обратно движок встал бы в ноль, а мост
             // продолжал бы работать со старой уставкой.
-            if (x.cmd == CmdUrefRms) _urefSet = x.nud.Value;
+            if (x.cmd == CmdUrefRms)
+            {
+                _urefSet = x.nud.Value;
+
+                // Поле U rms на панели моста ведём за движком - без повторной
+                // посылки, команда уходит строкой ниже. Иначе сверка в
+                // GridUref_Ack шла бы со старым числом поля, совпадения не
+                // было бы никогда и жёлтый на нём не гас бы.
+                nudGridUref.ValueChanged -= GridUref_Changed;
+                nudGridUref.Value = Satur(x.nud.Value, nudGridUref.Minimum, nudGridUref.Maximum);
+                nudGridUref.ValueChanged += GridUref_Changed;
+                nudGridUref.BackColor = Color.Yellow;
+            }
             else if (x.cmd == CmdIsetRef) _isetSet = x.nud.Value;
 
             uint_128((ushort)x.tbar.Value, 3333, x.modeH_kod, x.cmd);
