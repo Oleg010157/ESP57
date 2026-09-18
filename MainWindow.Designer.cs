@@ -3293,7 +3293,8 @@
             // 
             // nudGridFreq
             // 
-            this.nudGridFreq.Location = new System.Drawing.Point(282, 26);
+            this.nudGridFreq.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.nudGridFreq.Location = new System.Drawing.Point(282, 24);
             this.nudGridFreq.Maximum = new decimal(new int[] {
             70,
             0,
@@ -3305,8 +3306,9 @@
             0,
             0});
             this.nudGridFreq.Name = "nudGridFreq";
-            this.nudGridFreq.Size = new System.Drawing.Size(52, 20);
+            this.nudGridFreq.Size = new System.Drawing.Size(56, 26);
             this.nudGridFreq.TabIndex = 9;
+            this.nudGridFreq.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.nudGridFreq.Value = new decimal(new int[] {
             50,
             0,
@@ -3314,6 +3316,7 @@
             0});
             this.nudGridFreq.KeyDown += new System.Windows.Forms.KeyEventHandler(this.GridNud_KeyDown);
             this.nudGridFreq.Leave += new System.EventHandler(this.GridFreq_Commit);
+            this.nudGridFreq.ValueChanged += new System.EventHandler(this.GridFreq_Changed);
             // 
             // timer_1sek
             // 

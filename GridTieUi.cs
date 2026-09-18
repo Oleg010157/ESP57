@@ -204,6 +204,10 @@ namespace ICDIBasic
             // иначе введённое число молча ничего не изменит.
             nudGridFreq.Enabled = _mode == GridModeOff;
 
+            // Там же, где поле, подменяется и большой движок: в АИН он задаёт
+            // частоту, в остальных режимах возвращается к оборотам.
+            SpeedSlider_ToFreq(_mode == GridModeOff);
+
             // Движок под уставку этого режима: Uref на Gain1, Iset на Load1.
             // Иначе на панели остался бы движок от прошлого режима, шлющий
             // не ту команду.
@@ -278,10 +282,218 @@ namespace ICDIBasic
                 btnGridMode.BackColor = mode;
         }
 
+        //-------------------------------------------------------------------
+        // Частота: стрелки поля работают наравне с набором числа.
+        //
+        // Прежде команда уходила только по Enter и по уходу фокуса, а стрелки
+        // молча меняли число в поле - прибор о них не знал. Стрелками правят
+        // частоту чаще всего: поймать на осциллографе нужное значение проще,
+        // шагая по герцу, чем набирая вслепую.
+        //
+        // Но слать на КАЖДОЕ изменение нельзя. Стрелка щёлкает по разу на
+        // герц, и десять щелчков превратились бы в десять команд подряд, а при
+        // наборе с клавиатуры в прибор уезжали бы ещё и промежуточные числа:
+        // "60" по дороге проходит через "6", и мост успел бы сходить на 6 Гц.
+        //
+        // Поэтому посылка отложенная: таймер перезапускается на каждом
+        // изменении и стреляет, когда щёлкать перестали. Enter и уход фокуса
+        // шлют немедленно, отменяя отложенную, - у них намерение однозначное.
+        //-------------------------------------------------------------------
+        private readonly Timer _gridFreqT = new Timer();
+
+        private void GridFreq_Init()
+        {
+            _gridFreqT.Interval = 400;
+            _gridFreqT.Tick += (s, e) =>
+            {
+                _gridFreqT.Stop();
+                GridFreq_Commit(null, EventArgs.Empty);
+            };
+        }
+
+        private void GridFreq_Changed(object sender, EventArgs e)
+        {
+            // Жёлтым красим сразу, а не в момент посылки: поле уже показывает
+            // не то, что в приборе, и это должно быть видно всё время
+            // ожидания, а не последние его миллисекунды.
+            nudGridFreq.BackColor = Color.Yellow;
+
+            _gridFreqT.Stop();
+            _gridFreqT.Start();
+        }
+
         private void GridFreq_Commit(object sender, EventArgs e)
         {
+            _gridFreqT.Stop(); // явный ввод отменяет отложенную посылку
+
+            // Движок ведём за полем - зеркально тому, как SpeedRef_send ведёт
+            // поле за движком. Оба показывают одно число, и разойтись им
+            // нельзя: сверка в ccs_To_NUD идёт по tbar.Value, и со старым
+            // значением движка жёлтый на нём не погас бы.
+            if (_freqOnSpeed)
+            {
+                NUD_RPM.ValueChanged -= NUD_RPM_ValueChanged;
+                Tbar_speed.ValueChanged -= Tbar_speed_ValueChanged;
+
+                NUD_RPM.Value = Satur(nudGridFreq.Value, NUD_RPM.Minimum, NUD_RPM.Maximum);
+                Tbar_speed.Value = Satur((int)nudGridFreq.Value, Tbar_speed.Minimum, Tbar_speed.Maximum);
+                NUD_RPM.BackColor = Color.Yellow;
+
+                Tbar_speed.ValueChanged += Tbar_speed_ValueChanged;
+                NUD_RPM.ValueChanged += NUD_RPM_ValueChanged;
+            }
+
             nudGridFreq.BackColor = Color.Yellow;
             uint_128((ushort)nudGridFreq.Value, 3333, 0, CmdGridFreq);
+        }
+
+        //-------------------------------------------------------------------
+        // Частота на большом движке.
+        //
+        // Пара Tbar_speed + NUD_RPM (задание оборотов, команда 72) обкатана:
+        // движок и поле ведут друг друга, отписываясь на время правки, чтобы
+        // не гонять событие по кругу, а значение приходит из ответа прибора
+        // через ccs_To_NUD. Городить рядом вторую такую пару ради частоты
+        // незачем - у моста оборотов нет, и в АИН движок всё равно простаивает.
+        //
+        // Подменяется он ТОЛЬКО в АИН, как Gain1 подменяется под Uref, а Load1
+        // под Iset в GridMode_Ack. В слежении и в сети частоту диктует сеть,
+        // и движок возвращается к оборотам вместе с прежним диапазоном.
+        //
+        // Поле nudGridFreq на панели моста остаётся - это одно и то же число в
+        // двух местах, и разойтись они не могут: оба шлют 624 и оба ставятся
+        // из ответа на неё (GridFreq_Ack).
+        //-------------------------------------------------------------------
+        private bool _freqOnSpeed;
+
+        // Что было на движке до подмены. Диапазон оборотов 0..6000 в диапазон
+        // частоты 40..70 не превратить без потерь, поэтому и значение, и
+        // границы запоминаются целиком.
+        private int _rpmMin, _rpmMax, _rpmVal;
+        private decimal _nudRpmMin, _nudRpmMax, _nudRpmVal;
+
+        private void SpeedSlider_ToFreq(bool on)
+        {
+            if (on == _freqOnSpeed) return;
+            _freqOnSpeed = on;
+
+            // Обработчики снимаем на время перестройки: правка Minimum и
+            // Maximum сама двигает Value, и каждая такая подвижка ушла бы в
+            // прибор отдельной командой - то оборотами, то частотой.
+            Tbar_speed.ValueChanged -= Tbar_speed_ValueChanged;
+            NUD_RPM.ValueChanged -= NUD_RPM_ValueChanged;
+
+            if (on)
+            {
+                _rpmMin = Tbar_speed.Minimum;
+                _rpmMax = Tbar_speed.Maximum;
+                _rpmVal = Tbar_speed.Value;
+                _nudRpmMin = NUD_RPM.Minimum;
+                _nudRpmMax = NUD_RPM.Maximum;
+                _nudRpmVal = NUD_RPM.Value;
+
+                // Границы берём у поля на панели моста, чтобы предел был один
+                // на оба органа и не пришлось помнить его в двух местах.
+                Tbar_speed.Minimum = (int)nudGridFreq.Minimum;
+                Tbar_speed.Maximum = (int)nudGridFreq.Maximum;
+                NUD_RPM.Minimum = nudGridFreq.Minimum;
+                NUD_RPM.Maximum = nudGridFreq.Maximum;
+
+                NUD_RPM.Value = nudGridFreq.Value;
+                Tbar_speed.Value = (int)nudGridFreq.Value;
+
+                // Кнопка режима поля к частоте отношения не имеет. Пусть
+                // вместо неё пишет, чем движок управляет сейчас: иначе
+                // единственным признаком подмены была бы съехавшая шкала.
+                button_Field_RPM.Text = @"F Hz";
+                button_Field_RPM.Enabled = false;
+            }
+            else
+            {
+                // Сперва границы, потом значение: обороты не влезают в
+                // частотную шкалу и обрезались бы о ещё не поднятый Maximum.
+                Tbar_speed.Minimum = _rpmMin;
+                Tbar_speed.Maximum = _rpmMax;
+                NUD_RPM.Minimum = _nudRpmMin;
+                NUD_RPM.Maximum = _nudRpmMax;
+
+                NUD_RPM.Value = _nudRpmVal;
+                Tbar_speed.Value = _rpmVal;
+
+                button_Field_RPM.Text = @"Поле";
+                button_Field_RPM.Enabled = true;
+            }
+
+            Tbar_speed.ValueChanged += Tbar_speed_ValueChanged;
+            NUD_RPM.ValueChanged += NUD_RPM_ValueChanged;
+
+            toolTip1.SetToolTip(Tbar_speed, on
+                ? "Частота автономного инвертора, Гц.\nТо же число, что в поле F Hz на панели моста."
+                : "Задание оборотов.");
+
+            // Спросить прибор, что у него на самом деле. Читающая посылка -
+            // d2 = 0, ответ придёт в свой case и ляжет в органы штатным путём.
+            //
+            // Спрашиваем в ОБЕ стороны: входя в АИН - частоту, выходя -
+            // обороты. Восстановленное выше число - это память GUI, а она за
+            // время работы в другом режиме могла устареть: обороты меняет и
+            // сам прибор, и другие окна. Держим его только чтобы движок не
+            // стоял на обрезанном границами значении, пока идёт ответ, и чтобы
+            // было что показать, если связи нет.
+            if (on)
+                uint_128(0, 0, 0, CmdGridFreq);
+            else
+                int_128(0, 0, 0, 72);
+        }
+
+        //-------------------------------------------------------------------
+        // ACK 624: частота пришла из прибора.
+        //
+        // Разбор ровно тот же, что у ccs_To_NUD, и это не совпадение - в окне
+        // один закон на все уставки, и частота не повод его нарушать:
+        //
+        //   ответ на ЧТЕНИЕ (d2 != 3333) - прибор единственный источник,
+        //       его число кладём в поле и гасим жёлтый;
+        //
+        //   ответ на ЗАПИСЬ (d2 = 3333), число совпало - оператор получил то,
+        //       что просил, гасим жёлтый;
+        //
+        //   ответ на ЗАПИСЬ, число НЕ совпало - не трогаем ничего. Заданное
+        //       остаётся в поле, поле остаётся жёлтым. Затирать заданное
+        //       приборным здесь нельзя: оператор потеряет и то, что вводил, и
+        //       сам факт расхождения, а повторный Enter - штатный способ
+        //       дожать команду, которую прибор не принял.
+        //-------------------------------------------------------------------
+        private void GridFreq_Ack(ushort d1, ushort d2)
+        {
+            if (d2 != 3333)
+            {
+                _gridFreqT.Stop(); // поле сейчас перепишется прибором
+
+                nudGridFreq.ValueChanged -= GridFreq_Changed;
+                nudGridFreq.Value = Satur((decimal)d1, nudGridFreq.Minimum, nudGridFreq.Maximum);
+                nudGridFreq.ValueChanged += GridFreq_Changed;
+
+                nudGridFreq.BackColor = Color.Empty;
+                nudGridFreq.ForeColor = Color.Green;
+            }
+            else if (d1 == (ushort)nudGridFreq.Value)
+            {
+                nudGridFreq.BackColor = Color.Empty;
+                nudGridFreq.ForeColor = Color.Green;
+            }
+
+            if (!_freqOnSpeed) return;
+
+            NUD_RPM.ValueChanged -= NUD_RPM_ValueChanged;
+            Tbar_speed.ValueChanged -= Tbar_speed_ValueChanged;
+
+            // d2 передаём как пришло: ccs_To_NUD знает тот же закон и разберёт
+            // чтение и запись сама.
+            ccs_To_NUD(NUD_RPM, Tbar_speed, d1, d2, 0, 1);
+
+            Tbar_speed.ValueChanged += Tbar_speed_ValueChanged;
+            NUD_RPM.ValueChanged += NUD_RPM_ValueChanged;
         }
 
         //-------------------------------------------------------------------

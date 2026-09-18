@@ -736,6 +736,9 @@ namespace ICDIBasic
             // Стартовая подсказка под ту надпись, с которой кнопка создана
             // в Designer. Дальше её меняет ответ прибора - GridMode_Ack().
             GridMode_Hint();
+
+            // Таймер отложенной посылки частоты - см. GridFreq_Changed.
+            GridFreq_Init();
         }
 
         private void _tblLoad1_TableChanged(Dgt sender, EventArgs e)
@@ -2668,6 +2671,11 @@ namespace ICDIBasic
 
                     break;
                 case 72: // принимаем значение SpeedRef
+                    // Пока движок отдан под частоту, обороты в него класть
+                    // нельзя: ответ на 72 может прийти и позже подмены -
+                    // запоздавшим, или в ответ на чей-то чужой запрос.
+                    if (_freqOnSpeed) break;
+
                     NUD_RPM.ValueChanged -= NUD_RPM_ValueChanged;
                     ccs_To_NUD(NUD_RPM, Tbar_speed, d1, d2, d3, 1);
                     NUD_RPM.ValueChanged += NUD_RPM_ValueChanged;
@@ -2707,8 +2715,7 @@ namespace ICDIBasic
 
                 //---- однофазный мост 48->220 --------------------------------
                 case 624: // ACK частоты синусоиды sineB
-                    nudGridFreq.BackColor = Color.Empty;
-                    nudGridFreq.ForeColor = Color.Green;
+                    GridFreq_Ack(d1, d2);
                     break;
 
                 case 630: // ACK режима моста: d1 = GRID_MODE_*, d3 = gt.State
@@ -3183,6 +3190,28 @@ namespace ICDIBasic
             NUD_RPM.BackColor = Color.Yellow;
             var value = (int)NUD_RPM.Value;
             Tbar_speed.Value = Satur(value, Tbar_speed.Minimum, Tbar_speed.Maximum);
+
+            // В АИН этот движок задаёт не обороты, а частоту моста - см.
+            // SpeedSlider_ToFreq в GridTieUi.cs. Развилка одна на оба органа:
+            // и движок, и поле приходят сюда через свои ValueChanged.
+            if (_freqOnSpeed)
+            {
+                // Поле F Hz ведём за движком БЕЗ повторной посылки: команда
+                // уже уходит отсюда, а вторая подняла бы второй жёлтый, гасить
+                // который нечем - ответ на 624 придёт один.
+                //
+                // Без этого поле осталось бы со старым числом, и сверка в
+                // GridFreq_Ack шла бы с ним: прибор подтверждает новое, поле
+                // помнит прежнее, совпадения нет - жёлтый не гаснет никогда.
+                nudGridFreq.ValueChanged -= GridFreq_Changed;
+                nudGridFreq.Value = Satur((decimal)value, nudGridFreq.Minimum, nudGridFreq.Maximum);
+                nudGridFreq.ValueChanged += GridFreq_Changed;
+
+                nudGridFreq.BackColor = Color.Yellow;
+                uint_128((ushort)value, 3333, 0, CmdGridFreq);
+                return;
+            }
+
             int_128(value, 3333, _rpmMode, 72);
         }
 
@@ -3193,7 +3222,14 @@ namespace ICDIBasic
 
         private void NUD_RPM_Leave(object sender, EventArgs e)
         {
-            int_128(0, 0, 0, 72); // только чтение speedRef из CCS
+            // Читающая посылка (d2 = 0) - но спрашивать надо о том, чем движок
+            // управляет сейчас. В АИН это частота, и запрос оборотов вернул бы
+            // в поле обороты, затерев герцы.
+            if (_freqOnSpeed)
+                uint_128(0, 0, 0, CmdGridFreq);
+            else
+                int_128(0, 0, 0, 72); // только чтение speedRef из CCS
+
             NUD_RPM.ForeColor = Color.Black;
         }
 
