@@ -215,8 +215,13 @@ namespace ICDIBasic
             tKadr60.BackColor = Color.Empty;
             Spl_Writers_Stop();   //Останавливаем запись .spl .spf  файлов
             _firstFlags = false;
-            AIN1_motorName.Enabled = false;
             AIN2_motorName.Enabled = false;
+
+            // Связи нет - о состоянии однофазного моста мы больше ничего не
+            // знаем. Индикатор гасим в серый: красный означал бы "ключи
+            // выключены", а этого нам уже никто не подтверждал.
+            AIN1_flag.BackColor = Color.Silver;
+            AIN1_flag.Text = @"—";
         }
 
         // метод поиска и подключения CAN адаптера к одному из свободных USB-портов: 

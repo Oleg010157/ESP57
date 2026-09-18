@@ -236,9 +236,8 @@
             this.F2_motK60 = new System.Windows.Forms.Button();
             this.F3_label = new System.Windows.Forms.Label();
             this.mFast_Motor = new System.Windows.Forms.Button();
-            this.AIN1_motorName = new System.Windows.Forms.Button();
+            this.btnInvPower = new System.Windows.Forms.Button();
             this.button_ain1_plot = new System.Windows.Forms.Button();
-            this.DG1 = new System.Windows.Forms.Label();
             this.groupBox13 = new System.Windows.Forms.GroupBox();
             this.Vin = new System.Windows.Forms.Label();
             this.Vin_value = new System.Windows.Forms.Label();
@@ -306,9 +305,8 @@
             this.AIN1_flag = new System.Windows.Forms.TextBox();
             this.groupBox_AIN1 = new System.Windows.Forms.GroupBox();
             this.gbGridTie = new System.Windows.Forms.GroupBox();
-            this.btnGridMode = new System.Windows.Forms.Button();
-            this.btnGridStart = new System.Windows.Forms.Button();
-            this.btnGridStop = new System.Windows.Forms.Button();
+            this.btnGridTrack = new System.Windows.Forms.Button();
+            this.btnGridConn = new System.Windows.Forms.Button();
             this.lblGridFreq = new System.Windows.Forms.Label();
             this.nudGridFreq = new System.Windows.Forms.NumericUpDown();
             this.timer_1sek = new System.Windows.Forms.Timer(this.components);
@@ -2494,19 +2492,18 @@
             this.mFast_Motor.UseVisualStyleBackColor = true;
             this.mFast_Motor.Click += new System.EventHandler(this.mFast_Click);
             // 
-            // AIN1_motorName
-            // 
-            this.AIN1_motorName.BackColor = System.Drawing.SystemColors.ControlLight;
-            this.AIN1_motorName.Enabled = false;
-            this.AIN1_motorName.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.AIN1_motorName.Location = new System.Drawing.Point(6, 22);
-            this.AIN1_motorName.Name = "AIN1_motorName";
-            this.AIN1_motorName.Size = new System.Drawing.Size(83, 24);
-            this.AIN1_motorName.TabIndex = 163;
-            this.AIN1_motorName.Text = "ТАД-350";
-            this.AIN1_motorName.UseVisualStyleBackColor = false;
-            this.AIN1_motorName.Click += new System.EventHandler(this.button_AIN1_param_Click);
-            // 
+            // btnInvPower
+            //
+            this.btnInvPower.BackColor = System.Drawing.SystemColors.ControlLight;
+            this.btnInvPower.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.btnInvPower.Location = new System.Drawing.Point(6, 22);
+            this.btnInvPower.Name = "btnInvPower";
+            this.btnInvPower.Size = new System.Drawing.Size(83, 24);
+            this.btnInvPower.TabIndex = 163;
+            this.btnInvPower.Text = "Выкл.";
+            this.btnInvPower.UseVisualStyleBackColor = false;
+            this.btnInvPower.Click += new System.EventHandler(this.InvPower_Click);
+            //
             // button_ain1_plot
             // 
             this.button_ain1_plot.BackColor = System.Drawing.SystemColors.ControlLight;
@@ -2518,18 +2515,6 @@
             this.button_ain1_plot.Text = "Графики";
             this.button_ain1_plot.UseVisualStyleBackColor = false;
             this.button_ain1_plot.Click += new System.EventHandler(this.button_ain1_plot_Click);
-            // 
-            // DG1
-            // 
-            this.DG1.AutoSize = true;
-            this.DG1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.DG1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.DG1.Location = new System.Drawing.Point(298, 23);
-            this.DG1.Name = "DG1";
-            this.DG1.Size = new System.Drawing.Size(32, 27);
-            this.DG1.TabIndex = 201;
-            this.DG1.Text = "Д";
-            this.DG1.Click += new System.EventHandler(this.DG1_Click);
             // 
             // groupBox13
             // 
@@ -2544,13 +2529,13 @@
             // Vin
             // 
             this.Vin.AutoSize = true;
-            this.Vin.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.Vin.Font = new System.Drawing.Font("Cambria", 14F);
             this.Vin.ForeColor = System.Drawing.Color.Brown;
             this.Vin.Location = new System.Drawing.Point(2, 15);
             this.Vin.Name = "Vin";
-            this.Vin.Size = new System.Drawing.Size(64, 28);
+            this.Vin.Size = new System.Drawing.Size(67, 28);
             this.Vin.TabIndex = 4;
-            this.Vin.Text = "u220";
+            this.Vin.Text = "U220";
             // 
             // Vin_value
             // 
@@ -2580,9 +2565,9 @@
             this.Udc_name.ForeColor = System.Drawing.Color.Brown;
             this.Udc_name.Location = new System.Drawing.Point(4, 12);
             this.Udc_name.Name = "Udc_name";
-            this.Udc_name.Size = new System.Drawing.Size(60, 28);
+            this.Udc_name.Size = new System.Drawing.Size(61, 28);
             this.Udc_name.TabIndex = 168;
-            this.Udc_name.Text = "uSec";
+            this.Udc_name.Text = "Usec";
             this.Udc_name.DoubleClick += new System.EventHandler(this.Udc_name_DoubleClick);
             // 
             // Urms1_value
@@ -2627,7 +2612,7 @@
             this.Idc_label.Name = "Idc_label";
             this.Idc_label.Size = new System.Drawing.Size(50, 28);
             this.Idc_label.TabIndex = 5;
-            this.Idc_label.Text = "iPri";
+            this.Idc_label.Text = "Ipri";
             // 
             // I1a_value
             // 
@@ -2658,9 +2643,9 @@
             this.input3.ForeColor = System.Drawing.Color.DarkGreen;
             this.input3.Location = new System.Drawing.Point(4, 12);
             this.input3.Name = "input3";
-            this.input3.Size = new System.Drawing.Size(54, 28);
+            this.input3.Size = new System.Drawing.Size(53, 28);
             this.input3.TabIndex = 6;
-            this.input3.Text = "iSec";
+            this.input3.Text = "Isec";
             // 
             // I1b_value
             // 
@@ -2782,10 +2767,10 @@
             // Udc_ref
             // 
             this.Udc_ref.AutoSize = true;
-            this.Udc_ref.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.Udc_ref.Font = new System.Drawing.Font("Cambria", 14F);
             this.Udc_ref.Location = new System.Drawing.Point(5, 15);
             this.Udc_ref.Name = "Udc_ref";
-            this.Udc_ref.Size = new System.Drawing.Size(47, 23);
+            this.Udc_ref.Size = new System.Drawing.Size(57, 28);
             this.Udc_ref.TabIndex = 165;
             this.Udc_ref.Text = "Uref";
             // 
@@ -2803,6 +2788,7 @@
             // 
             this.groupBox16.Controls.Add(this.Field1_Text);
             this.groupBox16.Controls.Add(this.field1_value);
+            this.groupBox16.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.groupBox16.Location = new System.Drawing.Point(179, 179);
             this.groupBox16.Name = "groupBox16";
             this.groupBox16.Size = new System.Drawing.Size(158, 40);
@@ -3224,16 +3210,15 @@
             // 
             // AIN1_flag
             // 
-            this.AIN1_flag.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(192)))), ((int)(((byte)(0)))));
+            this.AIN1_flag.BackColor = System.Drawing.Color.Red;
             this.AIN1_flag.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.AIN1_flag.Location = new System.Drawing.Point(232, 22);
             this.AIN1_flag.Name = "AIN1_flag";
             this.AIN1_flag.ReadOnly = true;
             this.AIN1_flag.Size = new System.Drawing.Size(43, 26);
             this.AIN1_flag.TabIndex = 331;
-            this.AIN1_flag.Text = "Вкл.";
+            this.AIN1_flag.Text = "Выкл";
             this.AIN1_flag.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            this.AIN1_flag.DoubleClick += new System.EventHandler(this.AIN1_flag_DoubleClick);
             // 
             // groupBox_AIN1
             // 
@@ -3267,9 +3252,8 @@
             this.groupBox_AIN1.Controls.Add(this.groupBox17);
             this.groupBox_AIN1.Controls.Add(this.groupBox14);
             this.groupBox_AIN1.Controls.Add(this.groupBox13);
-            this.groupBox_AIN1.Controls.Add(this.DG1);
             this.groupBox_AIN1.Controls.Add(this.button_ain1_plot);
-            this.groupBox_AIN1.Controls.Add(this.AIN1_motorName);
+            this.groupBox_AIN1.Controls.Add(this.btnInvPower);
             this.groupBox_AIN1.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.groupBox_AIN1.ForeColor = System.Drawing.SystemColors.ControlText;
             this.groupBox_AIN1.Location = new System.Drawing.Point(360, 80);
@@ -3281,9 +3265,8 @@
             // 
             // gbGridTie
             // 
-            this.gbGridTie.Controls.Add(this.btnGridMode);
-            this.gbGridTie.Controls.Add(this.btnGridStart);
-            this.gbGridTie.Controls.Add(this.btnGridStop);
+            this.gbGridTie.Controls.Add(this.btnGridTrack);
+            this.gbGridTie.Controls.Add(this.btnGridConn);
             this.gbGridTie.Controls.Add(this.lblGridFreq);
             this.gbGridTie.Controls.Add(this.nudGridFreq);
             this.gbGridTie.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
@@ -3294,36 +3277,29 @@
             this.gbGridTie.TabStop = false;
             this.gbGridTie.Text = "1ф 48→220";
             // 
-            // btnGridMode
+            // btnGridTrack
             //
-            this.btnGridMode.Location = new System.Drawing.Point(9, 25);
-            this.btnGridMode.Name = "btnGridMode";
-            this.btnGridMode.Size = new System.Drawing.Size(85, 24);
-            this.btnGridMode.TabIndex = 1;
-            this.btnGridMode.Text = "Инвертор";
-            this.btnGridMode.UseVisualStyleBackColor = true;
-            this.btnGridMode.Click += new System.EventHandler(this.GridMode_Click);
+            this.btnGridTrack.BackColor = System.Drawing.SystemColors.ControlLight;
+            this.btnGridTrack.Location = new System.Drawing.Point(9, 25);
+            this.btnGridTrack.Name = "btnGridTrack";
+            this.btnGridTrack.Size = new System.Drawing.Size(105, 24);
+            this.btnGridTrack.TabIndex = 1;
+            this.btnGridTrack.Text = "Слежение выкл";
+            this.btnGridTrack.UseVisualStyleBackColor = false;
+            this.btnGridTrack.Click += new System.EventHandler(this.GridTrack_Click);
             //
-            // btnGridStart
+            // btnGridConn
             //
-            this.btnGridStart.Location = new System.Drawing.Point(100, 25);
-            this.btnGridStart.Name = "btnGridStart";
-            this.btnGridStart.Size = new System.Drawing.Size(55, 24);
-            this.btnGridStart.TabIndex = 2;
-            this.btnGridStart.Text = "Пуск";
-            this.btnGridStart.UseVisualStyleBackColor = true;
-            this.btnGridStart.Click += new System.EventHandler(this.GridStart_Click);
+            this.btnGridConn.BackColor = System.Drawing.SystemColors.ControlLight;
+            this.btnGridConn.Enabled = false;
+            this.btnGridConn.Location = new System.Drawing.Point(120, 25);
+            this.btnGridConn.Name = "btnGridConn";
+            this.btnGridConn.Size = new System.Drawing.Size(100, 24);
+            this.btnGridConn.TabIndex = 2;
+            this.btnGridConn.Text = "Выход в сеть";
+            this.btnGridConn.UseVisualStyleBackColor = false;
+            this.btnGridConn.Click += new System.EventHandler(this.GridConn_Click);
             //
-            // btnGridStop
-            //
-            this.btnGridStop.Location = new System.Drawing.Point(159, 25);
-            this.btnGridStop.Name = "btnGridStop";
-            this.btnGridStop.Size = new System.Drawing.Size(60, 24);
-            this.btnGridStop.TabIndex = 3;
-            this.btnGridStop.Text = "Стоп";
-            this.btnGridStop.UseVisualStyleBackColor = true;
-            this.btnGridStop.Click += new System.EventHandler(this.GridStop_Click);
-            // 
             // lblGridFreq
             // 
             this.lblGridFreq.AutoSize = true;
@@ -3787,9 +3763,8 @@
         private System.Windows.Forms.ToolStripTextBox toolStripTextBox1;
         public System.Windows.Forms.GroupBox groupBox_AIN1;
         public System.Windows.Forms.GroupBox gbGridTie;
-        public System.Windows.Forms.Button btnGridMode;
-        public System.Windows.Forms.Button btnGridStart;
-        public System.Windows.Forms.Button btnGridStop;
+        public System.Windows.Forms.Button btnGridTrack;
+        public System.Windows.Forms.Button btnGridConn;
         private System.Windows.Forms.Label lblGridFreq;
         public System.Windows.Forms.NumericUpDown nudGridFreq;
         private System.Windows.Forms.TextBox AIN1_flag;
@@ -3857,9 +3832,8 @@
         private System.Windows.Forms.GroupBox groupBox13;
         public System.Windows.Forms.Label Vin;
         public System.Windows.Forms.Label Vin_value;
-        private System.Windows.Forms.Label DG1;
         private System.Windows.Forms.Button button_ain1_plot;
-        public System.Windows.Forms.Button AIN1_motorName;
+        public System.Windows.Forms.Button btnInvPower;
         private System.Windows.Forms.Timer timer_1sek;
         private System.Windows.Forms.GroupBox groupBox1;
         public System.Windows.Forms.Label Udc;

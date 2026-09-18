@@ -384,11 +384,20 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
             //------------------------------------------------------------
             // сбрасываем галочку Enable AIN
+        // data3 ответа - ФАКТИЧЕСКОЕ состояние ключей. По нему Motor_Control
+        // красит индикатор однофазного моста (зелёный/красный), а не по тому,
+        // что оператор нажал: нажатие - намерение, ключи - правда.
+        // Запись data2 = 3333, чтение data2 = 0. Чтение нужно Motor_Control
+        // при подключении: своего мнения о том, включены ли ключи моста, GUI
+        // не имеет, а красить индикатор наугад хуже, чем не красить вовсе.
         case 10: // Disable  AIN1 data1 =1    IGBT as In Pin )
-            motors[0]->mbit.bit.AIN_Disable = data1;
-            if (data1 == 1)
-                IGBT1_Disable();
-            SendAck(data1, data2, data3, cmd);
+            if (data2 == 3333)
+            {
+                motors[0]->mbit.bit.AIN_Disable = data1;
+                if (data1 == 1)
+                    IGBT1_Disable();
+            }
+            SendAck(motors[0]->mbit.bit.AIN_Disable, data2, motors[0]->flag.bit.pwm_On, cmd);
             break;
 
         case 11: // Disable  AIN2  if data1 =1  IGBT as In Pin   )
@@ -406,7 +415,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             // потерянной команды.
         case 12:
             PWM1_On();
-            SendAck(data1, data2, data3, cmd);
+            SendAck(data1, data2, motors[0]->flag.bit.pwm_On, cmd);
             break;
 
         case 13:
@@ -635,10 +644,10 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             }
             SendAck(sharpMode.bits.rpm_Mode, data2, data3, cmd);
             break;
-        case 60:
-            motors[0]->mbit.bit.Gen_Engine_SW = data1;
-            SendAck(motors[0]->mbit.bit.Gen_Engine_SW, data2, data3, cmd);
-            break;
+        // Команда 60 (Gen_Engine_SW для АИН-1) удалена: канал 1 - однофазный
+        // мост 48->220, а не привод двигателя. Метка "Д"/"Г" убрана из
+        // Motor_Control, и сам бит никто никогда не читал. Для АИН-2 (61)
+        // всё остаётся как было.
 
         case 61:
             motors[1]->mbit.bit.Gen_Engine_SW = data1;
@@ -739,35 +748,66 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             SendAck(sineA.resolution, data2, data3, cmd);
             break;
 
-        // 630..633 — однофазный инвертор 48→220 (остров / сеть).
+        // 630..635 — однофазный инвертор 48→220.
         // Запись: data2 = 3333. Чтение: data2 = 0, то же cmd.
-        case 630: // gridMode: 0 = остров (синус Uref), 1 = сеть (ток Iset)
+        //
+        // Три независимые вещи, три команды. Раньше их было две и они путались:
+        // 630 переключала "остров/сеть", а 631 одним нажатием и включала
+        // синхронизацию, и уводила мост в сеть. Промежуточного состояния -
+        // синус уже ведётся за сетью, но контактор ещё разомкнут - назвать было
+        // нечем, хотя именно в нём проходит вся наладка.
+        //
+        //   630 - слежение за сетью     (ведём синус / не ведём)
+        //   635 - разрешение выхода     (галочка Enable, блокировка)
+        //   631 - запрос на контактор   (кнопка "Сеть")
+        //
+        // Контактор замкнётся только когда сойдутся все три плюс синхронизм.
+        case 630: // слежение: 0 = независимый источник, 1 = ведём за сетью
             if (data2 == 3333)
             {
                 if (data1)
+                {
                     gridMode = 1;
+                    grid_tie_start(); // GT_OFF -> GT_SYNC, контактор разомкнут
+                }
                 else
                 {
                     grid_tie_stop();
                     gridMode = 0;
-                    grid_tie_apply_uref();
+                    grid_tie_apply_uref(); // вернуть амплитуду из UrefRms
                 }
             }
             SendAck(gridMode, data2, gt.State, cmd);
             break;
 
-        case 631: // пуск/стоп сетевого автомата: 1 = stop, 2 = start
+        case 631: // контактор: 2 = замкнуть, 1 = разомкнуть
             if (data2 == 3333)
             {
-                if (data1 == 2)
-                {
-                    gridMode = 1;
-                    grid_tie_start();
-                }
-                else
-                    grid_tie_stop();
+                // Запрос принимается только при слежении и разрешении. Отказ
+                // видно по ответу: connReq остался нулём, State - GT_SYNC.
+                // Молча запоминать запрос "на будущее" нельзя - оператор решит,
+                // что мост в сети, а он вхолостую.
+                gt.connReq = ((data1 == 2) && gridMode && gt.gridEn) ? 1U : 0U;
             }
-            SendAck(gt.State, data2, gt.fault, cmd);
+            // Ответ у всех трёх команд устроен одинаково: data1 - свой флаг,
+            // data3 - состояние автомата. Код аварии из ответа ушёл: его и
+            // так пишет RegisterSessionEvent в журнал сессии, а одно место
+            // правды лучше двух расходящихся.
+            SendAck(gt.connReq, data2, gt.State, cmd);
+            break;
+
+        case 635: // разрешение на выход в сеть (галочка Enable)
+            if (data2 == 3333)
+            {
+                gt.gridEn = data1 ? 1U : 0U;
+
+                // Снятое разрешение обязано снять и запрос. Иначе мост ушёл бы
+                // в сеть сам, стоило поднять галочку обратно, - а галочка это
+                // блокировка, она ничего не включает.
+                if (!gt.gridEn)
+                    gt.connReq = 0;
+            }
+            SendAck(gt.gridEn, data2, gt.State, cmd);
             break;
 
         case 632: // IsetRef, 0.01 А (амплитуда тока в сеть)
@@ -958,43 +998,11 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             break;
             //----------------------------------------------------------------------------------------------------------------------------------
 
-        case 810: // меняем тип двигателя для выбранного (mot28) АИН, если выключен  PWM
-            if (motors[0]->flag.bit.pwm_On == 0)
-            {
-                motors[0]->typeID.motID     = data1;
-                motors[0]->typeID.toothNum  = data2;
-                motors[0]->typeID.pole_pair = data3;
-#if (QEP1_Sensor != 0)
-                //           QEP_Init(&motor1.qep, &EQep1Regs);
-#endif
-            }
-            SendAck(motors[0]->typeID.motID, motors[0]->typeID.pole_pair, motors[0]->typeID.pole_pair, cmd);
-            break;
-        case 811: // меняем параметры двигателя для АИН-1
-            motors[0]->typeID.Rs = data1;
-            motors[0]->typeID.Rr = data2;
-            motors[0]->typeID.Ls = data3;
-            SendAck(motors[0]->typeID.motID, motors[0]->typeID.Rr, motors[0]->typeID.Ls, cmd);
-            break;
-        case 812: // меняем параметры двигателя для АИН-1
-            motors[0]->typeID.Lr   = data1;
-            motors[0]->typeID.Lm   = data2;
-            motors[0]->typeID.Inom = data3;
-            SendAck(motors[0]->typeID.motID, motors[0]->typeID.Lm, motors[0]->typeID.Inom, cmd);
-            break;
-
-        case 813: // меняем параметры двигателя для АИН-1
-            motors[0]->typeID.Unom = data1;
-            motors[0]->typeID.Fnom = data2;
-            motors[0]->typeID.Pnom = data3;
-            SendAck(motors[0]->typeID.motID, 0, 0, cmd);
-
-            change_motID(motors[0]);
-
-#if aci_fe
-            ACIFE_CONST_CALC(motors[0]);
-#endif
-            break;
+        // Команды 810..813 (тип и паспорт двигателя для АИН-1) удалены вместе
+        // с кнопкой AIN1_motorName в Motor_Control: канал 1 - однофазный мост
+        // 48->220, двигателя на нём нет. motors[0]->typeID теперь остаётся
+        // нулевым - защиту от этого см. в change_motID(). Для АИН-2 всё
+        // работает по-прежнему, команды 820..823 ниже.
 #if aci_fe
         case 815:
             if (data2 == 3333)
@@ -1806,6 +1814,14 @@ void SendTemp(void)
 //----------------------------------------------------
 void change_motID(motor *v)
 {
+    // Паспорт незаполнен - считать по нему нечего. Так теперь выглядит АИН-1:
+    // это однофазный мост, команды 810..813 для него удалены, и typeID остаётся
+    // нулевым. Без этой проверки деление 4096/pole_pair дало бы бесконечность,
+    // а Unom/Fnom - NaN, стоило навести на motors[0] команду 14 и тронуть любую
+    // таблицу двигателя.
+    if ((v->typeID.pole_pair == 0) || (v->typeID.Fnom == 0))
+        return;
+
     v->typeID.res_pp = (int)(4096.0f / v->typeID.pole_pair + 0.5f); // число тиков резолвера на эл.оборот  = 4096/pole_pair
     v->tsh.uf_norma  = (float)v->typeID.Unom / (float)v->typeID.Fnom * 1000;
 

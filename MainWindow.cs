@@ -85,20 +85,8 @@ namespace ICDIBasic
         }
 
         //----------------------------------------------------------------------------------------------------------------
-        private void DG1_Click(object sender, EventArgs e)
-        {
-            if (DG1.Text == "Д")
-            {
-                DG1.Text = "Г";
-            }
-            else
-            {
-                DG1.Text = "Д";
-            }
-
-            DG_send(DG1, 60);
-        }
-
+        // DG1 убрана вместе с командой 60: канал 1 - однофазный мост 48→220,
+        // выбор "двигатель/генератор" к нему не относится. Для АИН-2 всё как было.
         private void DG2_Click(object sender, EventArgs e)
         {
             if (DG2.Text == "Д")
@@ -279,6 +267,12 @@ namespace ICDIBasic
             Id_view(M2);
             Iq_view(M1);
             Iq_view(M2);
+
+            // Автомат сети живёт сам: из GT_SYNC в GT_RAMP и GT_RUN он уходит
+            // тогда, когда сойдётся синхронизм, а ACK на это не приходит.
+            // Надпись на кнопке ведём за кадром 60 - иначе она застряла бы на
+            // "Ждём синхр." и после того, как мост уже отдаёт в сеть.
+            GridConn_Refresh();
             //---------------------------------------------------------------------------------------
             // Передача данных о мощности
             Pa1_value.Text = $@"{M1.ccs.mPabcF:0}";
@@ -505,7 +499,6 @@ namespace ICDIBasic
         /*************************************************************************************************/
         private void Form1_Load(object sender, EventArgs e)
         {
-            AIN1_motorName.Text = Settings.Default.AIN1_motor;
             AIN2_motorName.Text = Settings.Default.AIN2_motor;
 
             mFast_Motor.Text = Settings.Default.mFast;
@@ -564,7 +557,6 @@ namespace ICDIBasic
             Load_Sym.Checked = Settings.Default.LSymmetry;
             SlipMax_Value.Text = Settings.Default.S_max;
             SlipMax_Value2.Text = Settings.Default.S_max2;
-            DG1.Text = Settings.Default.ДГ1;
             DG2.Text = Settings.Default.ДГ2;
 
             M1.load.modeH_kod = Settings.Default.Load1_Hkod;
@@ -572,7 +564,9 @@ namespace ICDIBasic
             M2.load.modeH_kod = Settings.Default.Load2_Hkod;
             M2.load.modeL_kod = Settings.Default.Load2_Lkod;
 
-            M1.AIN_Enable.Checked = Settings.Default.AIN1_Enable;
+            // Разрешение на выход в сеть из настроек НЕ восстанавливаем: это
+            // блокировка, и поднимать её должен оператор в этом сеансе, а не
+            // файл настроек с прошлого. Галочку поставит ответ прибора на 635.
             M2.AIN_Enable.Checked = Settings.Default.AIN2_Enable;
             //--------------------------------------------------------------------------------- 
             #endregion   Загрузка настроек  Settings.Default
@@ -712,7 +706,6 @@ namespace ICDIBasic
             M1.AIN = groupBox_AIN1;
 
             M1.AIN_Flag = AIN1_flag;
-            M1.DG = DG1;
             M1.AIN_Enable = AIN1_Enable;
 
             M1.SabsName = S1abs_label;
@@ -734,8 +727,10 @@ namespace ICDIBasic
             M1.Urms_Name = Udc_name;
             M1.Urms_Value = Udc_value;
 
-            M1.Name = AIN1_motorName;
-            M1.Par = SetMotorPar(M1.Name);
+            // M1.Name и M1.DG остаются пустыми: на канале 1 однофазный мост,
+            // ни типа двигателя, ни признака "двигатель/генератор" у него нет.
+            // Общий код, который разыменовывает эти поля, проверяет их на null.
+            toolTip1.SetToolTip(AIN1_Enable, @"Разрешение на подключение к сети");
         }
 
         private void _tblLoad1_TableChanged(Dgt sender, EventArgs e)
@@ -1172,14 +1167,16 @@ namespace ICDIBasic
             slipMax_send(SlipMax_Value2);
             SpeedRef_send();
             tKadr60_send();
-            DG_send(DG1, 60);
             DG_send(DG2, 61);
 
             Imax_Send();
-            // Спрашиваем режим моста и ключ телеметрии: надписи на кнопке и
-            // метке поставят ответы. Своего мнения о состоянии прибора у GUI
-            // при подключении нет.
-            uint_128(0, 0, 0, CmdGridMode);
+            // Спрашиваем всё состояние однофазного моста и ключ телеметрии:
+            // надписи на кнопках, галочку и индикатор поставят ответы. Своего
+            // мнения о состоянии прибора у GUI при подключении нет.
+            uint_128(0, 0, 0, CmdAinDisable); // чтение: d3 = ключи включены?
+            uint_128(0, 0, 0, CmdGridTrack);
+            uint_128(0, 0, 0, CmdGridEn);
+            uint_128(0, 0, 0, CmdGridConn);
             uint_128(0, 0, 0, CmdTeleSel);
             I2rms_selector.Text = "rms";
             uint_128(0, 0, 0, 17);
@@ -1189,8 +1186,6 @@ namespace ICDIBasic
             _rpmMode = 0;
             uint_128(_rpmMode, 3333, 0, 59);
 
-            M1.Name.BackColor = Color.Yellow;
-            uint_128(M1.Par.Index, M1.Par.ToothNum, M1.Par.PolePair, 810);  //запускаем последовательность команд для  изменения параметров двигателя АИН1
             M2.Name.BackColor = Color.Yellow;
             uint_128(M2.Par.Index, M2.Par.ToothNum, M2.Par.PolePair, 820);  //запускаем последовательность команд для  изменения параметров двигателя АИН2
 
@@ -1220,7 +1215,10 @@ namespace ICDIBasic
                 Copy_NT(M2.load, M1.load);
             }
 
-            AIN1_Enable_Click(null, null);
+            // Галочку Enable однофазного моста НЕ дёргаем: её состояние
+            // приходит ответом на чтение 635 выше. Дёрнуть - значит послать
+            // прибору то, что GUI помнит с прошлого сеанса, то есть навязать
+            // разрешение на выход в сеть, которого оператор сейчас не давал.
             AIN2_Enable_Click(null, null);
 
 
@@ -1247,7 +1245,6 @@ namespace ICDIBasic
   //          _bRefresh = false;
           
             BForm1Load = false;
-            AIN1_motorName.Enabled = true;
             AIN2_motorName.Enabled = true;
             KVU_CheckedChanged(null, null);
 
@@ -1542,17 +1539,9 @@ namespace ICDIBasic
         }
         #endregion
         #region Окно отображаемых параметров при режиме индикации
-        private void button_AIN1_param_Click(object sender, EventArgs e)
-        {
-            if (M1.Name.BackColor != Color.Yellow)  // если кнопка жёлтая то повторяем посылку параметров для того же двигателя
-            {
-                M1.Name.BackColor = Color.Yellow;
-                Change_motor(M1);
-            }
-
-            uint_128(M1.Par.Index, M1.Par.ToothNum, M1.Par.PolePair, 810);//запускаем последовательность команд для  изменения параметров двигателя АИН1
-        }
-
+        // button_AIN1_param_Click убран вместе с кнопкой AIN1_motorName и
+        // командами 810..813: на канале 1 стоит однофазный мост, паспорт
+        // двигателя ему не нужен. Её место заняла кнопка питания btnInvPower.
         private void button_AIN2_param_Click(object sender, EventArgs e)
         {
             if (M2.Name.BackColor != Color.Yellow)  // если кнопка жёлтая то повторяем посылку параметров для того же двигателя
@@ -1572,6 +1561,10 @@ namespace ICDIBasic
              Byte pole_pair;	// число пар полюсов
              UInt16 uf_norma;
              */
+            // У однофазного моста (M1) кнопки типа двигателя нет - выбирать
+            // нечего. Функция общая для обоих каналов, поэтому проверка здесь.
+            if (m.Name == null) return;
+
             switch (m.Name.Text)
             {
                 case "ТАД-350":
@@ -2569,23 +2562,16 @@ namespace ICDIBasic
                     _ = zero.Focus();
                     break;
 
-                case 10: // ACK AIN1 Enable/Disable
-                    AIN1_Enable.BackColor = Color.Empty;
-                    AIN1_Enable.Checked   = (d1 == 0);
-                    break;
-
-                case 12: // ACK PWM1_On - кнопка "Пуск" однофазного моста
-                    btnGridStart.BackColor = Color.Empty;
+                // 10 и 12 - ключи однофазного моста. d3 несёт фактическое
+                // состояние pwm_On, по нему и красится индикатор AIN1_flag.
+                case 10:
+                case 12:
+                    InvPower_Ack(d3);
                     break;
 
                 case 11: // ACK AIN2 Enable/Disable
                     AIN2_Enable.BackColor = Color.Empty;
                     AIN2_Enable.Checked   = (d1 == 0);
-                    break;
-
-                case 60: // ACK DG1
-                    DG1.BackColor = Color.Empty;
-                    DG1.Text      = (d1 == 1) ? "Г" : "Д";
                     break;
 
                 case 61: // ACK DG2
@@ -2721,12 +2707,16 @@ namespace ICDIBasic
                     nudGridFreq.ForeColor = Color.Green;
                     break;
 
-                case 630: // ACK режима: d1 = gridMode, d3 = gt.State
-                    GridMode_Ack(d1);
+                case 630: // ACK слежения: d1 = gridMode, d3 = gt.State
+                    GridTrack_Ack(d1);
                     break;
 
-                case 631: // ACK автомата сети: d1 = gt.State, d3 = gt.fault
-                    btnGridStart.BackColor = btnGridStop.BackColor = Color.Empty;
+                case 631: // ACK контактора: d1 = gt.connReq, d3 = gt.State
+                    GridConn_Ack(d1, d3);
+                    break;
+
+                case 635: // ACK разрешения выхода в сеть: d1 = gt.gridEn
+                    GridEn_Ack(d1);
                     break;
 
                 case 632: // уставка тока в сеть - движок Load1 в режиме Iset
@@ -2787,23 +2777,8 @@ namespace ICDIBasic
 
                 //---------------------------------------------------------------------------------------------------------------------------
                 //---------------------------------------------------------------------------------------------------------------------------
-                case 810: // первая команда обновления параметров двигателя
-                    uint_128(M1.Par.Rs, M1.Par.Rr, M1.Par.Ls, 811);
-                    break;
-                case 811:
-                    uint_128(M1.Par.Lr, M1.Par.Lm, M1.Par.Inom, 812);
-                    break;
-                case 812:
-                    uint_128(M1.Par.Unom, M1.Par.Fnom, M1.Par.Pnom, 813);
-                    break;
-                case 813:    // последняя команда обновления параметров двигателя
-
-                    if (M1.Par.Index == d1)
-                    {
-                        M1.Name.BackColor = Color.LightGray;
-                    }
-                    //                 else M1.Name.BackColor = Color.Yellow;
-                    break;
+                // Цепочка 810..813 (паспорт двигателя АИН-1) удалена вместе с
+                // кнопкой AIN1_motorName: на канале 1 однофазный мост.
                 //-----------------------------------------------------------------------------------------------------------------------------
                 case 820: // первая команда обновления параметров двигателя
                     uint_128(M2.Par.Rs, M2.Par.Rr, M2.Par.Ls, 821);
@@ -3161,7 +3136,9 @@ namespace ICDIBasic
 
         private void control_Reset(Motor m)
         {
-            m.Name.Enabled = false;  // фиксируем выбранный тип мотора по первому нажатию "Пуск"
+            // фиксируем выбранный тип мотора по первому нажатию "Пуск".
+            // У однофазного моста (M1) кнопки типа нет - фиксировать нечего.
+            if (m.Name != null) m.Name.Enabled = false;
 
             if (m.load.modeH.Text != @"RPM")
             {
@@ -3763,16 +3740,14 @@ namespace ICDIBasic
             uint_128(x.modeL_kod, 3333, 0, x.cmd_LL);
         }
 
+        // Галочка Enable у однофазного моста - это РАЗРЕШЕНИЕ на выход в сеть,
+        // а не включение ключей: ключами командует btnInvPower. Разрешение
+        // ничего не замыкает само, оно лишь снимает блокировку с кнопки
+        // "Выход в сеть" - см. GridTieUi.cs.
         private void AIN1_Enable_Click(object sender, EventArgs e)
         {
             AIN1_Enable.BackColor = Color.Yellow;
-            ushort d1 = 1;
-            if (AIN1_Enable.Checked)
-            {
-                d1 = 0;
-            }
-
-            uint_128(d1, 0, 0, 10);
+            uint_128((ushort)(AIN1_Enable.Checked ? 1 : 0), 3333, 0, CmdGridEn);
         }
 
         private void AIN2_Enable_Click(object sender, EventArgs e)
@@ -3794,16 +3769,6 @@ namespace ICDIBasic
             {
                 d1 = 1;
                 uint_128(d1, 0, 0, 13);
-            }
-        }
-
-        private void AIN1_flag_DoubleClick(object sender, EventArgs e)
-        {
-            ushort d1 = 0;
-            if (btnStartStop.Text == "Стоп")
-            {
-                d1 = 1;
-                uint_128(d1, 0, 0, 12);
             }
         }
 
@@ -4837,7 +4802,6 @@ else
                 // помещаем текущее значение в переменную
                 Settings.Default.Separate = Separate_cbox.Checked;
 
-                Settings.Default.AIN1_motor = AIN1_motorName.Text;
                 Settings.Default.AIN2_motor = AIN2_motorName.Text;
                 Settings.Default.IGBT_max = Imax_Value.Text;
                 Settings.Default.IGBT_temp_max = textBox_температура.Text;
@@ -4845,7 +4809,6 @@ else
                 Settings.Default.LSymmetry = Load_Sym.Checked;
                 Settings.Default.S_max = SlipMax_Value.Text;
                 Settings.Default.S_max2 = SlipMax_Value2.Text;
-                Settings.Default.ДГ1 = DG1.Text;
                 Settings.Default.ДГ2 = DG2.Text;
 
                 Settings.Default.Load1_Hkod = M1.load.modeH_kod;
@@ -4866,7 +4829,6 @@ else
                 Settings.Default.Gain2_HText = M2.gain.modeH.Text;
                 Settings.Default.Gain2_LText = M2.gain.modeL.Text;
 
-                Settings.Default.AIN1_Enable = M1.AIN_Enable.Checked;
                 Settings.Default.AIN2_Enable = M2.AIN_Enable.Checked;
                 Settings.Default.mFast = mFast_Motor.Text;
                 Settings.Default.mK60 = F2_motK60.Text;
