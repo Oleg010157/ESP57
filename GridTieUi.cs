@@ -238,7 +238,17 @@ namespace ICDIBasic
 
             // Авария автомата видна на кнопке режима: в GT_FAULT мост закрыт, и
             // надпись "Выход в сеть" без этого обещала бы работу, которой нет.
-            Color mode = (ccs.gtState == 4) ? Color.Red : BtnIdle;
+            //
+            // Но ТОЛЬКО когда автомат вообще при делах. В режиме АИН сетевого
+            // контура нет, а gt.fault в прошивке защёлкивается и живёт до
+            // grid_tie_stop() - плату между сеансами никто не перезагружает.
+            // Без этой проверки кнопка горела красным сразу после запуска GUI,
+            // жалуясь на аварию прошлого сеанса, к которой оператор ещё и
+            // отношения не имел. Заодно это отсекает мусор при отсутствии
+            // связи: пока ответа на 630 не было, _mode = АИН.
+            bool fault = (_mode != GridModeOff) && (ccs.gtState == 4);
+
+            Color mode = fault ? Color.Red : BtnIdle;
             if (btnGridMode.BackColor != Color.Yellow && btnGridMode.BackColor != mode)
                 btnGridMode.BackColor = mode;
         }
