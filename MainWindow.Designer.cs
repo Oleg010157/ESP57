@@ -302,11 +302,10 @@
             this.EPSi_1 = new System.Windows.Forms.Label();
             this.epsi1 = new System.Windows.Forms.Label();
             this.AIN1_Enable = new System.Windows.Forms.CheckBox();
-            this.AIN1_flag = new System.Windows.Forms.TextBox();
             this.groupBox_AIN1 = new System.Windows.Forms.GroupBox();
             this.gbGridTie = new System.Windows.Forms.GroupBox();
-            this.btnGridTrack = new System.Windows.Forms.Button();
-            this.btnGridConn = new System.Windows.Forms.Button();
+            this.lblGridMode = new System.Windows.Forms.Label();
+            this.btnGridMode = new System.Windows.Forms.Button();
             this.lblGridFreq = new System.Windows.Forms.Label();
             this.nudGridFreq = new System.Windows.Forms.NumericUpDown();
             this.timer_1sek = new System.Windows.Forms.Timer(this.components);
@@ -3201,30 +3200,17 @@
             this.AIN1_Enable.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.AIN1_Enable.Location = new System.Drawing.Point(164, 26);
             this.AIN1_Enable.Name = "AIN1_Enable";
-            this.AIN1_Enable.Size = new System.Drawing.Size(78, 23);
+            this.AIN1_Enable.Size = new System.Drawing.Size(118, 23);
             this.AIN1_Enable.TabIndex = 226;
-            this.AIN1_Enable.Text = "Enable";
+            this.AIN1_Enable.Text = "Enable сеть";
             this.AIN1_Enable.UseCompatibleTextRendering = true;
             this.AIN1_Enable.UseVisualStyleBackColor = true;
             this.AIN1_Enable.Click += new System.EventHandler(this.AIN1_Enable_Click);
-            // 
-            // AIN1_flag
-            // 
-            this.AIN1_flag.BackColor = System.Drawing.Color.Red;
-            this.AIN1_flag.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.AIN1_flag.Location = new System.Drawing.Point(232, 22);
-            this.AIN1_flag.Name = "AIN1_flag";
-            this.AIN1_flag.ReadOnly = true;
-            this.AIN1_flag.Size = new System.Drawing.Size(43, 26);
-            this.AIN1_flag.TabIndex = 331;
-            this.AIN1_flag.Text = "Выкл";
-            this.AIN1_flag.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // groupBox_AIN1
             // 
             this.groupBox_AIN1.BackColor = System.Drawing.Color.DarkKhaki;
             this.groupBox_AIN1.Controls.Add(this.gbGridTie);
-            this.groupBox_AIN1.Controls.Add(this.AIN1_flag);
             this.groupBox_AIN1.Controls.Add(this.AIN1_Enable);
             this.groupBox_AIN1.Controls.Add(this.panel1);
             this.groupBox_AIN1.Controls.Add(this.Vq1_value);
@@ -3265,8 +3251,8 @@
             // 
             // gbGridTie
             // 
-            this.gbGridTie.Controls.Add(this.btnGridTrack);
-            this.gbGridTie.Controls.Add(this.btnGridConn);
+            this.gbGridTie.Controls.Add(this.lblGridMode);
+            this.gbGridTie.Controls.Add(this.btnGridMode);
             this.gbGridTie.Controls.Add(this.lblGridFreq);
             this.gbGridTie.Controls.Add(this.nudGridFreq);
             this.gbGridTie.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
@@ -3277,28 +3263,25 @@
             this.gbGridTie.TabStop = false;
             this.gbGridTie.Text = "1ф 48→220";
             // 
-            // btnGridTrack
+            // lblGridMode
             //
-            this.btnGridTrack.BackColor = System.Drawing.SystemColors.ControlLight;
-            this.btnGridTrack.Location = new System.Drawing.Point(9, 25);
-            this.btnGridTrack.Name = "btnGridTrack";
-            this.btnGridTrack.Size = new System.Drawing.Size(105, 24);
-            this.btnGridTrack.TabIndex = 1;
-            this.btnGridTrack.Text = "Слежение выкл";
-            this.btnGridTrack.UseVisualStyleBackColor = false;
-            this.btnGridTrack.Click += new System.EventHandler(this.GridTrack_Click);
+            this.lblGridMode.AutoSize = true;
+            this.lblGridMode.Location = new System.Drawing.Point(9, 29);
+            this.lblGridMode.Name = "lblGridMode";
+            this.lblGridMode.Size = new System.Drawing.Size(48, 17);
+            this.lblGridMode.TabIndex = 1;
+            this.lblGridMode.Text = "Режим";
             //
-            // btnGridConn
+            // btnGridMode
             //
-            this.btnGridConn.BackColor = System.Drawing.SystemColors.ControlLight;
-            this.btnGridConn.Enabled = false;
-            this.btnGridConn.Location = new System.Drawing.Point(120, 25);
-            this.btnGridConn.Name = "btnGridConn";
-            this.btnGridConn.Size = new System.Drawing.Size(100, 24);
-            this.btnGridConn.TabIndex = 2;
-            this.btnGridConn.Text = "Выход в сеть";
-            this.btnGridConn.UseVisualStyleBackColor = false;
-            this.btnGridConn.Click += new System.EventHandler(this.GridConn_Click);
+            this.btnGridMode.BackColor = System.Drawing.SystemColors.ControlLight;
+            this.btnGridMode.Location = new System.Drawing.Point(62, 25);
+            this.btnGridMode.Name = "btnGridMode";
+            this.btnGridMode.Size = new System.Drawing.Size(120, 24);
+            this.btnGridMode.TabIndex = 2;
+            this.btnGridMode.Text = "АИН";
+            this.btnGridMode.UseVisualStyleBackColor = false;
+            this.btnGridMode.Click += new System.EventHandler(this.GridMode_Click);
             //
             // lblGridFreq
             // 
@@ -3763,11 +3746,10 @@
         private System.Windows.Forms.ToolStripTextBox toolStripTextBox1;
         public System.Windows.Forms.GroupBox groupBox_AIN1;
         public System.Windows.Forms.GroupBox gbGridTie;
-        public System.Windows.Forms.Button btnGridTrack;
-        public System.Windows.Forms.Button btnGridConn;
+        private System.Windows.Forms.Label lblGridMode;
+        public System.Windows.Forms.Button btnGridMode;
         private System.Windows.Forms.Label lblGridFreq;
         public System.Windows.Forms.NumericUpDown nudGridFreq;
-        private System.Windows.Forms.TextBox AIN1_flag;
         private System.Windows.Forms.CheckBox AIN1_Enable;
         private System.Windows.Forms.Panel panel1;
         public System.Windows.Forms.Label EPSi_1;

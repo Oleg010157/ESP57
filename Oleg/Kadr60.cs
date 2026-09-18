@@ -763,8 +763,14 @@ namespace ICDIBasic
             uint flags = m.ccs.flags;
 
             bool pwmOn = (flags & mflag.pwm_On) != 0;
-            m.AIN_Flag.Text = pwmOn ? @"Вкл." : @"Выкл.";
-            m.AIN_Flag.BackColor = pwmOn ? Color.Green : Color.Salmon;
+
+            // У однофазного моста (M1) отдельного поля-флага нет - состояние
+            // ключей показывает сама кнопка btnInvPower, её ведёт GridUi_Refresh().
+            if (m.AIN_Flag != null)
+            {
+                m.AIN_Flag.Text = pwmOn ? @"Вкл." : @"Выкл.";
+                m.AIN_Flag.BackColor = pwmOn ? Color.Green : Color.Salmon;
+            }
 
             m.Vd_Value.BackColor = ((flags & mflag.Vd_sat) != 0) ? Color.Yellow : Color.Empty;
             m.Vq_Value.BackColor = ((flags & mflag.Vq_sat) != 0) ? Color.Yellow : Color.Empty;

@@ -268,11 +268,9 @@ namespace ICDIBasic
             Iq_view(M1);
             Iq_view(M2);
 
-            // Автомат сети живёт сам: из GT_SYNC в GT_RAMP и GT_RUN он уходит
-            // тогда, когда сойдётся синхронизм, а ACK на это не приходит.
-            // Надпись на кнопке ведём за кадром 60 - иначе она застряла бы на
-            // "Ждём синхр." и после того, как мост уже отдаёт в сеть.
-            GridConn_Refresh();
+            // Кнопка питания моста и авария автомата - из кадра 140, который
+            // идёт постоянно. Ответов на команды тут ждать нечего.
+            GridUi_Refresh();
             //---------------------------------------------------------------------------------------
             // Передача данных о мощности
             Pa1_value.Text = $@"{M1.ccs.mPabcF:0}";
@@ -705,7 +703,8 @@ namespace ICDIBasic
             //--------------------------------------------------------------
             M1.AIN = groupBox_AIN1;
 
-            M1.AIN_Flag = AIN1_flag;
+            // M1.AIN_Flag пустой: у однофазного моста отдельного поля-флага
+            // нет, состояние ключей показывает сама кнопка btnInvPower.
             M1.AIN_Enable = AIN1_Enable;
 
             M1.SabsName = S1abs_label;
@@ -1173,10 +1172,8 @@ namespace ICDIBasic
             // Спрашиваем всё состояние однофазного моста и ключ телеметрии:
             // надписи на кнопках, галочку и индикатор поставят ответы. Своего
             // мнения о состоянии прибора у GUI при подключении нет.
-            uint_128(0, 0, 0, CmdAinDisable); // чтение: d3 = ключи включены?
-            uint_128(0, 0, 0, CmdGridTrack);
+            uint_128(0, 0, 0, CmdGridMode);
             uint_128(0, 0, 0, CmdGridEn);
-            uint_128(0, 0, 0, CmdGridConn);
             uint_128(0, 0, 0, CmdTeleSel);
             I2rms_selector.Text = "rms";
             uint_128(0, 0, 0, 17);
@@ -2562,11 +2559,12 @@ namespace ICDIBasic
                     _ = zero.Focus();
                     break;
 
-                // 10 и 12 - ключи однофазного моста. d3 несёт фактическое
-                // состояние pwm_On, по нему и красится индикатор AIN1_flag.
+                // 10 и 12 - ключи однофазного моста. Отдельно разбирать нечего:
+                // кнопка btnInvPower ведётся за битом pwm_On из кадра 140,
+                // который идёт постоянно. Ответ нужен лишь как подтверждение,
+                // что команда дошла.
                 case 10:
                 case 12:
-                    InvPower_Ack(d3);
                     break;
 
                 case 11: // ACK AIN2 Enable/Disable
@@ -2707,12 +2705,8 @@ namespace ICDIBasic
                     nudGridFreq.ForeColor = Color.Green;
                     break;
 
-                case 630: // ACK слежения: d1 = gridMode, d3 = gt.State
-                    GridTrack_Ack(d1);
-                    break;
-
-                case 631: // ACK контактора: d1 = gt.connReq, d3 = gt.State
-                    GridConn_Ack(d1, d3);
+                case 630: // ACK режима моста: d1 = GRID_MODE_*, d3 = gt.State
+                    GridMode_Ack(d1);
                     break;
 
                 case 635: // ACK разрешения выхода в сеть: d1 = gt.gridEn

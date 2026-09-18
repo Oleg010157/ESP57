@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using FlagMask; // mflag.pwm_On - бит ключей в слове 14 кадра 140
 
 namespace ICDIBasic
 {
@@ -8,8 +9,7 @@ namespace ICDIBasic
     // Сами контролы живут в MainWindow.Designer.cs и правятся в конструкторе форм.
     public partial class Form1
     {
-        public const ushort CmdGridTrack = 630; // слежение за напряжением сети
-        public const ushort CmdGridConn = 631;  // запрос на контактор
+        public const ushort CmdGridMode = 630;  // режим моста: АИН / слежение / сеть
         public const ushort CmdIsetRef = 632;
         public const ushort CmdUrefRms = 633;
         public const ushort CmdTeleSel = 634;
@@ -38,14 +38,17 @@ namespace ICDIBasic
         // поля ставят только ACK-и, никогда - нажатия: кнопка показывает то,
         // в чём прибор, а не то, чего захотел оператор.
         //
-        //   _track  - слежение за сетью (ACK 630)
+        //   _mode   - режим моста, GridModeOff/Sync/Grid (ACK 630)
         //   _gridEn - разрешение выхода в сеть, галочка Enable (ACK 635)
-        //   _conn   - запрос на контактор принят (ACK 631)
-        //   _power  - ключи АИН-1 включены (ACK 10 и 12, слово d3)
-        private ushort _track;
+        private ushort _mode;
         private ushort _gridEn;
-        private ushort _conn;
-        private ushort _power;
+
+        // Режимы моста. Те же номера в прошивке - GRID_MODE_* в grid_tie.h.
+        public const ushort GridModeOff = 0;  // АИН, автономный инвертор напряжения
+        public const ushort GridModeSync = 1; // слежение, контактор разомкнут
+        public const ushort GridModeGrid = 2; // выход в сеть
+
+        private static readonly string[] GridModeName = { "АИН", "Слежение", "Выход в сеть" };
 
         private void GridNud_KeyDown(object sender, KeyEventArgs e)
         {
@@ -56,36 +59,32 @@ namespace ICDIBasic
         }
 
         //-------------------------------------------------------------------
-        // Управление разбито на четыре независимые вещи, потому что это четыре
-        // разные вещи, и раньше они были свалены в две кнопки:
+        // Три органа управления, и каждый отвечает ровно за одно:
         //
-        //   btnInvPower   - ЖИВО ЛИ устройство. Ключи АИН-1, и только они.
-        //                   Индикатор AIN1_flag: зелёный = ключи включены.
-        //   btnGridTrack  - ВЕДЁМ ЛИ синус за сетью. При включённом слежении
-        //                   мост держит клон сети (частота, фаза, амплитуда)
-        //                   вхолостую, контактор разомкнут: на наладке это
-        //                   единственный способ сверить форму осциллографом.
-        //                   При выключенном - независимый источник, частоту
-        //                   задаёт nudGridFreq, амплитуду - движок Uref.
-        //   AIN1_Enable   - РАЗРЕШЕНО ЛИ в сеть. Блокировка, не команда:
-        //                   поднятая галочка сама ничего не замыкает.
-        //   btnGridConn   - ЗАМЫКАЕМ ЛИ контактор. Работает только когда
-        //                   слежение включено и разрешение поднято.
+        //   btnInvPower  - ЖИВО ЛИ устройство. Ключи АИН-1, и только они.
+        //                  Кнопка сама себе индикатор: надпись Вкл/Выкл, фон
+        //                  зелёный/пустой. Отдельное поле-флаг рядом было бы
+        //                  вторым местом правды о том же самом.
+        //   btnGridMode  - НАСКОЛЬКО СВЯЗАНЫ С СЕТЬЮ. Три положения по кругу:
+        //                  АИН -> Слежение -> Выход в сеть. Текст и есть
+        //                  состояние, как у ModeH на движках.
+        //   AIN1_Enable  - РАЗРЕШЕНО ЛИ в сеть. Блокировка, не команда:
+        //                  поднятая галочка сама ничего не замыкает, она лишь
+        //                  пропускает режим "Выход в сеть".
         //
-        // Раньше "Пуск" одним нажатием и включал ключи, и уводил мост в сеть,
-        // а промежуточное состояние - синус уже ведётся, контактор ещё
-        // разомкнут - назвать было нечем, хотя вся наладка идёт именно в нём.
+        // Режимы лежат на одной оси, поэтому это одна кнопка и одна команда,
+        // а не три флага:
+        //
+        //   АИН          - автономный инвертор напряжения. Частота своя
+        //                  (nudGridFreq), амплитуда своя (движок Uref).
+        //   Слежение     - синус ведётся за сетью по частоте, фазе и
+        //                  амплитуде, контактор РАЗОМКНУТ. Наладочный режим:
+        //                  только в нём форму можно сверить осциллографом.
+        //   Выход в сеть - то же плюс замкнутый контактор и токовый контур.
         //-------------------------------------------------------------------
         private void InvPower_Click(object sender, EventArgs e)
         {
-            btnInvPower.BackColor = Color.Yellow;
-
-            if (_power == 0)
-            {
-                uint_128(0, 3333, 0, CmdAinDisable); // снять запрет блока
-                uint_128(0, 0, 0, CmdPwm1On);       // собственно ключи
-            }
-            else
+            if (InvPower_On())
             {
                 uint_128(1, 3333, 0, CmdAinDisable); // IGBT1_Disable
 
@@ -94,18 +93,32 @@ namespace ICDIBasic
                 // кнопки питания не ждёт.
                 GridSetpoint_Zero();
             }
+            else
+            {
+                uint_128(0, 3333, 0, CmdAinDisable); // снять запрет блока
+                uint_128(0, 0, 0, CmdPwm1On);        // собственно ключи
+            }
         }
 
-        private void GridTrack_Click(object sender, EventArgs e)
+        // Ключи включены? Единственный источник правды - бит pwm_On в слове 14
+        // кадра 140 (REF-кадр, KSP/REF_Kadr.c). Кэшировать его в поле незачем:
+        // кадр идёт постоянно, а своя копия неизбежно разошлась бы с прибором
+        // после аварийного закрытия ключей, о котором GUI никто не спрашивал.
+        private bool InvPower_On()
         {
-            btnGridTrack.BackColor = Color.Yellow;
-            uint_128((ushort)(_track == 0 ? 1 : 0), 3333, 0, CmdGridTrack);
+            return (M1.ccs.flags & mflag.pwm_On) != 0;
         }
 
-        private void GridConn_Click(object sender, EventArgs e)
+        private void GridMode_Click(object sender, EventArgs e)
         {
-            btnGridConn.BackColor = Color.Yellow;
-            uint_128((ushort)(_conn == 0 ? 2 : 1), 3333, 0, CmdGridConn);
+            btnGridMode.BackColor = Color.Yellow;
+
+            // По кругу. Через "Выход в сеть" перешагиваем, если разрешение не
+            // поднято: иначе кнопка молча упиралась бы в отказ прибора.
+            ushort next = (ushort)((_mode + 1) % 3);
+            if ((next == GridModeGrid) && (_gridEn == 0)) next = GridModeOff;
+
+            uint_128(next, 3333, 0, CmdGridMode);
         }
 
         private void GridSetpoint_Zero()
@@ -115,51 +128,28 @@ namespace ICDIBasic
         }
 
         //-------------------------------------------------------------------
-        // ACK 10 и 12: d3 - фактическое состояние ключей (motors[0].pwm_On).
-        // Индикатор красит прибор, а не нажатие: жёлтая кнопка гаснет только
-        // когда ключи действительно перешли в новое состояние.
+        // ACK 630: режим пришёл из прибора. Надпись и движок ставим здесь, а не
+        // по нажатию - иначе кнопка показывала бы намерение оператора, а не то,
+        // в чём прибор на самом деле. Прибор может режим и не принять (нет
+        // разрешения) - тогда придёт прежний, и кнопка честно вернётся.
         //-------------------------------------------------------------------
-        private void InvPower_Ack(ushort d3)
+        private void GridMode_Ack(ushort d1)
         {
-            _power = (ushort)(d3 == 0 ? 0 : 1);
+            _mode = d1 < GridModeName.Length ? d1 : GridModeOff;
 
-            btnInvPower.BackColor = Color.Empty;
-            btnInvPower.ForeColor = Color.Green;
-            btnInvPower.Text = _power == 0 ? @"Выкл." : @"Вкл.";
+            btnGridMode.BackColor = Color.Empty;
+            btnGridMode.ForeColor = Color.Green;
+            btnGridMode.Text = GridModeName[_mode];
 
-            AIN1_flag.BackColor = _power == 0
-                ? Color.Red
-                : Color.FromArgb(0, 192, 0);
-            AIN1_flag.Text = _power == 0 ? @"Выкл" : @"Вкл.";
-        }
-
-        //-------------------------------------------------------------------
-        // ACK 630: слежение пришло из прибора. Надпись и движок ставим здесь,
-        // а не по нажатию - иначе кнопка показывала бы намерение оператора,
-        // а не то, в чём прибор на самом деле.
-        //-------------------------------------------------------------------
-        private void GridTrack_Ack(ushort d1)
-        {
-            _track = (ushort)(d1 == 0 ? 0 : 1);
-
-            btnGridTrack.BackColor = Color.Empty;
-            btnGridTrack.ForeColor = Color.Green;
-            btnGridTrack.Text = _track == 0 ? @"Слежение выкл" : @"Слежение вкл";
-
-            // Выключенное слежение снимает и запрос на контактор: в прошивке
-            // это делает grid_tie_stop(), и GUI обязан сойтись с ней, не дожидаясь
-            // отдельного ответа на 631 - иначе кнопка врёт, что мост в сети.
-            if (_track == 0) _conn = 0;
-
-            // Частоту задаёт оператор только у независимого источника. При
-            // слежении её диктует сеть, и поле обязано это показывать, иначе
-            // введённое число молча ничего не изменит.
-            nudGridFreq.Enabled = _track == 0;
+            // Частоту задаёт оператор только у автономного инвертора. В двух
+            // верхних режимах её диктует сеть, и поле обязано это показывать,
+            // иначе введённое число молча ничего не изменит.
+            nudGridFreq.Enabled = _mode == GridModeOff;
 
             // Движок под уставку этого режима: Uref на Gain1, Iset на Load1.
             // Иначе на панели остался бы движок от прошлого режима, шлющий
             // не ту команду.
-            if (_track == 0)
+            if (_mode == GridModeOff)
             {
                 M1.gain.modeL.Text = @"U";
                 M1.gain.modeH.Text = @"Uref";
@@ -170,8 +160,6 @@ namespace ICDIBasic
                 M1.load.modeH.Text = @"Iset";
                 Load_Mode_Refresh(M1);
             }
-
-            GridConn_Enable();
         }
 
         //-------------------------------------------------------------------
@@ -184,56 +172,39 @@ namespace ICDIBasic
             AIN1_Enable.BackColor = Color.Empty;
             AIN1_Enable.Checked = _gridEn == 1;
 
-            // Снятое разрешение обнуляет запрос и в прошивке (case 635) - здесь
-            // повторяем то же самое, чтобы надпись на кнопке не расходилась
-            // с прибором до следующего ответа на 631.
-            if (_gridEn == 0) _conn = 0;
-
-            GridConn_Enable();
+            // Снятое разрешение роняет мост из "Выход в сеть" в "Слежение" -
+            // это делает прошивка (case 635). GUI сходится с ней сразу, не
+            // дожидаясь ответа на 630, иначе кнопка врёт, что мост в сети.
+            if ((_gridEn == 0) && (_mode == GridModeGrid))
+            {
+                _mode = GridModeSync;
+                btnGridMode.Text = GridModeName[_mode];
+            }
         }
 
         //-------------------------------------------------------------------
-        // ACK 631: d1 - принят ли запрос на контактор, d3 - состояние автомата.
+        // Живая часть, из meterTimer_Tick: кнопка питания и авария моста.
         //
-        // Прибор может запрос и отклонить (нет слежения, нет разрешения) -
-        // тогда d1 придёт нулём, и кнопка честно вернётся в исходное.
+        // Оба берутся из кадра 140 (REF-кадр) - он идёт постоянно, в отличие
+        // от кадра 60, который приходит только по F2. Ответов на команды тут
+        // ждать нечего: ключи может закрыть защита, а автомат уходит из
+        // GT_SYNC в GT_RUN сам, и ни о том, ни о другом GUI не спрашивал.
         //-------------------------------------------------------------------
-        private void GridConn_Ack(ushort d1, ushort d3)
+        private void GridUi_Refresh()
         {
-            _conn = (ushort)(d1 == 0 ? 0 : 1);
+            bool on = InvPower_On();
 
-            btnGridConn.BackColor = Color.Empty;
-            btnGridConn.ForeColor = Color.Green;
-            GridConn_Text(d3);
-        }
+            string text = on ? @"Вкл" : @"Выкл";
+            if (btnInvPower.Text != text) btnInvPower.Text = text;
 
-        // Надпись по состоянию автомата. Зовётся и из ACK, и из разбора кадра
-        // 60: переход SYNC -> RAMP -> RUN происходит сам, без ответа на команду.
-        private void GridConn_Refresh()
-        {
-            GridConn_Text(ccs.gtState);
-        }
+            Color back = on ? Color.FromArgb(0, 192, 0) : Color.Empty;
+            if (btnInvPower.BackColor != back) btnInvPower.BackColor = back;
 
-        private void GridConn_Text(ushort state)
-        {
-            if (btnGridConn.BackColor == Color.Yellow) return; // ждём ответа
-
-            // Пока автомат не довёл дело до RAMP/RUN, контактор ещё разомкнут:
-            // мост набирает синхронизм. Показываем именно это, а не "в сети".
-            bool inGrid = (state >= 2) && (state <= 3); // GT_RAMP, GT_RUN
-
-            string text = _conn == 0
-                ? @"Выход в сеть"
-                : (inGrid ? @"Отключить" : @"Ждём синхр.");
-
-            if (btnGridConn.Text != text) btnGridConn.Text = text;
-        }
-
-        // Замыкать контактор без слежения и без разрешения нельзя, и кнопка
-        // не должна делать вид, что можно.
-        private void GridConn_Enable()
-        {
-            btnGridConn.Enabled = (_track == 1) && (_gridEn == 1);
+            // Авария автомата гасит зелень режима: в GT_FAULT мост закрыт, и
+            // надпись "Выход в сеть" без этого обещала бы работу, которой нет.
+            Color mode = (ccs.gtState == 4) ? Color.Red : Color.Empty;
+            if (btnGridMode.BackColor != Color.Yellow && btnGridMode.BackColor != mode)
+                btnGridMode.BackColor = mode;
         }
 
         private void GridFreq_Commit(object sender, EventArgs e)
