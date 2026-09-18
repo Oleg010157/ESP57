@@ -50,6 +50,25 @@ namespace ICDIBasic
 
         private static readonly string[] GridModeName = { "АИН", "Слежение", "Выход в сеть" };
 
+        // Подсказка к каждому положению. На кнопке помещается только короткое
+        // имя, а "АИН" без расшифровки не говорит ничего - и не всякому
+        // очевидно, что слежение от выхода в сеть отличается одним контактором.
+        private static readonly string[] GridModeHint =
+        {
+            "Автономный инвертор напряжения.\n" +
+            "Частота своя (поле F Hz), амплитуда своя (движок Uref).\n" +
+            "За сетью не следим, контактор разомкнут.",
+
+            "Слежение за напряжением сети.\n" +
+            "Синус ведётся за сетью по частоте, фазе и амплитуде,\n" +
+            "но контактор РАЗОМКНУТ и ток в сеть не идёт.\n" +
+            "Наладочный режим: форму можно сверить осциллографом.",
+
+            "Выход в сеть.\n" +
+            "То же слежение плюс замкнутый контактор и токовый контур.\n" +
+            "Пускает только галочка \"Enable сеть\"."
+        };
+
         private void GridNud_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode != Keys.Enter) return;
@@ -121,6 +140,13 @@ namespace ICDIBasic
             uint_128(next, 3333, 0, CmdGridMode);
         }
 
+        // Подсказка идёт за надписью: на кнопке помещается короткое имя, в
+        // подсказке - что оно значит. Зовётся отовсюду, где меняется _mode.
+        private void GridMode_Hint()
+        {
+            toolTip1.SetToolTip(btnGridMode, GridModeHint[_mode]);
+        }
+
         private void GridSetpoint_Zero()
         {
             if (M1.gain.modeH.Text == @"Uref") M1.gain.tbar.Value = 0;
@@ -140,6 +166,7 @@ namespace ICDIBasic
             btnGridMode.BackColor = Color.Empty;
             btnGridMode.ForeColor = Color.Green;
             btnGridMode.Text = GridModeName[_mode];
+            GridMode_Hint();
 
             // Частоту задаёт оператор только у автономного инвертора. В двух
             // верхних режимах её диктует сеть, и поле обязано это показывать,
@@ -179,6 +206,7 @@ namespace ICDIBasic
             {
                 _mode = GridModeSync;
                 btnGridMode.Text = GridModeName[_mode];
+                GridMode_Hint();
             }
         }
 
