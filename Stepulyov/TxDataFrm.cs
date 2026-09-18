@@ -45,6 +45,44 @@ namespace CANTxDataTable
         // Одноразовый таймер отложенного перечитывания таблицы, см. Send().
         private readonly Timer _refreshT = new Timer();
 
+        //-------------------------------------------------------------------
+        // Строки-перечисления: номер строки -> имена её значений.
+        //
+        // Есть параметры, у которых само число не значит ничего. "7" в строке
+        // выбора сигнала на ЦАП - это не семь чего-то, это "напряжение сети на
+        // вторичке", и держать расшифровку только в комментарии ini значит
+        // гонять оператора в файл посреди опыта.
+        //
+        // Такая строка перечисляет имена ПОСЛЕ седьмого поля, по одному на
+        // значение, начиная с "Минимум":
+        //
+        //     dacDbgSrc = 0,11,672,0,3,43, ШИМ,I_перв,I_втор,...
+        //
+        // В прибор по-прежнему едет число - меняется только то, что видит
+        // человек. Строки без имён идут прежним путём и ничего не замечают,
+        // поэтому остальные таблицы этой правкой не задеты.
+        //-------------------------------------------------------------------
+        private readonly Dictionary<int, string[]> _enums = new Dictionary<int, string[]>();
+
+        // Ширина списка под самое длинное имя строки, в точках. Считается по
+        // шрифту сетки один раз при разборе ini: и ячейка, и раскрытый список
+        // должны вмещать имя целиком, иначе выбирать придётся из огрызков.
+        private readonly Dictionary<int, int> _enumW = new Dictionary<int, int>();
+
+        // Замок против рекурсии в FitToGrid и признак того, что первая подгонка
+        // уже прошла: до неё пересчитывать окно не по чему.
+        private bool _fitting;
+        private bool _fitReady;
+
+        // Пара "значение - подпись" для выпадающего списка. Именно класс со
+        // свойствами, а не кортеж: DataGridViewComboBoxCell ищет ValueMember и
+        // DisplayMember по ИМЕНАМ свойств, через отражение.
+        private class EnumItem
+        {
+            public short Val { get; set; }
+            public string Txt { get; set; }
+        }
+
         public TxDataFrm(string n, string t)
         {
             this.InitializeComponent();
@@ -67,6 +105,8 @@ namespace CANTxDataTable
         private void ReadIniFile()
         {
             this._dt = new DataTable();
+            this._enums.Clear();
+            this._enumW.Clear();
             this._dt.Columns.Add("Имя", typeof(string));
             this._dt.Columns.Add("Минимум", typeof(short));
             this._dt.Columns.Add("Максимум", typeof(short));
@@ -90,6 +130,19 @@ namespace CANTxDataTable
                     this._dr["Мод_"] = (object)Convert.ToUInt16(strArray[4]);
                     this._dr["Цвет"] = (object)Convert.ToUInt16(strArray[5]);
                     this._dr["Номер"] = (object)Convert.ToUInt16(strArray[6]);
+
+                    // Всё, что стоит за седьмым полем, - имена значений.
+                    // Номер строки берём ДО Rows.Add: он же и станет её
+                    // индексом. Пустые хвосты (строка кончается запятой)
+                    // отбрасываем, иначе в списке появится безымянный пункт.
+                    if (strArray.Length > 7)
+                    {
+                        string[] names = strArray.Skip(7)
+                                                 .Where(s => !string.IsNullOrEmpty(s))
+                                                 .ToArray();
+                        if (names.Length != 0)
+                            this._enums[this._dt.Rows.Count] = names;
+                    }
                 }
                 catch
                 {
@@ -130,6 +183,63 @@ namespace CANTxDataTable
             this.dg.Columns["Имя"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
             this.dg.Columns["Знач."].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
             this.dg.Columns["М"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            this.ApplyEnums();
+        }
+
+        //-------------------------------------------------------------------
+        // Подменить у строк-перечислений ячейку "Знач." выпадающим списком.
+        //
+        // Подменяется именно ЯЧЕЙКА, а не столбец: столбец один на всю таблицу,
+        // и список сигналов ЦАП в строке коэффициента выглядел бы бредом.
+        // DataGridView такую разнотипицу допускает, значение в связанной
+        // таблице остаётся тем же short.
+        //
+        // Вызывать только из ReadIniFile и только после dg.DataSource: до
+        // привязки строк в сетке ещё нет.
+        //-------------------------------------------------------------------
+        private void ApplyEnums()
+        {
+            foreach (KeyValuePair<int, string[]> e in this._enums)
+            {
+                if (e.Key < 0 || e.Key >= this.dg.Rows.Count)
+                    continue;
+
+                // Имена идут подряд от "Минимум": первое имя - минимальное
+                // значение, а не обязательно ноль.
+                short min = Convert.ToInt16(this._dt.Rows[e.Key]["Минимум"]);
+                List<EnumItem> items = new List<EnumItem>();
+                for (int i = 0; i < e.Value.Length; i++)
+                    items.Add(new EnumItem { Val = (short)(min + i), Txt = e.Value[i] });
+
+                DataGridViewComboBoxCell c = new DataGridViewComboBoxCell();
+                c.DataSource = items;
+                c.ValueMember = "Val";
+                c.DisplayMember = "Txt";
+                c.DisplayStyle = DataGridViewComboBoxDisplayStyle.ComboBox;
+                c.FlatStyle = FlatStyle.Flat;
+                this.dg.Rows[e.Key].Cells[4] = c;
+
+                // Ширину считаем по самому длинному имени, а не по текущему:
+                // автоподбор столбца меряет только то, что видно сейчас, и
+                // стоило выбрать короткое имя - столбец сжимался, пряча
+                // длинные. Запас - под кнопку списка и поля ячейки.
+                Font f = this.dg.DefaultCellStyle.Font ?? this.dg.Font;
+                int w = 0;
+                foreach (EnumItem it in items)
+                    w = Math.Max(w, TextRenderer.MeasureText(it.Txt, f).Width);
+                w += 36;
+
+                this._enumW[e.Key] = w;
+                if (this.dg.Columns[4].MinimumWidth < w)
+                    this.dg.Columns[4].MinimumWidth = w;
+
+                // "Максимум" правим под список: кнопки "+"/"-" ходят по нему,
+                // и упереться они должны в последнее ИМЯ, а не в число из ini.
+                // Если в ini список короче объявленного диапазона, стрелка
+                // иначе завела бы ячейку в значение, которого нет в списке, -
+                // а это уже DataError и пустая ячейка.
+                this._dt.Rows[e.Key]["Максимум"] = (object)(short)(min + e.Value.Length - 1);
+            }
         }
 
         private void TxDataFrm_Load(object sender, EventArgs e)
@@ -143,16 +253,34 @@ namespace CANTxDataTable
             this.dg.CellMouseDown += (DataGridViewCellMouseEventHandler)((y, m) => this._en = true);
             this.dg.CellMouseUp += new DataGridViewCellMouseEventHandler(this.dg_CellMouseUp);
             this.dg.CellValueChanged += new DataGridViewCellEventHandler(this.dg_CellValueChanged);
+            this.dg.EditingControlShowing += new DataGridViewEditingControlShowingEventHandler(this.dg_EditingControlShowing);
+
+            // Окно переподгоняется, когда столбец сменил ширину.
+            //
+            // Без этого оно кроилось ровно один раз, в Shown, когда в "Знач."
+            // ещё нули. Сразу следом Shown рассылает по строкам чтение, прибор
+            // отвечает, в ячейки ложатся настоящие значения - и столбец при
+            // AutoSizeColumnsMode = AllCells раздаётся под них. Сумма столбцов
+            // перерастает ширину сетки, а полосы прокрутки запрещены, и хвост
+            // столбцов (кнопки "-", "+", галочка "М") молча уходит за край.
+            //
+            // Но НЕ во время правки ячейки: окно, дёрнувшееся под раскрытым
+            // списком, либо закрывает его, либо уводит из-под курсора уже
+            // выбранный пункт. Подгонку в этом случае откладываем до конца
+            // правки - CellEndEdit ниже.
+            this.dg.ColumnWidthChanged += (DataGridViewColumnEventHandler)((a, b) =>
+            {
+                if (this._fitReady && !this.dg.IsCurrentCellInEditMode)
+                    this.FitToGrid();
+            });
+
+            this.dg.CellEndEdit += (DataGridViewCellEventHandler)((a, b) =>
+            {
+                if (this._fitReady)
+                    this.FitToGrid();
+            });
+
             this.ReadIniFile();
-            Rectangle screen = this.RectangleToScreen(this.ClientRectangle);
-            this.dg.Height = this.dg.Rows.Count * this.dg.RowTemplate.Height + this.dg.ColumnHeadersHeight + 10;
-            int height = this.dg.Location.Y + this.dg.Height + (screen.Top - this.Top);
-            int width = this.dg.Columns[0].Width + this.dg.Columns[4].Width + this.dg.Columns[5].Width + this.dg.Columns[6].Width + this.dg.Columns[7].Width + 20;
-            this.dg.Width = width;
-            this.MaximumSize = new Size(width, height);
-            this.MinimumSize = new Size(width, height);
-            this.Height = height;
-            this.Width = width;
             this.dg.DataError += (DataGridViewDataErrorEventHandler)((a, b) => this.dg.CancelEdit());
             this.button1.Click += (EventHandler)((a, z) =>
             {
@@ -168,6 +296,8 @@ namespace CANTxDataTable
             });
             this.Shown += (EventHandler)((j, k) =>
             {
+                this.FitToGrid();
+                this._fitReady = true;
                 for (int index = 0; index < this._dt.Rows.Count; ++index)
                 {
                     ushort uint16 = Convert.ToUInt16(this._dt.Rows[index]["Цвет"]);
@@ -193,6 +323,95 @@ namespace CANTxDataTable
                 this.dg.ClearSelection();
                 this.dg.Refresh();
             });
+        }
+
+        //-------------------------------------------------------------------
+        // Подогнать окно под таблицу.
+        //
+        // Зовётся из Shown, а не из Load, и это principal: в Load настоящих
+        // размеров ещё нет. Шрифт формы - 14.25 пт полужирный (см.
+        // InitializeComponent), строки от него заметно выше умолчания
+        // RowTemplate, а шапка при ColumnHeadersHeightSizeMode = AutoSize
+        // досчитывается только при раскладке. Прежний расчёт брал обе
+        // величины до неё и занижал высоту - нижняя строка уходила под край.
+        // Дотянуть окно мышью нельзя, MinimumSize и MaximumSize сведены здесь
+        // же в одну точку, так что строка оказывалась просто недоступна.
+        //
+        // Размер задаём через ClientSize: рамку и заголовок Windows добавит
+        // сам, и не надо гадать их толщину вычитанием экранных координат.
+        //-------------------------------------------------------------------
+        private void FitToGrid()
+        {
+            // Подгонка меняет размер сетки, от этого пересчитываются ширины
+            // столбцов, а это снова зовёт подгонку. Замок рвёт круг.
+            if (this._fitting)
+                return;
+            this._fitting = true;
+            try
+            {
+
+            // Снять замок: пока Minimum и Maximum сведены, форма нового
+            // размера не примет.
+            this.MinimumSize = this.MaximumSize = Size.Empty;
+
+            // Полосы гасим ПЕРВЫМ делом. Пока они есть, они занимают место и
+            // подмешиваются в любой замер, а отталкиваться надо от чистого
+            // содержимого. GetPreferredSize здесь не помощник: он отвечает про
+            // ту раскладку, что была до нашего вмешательства, и его ответ
+            // разъезжался с правдой в обе стороны сразу - по ширине занижал
+            // (правый край столбцов уходил под край окна), по высоте завышал
+            // на полосу, и внизу оставалась серая пустая полоска.
+            this.dg.ScrollBars = ScrollBars.None;
+
+            int bw = this.dg.BorderStyle == BorderStyle.None ? 0 : 2;
+            int head = this.dg.ColumnHeadersVisible ? this.dg.ColumnHeadersHeight : 0;
+
+            // Два прохода, и это не перестраховка. AutoSizeColumnsMode здесь
+            // AllCells: ширины столбцов пересчитываются от размера самой
+            // сетки, поэтому сумма, снятая ДО присваивания, после него уже
+            // другая. Второй проход считает по осевшим ширинам, третьему
+            // менять нечего.
+            for (int pass = 0; pass < 2; pass++)
+            {
+                // Обход по индексу, а не foreach по BaseCollection: у той
+                // перечисление идёт через защищённое свойство List, и что в
+                // нём лежит для коллекции столбцов - вопрос открытый. Здесь
+                // нужна вся коллекция целиком, без сюрпризов.
+                int cols = 0;
+                for (int i = 0; i < this.dg.Columns.Count; i++)
+                    if (this.dg.Columns[i].Visible)
+                        cols += this.dg.Columns[i].Width;
+
+                int rows = this.dg.Rows.GetRowsHeight(DataGridViewElementStates.Visible);
+
+                this.dg.Size = new Size(cols + bw, rows + head + bw);
+                this.dg.PerformLayout();
+            }
+
+            // Выше рабочей области не растём: у таблицы на три десятка строк
+            // окно иначе уедет за край экрана. Вот там полоса нужна по делу,
+            // и ширина под неё тоже.
+            int roof = Screen.FromControl(this).WorkingArea.Height - 80;
+            if (this.dg.Height > roof)
+            {
+                this.dg.ScrollBars = ScrollBars.Vertical;
+                this.dg.Size = new Size(this.dg.Width + SystemInformation.VerticalScrollBarWidth, roof);
+            }
+
+            // Отступ - именно число, а не dg.Left: сетка посажена в точку
+            // (-1, 23), то есть левым краем заходит ЗА клиентскую область.
+            // Взятый оттуда "отступ" делал окно уже содержимого.
+            const int pad = 2;
+            this.ClientSize = new Size(this.dg.Left + this.dg.Width + pad + 1,
+                                       this.dg.Top + this.dg.Height + pad);
+
+            this.MinimumSize = this.MaximumSize = this.Size;
+
+            }
+            finally
+            {
+                this._fitting = false;
+            }
         }
 
         // Разрешено ли править значение строки.
@@ -233,6 +452,21 @@ namespace CANTxDataTable
                         if (this.Wren(e.RowIndex))
                         {
                             this.dg.BeginEdit(false);
+
+                            // Раскрыть список сразу, с первого щелчка. Сама
+                            // сетка так не умеет: щелчок по ячейке-списку лишь
+                            // вводит её в правку, и список приходится открывать
+                            // вторым щелчком по стрелке.
+                            //
+                            // Через BeginInvoke, а не прямо здесь: мы внутри
+                            // разбора того самого щелчка, и выставленный сейчас
+                            // DroppedDown закроется его же продолжением.
+                            this.BeginInvoke((MethodInvoker)(() =>
+                            {
+                                ComboBox cb = this.dg.EditingControl as ComboBox;
+                                if (cb != null && !cb.DroppedDown)
+                                    cb.DroppedDown = true;
+                            }));
                             break;
                         }
                         this.dg.CancelEdit();
@@ -273,6 +507,25 @@ namespace CANTxDataTable
             }
             this.dg.Refresh();
             this._en = false;
+        }
+
+        //-------------------------------------------------------------------
+        // Раскрытый список шире самой ячейки.
+        //
+        // Ширину выпадающей части ячейка задать не может - это свойство живёт
+        // у ComboBox, а он рождается только на время правки. Отсюда и вся
+        // возня с обработчиком: поймать его в момент появления и расширить.
+        //-------------------------------------------------------------------
+        private void dg_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
+        {
+            ComboBox cb = e.Control as ComboBox;
+            if (cb == null)
+                return;
+
+            int row = this.dg.CurrentCell != null ? this.dg.CurrentCell.RowIndex : -1;
+            int w;
+            if (row >= 0 && this._enumW.TryGetValue(row, out w))
+                cb.DropDownWidth = w;
         }
 
         private void dg_CellValueChanged(object sender, DataGridViewCellEventArgs e)
