@@ -29,7 +29,7 @@
         private void InitializeComponent()
         {
             this.label1 = new System.Windows.Forms.Label();
-            this.checkBox_Urms = new System.Windows.Forms.CheckBox();
+            this.checkBox_Vin = new System.Windows.Forms.CheckBox();
             this.label2 = new System.Windows.Forms.Label();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.label16 = new System.Windows.Forms.Label();
@@ -39,14 +39,14 @@
             this.label6 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
-            this.checkBox_Irms = new System.Windows.Forms.CheckBox();
+            this.checkBox_U220 = new System.Windows.Forms.CheckBox();
             this.label4 = new System.Windows.Forms.Label();
             this.label8 = new System.Windows.Forms.Label();
             this.label9 = new System.Windows.Forms.Label();
             this.label10 = new System.Windows.Forms.Label();
-            this.checkBox_Iu = new System.Windows.Forms.CheckBox();
-            this.checkBox_Iv = new System.Windows.Forms.CheckBox();
-            this.checkBox_Iw = new System.Windows.Forms.CheckBox();
+            this.checkBox_Usec = new System.Windows.Forms.CheckBox();
+            this.checkBox_Ipri = new System.Windows.Forms.CheckBox();
+            this.checkBox_Isec = new System.Windows.Forms.CheckBox();
             this.label12 = new System.Windows.Forms.Label();
             this.checkBox_f = new System.Windows.Forms.CheckBox();
             this.выборДвигателяToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -99,19 +99,19 @@
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(36, 17);
             this.label1.TabIndex = 0;
-            this.label1.Text = "Udc";
+            this.label1.Text = "Vin";
             // 
-            // checkBox_Urms
+            // checkBox_Vin
             // 
-            this.checkBox_Urms.AutoSize = true;
-            this.checkBox_Urms.Checked = true;
-            this.checkBox_Urms.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBox_Urms.Location = new System.Drawing.Point(259, 22);
-            this.checkBox_Urms.Name = "checkBox_Urms";
-            this.checkBox_Urms.Size = new System.Drawing.Size(15, 14);
-            this.checkBox_Urms.TabIndex = 2;
-            this.checkBox_Urms.UseVisualStyleBackColor = true;
-            this.checkBox_Urms.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
+            this.checkBox_Vin.AutoSize = true;
+            this.checkBox_Vin.Checked = true;
+            this.checkBox_Vin.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBox_Vin.Location = new System.Drawing.Point(259, 22);
+            this.checkBox_Vin.Name = "checkBox_Vin";
+            this.checkBox_Vin.Size = new System.Drawing.Size(15, 14);
+            this.checkBox_Vin.TabIndex = 2;
+            this.checkBox_Vin.UseVisualStyleBackColor = true;
+            this.checkBox_Vin.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
             // 
             // label2
             // 
@@ -121,7 +121,7 @@
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(114, 17);
             this.label2.TabIndex = 3;
-            this.label2.Text = "Напряжение DC";
+            this.label2.Text = "Вход инвертора";
             // 
             // groupBox1
             // 
@@ -179,7 +179,7 @@
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(132, 17);
             this.label7.TabIndex = 7;
-            this.label7.Text = "RMS ток с фазы W";
+            this.label7.Text = "Ток вторички";
             // 
             // label6
             // 
@@ -189,7 +189,7 @@
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(128, 17);
             this.label6.TabIndex = 6;
-            this.label6.Text = "RMS ток с фазы V";
+            this.label6.Text = "Ток первички";
             // 
             // label5
             // 
@@ -199,7 +199,7 @@
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(129, 17);
             this.label5.TabIndex = 5;
-            this.label5.Text = "RMS ток с фазы U";
+            this.label5.Text = "Напряжение вторички";
             // 
             // label3
             // 
@@ -209,19 +209,19 @@
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(125, 17);
             this.label3.TabIndex = 4;
-            this.label3.Text = "Напряжение RMS";
+            this.label3.Text = "Напряжение сети";
             // 
-            // checkBox_Irms
+            // checkBox_U220
             // 
-            this.checkBox_Irms.AutoSize = true;
-            this.checkBox_Irms.Checked = true;
-            this.checkBox_Irms.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBox_Irms.Location = new System.Drawing.Point(259, 48);
-            this.checkBox_Irms.Name = "checkBox_Irms";
-            this.checkBox_Irms.Size = new System.Drawing.Size(15, 14);
-            this.checkBox_Irms.TabIndex = 6;
-            this.checkBox_Irms.UseVisualStyleBackColor = true;
-            this.checkBox_Irms.CheckedChanged += new System.EventHandler(this.checkBox2_CheckedChanged);
+            this.checkBox_U220.AutoSize = true;
+            this.checkBox_U220.Checked = true;
+            this.checkBox_U220.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBox_U220.Location = new System.Drawing.Point(259, 48);
+            this.checkBox_U220.Name = "checkBox_U220";
+            this.checkBox_U220.Size = new System.Drawing.Size(15, 14);
+            this.checkBox_U220.TabIndex = 6;
+            this.checkBox_U220.UseVisualStyleBackColor = true;
+            this.checkBox_U220.CheckedChanged += new System.EventHandler(this.checkBox2_CheckedChanged);
             // 
             // label4
             // 
@@ -231,7 +231,7 @@
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(45, 17);
             this.label4.TabIndex = 5;
-            this.label4.Text = "Urms";
+            this.label4.Text = "U220";
             // 
             // label8
             // 
@@ -241,7 +241,7 @@
             this.label8.Name = "label8";
             this.label8.Size = new System.Drawing.Size(21, 17);
             this.label8.TabIndex = 7;
-            this.label8.Text = "Iu";
+            this.label8.Text = "Usec";
             // 
             // label9
             // 
@@ -251,7 +251,7 @@
             this.label9.Name = "label9";
             this.label9.Size = new System.Drawing.Size(20, 17);
             this.label9.TabIndex = 8;
-            this.label9.Text = "Iv";
+            this.label9.Text = "Ipri";
             // 
             // label10
             // 
@@ -261,43 +261,43 @@
             this.label10.Name = "label10";
             this.label10.Size = new System.Drawing.Size(22, 17);
             this.label10.TabIndex = 9;
-            this.label10.Text = "Iw";
+            this.label10.Text = "Isec";
             // 
-            // checkBox_Iu
+            // checkBox_Usec
             // 
-            this.checkBox_Iu.AutoSize = true;
-            this.checkBox_Iu.Checked = true;
-            this.checkBox_Iu.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBox_Iu.Location = new System.Drawing.Point(259, 74);
-            this.checkBox_Iu.Name = "checkBox_Iu";
-            this.checkBox_Iu.Size = new System.Drawing.Size(15, 14);
-            this.checkBox_Iu.TabIndex = 10;
-            this.checkBox_Iu.UseVisualStyleBackColor = true;
-            this.checkBox_Iu.CheckedChanged += new System.EventHandler(this.checkBox3_CheckedChanged);
+            this.checkBox_Usec.AutoSize = true;
+            this.checkBox_Usec.Checked = true;
+            this.checkBox_Usec.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBox_Usec.Location = new System.Drawing.Point(259, 74);
+            this.checkBox_Usec.Name = "checkBox_Usec";
+            this.checkBox_Usec.Size = new System.Drawing.Size(15, 14);
+            this.checkBox_Usec.TabIndex = 10;
+            this.checkBox_Usec.UseVisualStyleBackColor = true;
+            this.checkBox_Usec.CheckedChanged += new System.EventHandler(this.checkBox3_CheckedChanged);
             // 
-            // checkBox_Iv
+            // checkBox_Ipri
             // 
-            this.checkBox_Iv.AutoSize = true;
-            this.checkBox_Iv.Checked = true;
-            this.checkBox_Iv.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBox_Iv.Location = new System.Drawing.Point(259, 101);
-            this.checkBox_Iv.Name = "checkBox_Iv";
-            this.checkBox_Iv.Size = new System.Drawing.Size(15, 14);
-            this.checkBox_Iv.TabIndex = 11;
-            this.checkBox_Iv.UseVisualStyleBackColor = true;
-            this.checkBox_Iv.CheckedChanged += new System.EventHandler(this.checkBox4_CheckedChanged);
+            this.checkBox_Ipri.AutoSize = true;
+            this.checkBox_Ipri.Checked = true;
+            this.checkBox_Ipri.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBox_Ipri.Location = new System.Drawing.Point(259, 101);
+            this.checkBox_Ipri.Name = "checkBox_Ipri";
+            this.checkBox_Ipri.Size = new System.Drawing.Size(15, 14);
+            this.checkBox_Ipri.TabIndex = 11;
+            this.checkBox_Ipri.UseVisualStyleBackColor = true;
+            this.checkBox_Ipri.CheckedChanged += new System.EventHandler(this.checkBox4_CheckedChanged);
             // 
-            // checkBox_Iw
+            // checkBox_Isec
             // 
-            this.checkBox_Iw.AutoSize = true;
-            this.checkBox_Iw.Checked = true;
-            this.checkBox_Iw.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBox_Iw.Location = new System.Drawing.Point(259, 127);
-            this.checkBox_Iw.Name = "checkBox_Iw";
-            this.checkBox_Iw.Size = new System.Drawing.Size(15, 14);
-            this.checkBox_Iw.TabIndex = 12;
-            this.checkBox_Iw.UseVisualStyleBackColor = true;
-            this.checkBox_Iw.CheckedChanged += new System.EventHandler(this.checkBox5_CheckedChanged);
+            this.checkBox_Isec.AutoSize = true;
+            this.checkBox_Isec.Checked = true;
+            this.checkBox_Isec.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBox_Isec.Location = new System.Drawing.Point(259, 127);
+            this.checkBox_Isec.Name = "checkBox_Isec";
+            this.checkBox_Isec.Size = new System.Drawing.Size(15, 14);
+            this.checkBox_Isec.TabIndex = 12;
+            this.checkBox_Isec.UseVisualStyleBackColor = true;
+            this.checkBox_Isec.CheckedChanged += new System.EventHandler(this.checkBox5_CheckedChanged);
             // 
             // label12
             // 
@@ -405,19 +405,19 @@
             this.panel1.Controls.Add(this.checkBox_dbg);
             this.panel1.Controls.Add(this.label1);
             this.panel1.Controls.Add(this.label15);
-            this.panel1.Controls.Add(this.checkBox_Urms);
+            this.panel1.Controls.Add(this.checkBox_Vin);
             this.panel1.Controls.Add(this.checkBox_P);
             this.panel1.Controls.Add(this.label4);
             this.panel1.Controls.Add(this.label14);
-            this.panel1.Controls.Add(this.checkBox_Irms);
+            this.panel1.Controls.Add(this.checkBox_U220);
             this.panel1.Controls.Add(this.checkBox_f);
             this.panel1.Controls.Add(this.label8);
             this.panel1.Controls.Add(this.label12);
             this.panel1.Controls.Add(this.label9);
-            this.panel1.Controls.Add(this.checkBox_Iw);
+            this.panel1.Controls.Add(this.checkBox_Isec);
             this.panel1.Controls.Add(this.label10);
-            this.panel1.Controls.Add(this.checkBox_Iv);
-            this.panel1.Controls.Add(this.checkBox_Iu);
+            this.panel1.Controls.Add(this.checkBox_Ipri);
+            this.panel1.Controls.Add(this.checkBox_Usec);
             this.panel1.Location = new System.Drawing.Point(0, 27);
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(290, 238);
@@ -750,22 +750,22 @@
         #endregion
 
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.CheckBox checkBox_Urms;
+        private System.Windows.Forms.CheckBox checkBox_Vin;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.CheckBox checkBox_Irms;
+        private System.Windows.Forms.CheckBox checkBox_U220;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label11;
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.Label label9;
         private System.Windows.Forms.Label label10;
-        private System.Windows.Forms.CheckBox checkBox_Iu;
-        private System.Windows.Forms.CheckBox checkBox_Iv;
-        private System.Windows.Forms.CheckBox checkBox_Iw;
+        private System.Windows.Forms.CheckBox checkBox_Usec;
+        private System.Windows.Forms.CheckBox checkBox_Ipri;
+        private System.Windows.Forms.CheckBox checkBox_Isec;
         private System.Windows.Forms.Label label12;
         private System.Windows.Forms.CheckBox checkBox_f;
         private System.Windows.Forms.ToolStripMenuItem выборДвигателяToolStripMenuItem;
