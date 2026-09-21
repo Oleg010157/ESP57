@@ -305,10 +305,10 @@
             this.groupBox_AIN1 = new System.Windows.Forms.GroupBox();
             this.lblGridMode = new System.Windows.Forms.Label();
             this.btnGridMode = new System.Windows.Forms.Button();
-            this.lblGridFreq = new System.Windows.Forms.Label();
-            this.nudGridFreq = new System.Windows.Forms.NumericUpDown();
             this.lblGridUref = new System.Windows.Forms.Label();
             this.nudGridUref = new System.Windows.Forms.NumericUpDown();
+            this.lblGridFreq = new System.Windows.Forms.Label();
+            this.nudGridFreq = new System.Windows.Forms.NumericUpDown();
             this.timer_1sek = new System.Windows.Forms.Timer(this.components);
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.timer_Yokogawa = new System.Windows.Forms.Timer(this.components);
@@ -379,8 +379,8 @@
             this.panel3.SuspendLayout();
             this.panel1.SuspendLayout();
             this.groupBox_AIN1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.nudGridFreq)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudGridUref)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudGridFreq)).BeginInit();
             this.SuspendLayout();
             // 
             // openFileDialog
@@ -2534,7 +2534,7 @@
             this.Vin.Name = "Vin";
             this.Vin.Size = new System.Drawing.Size(55, 22);
             this.Vin.TabIndex = 4;
-            this.Vin.Text = "U220";
+            this.Vin.Text = "Vin";
             // 
             // Vin_value
             // 
@@ -2566,7 +2566,7 @@
             this.Udc_name.Name = "Udc_name";
             this.Udc_name.Size = new System.Drawing.Size(47, 22);
             this.Udc_name.TabIndex = 168;
-            this.Udc_name.Text = "Usec";
+            this.Udc_name.Text = "U220";
             this.Udc_name.DoubleClick += new System.EventHandler(this.Udc_name_DoubleClick);
             // 
             // Urms1_value
@@ -2606,21 +2606,21 @@
             // 
             this.Idc_label.AutoSize = true;
             this.Idc_label.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.Idc_label.ForeColor = System.Drawing.Color.DarkGreen;
+            this.Idc_label.ForeColor = System.Drawing.Color.Brown;
             this.Idc_label.Location = new System.Drawing.Point(4, 12);
             this.Idc_label.Name = "Idc_label";
-            this.Idc_label.Size = new System.Drawing.Size(40, 22);
+            this.Idc_label.Size = new System.Drawing.Size(47, 22);
             this.Idc_label.TabIndex = 5;
-            this.Idc_label.Text = "Ipri";
+            this.Idc_label.Text = "Usec";
             // 
             // I1a_value
             // 
             this.I1a_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.I1a_value.Location = new System.Drawing.Point(32, 12);
+            this.I1a_value.Location = new System.Drawing.Point(52, 12);
             this.I1a_value.Margin = new System.Windows.Forms.Padding(0);
             this.I1a_value.Name = "I1a_value";
             this.I1a_value.RightToLeft = System.Windows.Forms.RightToLeft.No;
-            this.I1a_value.Size = new System.Drawing.Size(84, 22);
+            this.I1a_value.Size = new System.Drawing.Size(64, 22);
             this.I1a_value.TabIndex = 189;
             this.I1a_value.Text = "0";
             this.I1a_value.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -2642,9 +2642,9 @@
             this.input3.ForeColor = System.Drawing.Color.DarkGreen;
             this.input3.Location = new System.Drawing.Point(4, 12);
             this.input3.Name = "input3";
-            this.input3.Size = new System.Drawing.Size(41, 22);
+            this.input3.Size = new System.Drawing.Size(40, 22);
             this.input3.TabIndex = 6;
-            this.input3.Text = "Isec";
+            this.input3.Text = "Ipri";
             // 
             // I1b_value
             // 
@@ -2673,9 +2673,9 @@
             this.input4.ForeColor = System.Drawing.Color.DarkGreen;
             this.input4.Location = new System.Drawing.Point(4, 12);
             this.input4.Name = "input4";
-            this.input4.Size = new System.Drawing.Size(24, 22);
+            this.input4.Size = new System.Drawing.Size(41, 22);
             this.input4.TabIndex = 166;
-            this.input4.Text = "Ic";
+            this.input4.Text = "Isec";
             // 
             // I1c_value
             // 
@@ -2762,6 +2762,7 @@
             this.groupBox15.Size = new System.Drawing.Size(158, 40);
             this.groupBox15.TabIndex = 212;
             this.groupBox15.TabStop = false;
+            this.groupBox15.Visible = false;
             // 
             // Udc_ref
             // 
@@ -2788,7 +2789,7 @@
             this.groupBox16.Controls.Add(this.Field1_Text);
             this.groupBox16.Controls.Add(this.field1_value);
             this.groupBox16.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.groupBox16.Location = new System.Drawing.Point(179, 179);
+            this.groupBox16.Location = new System.Drawing.Point(179, 139);
             this.groupBox16.Name = "groupBox16";
             this.groupBox16.Size = new System.Drawing.Size(158, 40);
             this.groupBox16.TabIndex = 213;
@@ -2800,9 +2801,10 @@
             this.Field1_Text.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Field1_Text.Location = new System.Drawing.Point(5, 15);
             this.Field1_Text.Name = "Field1_Text";
+            this.Field1_Text.ForeColor = System.Drawing.Color.Brown;
             this.Field1_Text.Size = new System.Drawing.Size(57, 19);
             this.Field1_Text.TabIndex = 173;
-            this.Field1_Text.Text = "f.поля:";
+            this.Field1_Text.Text = "F сети";
             // 
             // field1_value
             // 
@@ -2818,7 +2820,7 @@
             // 
             this.groupBox20.Controls.Add(this.rpm1_Text);
             this.groupBox20.Controls.Add(this.rpm1_value);
-            this.groupBox20.Location = new System.Drawing.Point(179, 220);
+            this.groupBox20.Location = new System.Drawing.Point(179, 179);
             this.groupBox20.Name = "groupBox20";
             this.groupBox20.Size = new System.Drawing.Size(158, 40);
             this.groupBox20.TabIndex = 214;
@@ -3260,7 +3262,7 @@
             this.lblGridMode.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.lblGridMode.Location = new System.Drawing.Point(8, 52);
             this.lblGridMode.Name = "lblGridMode";
-            this.lblGridMode.Size = new System.Drawing.Size(42, 13);
+            this.lblGridMode.Size = new System.Drawing.Size(64, 20);
             this.lblGridMode.TabIndex = 1;
             this.lblGridMode.Text = "Режим";
             // 
@@ -3276,13 +3278,51 @@
             this.btnGridMode.UseVisualStyleBackColor = false;
             this.btnGridMode.Click += new System.EventHandler(this.GridMode_Click);
             // 
+            // lblGridUref
+            // 
+            this.lblGridUref.AutoSize = true;
+            this.lblGridUref.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.lblGridUref.Location = new System.Drawing.Point(171, 52);
+            this.lblGridUref.Name = "lblGridUref";
+            this.lblGridUref.Size = new System.Drawing.Size(44, 20);
+            this.lblGridUref.TabIndex = 10;
+            this.lblGridUref.Text = "Uref";
+            // 
+            // nudGridUref
+            // 
+            this.nudGridUref.DecimalPlaces = 1;
+            this.nudGridUref.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.nudGridUref.Increment = new decimal(new int[] {
+            1,
+            0,
+            0,
+            65536});
+            this.nudGridUref.Location = new System.Drawing.Point(166, 72);
+            this.nudGridUref.Maximum = new decimal(new int[] {
+            250,
+            0,
+            0,
+            0});
+            this.nudGridUref.Name = "nudGridUref";
+            this.nudGridUref.Size = new System.Drawing.Size(86, 26);
+            this.nudGridUref.TabIndex = 11;
+            this.nudGridUref.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.nudGridUref.Value = new decimal(new int[] {
+            220,
+            0,
+            0,
+            0});
+            this.nudGridUref.ValueChanged += new System.EventHandler(this.GridUref_Changed);
+            this.nudGridUref.KeyDown += new System.Windows.Forms.KeyEventHandler(this.GridNud_KeyDown);
+            this.nudGridUref.Leave += new System.EventHandler(this.GridUref_Commit);
+            // 
             // lblGridFreq
             // 
             this.lblGridFreq.AutoSize = true;
             this.lblGridFreq.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.lblGridFreq.Location = new System.Drawing.Point(258, 52);
             this.lblGridFreq.Name = "lblGridFreq";
-            this.lblGridFreq.Size = new System.Drawing.Size(29, 13);
+            this.lblGridFreq.Size = new System.Drawing.Size(47, 20);
             this.lblGridFreq.TabIndex = 8;
             this.lblGridFreq.Text = "F Hz";
             // 
@@ -3309,47 +3349,9 @@
             0,
             0,
             0});
+            this.nudGridFreq.ValueChanged += new System.EventHandler(this.GridFreq_Changed);
             this.nudGridFreq.KeyDown += new System.Windows.Forms.KeyEventHandler(this.GridNud_KeyDown);
             this.nudGridFreq.Leave += new System.EventHandler(this.GridFreq_Commit);
-            this.nudGridFreq.ValueChanged += new System.EventHandler(this.GridFreq_Changed);
-            //
-            // lblGridUref
-            //
-            this.lblGridUref.AutoSize = true;
-            this.lblGridUref.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.lblGridUref.Location = new System.Drawing.Point(166, 52);
-            this.lblGridUref.Name = "lblGridUref";
-            this.lblGridUref.Size = new System.Drawing.Size(37, 13);
-            this.lblGridUref.TabIndex = 10;
-            this.lblGridUref.Text = "U rms";
-            //
-            // nudGridUref
-            //
-            this.nudGridUref.DecimalPlaces = 1;
-            this.nudGridUref.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.nudGridUref.Increment = new decimal(new int[] {
-            1,
-            0,
-            0,
-            65536});
-            this.nudGridUref.Location = new System.Drawing.Point(166, 72);
-            this.nudGridUref.Maximum = new decimal(new int[] {
-            250,
-            0,
-            0,
-            0});
-            this.nudGridUref.Name = "nudGridUref";
-            this.nudGridUref.Size = new System.Drawing.Size(86, 26);
-            this.nudGridUref.TabIndex = 11;
-            this.nudGridUref.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            this.nudGridUref.Value = new decimal(new int[] {
-            220,
-            0,
-            0,
-            0});
-            this.nudGridUref.KeyDown += new System.Windows.Forms.KeyEventHandler(this.GridNud_KeyDown);
-            this.nudGridUref.Leave += new System.EventHandler(this.GridUref_Commit);
-            this.nudGridUref.ValueChanged += new System.EventHandler(this.GridUref_Changed);
             // 
             // timer_1sek
             // 
@@ -3579,8 +3581,8 @@
             this.panel1.PerformLayout();
             this.groupBox_AIN1.ResumeLayout(false);
             this.groupBox_AIN1.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.nudGridFreq)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudGridUref)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudGridFreq)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
