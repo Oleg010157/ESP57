@@ -250,7 +250,12 @@ namespace ICDIBasic
         public static double uSec = 0;      // напряжение на выходе моста, до контактора
         public static ushort teleSel = 2;   // эхо ключа из кадра: что именно в четвёрке выше
 
-        public static double UdcBat = 0;    // напряжение АКБ (звено моста), Вольт
+        public static double u220freq = 0;  // измеренная частота сети, Гц. Прибор, а не
+                                            // уставка: считается по захвату нуля U220
+                                            // всегда, независимо от режима моста
+
+        public static double UdcBat = 0;    // напряжение на входе моста (АКБ или иной
+                                            // источник), Вольт. В кадре зовётся uBat
         public static double gtIset = 0;    // сетевой режим: что реально отдаём, Ампер
         public static ushort gtState = 0;   // автомат подключения: 0 OFF, 1 SYNC, 2 RAMP, 3 RUN, 4 FAULT
         public static ushort gtFault = 0;   // код последней аварии сетевого режима
