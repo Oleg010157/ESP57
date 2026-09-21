@@ -1,25 +1,25 @@
-namespace FlagMask
+п»їnamespace FlagMask
 {
-    #region Маски Флагов управления для передачи/приёма в CCS
+    #region РњР°СЃРєРё Р¤Р»Р°РіРѕРІ СѓРїСЂР°РІР»РµРЅРёСЏ РґР»СЏ РїРµСЂРµРґР°С‡Рё/РїСЂРёС‘РјР° РІ CCS
     class Mask
     {
         public const uint RampOff        = Bit.Bit0;      // 0
-        public const uint SLimit         = Bit.Bit1;      // 1 Ограничение скольжения
-        public const uint TransistorImit = Bit.Bit2;      // 2 Имитация транзистора
+        public const uint SLimit         = Bit.Bit1;      // 1 РћРіСЂР°РЅРёС‡РµРЅРёРµ СЃРєРѕР»СЊР¶РµРЅРёСЏ
+        public const uint TransistorImit = Bit.Bit2;      // 2 РРјРёС‚Р°С†РёСЏ С‚СЂР°РЅР·РёСЃС‚РѕСЂР°
 
         public const uint ResolInverse   = Bit.Bit3;      // 3
         public const uint Reverse        = Bit.Bit4;      // 4
         public const uint L1Test         = Bit.Bit5;      // 5
         public const uint L2Test         = Bit.Bit6;      // 6
 
-        public const uint Calibr         = Bit.Bit7;      // 7 требование выполнить калибровку  = 1 иниц.
+        public const uint Calibr         = Bit.Bit7;      // 7 С‚СЂРµР±РѕРІР°РЅРёРµ РІС‹РїРѕР»РЅРёС‚СЊ РєР°Р»РёР±СЂРѕРІРєСѓ  = 1 РёРЅРёС†.
         public const uint SlipFreqRpm    = Bit.Bit8;      // 8
         public const uint InitialCalibr  = Bit.Bit9;      // 9
 
         public const uint RezimPodhvata  = Bit.Bit10;     // 10
         public const uint SwitchZero     = Bit.Bit11;     // 11
-        public const uint GenEngineSw1   = Bit.Bit12;     // 12 меняет положение генератор/двигатель если = 0 то двигатель слева т.е. АИН1
-        public const uint GenEngineSw2   = Bit.Bit13;     // 13 флаг держать заданные обороты двигателя
+        public const uint GenEngineSw1   = Bit.Bit12;     // 12 РјРµРЅСЏРµС‚ РїРѕР»РѕР¶РµРЅРёРµ РіРµРЅРµСЂР°С‚РѕСЂ/РґРІРёРіР°С‚РµР»СЊ РµСЃР»Рё = 0 С‚Рѕ РґРІРёРіР°С‚РµР»СЊ СЃР»РµРІР° С‚.Рµ. РђРРќ1
+        public const uint GenEngineSw2   = Bit.Bit13;     // 13 С„Р»Р°Рі РґРµСЂР¶Р°С‚СЊ Р·Р°РґР°РЅРЅС‹Рµ РѕР±РѕСЂРѕС‚С‹ РґРІРёРіР°С‚РµР»СЏ
 
         public const uint Stability      = Bit.Bit14;     // 14
 
@@ -32,56 +32,56 @@ namespace FlagMask
         public const uint VRegul         = Bit.Bit20;     // 20
 
         public const uint KvuOn          = Bit.Bit21;     // 21
-        public const uint Ain1Disable    = Bit.Bit22;     // 22  =1 запрещает включение ШИМ АИН1
+        public const uint Ain1Disable    = Bit.Bit22;     // 22  =1 Р·Р°РїСЂРµС‰Р°РµС‚ РІРєР»СЋС‡РµРЅРёРµ РЁРРњ РђРРќ1
         public const uint Restore        = Bit.Bit23;     // 23
         public const uint NeedBreak      = Bit.Bit24;     // 24
         public const uint InstVolts      = Bit.Bit25;     // 25
-        public const uint GainNullfreq   = Bit.Bit26;     // 26  =1 разрешает изменять напряжение на двигателе когда нет вращения магнитного поля.
+        public const uint GainNullfreq   = Bit.Bit26;     // 26  =1 СЂР°Р·СЂРµС€Р°РµС‚ РёР·РјРµРЅСЏС‚СЊ РЅР°РїСЂСЏР¶РµРЅРёРµ РЅР° РґРІРёРіР°С‚РµР»Рµ РєРѕРіРґР° РЅРµС‚ РІСЂР°С‰РµРЅРёСЏ РјР°РіРЅРёС‚РЅРѕРіРѕ РїРѕР»СЏ.
 
         public const uint CanHeaderInit  = Bit.Bit27;     // 27
 
         public const uint RpmImit        = Bit.Bit28;     // 28
-        public const uint Pusk           = Bit.Bit29;     // 29 кнопка "Пуск" 1- активна,
-        public const uint Stop           = Bit.Bit30;     // 30 кнопка "Стоп" 1- активна,
-        public const uint Connect        = Bit.Bit31;     // 31 кнопка "Подключить" 1- была нажата,
+        public const uint Pusk           = Bit.Bit29;     // 29 РєРЅРѕРїРєР° "РџСѓСЃРє" 1- Р°РєС‚РёРІРЅР°,
+        public const uint Stop           = Bit.Bit30;     // 30 РєРЅРѕРїРєР° "РЎС‚РѕРї" 1- Р°РєС‚РёРІРЅР°,
+        public const uint Connect        = Bit.Bit31;     // 31 РєРЅРѕРїРєР° "РџРѕРґРєР»СЋС‡РёС‚СЊ" 1- Р±С‹Р»Р° РЅР°Р¶Р°С‚Р°,
     }
-    #endregion Маски Флагов управления для передачи/приёма в CCS
+    #endregion РњР°СЃРєРё Р¤Р»Р°РіРѕРІ СѓРїСЂР°РІР»РµРЅРёСЏ РґР»СЏ РїРµСЂРµРґР°С‡Рё/РїСЂРёС‘РјР° РІ CCS
 
-    #region Маски битов управления общие для обоих АИН
+    #region РњР°СЃРєРё Р±РёС‚РѕРІ СѓРїСЂР°РІР»РµРЅРёСЏ РѕР±С‰РёРµ РґР»СЏ РѕР±РѕРёС… РђРРќ
     class sbit
     {
-        public const ushort Connect = Bit16.Bit0;      // 0  кнопка "Подключить/Отключить" -> 1/0
-        public const ushort Reverse = Bit16.Bit1;      // 1  кнопка "Реверс" глобальный
-        public const ushort ResolInverse = Bit16.Bit2; // 2  кнопка "Резолвер Инв"   
-        public const ushort Pusk = Bit16.Bit3;         // 3  кнопка "Пуск/Стоп" -> 1/0
-        public const ushort motfast = Bit16.Bit4;      // 4 бит управляет выбором мотора для записи в быстрый кадр 0- мотор1, 1- мотор2
-        public const ushort motK60 = Bit16.Bit5;       // 5 бит управляет выбором мотора для записи в медленный  кадр
+        public const ushort Connect = Bit16.Bit0;      // 0  РєРЅРѕРїРєР° "РџРѕРґРєР»СЋС‡РёС‚СЊ/РћС‚РєР»СЋС‡РёС‚СЊ" -> 1/0
+        public const ushort Reverse = Bit16.Bit1;      // 1  РєРЅРѕРїРєР° "Р РµРІРµСЂСЃ" РіР»РѕР±Р°Р»СЊРЅС‹Р№
+        public const ushort ResolInverse = Bit16.Bit2; // 2  РєРЅРѕРїРєР° "Р РµР·РѕР»РІРµСЂ РРЅРІ"   
+        public const ushort Pusk = Bit16.Bit3;         // 3  РєРЅРѕРїРєР° "РџСѓСЃРє/РЎС‚РѕРї" -> 1/0
+        public const ushort motfast = Bit16.Bit4;      // 4 Р±РёС‚ СѓРїСЂР°РІР»СЏРµС‚ РІС‹Р±РѕСЂРѕРј РјРѕС‚РѕСЂР° РґР»СЏ Р·Р°РїРёСЃРё РІ Р±С‹СЃС‚СЂС‹Р№ РєР°РґСЂ 0- РјРѕС‚РѕСЂ1, 1- РјРѕС‚РѕСЂ2
+        public const ushort motK60 = Bit16.Bit5;       // 5 Р±РёС‚ СѓРїСЂР°РІР»СЏРµС‚ РІС‹Р±РѕСЂРѕРј РјРѕС‚РѕСЂР° РґР»СЏ Р·Р°РїРёСЃРё РІ РјРµРґР»РµРЅРЅС‹Р№  РєР°РґСЂ
     }
-    #endregion Маски битов управления общие для обоих АИН 
+    #endregion РњР°СЃРєРё Р±РёС‚РѕРІ СѓРїСЂР°РІР»РµРЅРёСЏ РѕР±С‰РёРµ РґР»СЏ РѕР±РѕРёС… РђРРќ 
 
-    #region маски  битов управления АИН
+    #region РјР°СЃРєРё  Р±РёС‚РѕРІ СѓРїСЂР°РІР»РµРЅРёСЏ РђРРќ
     class mbits
     {
         public const ushort emadd          = Bit16.Bit0;      // 0
-        public const ushort rgfix          = Bit16.Bit1;      // 1 включение режима задания частоты магнитного поля с ограничением скольжения.Работает при разгоне и замедлении.
+        public const ushort rgfix          = Bit16.Bit1;      // 1 РІРєР»СЋС‡РµРЅРёРµ СЂРµР¶РёРјР° Р·Р°РґР°РЅРёСЏ С‡Р°СЃС‚РѕС‚С‹ РјР°РіРЅРёС‚РЅРѕРіРѕ РїРѕР»СЏ СЃ РѕРіСЂР°РЅРёС‡РµРЅРёРµРј СЃРєРѕР»СЊР¶РµРЅРёСЏ.Р Р°Р±РѕС‚Р°РµС‚ РїСЂРё СЂР°Р·РіРѕРЅРµ Рё Р·Р°РјРµРґР»РµРЅРёРё.
         public const ushort Iq_ref         = Bit16.Bit2;      // 2
         public const ushort Id_ref         = Bit16.Bit3;      // 3
         public const ushort kIqd           = Bit16.Bit4;      // 4
         public const ushort revers         = Bit16.Bit5;      // 5
         public const ushort AIN_Disable    = Bit16.Bit6;      // 6
-        public const ushort epsi           = Bit16.Bit7;      // 7 требование выполнить калибровку  = 1 иниц.
+        public const ushort epsi           = Bit16.Bit7;      // 7 С‚СЂРµР±РѕРІР°РЅРёРµ РІС‹РїРѕР»РЅРёС‚СЊ РєР°Р»РёР±СЂРѕРІРєСѓ  = 1 РёРЅРёС†.
         public const ushort emstep         = Bit16.Bit8;      // 8
         public const ushort Im             = Bit16.Bit9;      // 9
         public const ushort Ltest          = Bit16.Bit10;     // 10
         public const ushort sMax_On        = Bit16.Bit11;     // 11
         public const ushort reserv12       = Bit16.Bit12;     // 12 
-        public const ushort Gen_Engine_SW  = Bit16.Bit13;     // 13 флаг держать заданные обороты двигателя
+        public const ushort Gen_Engine_SW  = Bit16.Bit13;     // 13 С„Р»Р°Рі РґРµСЂР¶Р°С‚СЊ Р·Р°РґР°РЅРЅС‹Рµ РѕР±РѕСЂРѕС‚С‹ РґРІРёРіР°С‚РµР»СЏ
         public const ushort FOC_mode       = Bit16.Bit14;     // 14
         public const ushort rez15          = Bit16.Bit15;     // 15
     }
-    #endregion маски битов управления АИН
+    #endregion РјР°СЃРєРё Р±РёС‚РѕРІ СѓРїСЂР°РІР»РµРЅРёСЏ РђРРќ
 
-    #region маски флагов срабатывания защиты 
+    #region РјР°СЃРєРё С„Р»Р°РіРѕРІ СЃСЂР°Р±Р°С‚С‹РІР°РЅРёСЏ Р·Р°С‰РёС‚С‹ 
     class errorFlag
     {
         public const ushort Ia_Overload          = Bit16.Bit0;      // 0
@@ -114,42 +114,42 @@ namespace FlagMask
         public const uint Optic1Err5    = Bit.Bit14;  // 15 T5
         public const uint Optic1Err6    = Bit.Bit15;  // 16 T6
         public const uint Optic1Err7    = Bit.Bit16;  // 17 RT1
-        public const uint Ain1Trig      = Bit.Bit17;  // 18 Триггер АИН1 Мотор  GpioDataRegs.GPADAT.bit.GPIO16
-        public const uint Rt1Trig       = Bit.Bit18;  // 19 Триггер RT1
+        public const uint Ain1Trig      = Bit.Bit17;  // 18 РўСЂРёРіРіРµСЂ РђРРќ1 РњРѕС‚РѕСЂ  GpioDataRegs.GPADAT.bit.GPIO16
+        public const uint Rt1Trig       = Bit.Bit18;  // 19 РўСЂРёРіРіРµСЂ RT1
         public const uint Optic2Err1    = Bit.Bit19;  // 20 T1
         public const uint Optic2Err2    = Bit.Bit20;  // 21 T2
         public const uint Optic2Err3    = Bit.Bit21;  // 22 T3
         public const uint Optic2Err4    = Bit.Bit22;  // 23 T4
-        public const uint Optic2Err5    = Bit.Bit23;  // 24 Т5
-        public const uint Optic2Err6    = Bit.Bit24;  // 25 Т6
+        public const uint Optic2Err5    = Bit.Bit23;  // 24 Рў5
+        public const uint Optic2Err6    = Bit.Bit24;  // 25 Рў6
         public const uint Optic2Err7    = Bit.Bit25;  // 26 RT2
-        public const uint Ain2Trig      = Bit.Bit26;  // 27 Триггер АИН2 Мотор  GpioDataRegs.GPADAT.bit.GPIO17;
-        public const uint Rt2Trig       = Bit.Bit27;  // 28 выход RS тригера захвата ошибки по оптике тормозного резистора
-        public const uint ResetTrig     = Bit.Bit28;  // 29 сброс тригеров оптических неисправностей  GpioDataRegs.GPCDAT.bit.GPIO71;
-        public const uint Rt1On         = Bit.Bit29;  // 30 GpioDataRegs.GPADAT.bit.GPIO26;    // выход управления тормозного резистора  RT1
-        public const uint Rt2On         = Bit.Bit30;  // 31 GpioDataRegs.GPADAT.bit.GPIO27;     // выход управления тормозного резистора RT2
+        public const uint Ain2Trig      = Bit.Bit26;  // 27 РўСЂРёРіРіРµСЂ РђРРќ2 РњРѕС‚РѕСЂ  GpioDataRegs.GPADAT.bit.GPIO17;
+        public const uint Rt2Trig       = Bit.Bit27;  // 28 РІС‹С…РѕРґ RS С‚СЂРёРіРµСЂР° Р·Р°С…РІР°С‚Р° РѕС€РёР±РєРё РїРѕ РѕРїС‚РёРєРµ С‚РѕСЂРјРѕР·РЅРѕРіРѕ СЂРµР·РёСЃС‚РѕСЂР°
+        public const uint ResetTrig     = Bit.Bit28;  // 29 СЃР±СЂРѕСЃ С‚СЂРёРіРµСЂРѕРІ РѕРїС‚РёС‡РµСЃРєРёС… РЅРµРёСЃРїСЂР°РІРЅРѕСЃС‚РµР№  GpioDataRegs.GPCDAT.bit.GPIO71;
+        public const uint Rt1On         = Bit.Bit29;  // 30 GpioDataRegs.GPADAT.bit.GPIO26;    // РІС‹С…РѕРґ СѓРїСЂР°РІР»РµРЅРёСЏ С‚РѕСЂРјРѕР·РЅРѕРіРѕ СЂРµР·РёСЃС‚РѕСЂР°  RT1
+        public const uint Rt2On         = Bit.Bit30;  // 31 GpioDataRegs.GPADAT.bit.GPIO27;     // РІС‹С…РѕРґ СѓРїСЂР°РІР»РµРЅРёСЏ С‚РѕСЂРјРѕР·РЅРѕРіРѕ СЂРµР·РёСЃС‚РѕСЂР° RT2
         public const uint ResolverFault = Bit.Bit31;  // 32
     }
 
     class KuKs
     {
         // ----  kuk1 ----------------------------------------------------------------------------------------------
-        public const ushort ControlCard  = Bit16.Bit0;   // 0 кук для работы на отладочной платы ControlCard
-        public const ushort KspBoard     = Bit16.Bit1;   // 1 кук для работы на плате КСП
-        public const ushort Fram         = Bit16.Bit2;   // 2 используется FRAM
-        public const ushort Qep1Rpm1     = Bit16.Bit3;   // 3 на QEP1 подключён датчик оборотов  первого двигателя  
-        public const ushort Qep1Rpm2     = Bit16.Bit4;   // 4 на QEP1 подключён датчик оборотов  второго двигателя
-        public const ushort Cap1Rpm1     = Bit16.Bit5;   // 5 на CAP1 подключён датчик оборотов  первого двигателя  
-        public const ushort Cap1Rpm2     = Bit16.Bit6;   // 6 на CAP1 подключён датчик оборотов  второго двигателя
-        public const ushort Qep2Rpm1     = Bit16.Bit7;   // 7 на QEP2 подключён датчик оборотов  первого двигателя  
-        public const ushort Qep2Rpm2     = Bit16.Bit8;   // 8 на QEP2 подключён датчик оборотов  второго двигателя
-        public const ushort Cap2Rpm1     = Bit16.Bit9;   // 9 на CAP2 подключён датчик оборотов  первого двигателя  
-        public const ushort Cap2Rpm2     = Bit16.Bit10;  // 10 на CAP2 подключён датчик оборотов  второго двигателя
-        public const ushort Resolver     = Bit16.Bit11;  // 11 используется Resolver
-        public const ushort Tad1Z        = Bit16.Bit12;  // 12 используется индексный датчик TAD170 со счётным колесом с одним зубом.
-        public const ushort ReverseDet   = Bit16.Bit13;  // 13 Режим с обнаружением направления вращения
-        public const ushort ZToothRes    = Bit16.Bit14;  // 14 Сброс нулевого зуба от второго датчика
-        public const ushort Tooth        = Bit16.Bit15;  // 16 кук коррекции зубьев счётного диска
+        public const ushort ControlCard  = Bit16.Bit0;   // 0 РєСѓРє РґР»СЏ СЂР°Р±РѕС‚С‹ РЅР° РѕС‚Р»Р°РґРѕС‡РЅРѕР№ РїР»Р°С‚С‹ ControlCard
+        public const ushort KspBoard     = Bit16.Bit1;   // 1 РєСѓРє РґР»СЏ СЂР°Р±РѕС‚С‹ РЅР° РїР»Р°С‚Рµ РљРЎРџ
+        public const ushort Fram         = Bit16.Bit2;   // 2 РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ FRAM
+        public const ushort Qep1Rpm1     = Bit16.Bit3;   // 3 РЅР° QEP1 РїРѕРґРєР»СЋС‡С‘РЅ РґР°С‚С‡РёРє РѕР±РѕСЂРѕС‚РѕРІ  РїРµСЂРІРѕРіРѕ РґРІРёРіР°С‚РµР»СЏ  
+        public const ushort Qep1Rpm2     = Bit16.Bit4;   // 4 РЅР° QEP1 РїРѕРґРєР»СЋС‡С‘РЅ РґР°С‚С‡РёРє РѕР±РѕСЂРѕС‚РѕРІ  РІС‚РѕСЂРѕРіРѕ РґРІРёРіР°С‚РµР»СЏ
+        public const ushort Cap1Rpm1     = Bit16.Bit5;   // 5 РЅР° CAP1 РїРѕРґРєР»СЋС‡С‘РЅ РґР°С‚С‡РёРє РѕР±РѕСЂРѕС‚РѕРІ  РїРµСЂРІРѕРіРѕ РґРІРёРіР°С‚РµР»СЏ  
+        public const ushort Cap1Rpm2     = Bit16.Bit6;   // 6 РЅР° CAP1 РїРѕРґРєР»СЋС‡С‘РЅ РґР°С‚С‡РёРє РѕР±РѕСЂРѕС‚РѕРІ  РІС‚РѕСЂРѕРіРѕ РґРІРёРіР°С‚РµР»СЏ
+        public const ushort Qep2Rpm1     = Bit16.Bit7;   // 7 РЅР° QEP2 РїРѕРґРєР»СЋС‡С‘РЅ РґР°С‚С‡РёРє РѕР±РѕСЂРѕС‚РѕРІ  РїРµСЂРІРѕРіРѕ РґРІРёРіР°С‚РµР»СЏ  
+        public const ushort Qep2Rpm2     = Bit16.Bit8;   // 8 РЅР° QEP2 РїРѕРґРєР»СЋС‡С‘РЅ РґР°С‚С‡РёРє РѕР±РѕСЂРѕС‚РѕРІ  РІС‚РѕСЂРѕРіРѕ РґРІРёРіР°С‚РµР»СЏ
+        public const ushort Cap2Rpm1     = Bit16.Bit9;   // 9 РЅР° CAP2 РїРѕРґРєР»СЋС‡С‘РЅ РґР°С‚С‡РёРє РѕР±РѕСЂРѕС‚РѕРІ  РїРµСЂРІРѕРіРѕ РґРІРёРіР°С‚РµР»СЏ  
+        public const ushort Cap2Rpm2     = Bit16.Bit10;  // 10 РЅР° CAP2 РїРѕРґРєР»СЋС‡С‘РЅ РґР°С‚С‡РёРє РѕР±РѕСЂРѕС‚РѕРІ  РІС‚РѕСЂРѕРіРѕ РґРІРёРіР°С‚РµР»СЏ
+        public const ushort Resolver     = Bit16.Bit11;  // 11 РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ Resolver
+        public const ushort Tad1Z        = Bit16.Bit12;  // 12 РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РёРЅРґРµРєСЃРЅС‹Р№ РґР°С‚С‡РёРє TAD170 СЃРѕ СЃС‡С‘С‚РЅС‹Рј РєРѕР»РµСЃРѕРј СЃ РѕРґРЅРёРј Р·СѓР±РѕРј.
+        public const ushort ReverseDet   = Bit16.Bit13;  // 13 Р РµР¶РёРј СЃ РѕР±РЅР°СЂСѓР¶РµРЅРёРµРј РЅР°РїСЂР°РІР»РµРЅРёСЏ РІСЂР°С‰РµРЅРёСЏ
+        public const ushort ZToothRes    = Bit16.Bit14;  // 14 РЎР±СЂРѕСЃ РЅСѓР»РµРІРѕРіРѕ Р·СѓР±Р° РѕС‚ РІС‚РѕСЂРѕРіРѕ РґР°С‚С‡РёРєР°
+        public const ushort Tooth        = Bit16.Bit15;  // 16 РєСѓРє РєРѕСЂСЂРµРєС†РёРё Р·СѓР±СЊРµРІ СЃС‡С‘С‚РЅРѕРіРѕ РґРёСЃРєР°
         // ----  kuk2 ----------------------------------------------------------------------------------------------
     }
 
@@ -233,7 +233,7 @@ namespace FlagMask
         public const ushort VT2 = Bit16.Bit0;
     }
 
-    #region маски флагов состояния АИН
+    #region РјР°СЃРєРё С„Р»Р°РіРѕРІ СЃРѕСЃС‚РѕСЏРЅРёСЏ РђРРќ
     class mflag
     {
         public const uint pwm_On = Bit.Bit0;
@@ -257,6 +257,6 @@ namespace FlagMask
         public const uint Gen_Engine_SW = Bit.Bit15;
 
     }
-    #endregion маски флагов состояния АИН
+    #endregion РјР°СЃРєРё С„Р»Р°РіРѕРІ СЃРѕСЃС‚РѕСЏРЅРёСЏ РђРРќ
 }
 
