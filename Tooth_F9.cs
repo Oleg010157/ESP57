@@ -114,11 +114,11 @@ namespace ICDIBasic
 
             button1.Click += (h, j) =>
            {
-               frm1.cmd_128(102); // посылает команду на контролер перезапуска передачи даных
+               frm1.cmd_128(102); // посылает команду на контроллер перезапуска передачи данных
            };
 
             /////
-            udLvl.ValueChanged += (a, s) => toothSyncLvl = (short)udLvl.Value; // меняет номер зуба с которого будет начинатся график
+            udLvl.ValueChanged += (a, s) => toothSyncLvl = (short)udLvl.Value; // меняет номер зуба, с которого начинается график
 
             udRng.ValueChanged += (a, s) => toothSyncRange = (ushort)udRng.Value; // ???
 
@@ -926,7 +926,7 @@ namespace ICDIBasic
             #endregion
 
             #region Colors
-            // Считывает сохранёные настройки цвета для чекбокса а с чекбокса берутса цвет для линии графика (цвет чекбокса = цвету линии грфика)
+            // Считывает сохранённые настройки цвета для чекбокса, а с чекбокса берётся цвет для линии графика (цвет чекбокса = цвету линии графика)
             if (config.KeyExists("cbc1_color", "Colors"))
             {
                 string[] cbc_color1 = (config.ReadINI("Colors", "cbc1_color").Replace("Color [A=255, R=", string.Empty).Replace("G=", string.Empty).Replace("B=", string.Empty).Replace("]", string.Empty).Replace(" ", string.Empty).Split(','));
@@ -1177,16 +1177,16 @@ namespace ICDIBasic
         {
             // Всплывающие подсказки
             tooltip = new ToolTip();
-            tooltip.SetToolTip(cbXY, "Делает видимой / невидимо оси XY");
-            tooltip.SetToolTip(cb_сетка, "делает видимой / невидимо сетку");
-            tooltip.SetToolTip(cb_tm, "Определяет будет ли окно всегда поверх всех других окон");
+            tooltip.SetToolTip(cbXY, "Делает оси XY видимыми / невидимыми");
+            tooltip.SetToolTip(cb_сетка, "Делает сетку видимой / невидимой");
+            tooltip.SetToolTip(cb_tm, "Определяет, будет ли окно всегда поверх всех других окон");
             tooltip.SetToolTip(chBox_GrUpdEn, "Останавливает график");
-            tooltip.SetToolTip(button1, "Посылает команду в контролер '102'");
-            tooltip.SetToolTip(cbc1, "Разрешает / запрещает отображение линии график");
-            tooltip.SetToolTip(cbc2, "Разрешает / запрещает отображение линии график");
-            tooltip.SetToolTip(cbc3, "Разрешает / запрещает отображение линии график");
-            tooltip.SetToolTip(cbc4, "Разрешает / запрещает отображение линии график");
-            tooltip.SetToolTip(udLvl, "Меняет номер зуба с которого будет начинатся отображение график");
+            tooltip.SetToolTip(button1, "Посылает команду в контроллер '102'");
+            tooltip.SetToolTip(cbc1, "Разрешает / запрещает отображение линии графика");
+            tooltip.SetToolTip(cbc2, "Разрешает / запрещает отображение линии графика");
+            tooltip.SetToolTip(cbc3, "Разрешает / запрещает отображение линии графика");
+            tooltip.SetToolTip(cbc4, "Разрешает / запрещает отображение линии графика");
+            tooltip.SetToolTip(udLvl, "Меняет номер зуба, с которого начинается отображение графика");
             tooltip.SetToolTip(udCh, "??? номер канала ???");
             tooltip.SetToolTip(udRng, "???");
             tooltip.SetToolTip(cb_2graph, "Делит окно на два графика");
@@ -1206,8 +1206,8 @@ namespace ICDIBasic
             tooltip.SetToolTip(numericUpDown6, "Двигает вторую горизонтальную линию на втором графике (2H)");
             tooltip.SetToolTip(numericUpDown7, "Двигает первую вертикальную линию на втором графике (1V)");
             tooltip.SetToolTip(numericUpDown8, "Двигает вторую вертикальную линию на втором графике (2V)");
-            tooltip.SetToolTip(cb_autoScale, "Включает / Выключает,Авто изменение шкалы Y");
-            tooltip.SetToolTip(cb_autoScale2, "Включает / Выключает,Авто изменение шкалы Y для второго графика");
+            tooltip.SetToolTip(cb_autoScale, "Включает / выключает автомасштаб шкалы Y");
+            tooltip.SetToolTip(cb_autoScale2, "Включает / выключает автомасштаб шкалы Y для второго графика");
 
             if (frm1.sp2_Tooth_F9 == true)
             {

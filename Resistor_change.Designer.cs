@@ -56,7 +56,7 @@
             this.groupBox4.Size = new System.Drawing.Size(215, 91);
             this.groupBox4.TabIndex = 231;
             this.groupBox4.TabStop = false;
-            this.groupBox4.Text = "Срабатывание резистра";
+            this.groupBox4.Text = "Срабатывание резистора";
             // 
             // button_save
             // 

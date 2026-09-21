@@ -20,8 +20,8 @@ namespace ICDIBasic.Stepulyov
         private const string SCurrErr = "Текущая ошибка";
         private const string SOneTErr = "Однократная ошибка";
         private const string SMultTErr = "Многократная ошибка";
-        private const string SSessionCnt = "Счетчик сессии";
-        private const string SHistoryCnt = "Счетчик истории";
+        private const string SSessionCnt = "Счётчик сессии";
+        private const string SHistoryCnt = "Счётчик истории";
         private const string SErrDesc = "Описание ошибки";
         private const string SStart = "#####*****";
         private const string SEnd = "*****#####";

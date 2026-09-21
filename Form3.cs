@@ -60,8 +60,8 @@ namespace ICDIBasic
 
             // Всплывающие подсказки
             ToolTip t = new ToolTip();
-            t.SetToolTip(numericUpDown4, " Скорость обновления графика в миллисекунды (Мин = 15.6 мс)");//15.6 мс самое быстрое что может таймер(ограничение иза винды)
-            t.SetToolTip(numericUpDown5, " Шаг с которым будет обновляется график ");
+            t.SetToolTip(numericUpDown4, " Скорость обновления графика в миллисекундах (Мин = 15.6 мс)");//15.6 мс - самое быстрое, что может таймер (ограничение из-за винды)
+            t.SetToolTip(numericUpDown5, " Шаг, с которым будет обновляться график ");
         }
 
 
@@ -235,13 +235,13 @@ namespace ICDIBasic
 
         private void numericUpDown4_ValueChanged(object sender, EventArgs e)
         {
-            // Скорость обновления графика в миллисекунды 15.6 мс самое быстрое что может таймер(ограничение иза винды)
+            // Скорость обновления графика в миллисекундах. 15.6 мс - самое быстрое, что может таймер (ограничение из-за винды)
             timer1.Interval = (int)numericUpDown4.Value;
         }
 
         public void numericUpDown5_ValueChanged(object sender, EventArgs e)
         {
-            //Шаг с которым будет обновляется график
+            //Шаг, с которым будет обновляться график
             _step = Convert.ToDouble(numericUpDown5.Value);
             zedGraph2.GraphPane.XAxis.Scale.MinorStep = 10.0 * _step;
         }

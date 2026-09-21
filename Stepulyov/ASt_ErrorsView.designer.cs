@@ -167,7 +167,7 @@ namespace ICDIBasic.Stepulyov
             this.ErrCounterMenu.CheckState = System.Windows.Forms.CheckState.Checked;
             this.ErrCounterMenu.Name = "ErrCounterMenu";
             this.ErrCounterMenu.Size = new System.Drawing.Size(199, 22);
-            this.ErrCounterMenu.Text = "Счетчик ошибок";
+            this.ErrCounterMenu.Text = "Счётчик ошибок";
             // 
             // ErrDescMenu
             // 

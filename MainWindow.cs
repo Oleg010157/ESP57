@@ -2013,7 +2013,7 @@ namespace ICDIBasic
             }
             else
             {
-                tKadr60.Text = "число?";
+                tKadr60.Text = "Число?";
             }
 
             uint_128(data1, 3333, 0, 1);
@@ -2081,7 +2081,7 @@ namespace ICDIBasic
                 }
                 else
                 {
-                    rpm_ramp.Text = "число?";
+                    rpm_ramp.Text = "Число?";
                 }
             }
         }
@@ -2216,7 +2216,7 @@ namespace ICDIBasic
 
            if (errors.Count == 0)
             {
-               errors.Add("Сработала  защита");
+               errors.Add("Сработала защита");
             }
 
             _currentErrorMessageEnable = false;
@@ -2508,7 +2508,7 @@ namespace ICDIBasic
                 }
                 else
                 {
-                    ((TextBox)sender).Text = @"число?";
+                    ((TextBox)sender).Text = @"Число?";
                 }
             }
         }
@@ -2676,7 +2676,7 @@ namespace ICDIBasic
                     }
                     else
                     {
-                        Imax_Value.Text = "ЧИСЛО?";
+                        Imax_Value.Text = "Число?";
                         break;
                     }
                     if (d1 == pass)
@@ -4557,7 +4557,7 @@ else
             if (PCANBasic.GetValue(ch, TPCANParameter.PCAN_CHANNEL_FEATURES, out features, sizeof(uint)) != TPCANStatus.PCAN_ERROR_OK ||
                 (features & PCANBasic.FEATURE_FD_CAPABLE) == 0)
             {
-                MessageBox.Show("Канал не поддерживает CAN‑FD.", "FD 2M test",
+                MessageBox.Show("Канал не поддерживает CAN-FD.", "FD 2M test",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -4878,7 +4878,7 @@ else
                 if (HiTempBox > 20)
                 {
                     IGBTmsg.SetBounds(1080, 0, 308, 150); // располагаем в правом верхнем углу от основной формы
-                    IGBTmsg.Show("Высокая температура модуля IGBT:\n" + ain1 + ain2 + " \n " + "\nВключи вентилятор охлаждения ШПСУ ");
+                    IGBTmsg.Show("Высокая температура модуля IGBT:\n" + ain1 + ain2 + " \n " + "\nВключите вентилятор охлаждения ШПСУ ");
                     //               Console.Beep();
                     if (IGBTmsg.label1.BackColor == Color.Yellow)  // мигание формы
                     {
