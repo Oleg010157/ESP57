@@ -2532,7 +2532,7 @@
             this.Vin.ForeColor = System.Drawing.Color.Brown;
             this.Vin.Location = new System.Drawing.Point(2, 15);
             this.Vin.Name = "Vin";
-            this.Vin.Size = new System.Drawing.Size(55, 22);
+            this.Vin.Size = new System.Drawing.Size(37, 22);
             this.Vin.TabIndex = 4;
             this.Vin.Text = "Vin";
             // 
@@ -2564,7 +2564,7 @@
             this.Udc_name.ForeColor = System.Drawing.Color.Brown;
             this.Udc_name.Location = new System.Drawing.Point(4, 12);
             this.Udc_name.Name = "Udc_name";
-            this.Udc_name.Size = new System.Drawing.Size(47, 22);
+            this.Udc_name.Size = new System.Drawing.Size(55, 22);
             this.Udc_name.TabIndex = 168;
             this.Udc_name.Text = "U220";
             this.Udc_name.DoubleClick += new System.EventHandler(this.Udc_name_DoubleClick);
@@ -2799,10 +2799,10 @@
             // 
             this.Field1_Text.AutoSize = true;
             this.Field1_Text.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.Field1_Text.ForeColor = System.Drawing.Color.Brown;
             this.Field1_Text.Location = new System.Drawing.Point(5, 15);
             this.Field1_Text.Name = "Field1_Text";
-            this.Field1_Text.ForeColor = System.Drawing.Color.Brown;
-            this.Field1_Text.Size = new System.Drawing.Size(57, 19);
+            this.Field1_Text.Size = new System.Drawing.Size(54, 19);
             this.Field1_Text.TabIndex = 173;
             this.Field1_Text.Text = "F сети";
             // 
