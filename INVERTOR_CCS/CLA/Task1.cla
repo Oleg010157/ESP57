@@ -74,21 +74,34 @@ __interrupt void Cla1Task1(void)
 {
     task1Start = EPwm7Regs.TBCTR;
 
-    // Ток АКБ. A12, SOC2/PPB3.
-    // Знаковый результат PPB - уже за вычетом откалиброванного нуля канала.
-    iBat_kod = (int16_t)AdcaResultRegs.ADCPPB3RESULT.bit.PPBRESULT;
-    iBat_amp = kadcf.iBat * iBat_kod;
-    iBat_rf  = 0.9f * iBat_rf + 0.1f * iBat_amp;
+    // Три канала с АЦП - но только если модель силовой части выключена.
+    //
+    // На модели (simOn = 1) те же три величины пишет plant_sim_step() на CPU,
+    // в прерывании ADCB по EOC1. Мы идём по EOC3, то есть ПОЗЖЕ, и без этого
+    // ключа каждый такт затирали бы модель отсчётами ног, к которым на стенде
+    // ничего не подключено. Разбор - my_Files/plant_sim.txt.
+    //
+    // Сглаживающие фильтры и суммы для RMS стоят ВНЕ ключа: им безразлично,
+    // кто положил мгновенное значение, и на модели они обязаны работать так же.
+    if (!simOn)
+    {
+        // Ток АКБ. A12, SOC2/PPB3.
+        // Знаковый результат PPB - уже за вычетом откалиброванного нуля канала.
+        iBat_kod = (int16_t)AdcaResultRegs.ADCPPB3RESULT.bit.PPBRESULT;
+        iBat_amp = kadcf.iBat * iBat_kod;
 
-    // Напряжение АКБ, оно же напряжение звена на входе моста. A4, SOC1/PPB2.
-    uBat_kod  = (int16_t)AdcaResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
-    uBat_volt = kadcf.uBat * uBat_kod;
-    uBat_rf   = 0.9f * uBat_rf + 0.1f * uBat_volt;
+        // Напряжение АКБ, оно же напряжение звена на входе моста. A4, SOC1/PPB2.
+        uBat_kod  = (int16_t)AdcaResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
+        uBat_volt = kadcf.uBat * uBat_kod;
 
-    // Напряжение на выходе инвертора, до контактора. A1, SOC3/PPB4.
-    // Именно окончание этого преобразования и взводит задачу.
-    uSec_kod  = (int16_t)AdcaResultRegs.ADCPPB4RESULT.bit.PPBRESULT;
-    uSec_volt = kadcf.uSec * uSec_kod;
+        // Напряжение на выходе инвертора, до контактора. A1, SOC3/PPB4.
+        // Именно окончание этого преобразования и взводит задачу.
+        uSec_kod  = (int16_t)AdcaResultRegs.ADCPPB4RESULT.bit.PPBRESULT;
+        uSec_volt = kadcf.uSec * uSec_kod;
+    }
+
+    iBat_rf = 0.9f * iBat_rf + 0.1f * iBat_amp;
+    uBat_rf = 0.9f * uBat_rf + 0.1f * uBat_volt;
 
     //-----------------------------------------------------------------------
     // Действующие значения. Раньше это считал CPU в прерывании контура тока

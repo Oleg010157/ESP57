@@ -27,6 +27,12 @@
 extern volatile kADCf    kadcf;     // масштабы каналов, код -> физическая величина
 extern volatile uint16_t rmsWindow; // окно RMS в отсчётах = копия sineB.resolution
 
+// Ключ модели силовой части (my_Files/plant_sim.c), копия sim.on.
+// 1 = iBat, uBat и uSec пишет модель на CPU, и Cla1Task1 их не трогает.
+// Действующие значения задача считает в любом случае - ей всё равно, откуда
+// взялись мгновенные.
+extern volatile uint16_t simOn;
+
 // Диагностика Cla1Task1: длительность задачи в тактах EPWM7 (1/150 мкс).
 // Живёт в Cla1ToCpuMsgRAM - блоке для направления CLA -> CPU (CLA читает и
 // пишет, CPU только читает). На такте закрытия окна RMS заметно больше

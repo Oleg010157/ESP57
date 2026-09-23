@@ -43,6 +43,7 @@
 #include "myEPWM.h"
 #include "1ph_Sin.h"
 #include "grid_tie.h"
+#include "plant_sim.h"
 #include "main.h"
 #include "cla_shared.h"
 #include "SPI_EEPROM.h"
@@ -227,6 +228,7 @@ void main(void)
 
     CLA_shared_Init();
     grid_tie_init();
+    plant_sim_init(); // модель силовой части: my_Files/plant_sim.txt
 
 #if MCANA
 //    mcan_init();
