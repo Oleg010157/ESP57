@@ -194,7 +194,9 @@ void MCAN_initAllTxBuffers(void)
 {
     //                 buf, msgId, dlc, brs, fdf
     MCAN_initTxBuffer(  0,   1,     8,   1,   1);  // ACK
-    MCAN_initTxBuffer(  1, 103,    12,   1,   1);  // быстрый кадр: F1=8б(DLC8) / F3=24б(DLC12).
+    MCAN_initTxBuffer(  1, 103,    13,   1,   1);  // быстрый кадр: F1=8б(DLC8),
+                                                  // F3_invertor=24б(DLC12),
+                                                  // F3_convertor=32б(DLC13).
                                                   // DLC переключается в MBOX28 (MCAN_setFastDLC).
     MCAN_initTxBuffer(  2, 140,    14,   1,   1);  //  REF кадр (48 байт)
     MCAN_initTxBuffer(  3, 131,     8,   1,   1);  // Kadr60: K60cnt

@@ -62,26 +62,15 @@ namespace ICDIBasic
             FrlM = 12;
 
         }
+        // Быстрый кадр моста: 16 слов ленты, порядок в точности тот, в котором
+        // их прислала прошивка (my_Files/1ph_Sin.c). Перекладывать по одному
+        // тут нечего - разбор именами живёт в bin/Wscope/F3_convertor.ini.
         private void F3_convertor()
         {
-            spL[0] = (ushort)M1.ccs.Ia; //
-            spL[1] = (ushort)M1.ccs.Ib; //
-            spL[2] = (ushort)M1.ccs.Ic; //
-            spL[3] = (ushort)M1.ccs.Va; //
+            for (int i = 0; i < ccs.f3.Length; i++)
+                spL[i] = (ushort)ccs.f3[i];
 
-            spL[4] = (ushort)M1.ccs.Vb; //
-            spL[5] = (ushort)M1.ccs.Vc; //
-            spL[6] = (ushort)M1.ccs.radian; //
-            spL[7] = (ushort)M1.ccs.rgOut; //
-
-            spL[8] = (ushort)M1.ccs.freq; //
-            spL[9] = (ushort)M1.ccs.gain; //
-            spL[10] = ccs.IsrTicker;
-
-            spL[11] = ccs.k60Cnt;
-
-            FrlM = 12;
-
+            FrlM = (ushort)ccs.f3.Length;
         }
 
         private void F1_convertor()

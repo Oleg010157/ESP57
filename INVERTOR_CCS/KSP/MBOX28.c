@@ -326,7 +326,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
                     break;
                 case 4:
                     canaKadr.bit.F3_convertor = 1;
-                    MCAN_setFastDLC(12); // 24 байта (SPL_UI: 12 слов)
+                    MCAN_setFastDLC(13); // 32 байта (16 слов), расширен 23.09.2026
                     break;
 
                 case 5: // включить передачу медленного кадра по CANA

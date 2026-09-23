@@ -1447,6 +1447,7 @@
             // 
             // toolStripTextBox1
             // 
+            this.toolStripTextBox1.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.toolStripTextBox1.Name = "toolStripTextBox1";
             this.toolStripTextBox1.Size = new System.Drawing.Size(100, 27);
             // 
@@ -2949,7 +2950,7 @@
             this.label_Pa1.ForeColor = System.Drawing.Color.DarkBlue;
             this.label_Pa1.Location = new System.Drawing.Point(4, 5);
             this.label_Pa1.Name = "label_Pa1";
-            this.label_Pa1.Size = new System.Drawing.Size(38, 28);
+            this.label_Pa1.Size = new System.Drawing.Size(26, 28);
             this.label_Pa1.TabIndex = 179;
             this.label_Pa1.Text = "P";
             // 
@@ -2997,7 +2998,7 @@
             this.label_Px1.ForeColor = System.Drawing.Color.DarkBlue;
             this.label_Px1.Location = new System.Drawing.Point(4, 5);
             this.label_Px1.Name = "label_Px1";
-            this.label_Px1.Size = new System.Drawing.Size(37, 28);
+            this.label_Px1.Size = new System.Drawing.Size(24, 28);
             this.label_Px1.TabIndex = 180;
             this.label_Px1.Text = "S";
             // 
@@ -3040,7 +3041,7 @@
             this.label_mPx.ForeColor = System.Drawing.Color.DarkBlue;
             this.label_mPx.Location = new System.Drawing.Point(4, 5);
             this.label_mPx.Name = "label_mPx";
-            this.label_mPx.Size = new System.Drawing.Size(38, 28);
+            this.label_mPx.Size = new System.Drawing.Size(28, 28);
             this.label_mPx.TabIndex = 181;
             this.label_mPx.Text = "Q";
             // 
