@@ -29,7 +29,7 @@
 #include "myADC.h"     // kadcf - масштабы каналов АЦП
 #include "cla_shared.h" // измеренные величины всех каналов АЦП
 #include "1ph_Sin.h"   // sineB: угол сети от PLL
-#include "plant_sim.h" // simOn: модель вместо железа
+#include "plant_sim.h" // sim.on: модель вместо железа
 #include "grid_tie.h"
 
 //---------------------------------------------------------------------------
@@ -321,12 +321,12 @@ void grid_tie_measure(void)
     // Напряжение АКБ. Мгновенное, не сглаженное - см. комментарий в grid_tie.h.
     if (gt.UdcSrc)
     {
-        // На модели канал uBat считает не CLA, а plant_sim_step(), и лезть
-        // за ним в регистр PPB бессмысленно: там висит реальный вход, на
-        // стенде ни к чему не подключённый. Значение прошлого такта для
-        // напряжения АКБ - не запаздывание, а то же самое число.
-        gt.Udc = simOn ? uBat_volt
-                       : kadcf.uBat * (float)(int16_t)AdcaResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
+        // На модели канал uBat пишет plant_sim_step(), и лезть за ним в
+        // регистр PPB бессмысленно: там висит реальный вход, на стенде ни к
+        // чему не подключённый. Значение прошлого такта для напряжения АКБ -
+        // не запаздывание, а то же самое число.
+        gt.Udc = sim.on ? uBat_volt
+                        : kadcf.uBat * (float)(int16_t)AdcaResultRegs.ADCPPB2RESULT.bit.PPBRESULT;
     }
     else
     {
