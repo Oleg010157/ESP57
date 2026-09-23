@@ -256,6 +256,17 @@ namespace ICDIBasic
 
         public static double UdcBat = 0;    // напряжение на входе моста (АКБ или иной
                                             // источник), Вольт. В кадре зовётся uBat
+        // Мощности на выходе инвертора: пара uSec и iSec. Считает CLA раз за
+        // период сети (CLA/Task1.cla), кадр 140 везёт их словами 17..20.
+        //
+        // S не равно корню из суммы квадратов P и Q, если ток искажён: разницу
+        // даёт мощность искажений. PF потому и зовётся коэффициентом мощности,
+        // а не косинусом фи: он считается как P/S и искажения видит.
+        public static double gtP = 0;       // активная, Вт. + отдаёт, - принимает
+        public static double gtQ = 0;       // реактивная, вар. + индуктивная нагрузка
+        public static double gtS = 0;       // полная, В*А
+        public static double gtPF = 0;      // коэффициент мощности, -1..+1
+
         public static double gtIset = 0;    // сетевой режим: что реально отдаём, Ампер
         public static ushort gtState = 0;   // автомат подключения: 0 OFF, 1 SYNC, 2 RAMP, 3 RUN, 4 FAULT
         public static ushort gtFault = 0;   // код последней аварии сетевого режима
