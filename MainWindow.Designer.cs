@@ -2703,7 +2703,7 @@
             // 
             this.Im1_value.AutoSize = true;
             this.Im1_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.Im1_value.Location = new System.Drawing.Point(88, 4);
+            this.Im1_value.Location = new System.Drawing.Point(74, 4);
             this.Im1_value.Name = "Im1_value";
             this.Im1_value.Size = new System.Drawing.Size(25, 28);
             this.Im1_value.TabIndex = 193;
@@ -2864,15 +2864,15 @@
             this.S1proc_label.Font = new System.Drawing.Font("Cambria", 14F);
             this.S1proc_label.Location = new System.Drawing.Point(4, 5);
             this.S1proc_label.Name = "S1proc_label";
-            this.S1proc_label.Size = new System.Drawing.Size(94, 28);
+            this.S1proc_label.Size = new System.Drawing.Size(58, 28);
             this.S1proc_label.TabIndex = 177;
-            this.S1proc_label.Text = "U1comp";
+            this.S1proc_label.Text = "Ucor";
             // 
             // S1_proc
             // 
             this.S1_proc.AutoSize = true;
             this.S1_proc.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.S1_proc.Location = new System.Drawing.Point(88, 5);
+            this.S1_proc.Location = new System.Drawing.Point(74, 5);
             this.S1_proc.Name = "S1_proc";
             this.S1_proc.Size = new System.Drawing.Size(25, 28);
             this.S1_proc.TabIndex = 178;
