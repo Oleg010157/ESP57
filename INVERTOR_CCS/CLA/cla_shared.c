@@ -93,10 +93,12 @@ volatile uint16_t rmsWindow;
 #pragma DATA_SECTION(mDCmax, "CpuToCla1MsgRAM");
 #pragma DATA_SECTION(dcAllow, "CpuToCla1MsgRAM");
 #pragma DATA_SECTION(dcResetReq, "CpuToCla1MsgRAM");
+#pragma DATA_SECTION(dcSatLimit, "CpuToCla1MsgRAM");
 float    kDC;
 float    mDCmax;
 uint16_t dcAllow;
 uint16_t dcResetReq;
+uint16_t dcSatLimit;
 
 // Ключа модели (simOn) здесь больше нет, прожил он один день. Заводился он
 // затем, чтобы задача CLA не затирала своими отсчётами АЦП те три канала,
@@ -153,7 +155,13 @@ volatile float   iPri_av;  // пишет CLA
 // Поправка постоянной составляющей - результат контура, который CLA считает
 // по iPri_av. Лежит здесь же, у своего источника: применяют её grid_tie_step()
 // и sine_invertor2(), оба каждый такт.
-volatile float   mDC;      // пишет CLA
+//
+// dcSatCnt - сколько окон подряд поправка стоит в упоре. Это не защита, а
+// диагностика того единственного случая, который компаратор не видит
+// намеренно; разбор - у объявления в cla_shared.h.
+#pragma DATA_SECTION(dcSatCnt, "cla_shared");
+volatile float    mDC;      // пишет CLA
+volatile uint16_t dcSatCnt; // пишет CLA
 
 //---------------------------------------------------------------------------
 // 2. iSec - ток вторичной обмотки (ток в сеть).  B4, ADCB SOC1/PPB2, kadcf.iSec

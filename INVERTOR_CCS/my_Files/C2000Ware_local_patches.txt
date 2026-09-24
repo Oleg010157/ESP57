@@ -394,3 +394,11 @@ Change log
   Note: ERR_BUFF_SIZE is 100 (KSP/Errors.h), so the indices fit. The C# side reads
   the same header for error names - it needs no change, but the operator will see the
   new codes only after the UI is rebuilt against this file.
+  Correction (2026-09-24): the UI does NOT need a rebuild. Stepulyov/ASt_ErrorsView.cs
+  opens ErrorCodes.h at RUNTIME (Application.StartupPath + "\\..\\ErrorCodes.h") and parses
+  the #define lines for names, so adding a line to the header is the whole UI change.
+  Same day, one more code added: gt_dcSat 66 - the DC-suppression correction sat at its
+  ceiling for dcSatLimit consecutive windows, i.e. the loop ran out of authority. Logged
+  via RegisterSessionEvent() only, no shutdown - the acute case belongs to the CMPSS2
+  comparator on TRIP5, this code names the chronic one the comparator is deliberately
+  blind to. Rationale in my_Files/grid_tie.txt, 3.1.5.
