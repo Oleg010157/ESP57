@@ -255,6 +255,21 @@ void grid_tie_measure(void);
 
 void grid_tie_step(void);       // каждое прерывание ADCB INT1 (5 кГц)
 void grid_tie_onGridZero(void); // раз за период сети, из ECAP ISR
+
+// Контур подавления постоянной составляющей. Работает в ОБОИХ режимах моста:
+// трансформатору безразлично, в каком из них копятся вольт-секунды.
+//
+//   grid_tie_mdc_period() - собственно контур, раз за период выходного
+//       напряжения. allow = 0 считает только Ia_av, не трогая mDC.
+//   grid_tie_dc_island()  - островная обёртка: копит ток первички и сама
+//       отмеряет период по счёту тактов. Зовётся каждый такт из островной
+//       ветки INT_myADCB_1_ISR; в сетевом режиме то же делает
+//       grid_tie_step() вместе с grid_tie_onGridZero().
+//
+// Поправку mDC применяют оба формирователя: grid_tie_step() через индекс
+// модуляции, sine_invertor2() сдвигом обоих компараторов.
+void grid_tie_mdc_period(uint16_t allow);
+void grid_tie_dc_island(void);
 void grid_tie_background(void); // из фонового цикла main(): всё, чему не место в ISR
 void grid_tie_fault(uint16_t code);
 void grid_tie_start(void);      // запрос пуска: GT_OFF -> GT_SYNC
