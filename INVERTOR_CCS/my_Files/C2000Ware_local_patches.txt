@@ -11,10 +11,54 @@ Use mixed mode (driverlib + bitfield + _DUAL_HEADERS) without IDLE/SUCCESS/FAIL 
 Important
 Fixes are applied in the C2000Ware library files (installed SDK), not only in project files.
 
+How these guards actually work (read this first - the three patches use THREE DIFFERENT
+mechanisms, which is the usual source of confusion)
+
+Patch 2 is the only one that is "first include wins".
+  #ifndef means "define only if this name is still free", so exactly one definition survives per
+  translation unit - the one that got there first.
+  - TI ALREADY guards the bitfield side: f28p55x_device.h line ~160 has #ifndef SUCCESS / #ifndef FAIL.
+    The driverlib side (stw_types.h) was the only bare one, which is why only it needed patching.
+  - Actual include order in this project is driverlib FIRST, not bitfield: nearly every .c starts with
+    board.h, and board.h line 52 is #include "driverlib.h". In main.c driverlib.h is line 16 while
+    f28p55x_device.h is line 34. So in practice driverlib wins and TI's bitfield guard quietly yields.
+  - The #48-D warning came from the minority of translation units with the reverse order (a .c that
+    pulls e.g. myADC.h -> f28p55x_device.h before driverlib): there bitfield defined SUCCESS first and
+    unguarded driverlib redefined it.
+  - So the POINT OF THE GUARD IS NOT to force an include order. It is to make the order irrelevant.
+    Both sides guarded => whoever comes first wins and nobody warns. Do NOT reorder includes to "fix"
+    this; that is not what the patch is for.
+  - Side effect worth knowing: the TYPE of SUCCESS now depends on include order in each .c file -
+    true (_Bool) in some, ((uint32_t)1U) in others. The VALUES agree (1 and 0), so comparisons are
+    safe; sizeof or type deduction would not be.
+
+Patch 1 is NOT about "who defined it first".
+  Its outer #ifndef tests _DUAL_HEADERS - a BUILD FLAG, not the macro IDLE. This project always
+  passes --define=_DUAL_HEADERS, so the #else branch is taken and IDLE is never defined at all,
+  regardless of include order. That is what frees the name IDLE for bitfield fields/prototypes.
+  The inner #ifndef IDLE only lives in the non-_DUAL_HEADERS branch, i.e. never in our build.
+
+Patch 3 is not about macros at all.
+  It guards six extern declarations. The conflict is a TYPE mismatch - Uint16 in the bitfield header
+  vs uint16_t in the SysConfig-generated device.h - and the condition is again a build flag (_FLASH),
+  not "who came first". The guard simply removes one of the two declarations in FLASH builds.
+
 Applied patch set
 
-Patch 1 (project local copy)
-File: invertor\device\driverlib\cpu.h
+Patch 1 (NO LONGER NEEDED as of C2000Ware 26_01_00_00 - TI ships this guard itself)
+File: C:\TI\C2000Ware_26_01_00_00\driverlib\f28p55x\driverlib\cpu.h
+      (the old "project local copy invertor\device\driverlib\cpu.h" does NOT exist in this repo -
+       that path was wrong/stale; the guard has always lived in the installed SDK)
+STATUS 2026-09-24: verified that ALL 13 device cpu.h files in a freshly installed C2000Ware
+      26_01_00_00 already carry the exact _DUAL_HEADERS form below, all with the installer's own
+      timestamp (2026-07-15) - so this is upstream TI content now, not a local edit. Nothing to
+      reapply after an SDK reinstall. Re-check this if ever moving to a DIFFERENT C2000Ware version.
+Effect (important, it is not a plain include guard): with _DUAL_HEADERS defined - which this project
+      always does - the #else branch is taken and the macro IDLE is NOT defined at all; IDLE_ASM
+      takes its place. That is the whole point: it frees the name IDLE for bitfield fields and
+      prototypes. Consequence: the asm IDLE instruction must be written as IDLE_ASM. Not an issue
+      here - the only occurrence is bitfield_source/f28p55x_sysctrl.c:674, its own IDLE() function
+      using a direct asm(" IDLE"), and that file is excluded from the build in both configurations.
 Reason: Macro IDLE conflicts with bitfield field/prototype names (f28p55x_lin.h, f28p55x_globalprototypes.h).
 Applied form:
 #ifndef _DUAL_HEADERS
@@ -144,7 +188,8 @@ CPU1_FLASH was never fully brought up to parity with CPU1_RAM. To make it build:
 
 Reapply checklist after C2000Ware update
 1) Confirm version path and file locations.
-2) Reapply Patch 1 in project local copy cpu.h.
+2) Patch 1: only CHECK, do not apply blindly - C2000Ware 26_01_00_00 and later ship the guard.
+   grep -l _DUAL_HEADERS <C2000Ware>/driverlib/f28p55x/driverlib/cpu.h ; apply only if missing.
 3) Reapply Patch 2 in installed C2000Ware stw_types.h.
 4) Reapply Patch 3 in installed C2000Ware f28p55x_globalprototypes.h.
 4a) Reapply Patch 4 (%LOCALAPPDATA%\clangd\config.yaml) - also needed after moving to a new PC or
@@ -171,6 +216,50 @@ warning. Confirmed harmless via the .map file. Left unsuppressed per user's choi
 silenced with --diag_suppress=10247 on the CPU1_FLASH linker if ever wanted.
 
 Change log
+- 2026-09-24: Fixed the .TI.ramfunc placement failure (#10099-D) in BOTH linker cmd files.
+  Symptom: ".TI.ramfunc" size 0x83a does not fit RAMLS0 (0x800). CPU1_FLASH had been broken by the
+  same thing since at least 2026-09-23 (its map carries the identical FAILED TO ALLOCATE 0x83a) -
+  not a side effect of the PC move, just never noticed because CPU1_RAM is the active configuration.
+  FIX: .TI.ramfunc moved out of RAMLS0 into RAMGS0.
+    28p55x_generic_ram_lnk.cmd   : ".TI.ramfunc : {} > RAMLS0"  ->  "> RAMGS0"
+    28p55x_generic_flash_lnk.cmd : "RUN = RAMLS0" -> "RUN = RAMGS0" (both EABI and non-EABI branches)
+  WHY RAMGS AND NOT ANOTHER RAMLS (user's explicit constraint, keep it in mind for future changes):
+  the CLA can only address RAMLS memory, and CLA usage is expected to grow, so LS blocks must stay
+  free as CLA headroom. RAMGS is CPU/DMA only and costs the CLA nothing. Bonus: RAMLS0 is now free
+  too, so LS0 + LS3 + LS4 (0x800 each) plus the tails of LS1/LS2 are all available to the CLA.
+  Splitting across two LS blocks (">> RAMLS0 | RAMLS3") was the rejected alternative - it builds, but
+  it eats LS the CLA wants.
+  Result (CPU1_RAM, verified): builds clean, invertor.out produced. .TI.ramfunc placed at 0xd278,
+  RAMGS0 used 0x1ab2 of 0x2000 -> 0x54e words of headroom left. RAMLS0/LS3/LS4 all show used 0x0.
+  CPU1_FLASH NOT rebuilt (cannot switch the active build configuration from MCP - do it in the IDE);
+  by its own map RAMGS0 there holds only ramgs0 (0x190), leaving 0x1e70 free, so 0x83a fits easily.
+  UNITS TRAP worth remembering: ofd2000 reports section sizes in BYTES, the linker .map reports them
+  in WORDS. The largest indivisible input section here is 0x38e words (1ph_Sin.obj
+  .TI.ramfunc:retain), which ofd2000 shows as 1820 - reading that as words overstates it 2x.
+- 2026-09-24: Moved to another PC again (repo now E:\Work\K57\K57, was C:\Users\OlegW11\Desktop\Work\K57;
+  user profile C:\Users\olegs.pavlovskis). Only ONE CCS here: C:\TI\ccs2100 - the root CLAUDE.md's generated
+  block points at C:/ti/ccs2101, which does NOT exist on this machine; used ccs2100 per docs/agents-ccs-path.md.
+  C2000Ware_26_01_00_00 was reinstalled fresh (SDK files dated Jul 15), so the out-of-repo patches were gone:
+  - Patch 1 (cpu.h IDLE guard) is OBSOLETE - TI now ships it. Checked every device in the fresh install:
+    all 13 driverlib/*/driverlib/cpu.h carry the _DUAL_HEADERS form with the installer's 2026-07-15
+    timestamp, so it is upstream content, not a surviving local edit. The earlier wording "already
+    present, nothing to do" was right about the action but wrong about the reason. Also corrected the
+    file path in the Patch 1 section: there is no project-local device/driverlib/cpu.h in this repo.
+  - Patch 2 (stw_types.h SUCCESS/FAIL) was absent -> reapplied, stw_types.h.bak saved.
+  - Patch 3 (f28p55x_globalprototypes.h Ramfuncs*) was absent -> reapplied, .bak saved. NOT verified by a build:
+    it only bites in _FLASH builds and the active configuration is CPU1_RAM (no MCP tool switches it).
+  - Patch 4 (%LOCALAPPDATA%\clangd\config.yaml) was absent -> recreated. PathMatch "Work\K5[0-9]" still matches
+    the new E:\Work\K57 path, left as is. Verified with clangd --check on mcan.h: config file loaded and
+    "-D __TMS320C28XX__=1" present in the cc1 args; the 1 remaining error is the known editor-only residue.
+  Verification build (CPU1_RAM): 15 files compiled, 0 warnings, 0 errors - no #48-D for SUCCESS/FAIL, no IDLE
+  conflicts. Build then failed at LINK time for an unrelated reason: .TI.ramfunc is 0x83a but RAMLS0 is 0x800
+  (58 words short). That is code growth in the uncommitted my_Files/grid_tie.c + 1ph_Sin.c changes, not a
+  porting issue - RAMLS3 is the only unused RAMLS block if more room is needed.
+  Also added the "How these guards actually work" section at the top: the three patches use three
+  different mechanisms (first-include-wins / build-flag switch / build-flag-gated declarations) and
+  that keeps getting mixed up. Key correction recorded there: the guards do NOT impose an include
+  order, they make it irrelevant - and the real order here is driverlib FIRST (board.h line 52),
+  with TI's own guard in f28p55x_device.h yielding to it.
 - 2026-09-12: idiv0 struck again, this time on CPU1_RAM - exactly the case the 2026-08-10 entry
   deferred ("NOT YET APPLIED to CPU1_RAM config"). Symptom: ADC zero calibration always ended with
   offsets = {0,0,0,0,0,0}, crc 0. Averaging was fine (calAcc[u220] = 612287, calN = 300 read live off

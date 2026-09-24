@@ -80,7 +80,7 @@ SECTIONS
 
    #if defined(__TI_EABI__)
        .TI.ramfunc : {} LOAD = FLASH_BANK0,
-                        RUN = RAMLS0,
+                        RUN = RAMGS0,
                         LOAD_START(RamfuncsLoadStart),
                         LOAD_SIZE(RamfuncsLoadSize),
                         LOAD_END(RamfuncsLoadEnd),
@@ -90,7 +90,7 @@ SECTIONS
                         ALIGN(8)
    #else
        .TI.ramfunc : {} LOAD = FLASH_BANK0,
-                        RUN = RAMLS0,
+                        RUN = RAMGS0,
                         LOAD_START(_RamfuncsLoadStart),
                         LOAD_SIZE(_RamfuncsLoadSize),
                         LOAD_END(_RamfuncsLoadEnd),

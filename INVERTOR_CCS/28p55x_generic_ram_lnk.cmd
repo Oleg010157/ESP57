@@ -18,10 +18,19 @@
 //
 //           RAMGS1..RAMGS3 + RAMLS8..RAMLS9  (0xE000..0x17FFF, 0xA000 words)
 //                                            -> .text
-//           RAMGS0                           -> .const, ramgs0..ramgs2
-//           RAMLS7                           -> .cinit, .switch, .init_array
-//           RAMLS0                           -> .TI.ramfunc (run in place,
+//           RAMGS0                           -> .const, ramgs0..ramgs2,
+//                                               .TI.ramfunc (run in place,
 //                                               no flash-to-RAM copy needed)
+//           RAMLS7                           -> .cinit, .switch, .init_array
+//
+//         .TI.ramfunc sits in RAMGS0, NOT in a RAMLS block, on purpose: the
+//         CLA can only reach RAMLS memory, so every LS block is kept free as
+//         headroom for the growing CLA program/data. RAMGS is CPU/DMA only and
+//         costs the CLA nothing. It also no longer fits one LS block anyway -
+//         the section is 0x83a words while a RAMLS block is 0x800. Splitting it
+//         across two LS blocks would have worked (largest indivisible input
+//         section is 0x38e words, 1ph_Sin.obj .TI.ramfunc:retain), but that
+//         spends LS the CLA will want. Headroom left in RAMGS0: 0x54e words.
 //
 //         Everything else (stack, .bss/.data, the CLA sections and the CLA
 //         message RAMs) keeps the same placement as in the flash build.
@@ -97,7 +106,7 @@ SECTIONS
 
    /* Runs in place - in a RAM build there is nothing to copy, so the
       Ramfuncs* load/run symbols of the flash build are not needed. */
-   .TI.ramfunc : {} > RAMLS0, ALIGN(8)
+   .TI.ramfunc : {} > RAMGS0, ALIGN(8)
 
    /* CLA specific sections */
    Cla1Prog        : > RAMLS1
