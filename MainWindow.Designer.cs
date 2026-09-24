@@ -269,6 +269,9 @@
             this.groupBox20 = new System.Windows.Forms.GroupBox();
             this.rpm1_Text = new System.Windows.Forms.Label();
             this.rpm1_value = new System.Windows.Forms.Label();
+            this.groupBox_Ucor = new System.Windows.Forms.GroupBox();
+            this.Ucor_Text = new System.Windows.Forms.Label();
+            this.Ucor_value = new System.Windows.Forms.Label();
             this.panel10 = new System.Windows.Forms.Panel();
             this.S1proc_label = new System.Windows.Forms.Label();
             this.S1_proc = new System.Windows.Forms.Label();
@@ -2716,9 +2719,9 @@
             this.Im1_name.ForeColor = System.Drawing.Color.DarkGreen;
             this.Im1_name.Location = new System.Drawing.Point(4, 5);
             this.Im1_name.Name = "Im1_name";
-            this.Im1_name.Size = new System.Drawing.Size(64, 28);
+            this.Im1_name.Size = new System.Drawing.Size(40, 28);
             this.Im1_name.TabIndex = 192;
-            this.Im1_name.Text = "I1_av";
+            this.Im1_name.Text = "Im";
             // 
             // panel9
             // 
@@ -2833,9 +2836,9 @@
             this.rpm1_Text.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.rpm1_Text.Location = new System.Drawing.Point(5, 15);
             this.rpm1_Text.Name = "rpm1_Text";
-            this.rpm1_Text.Size = new System.Drawing.Size(46, 23);
+            this.rpm1_Text.Size = new System.Drawing.Size(53, 23);
             this.rpm1_Text.TabIndex = 175;
-            this.rpm1_Text.Text = "rpm";
+            this.rpm1_Text.Text = "I1_av";
             // 
             // rpm1_value
             // 
@@ -2846,6 +2849,36 @@
             this.rpm1_value.Size = new System.Drawing.Size(25, 28);
             this.rpm1_value.TabIndex = 176;
             this.rpm1_value.Text = "0";
+            //
+            // groupBox_Ucor
+            //
+            this.groupBox_Ucor.Controls.Add(this.Ucor_Text);
+            this.groupBox_Ucor.Controls.Add(this.Ucor_value);
+            this.groupBox_Ucor.Location = new System.Drawing.Point(179, 219);
+            this.groupBox_Ucor.Name = "groupBox_Ucor";
+            this.groupBox_Ucor.Size = new System.Drawing.Size(158, 40);
+            this.groupBox_Ucor.TabIndex = 227;
+            this.groupBox_Ucor.TabStop = false;
+            //
+            // Ucor_Text
+            //
+            this.Ucor_Text.AutoSize = true;
+            this.Ucor_Text.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.Ucor_Text.Location = new System.Drawing.Point(5, 15);
+            this.Ucor_Text.Name = "Ucor_Text";
+            this.Ucor_Text.Size = new System.Drawing.Size(50, 23);
+            this.Ucor_Text.TabIndex = 228;
+            this.Ucor_Text.Text = "Ucor";
+            //
+            // Ucor_value
+            //
+            this.Ucor_value.AutoSize = true;
+            this.Ucor_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.Ucor_value.Location = new System.Drawing.Point(76, 12);
+            this.Ucor_value.Name = "Ucor_value";
+            this.Ucor_value.Size = new System.Drawing.Size(25, 28);
+            this.Ucor_value.TabIndex = 229;
+            this.Ucor_value.Text = "0";
             // 
             // panel10
             // 
@@ -2864,9 +2897,9 @@
             this.S1proc_label.Font = new System.Drawing.Font("Cambria", 14F);
             this.S1proc_label.Location = new System.Drawing.Point(4, 5);
             this.S1proc_label.Name = "S1proc_label";
-            this.S1proc_label.Size = new System.Drawing.Size(58, 28);
+            this.S1proc_label.Size = new System.Drawing.Size(45, 28);
             this.S1proc_label.TabIndex = 177;
-            this.S1proc_label.Text = "Ucor";
+            this.S1proc_label.Text = "S%";
             // 
             // S1_proc
             // 
@@ -3237,6 +3270,7 @@
             this.groupBox_AIN1.Controls.Add(this.groupBox12);
             this.groupBox_AIN1.Controls.Add(this.panel10);
             this.groupBox_AIN1.Controls.Add(this.groupBox20);
+            this.groupBox_AIN1.Controls.Add(this.groupBox_Ucor);
             this.groupBox_AIN1.Controls.Add(this.groupBox16);
             this.groupBox_AIN1.Controls.Add(this.groupBox15);
             this.groupBox_AIN1.Controls.Add(this.panel9);
@@ -3824,6 +3858,9 @@
         private System.Windows.Forms.GroupBox groupBox20;
         public System.Windows.Forms.Label rpm1_Text;
         public System.Windows.Forms.Label rpm1_value;
+        private System.Windows.Forms.GroupBox groupBox_Ucor;
+        public System.Windows.Forms.Label Ucor_Text;
+        public System.Windows.Forms.Label Ucor_value;
         private System.Windows.Forms.GroupBox groupBox16;
         public System.Windows.Forms.Label Field1_Text;
         public System.Windows.Forms.Label field1_value;
