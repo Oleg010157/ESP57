@@ -90,11 +90,13 @@ volatile uint16_t rmsWindow;
 // MBOX28.c (команды 647 и 648) правит уже их.
 //---------------------------------------------------------------------------
 #pragma DATA_SECTION(kDC, "CpuToCla1MsgRAM");
+#pragma DATA_SECTION(kDCp, "CpuToCla1MsgRAM");
 #pragma DATA_SECTION(mDCmax, "CpuToCla1MsgRAM");
 #pragma DATA_SECTION(dcAllow, "CpuToCla1MsgRAM");
 #pragma DATA_SECTION(dcResetReq, "CpuToCla1MsgRAM");
 #pragma DATA_SECTION(dcSatLimit, "CpuToCla1MsgRAM");
 float    kDC;
+float    kDCp;
 float    mDCmax;
 uint16_t dcAllow;
 uint16_t dcResetReq;
@@ -159,8 +161,10 @@ volatile float   iPri_av;  // пишет CLA
 // dcSatCnt - сколько окон подряд поправка стоит в упоре. Это не защита, а
 // диагностика того единственного случая, который компаратор не видит
 // намеренно; разбор - у объявления в cla_shared.h.
+#pragma DATA_SECTION(mDCi, "cla_shared");
 #pragma DATA_SECTION(dcSatCnt, "cla_shared");
 volatile float    mDC;      // пишет CLA
+volatile float    mDCi;     // пишет CLA, интегральная часть
 volatile uint16_t dcSatCnt; // пишет CLA
 
 //---------------------------------------------------------------------------

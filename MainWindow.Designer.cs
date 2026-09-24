@@ -373,6 +373,7 @@
             this.groupBox15.SuspendLayout();
             this.groupBox16.SuspendLayout();
             this.groupBox20.SuspendLayout();
+            this.groupBox_Ucor.SuspendLayout();
             this.panel10.SuspendLayout();
             this.groupBox12.SuspendLayout();
             this.panel12.SuspendLayout();
@@ -2836,7 +2837,7 @@
             this.rpm1_Text.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.rpm1_Text.Location = new System.Drawing.Point(5, 15);
             this.rpm1_Text.Name = "rpm1_Text";
-            this.rpm1_Text.Size = new System.Drawing.Size(53, 23);
+            this.rpm1_Text.Size = new System.Drawing.Size(54, 23);
             this.rpm1_Text.TabIndex = 175;
             this.rpm1_Text.Text = "I1_av";
             // 
@@ -2849,9 +2850,9 @@
             this.rpm1_value.Size = new System.Drawing.Size(25, 28);
             this.rpm1_value.TabIndex = 176;
             this.rpm1_value.Text = "0";
-            //
+            // 
             // groupBox_Ucor
-            //
+            // 
             this.groupBox_Ucor.Controls.Add(this.Ucor_Text);
             this.groupBox_Ucor.Controls.Add(this.Ucor_value);
             this.groupBox_Ucor.Location = new System.Drawing.Point(179, 219);
@@ -2859,19 +2860,19 @@
             this.groupBox_Ucor.Size = new System.Drawing.Size(158, 40);
             this.groupBox_Ucor.TabIndex = 227;
             this.groupBox_Ucor.TabStop = false;
-            //
+            // 
             // Ucor_Text
-            //
+            // 
             this.Ucor_Text.AutoSize = true;
             this.Ucor_Text.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Ucor_Text.Location = new System.Drawing.Point(5, 15);
             this.Ucor_Text.Name = "Ucor_Text";
-            this.Ucor_Text.Size = new System.Drawing.Size(50, 23);
+            this.Ucor_Text.Size = new System.Drawing.Size(51, 23);
             this.Ucor_Text.TabIndex = 228;
             this.Ucor_Text.Text = "Ucor";
-            //
+            // 
             // Ucor_value
-            //
+            // 
             this.Ucor_value.AutoSize = true;
             this.Ucor_value.Font = new System.Drawing.Font("Cambria", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.Ucor_value.Location = new System.Drawing.Point(76, 12);
@@ -3598,6 +3599,8 @@
             this.groupBox16.PerformLayout();
             this.groupBox20.ResumeLayout(false);
             this.groupBox20.PerformLayout();
+            this.groupBox_Ucor.ResumeLayout(false);
+            this.groupBox_Ucor.PerformLayout();
             this.panel10.ResumeLayout(false);
             this.panel10.PerformLayout();
             this.groupBox12.ResumeLayout(false);
