@@ -231,8 +231,14 @@ Change log
   it eats LS the CLA wants.
   Result (CPU1_RAM, verified): builds clean, invertor.out produced. .TI.ramfunc placed at 0xd278,
   RAMGS0 used 0x1ab2 of 0x2000 -> 0x54e words of headroom left. RAMLS0/LS3/LS4 all show used 0x0.
-  CPU1_FLASH NOT rebuilt (cannot switch the active build configuration from MCP - do it in the IDE);
-  by its own map RAMGS0 there holds only ramgs0 (0x190), leaving 0x1e70 free, so 0x83a fits easily.
+  CPU1_FLASH: rebuilt and RUN ON HARDWARE by the user - clean. Its RAMGS0 holds ramgs0 (0x190) plus
+  the section at RUN 0xc190, 0x9ea used of 0x2000. CPU1_RAM also confirmed working on hardware.
+  Follow-up the same day: grid_tie_dc_island() was put INTO .TI.ramfunc (#pragma CODE_SECTION) now
+  that there is room - it runs every tick from INT_myADCB_1_ISR and that ISR is already in RAM, so a
+  flash call from it cost a wait-state penalty per tick. Section grew 0x83a -> 0x85a, still 0x1616
+  free in RAMGS0. Its sibling grid_tie_mdc_period() is deliberately left in flash: once per output
+  period only. NOTE for the future: switching the active build configuration still cannot be done
+  from MCP, only in the IDE (Project -> Build Configurations -> Set Active).
   UNITS TRAP worth remembering: ofd2000 reports section sizes in BYTES, the linker .map reports them
   in WORDS. The largest indivisible input section here is 0x38e words (1ph_Sin.obj
   .TI.ramfunc:retain), which ofd2000 shows as 1820 - reading that as words overstates it 2x.
