@@ -2716,9 +2716,9 @@
             this.Im1_name.ForeColor = System.Drawing.Color.DarkGreen;
             this.Im1_name.Location = new System.Drawing.Point(4, 5);
             this.Im1_name.Name = "Im1_name";
-            this.Im1_name.Size = new System.Drawing.Size(40, 28);
+            this.Im1_name.Size = new System.Drawing.Size(34, 28);
             this.Im1_name.TabIndex = 192;
-            this.Im1_name.Text = "Im";
+            this.Im1_name.Text = "I=";
             // 
             // panel9
             // 
@@ -2864,9 +2864,9 @@
             this.S1proc_label.Font = new System.Drawing.Font("Cambria", 14F);
             this.S1proc_label.Location = new System.Drawing.Point(4, 5);
             this.S1proc_label.Name = "S1proc_label";
-            this.S1proc_label.Size = new System.Drawing.Size(45, 28);
+            this.S1proc_label.Size = new System.Drawing.Size(38, 28);
             this.S1proc_label.TabIndex = 177;
-            this.S1proc_label.Text = "S%";
+            this.S1proc_label.Text = "U=";
             // 
             // S1_proc
             // 
