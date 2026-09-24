@@ -187,6 +187,10 @@ CPU1_FLASH was never fully brought up to parity with CPU1_RAM. To make it build:
   Build... -> check the configuration.
 
 Reapply checklist after C2000Ware update
+0) FIRST: run Tools\Setup-NewPC.ps1 - it does steps 2-4a automatically and is safe to re-run.
+   powershell -ExecutionPolicy Bypass -File Tools\Setup-NewPC.ps1 -Check   (report only)
+   powershell -ExecutionPolicy Bypass -File Tools\Setup-NewPC.ps1          (apply)
+   The steps below are the manual fallback / the reference for what the script does.
 1) Confirm version path and file locations.
 2) Patch 1: only CHECK, do not apply blindly - C2000Ware 26_01_00_00 and later ship the guard.
    grep -l _DUAL_HEADERS <C2000Ware>/driverlib/f28p55x/driverlib/cpu.h ; apply only if missing.
