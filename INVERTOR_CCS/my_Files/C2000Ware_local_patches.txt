@@ -241,7 +241,12 @@ Change log
   that there is room - it runs every tick from INT_myADCB_1_ISR and that ISR is already in RAM, so a
   flash call from it cost a wait-state penalty per tick. Section grew 0x83a -> 0x85a, still 0x1616
   free in RAMGS0. Its sibling grid_tie_mdc_period() is deliberately left in flash: once per output
-  period only. NOTE for the future: switching the active build configuration still cannot be done
+  period only.
+  OBSOLETE as of 2026-09-24: both functions are GONE. The whole DC-suppression loop moved into
+  Cla1Task1, so nothing of it runs on the CPU any more and the .TI.ramfunc question does not arise.
+  The paragraph above is kept only as the record of why the section lives in RAMGS0 - that reason
+  (keep RAMLS free as CLA headroom) just got proven right by this very move.
+  NOTE for the future: switching the active build configuration still cannot be done
   from MCP, only in the IDE (Project -> Build Configurations -> Set Active).
   UNITS TRAP worth remembering: ofd2000 reports section sizes in BYTES, the linker .map reports them
   in WORDS. The largest indivisible input section here is 0x38e words (1ph_Sin.obj

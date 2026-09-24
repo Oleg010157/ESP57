@@ -79,6 +79,25 @@ volatile kADCf kadcf;
 #pragma DATA_SECTION(rmsWindow, "CpuToCla1MsgRAM");
 volatile uint16_t rmsWindow;
 
+//---------------------------------------------------------------------------
+// Управление контуром подавления постоянной составляющей. Сам контур целиком
+// в Cla1Task1; здесь то, чем его дёргают снаружи. Разбор - в cla_shared.h и
+// в my_Files/grid_tie.txt, 3.1.4.
+//
+// Все четыре в CpuToCla1MsgRAM: направление у них аппаратное, CPU пишет -
+// CLA читает. Это ЕДИНСТВЕННОЕ место, где живут kDC и mDCmax: из структуры gt
+// они переехали сюда 24.09.2026 вместе с контуром, и таблица gtPars в
+// MBOX28.c (команды 647 и 648) правит уже их.
+//---------------------------------------------------------------------------
+#pragma DATA_SECTION(kDC, "CpuToCla1MsgRAM");
+#pragma DATA_SECTION(mDCmax, "CpuToCla1MsgRAM");
+#pragma DATA_SECTION(dcAllow, "CpuToCla1MsgRAM");
+#pragma DATA_SECTION(dcResetReq, "CpuToCla1MsgRAM");
+float    kDC;
+float    mDCmax;
+uint16_t dcAllow;
+uint16_t dcResetReq;
+
 // Ключа модели (simOn) здесь больше нет, прожил он один день. Заводился он
 // затем, чтобы задача CLA не затирала своими отсчётами АЦП те три канала,
 // которые на модели пишет CPU. С 23.09.2026 задача АЦП не читает вообще -
@@ -105,14 +124,6 @@ volatile uint16_t rmsWindow;
 volatile uint16_t task1Start;
 volatile uint16_t task1Time;
 
-// Номер закрытого окна усреднения - там же и по той же причине: направление
-// строго CLA -> CPU. Увеличивается раз за окно, переполнение безразлично -
-// CPU сравнивает на НЕРАВЕНСТВО со своей копией, а не на возрастание.
-//
-// По нему островной контур подавления постоянки узнаёт, что iPri_av свежий.
-// Подробности - у объявления в cla_shared.h.
-#pragma DATA_SECTION(rmsSeq, "Cla1ToCpuMsgRAM");
-volatile uint16_t rmsSeq;
 
 //---------------------------------------------------------------------------
 // 1. iPri - ток первичной обмотки.  B1, ADCB SOC0/PPB1, масштаб kadcf.iPri
@@ -133,10 +144,16 @@ volatile uint16_t rmsSeq;
 #pragma DATA_SECTION(iPri_amp, "cla_shared");
 #pragma DATA_SECTION(iPri_rms, "cla_shared");
 #pragma DATA_SECTION(iPri_av, "cla_shared");
+#pragma DATA_SECTION(mDC, "cla_shared");
 int16_t          iPri_kod;
 float            iPri_amp;
 volatile float   iPri_rms; // пишет CLA
 volatile float   iPri_av;  // пишет CLA
+
+// Поправка постоянной составляющей - результат контура, который CLA считает
+// по iPri_av. Лежит здесь же, у своего источника: применяют её grid_tie_step()
+// и sine_invertor2(), оба каждый такт.
+volatile float   mDC;      // пишет CLA
 
 //---------------------------------------------------------------------------
 // 2. iSec - ток вторичной обмотки (ток в сеть).  B4, ADCB SOC1/PPB2, kadcf.iSec
