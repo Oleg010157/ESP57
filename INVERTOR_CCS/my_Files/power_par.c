@@ -10,6 +10,7 @@
 #include <math.h>
 
 #include "power_par.h"
+#include "KSP.h"         // motors[] - признак "ключи открыты"
 #include "grid_tie.h"
 #include "plant_sim.h"
 #include "cla_shared.h"
@@ -219,10 +220,27 @@ void power_par_apply(void)
 //---------------------------------------------------------------------------
 volatile uint16_t pwrCmd = 0;
 
+//---------------------------------------------------------------------------
+// "Мост модулирует - настройку не трогаем". Разбор и доводы - в power_par.h.
+//---------------------------------------------------------------------------
+uint16_t power_par_busy(void)
+{
+    return motors[0]->flag.bit.pwm_On ? 1U : 0U;
+}
+
 void power_par_background(void)
 {
     if (pwrCmd == 0U)
         return;
+
+    // Мост работает - ЖДЁМ, не сбрасывая команду. Отработает сама, как только
+    // ключи закроют; повторять нажатие не нужно. Состояние видно снаружи -
+    // команда 698.
+    if (power_par_busy())
+    {
+        calibSaveStatus = CALIB_BUSY;
+        return;
+    }
 
     if (pwrCmd == 1U)
     {
