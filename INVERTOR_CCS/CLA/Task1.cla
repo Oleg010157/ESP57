@@ -431,6 +431,7 @@ __interrupt void Cla1Task1(void)
         qSec_sum  = 0.0f;
         iPri_sum  = 0.0f;
         rmsCnt    = 0;
+        task1TimeF = (EPwm7Regs.TBCTR - task1Start);
     }
 
     task1Time = (EPwm7Regs.TBCTR - task1Start);

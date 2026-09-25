@@ -161,6 +161,7 @@ extern uint16_t dcResetReq;
 // обычного: там четыре деления и четыре корня.
 extern volatile uint16_t task1Start;
 extern volatile uint16_t task1Time;
+extern volatile uint16_t task1TimeF;
 
 // Поправка постоянной составляющей к индексу модуляции, безразмерная.
 // СЧИТАЕТ ЕЁ CLA, раз за окно; CPU только читает и применяет - grid_tie_step()

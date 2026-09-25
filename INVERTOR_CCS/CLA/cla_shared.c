@@ -151,8 +151,10 @@ uint16_t uOutSatLimit;
 //---------------------------------------------------------------------------
 #pragma DATA_SECTION(task1Start, "Cla1ToCpuMsgRAM");
 #pragma DATA_SECTION(task1Time, "Cla1ToCpuMsgRAM");
+#pragma DATA_SECTION(task1TimeF, "Cla1ToCpuMsgRAM");
 volatile uint16_t task1Start;
 volatile uint16_t task1Time;
+volatile uint16_t task1TimeF;
 
 
 //---------------------------------------------------------------------------
