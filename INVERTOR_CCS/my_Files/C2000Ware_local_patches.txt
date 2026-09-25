@@ -248,6 +248,39 @@ Change log
   (keep RAMLS free as CLA headroom) just got proven right by this very move.
   NOTE for the future: switching the active build configuration still cannot be done
   from MCP, only in the IDE (Project -> Build Configurations -> Set Active).
+  2026-09-25 follow-up, the RAMGS0 headroom finally got used for what it was freed for:
+  plant_sim_step() and adc_late_sample() moved INTO .TI.ramfunc. Both carried comments saying they
+  could not be there because the section was pinned to RAMLS0 and full - stale since the move to
+  RAMGS0. Section grew 0x843 -> 0xa1b words; RAMGS0 still has 0x1455 of 0x2000 free.
+  Measured (sine_Time, EPWM7 ticks at 150 MHz): with the model on 9.3 -> ~6 us, i.e. the model's
+  3 us of flash wait-states are gone. Baseline without the model barely moved, 6.3 -> 6.01.
+
+  THE REAL LEVER WAS THE OPTIMIZATION LEVEL, not flash vs RAM. The project built with -Ooff -
+  no register allocation, every local round-tripping through the stack. Switching CPU1_FLASH to
+  -O2: 6.01 -> 3.98 us without the model, 5.14 with it. Roughly a third off, where the RAM moves
+  gave five percent.
+    - CPU1_RAM deliberately LEFT at -Ooff: that is the configuration you use when you actually need
+      to step through code. Consequence to remember: sine_Time differs between the two builds now,
+      so timing measured in CPU1_RAM does not describe what ships.
+    - Checked after the switch, because -O2 can break things -Ooff hides:
+      * no new compiler warnings;
+      * no spin-wait loops on ISR-written globals - every while() in the project waits on a
+        hardware register (flash FSM, SPI FIFO), which is volatile through the register access;
+      * grid_tie_background() polls gt.shutdownReq / gt.faultNew / gtCmd without volatile, but it
+        is called from main.c across a translation-unit boundary and -O2 is file-level (no
+        --program_level_compile), so the reads cannot be hoisted out of the while(1);
+      * DISASSEMBLY CHECKED for the one invariant that mattered - all stores to the CLA-shared
+        block (0x9008..0x9028) complete BEFORE the CLA task is forced. dis2000 shows the force at
+        0xc40c and nothing after it but the sine_Time arithmetic and the register restore. This is
+        the exact class of bug that cost a whole investigation once (my_Files/plant_sim.txt, 4.4).
+    - Margin that SHRANK and must be watched: adcLate. The handler enters on ADCB EOC1 (2.4 us) and
+      reads the late ADCA channels after EOC3 (4.8 us), so the check must sit at least 2.4 us after
+      entry. With a 3.98 us handler the margin went from about two microseconds to under one.
+      adcLate still reads 0 on the model. Anything added to the handler BEFORE that check eats into
+      it; anything after it (F3 frame, CLA force) does not.
+    - NOT yet re-verified on hardware. The earlier "both configurations checked on hardware" note
+      was at -Ooff, and the binary is materially different now.
+
   UNITS TRAP worth remembering: ofd2000 reports section sizes in BYTES, the linker .map reports them
   in WORDS. The largest indivisible input section here is 0x38e words (1ph_Sin.obj
   .TI.ramfunc:retain), which ofd2000 shows as 1820 - reading that as words overstates it 2x.
