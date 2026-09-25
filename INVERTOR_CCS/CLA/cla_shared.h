@@ -160,8 +160,10 @@ extern uint16_t dcResetReq;
 // пишет, CPU только читает). На такте закрытия окна RMS заметно больше
 // обычного: там четыре деления и четыре корня.
 extern volatile uint16_t task1Start;
-extern volatile uint16_t task1Time;
-extern volatile uint16_t task1TimeF;
+extern volatile uint16_t task1Time;  // длительность последнего такта
+extern volatile uint16_t task1TimeF; // она же на такте ЗАКРЫТИЯ ОКНА, то есть
+                                     // пик. Суффикс F тут не "фильтрованный",
+                                     // разбор и замеры - в cla_shared.c
 
 // Поправка постоянной составляющей к индексу модуляции, безразмерная.
 // СЧИТАЕТ ЕЁ CLA, раз за окно; CPU только читает и применяет - grid_tie_step()
