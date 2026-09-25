@@ -255,14 +255,18 @@ Change log
   Measured (sine_Time, EPWM7 ticks at 150 MHz): with the model on 9.3 -> ~6 us, i.e. the model's
   3 us of flash wait-states are gone. Baseline without the model barely moved, 6.3 -> 6.01.
 
-  THE REAL LEVER WAS THE OPTIMIZATION LEVEL, not flash vs RAM. The project built with -Ooff -
-  no register allocation, every local round-tripping through the stack. Switching CPU1_FLASH to
-  -O2: 6.01 -> 3.98 us without the model, 5.14 with it. Roughly a third off, where the RAM moves
-  gave five percent.
-    - CPU1_RAM deliberately LEFT at -Ooff: that is the configuration you use when you actually need
-      to step through code. Consequence to remember: sine_Time differs between the two builds now,
-      so timing measured in CPU1_RAM does not describe what ships.
-    - Checked after the switch, because -O2 can break things -Ooff hides:
+  THE REAL LEVER IS THE OPTIMIZATION LEVEL, not flash vs RAM - MEASURED, THEN DELIBERATELY NOT
+  TAKEN. The project builds with -Ooff: no register allocation, every local round-tripping through
+  the stack. CPU1_FLASH was switched to -O2 as an experiment: 6.01 -> 3.98 us without the model,
+  5.14 with it. Roughly a third off the tick, where the RAM moves gave five percent.
+
+  REVERTED to -Ooff the same day, by the owner's call: 10 us out of a 200 us tick is not pressing,
+  and step-through debugging is worth more right now than the microseconds. The experiment is
+  recorded rather than the change, so the lever is a known quantity when the tick does get tight.
+  Flipping it back is one setting; everything below was verified while -O2 was on, so the checks
+  do not have to be redone from scratch.
+    - The RAM moves above were KEPT - they cost nothing in debuggability.
+    - Checked while -O2 was on, because it breaks things -Ooff hides:
       * no new compiler warnings;
       * no spin-wait loops on ISR-written globals - every while() in the project waits on a
         hardware register (flash FSM, SPI FIFO), which is volatile through the register access;
@@ -273,13 +277,18 @@ Change log
         block (0x9008..0x9028) complete BEFORE the CLA task is forced. dis2000 shows the force at
         0xc40c and nothing after it but the sine_Time arithmetic and the register restore. This is
         the exact class of bug that cost a whole investigation once (my_Files/plant_sim.txt, 4.4).
-    - Margin that SHRANK and must be watched: adcLate. The handler enters on ADCB EOC1 (2.4 us) and
-      reads the late ADCA channels after EOC3 (4.8 us), so the check must sit at least 2.4 us after
-      entry. With a 3.98 us handler the margin went from about two microseconds to under one.
-      adcLate still reads 0 on the model. Anything added to the handler BEFORE that check eats into
-      it; anything after it (F3 frame, CLA force) does not.
-    - NOT yet re-verified on hardware. The earlier "both configurations checked on hardware" note
-      was at -Ooff, and the binary is materially different now.
+    - The margin to weigh BEFORE turning it on again: adcLate. The handler enters on ADCB EOC1
+      (2.4 us) and reads the late ADCA channels after EOC3 (4.8 us), so the check must sit at least
+      2.4 us after entry. The danger here is inverted from the usual one - a FASTER handler moves
+      the check toward 4.8 us, not away from it. At 3.98 us the margin went from about two
+      microseconds to under one. adcLate still read 0 throughout, but there is little field left.
+      Anything added to the handler BEFORE that check eats into it; anything after it (F3 frame,
+      CLA force) does not.
+    - Hardware verification was NOT redone while -O2 was on, and with the revert it is not needed:
+      the shipped binary is back to the configuration the earlier "both configurations checked on
+      hardware" note refers to. If -O2 is ever turned on for real, that note stops applying and the
+      hardware checks have to be repeated - different register allocation, different instruction
+      order, different timing.
 
   UNITS TRAP worth remembering: ofd2000 reports section sizes in BYTES, the linker .map reports them
   in WORDS. The largest indivisible input section here is 0x38e words (1ph_Sin.obj
