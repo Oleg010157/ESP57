@@ -102,6 +102,32 @@ uint16_t dcAllow;
 uint16_t dcResetReq;
 uint16_t dcSatLimit;
 
+//---------------------------------------------------------------------------
+// Контур выходного напряжения в режиме АИН. Тот же приём и то же место, что у
+// контура постоянки: медленная часть считается в Cla1Task1 раз за окно, CPU
+// применяет готовую поправку каждый такт. Разбор - my_Files/grid_tie.txt, 11.
+//
+// uOutRef ЖИВЁТ ТОЛЬКО ЗДЕСЬ. Из структуры gt (поле UrefRms) уставка переехала
+// сюда 25.09.2026 - ровно по той же причине, по какой раньше переехали kDC и
+// mDCmax: её правят живьём командой 633, и копия на стороне CLA разошлась бы с
+// оригиналом на первой же правке. CPU своей CpuToCla1MsgRAM читать не мешает
+// ничто, так что потактовая прямая связь берёт уставку отсюда же.
+//---------------------------------------------------------------------------
+#pragma DATA_SECTION(uOutRef, "CpuToCla1MsgRAM");
+#pragma DATA_SECTION(uOutKp, "CpuToCla1MsgRAM");
+#pragma DATA_SECTION(uOutKi, "CpuToCla1MsgRAM");
+#pragma DATA_SECTION(uOutCorMax, "CpuToCla1MsgRAM");
+#pragma DATA_SECTION(uOutAllow, "CpuToCla1MsgRAM");
+#pragma DATA_SECTION(uOutResetReq, "CpuToCla1MsgRAM");
+#pragma DATA_SECTION(uOutSatLimit, "CpuToCla1MsgRAM");
+float    uOutRef;
+float    uOutKp;
+float    uOutKi;
+float    uOutCorMax;
+uint16_t uOutAllow;
+uint16_t uOutResetReq;
+uint16_t uOutSatLimit;
+
 // Ключа модели (simOn) здесь больше нет, прожил он один день. Заводился он
 // затем, чтобы задача CLA не затирала своими отсчётами АЦП те три канала,
 // которые на модели пишет CPU. С 23.09.2026 задача АЦП не читает вообще -
@@ -257,6 +283,20 @@ volatile float   uBat_rf;
 volatile int16_t uSec_kod;
 volatile float   uSec_volt;
 volatile float   uSec_rms;
+
+// Результат контура выходного напряжения - поправка к уставке, В действующих.
+// Лежит рядом со своим входом: считается она по uSec_rms строкой выше, и
+// читать эти две величины всегда приходится вместе.
+//
+// uOutCorI - интегральная часть отдельно от выхода: по ней видно, сколько
+// контур накопил на самом деле, и она же откатывается при упоре (анти-виндап).
+// uOutSatCnt - окон подряд в упоре, разбирает grid_tie_background().
+#pragma DATA_SECTION(uOutCor, "cla_shared");
+#pragma DATA_SECTION(uOutCorI, "cla_shared");
+#pragma DATA_SECTION(uOutSatCnt, "cla_shared");
+volatile float    uOutCor;    // пишет CLA
+volatile float    uOutCorI;   // пишет CLA
+volatile uint16_t uOutSatCnt; // пишет CLA
 
 //---------------------------------------------------------------------------
 // 7. Мощности на выходе инвертора. Не канал АЦП, а произведение двух каналов -
