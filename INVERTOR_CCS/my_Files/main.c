@@ -109,48 +109,6 @@ extern void       app_request_firmware_update(void);
 //
 //MCAN_GlobalFiltConfig filterConfig;
 void main(void)
-\
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 {
     motors[0] = &motor1;
     motors[1] = &motor2;
