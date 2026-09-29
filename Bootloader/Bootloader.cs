@@ -243,6 +243,48 @@ namespace ICDIBasic
                         _checksum += run.Data[i];
                 }
 
+                // ПОСЛЕДНЯЯ ТОЧКА, ГДЕ МОЖНО ПЕРЕДУМАТЬ.
+                //
+                // Файл разобран, адреса и точка входа известны, а на плате ещё
+                // ничего не тронуто — дальше идёт связь и сразу стирание.
+                // Раньше этого шага не было вовсе: обработчик FileOk запускал
+                // рабочий поток прямо из события выбора файла.
+                //
+                // Цикл, а не один вопрос: «Выбрать другой .out» обязан привести
+                // сюда же с новым файлом, иначе кнопка бессмысленна.
+                for (;;)
+                {
+                    var confirm = AskFlashConfirmation(loadRuns, cycles);
+
+                    if (confirm == 0)
+                        break;
+
+                    if (confirm == 2)
+                    {
+                        try
+                        {
+                            File.AppendAllText(Path.Combine(Application.StartupPath, "Bootloader_trace.log"),
+                                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Прошивка отменена до обращения к прибору{Environment.NewLine}");
+                        }
+                        catch { }
+
+                        BeginInvoke(new Action(() => Text = @"Прошивка отменена"));
+                        return;
+                    }
+
+                    // Выбор другого файла: та же функция, что и в путях
+                    // восстановления, — она заново конвертирует, пересобирает
+                    // сегменты и пересчитывает сумму.
+                    if (!TrySelectAndConvertOutFile(ref fileCs, ref cycles, ref loadRuns, ref pOut, ref pBin))
+                    {
+                        BeginInvoke(new Action(() => Text = @"Прошивка отменена: файл не выбран"));
+                        return;
+                    }
+                }
+
+                // Подтверждено — вот теперь переводим прибор в загрузчик.
+                EnterBootloaderMode();
+
                 // Канал уже открыт основным приложением в режиме CAN-FD, и
                 // загрузчик работает на том же тайминге — переоткрытие ниже
                 // только снимает возможное error-passive.
@@ -1722,9 +1764,24 @@ done:
             };
         }
 
-        // Show a Russian dialog on UI thread with three choices:
-        // 0 = Повторить, 1 = Выбрать другой .out, 2 = Отмена/Выход
-        private int AskRecoveryAction(string caption, string message)
+        /// <summary>
+        /// Диалог с тремя действиями. Возвращает 0 — подтвердить, 1 — выбрать
+        /// другой .out, 2 — отмена.
+        /// </summary>
+        /// <remarks>
+        /// Одна разметка на все три места, где такой вопрос задаётся: перед
+        /// началом прошивки, при ошибке MCU и при несовпадении контрольной
+        /// суммы. Различаются они только подписями кнопок и значком.
+        ///
+        /// Высота считается по числу строк сообщения: у подтверждения перед
+        /// прошивкой это таблица из восьми строк, у остальных — одна фраза.
+        /// </remarks>
+        private int AskRecoveryAction(string caption, string message,
+                                      string okText = "Повторить",
+                                      string selectText = "Выбрать другой .out",
+                                      string cancelText = "Прервать (без ребута)",
+                                      bool question = false,
+                                      bool monospace = false)
         {
             DialogResult res = DialogResult.None;
             try
@@ -1736,12 +1793,15 @@ done:
                     // so use a simple form to present three options with localized captions.
                     using (var dlg = new Form())
                     {
+                        int lineCount = message.Split('\n').Length;
+                        int textHeight = Math.Max(48, lineCount * 16 + 8);
+
                         dlg.Text = caption;
                         dlg.StartPosition = FormStartPosition.CenterParent;
                         dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
                         dlg.MinimizeBox = false;
                         dlg.MaximizeBox = false;
-                        dlg.ClientSize = new System.Drawing.Size(460, 150);
+                        dlg.ClientSize = new System.Drawing.Size(480, textHeight + 82);
 
                         // Icon on the left
                         var pic = new PictureBox
@@ -1749,23 +1809,28 @@ done:
                             Size = new System.Drawing.Size(32, 32),
                             Location = new System.Drawing.Point(12, 16),
                             SizeMode = PictureBoxSizeMode.CenterImage,
-                            Image = SystemIcons.Warning.ToBitmap()
+                            Image = (question ? SystemIcons.Question : SystemIcons.Warning).ToBitmap()
                         };
                         dlg.Controls.Add(pic);
 
                         var lbl = new Label();
                         lbl.AutoSize = false;
                         lbl.Text = message;
-                        lbl.Size = new System.Drawing.Size(400, 48);
+                        lbl.Size = new System.Drawing.Size(410, textHeight);
                         lbl.Location = new System.Drawing.Point(56, 12);
-                        lbl.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+                        lbl.TextAlign = System.Drawing.ContentAlignment.TopLeft;
+                        if (monospace)
+                        {
+                            // Моноширинный — чтобы столбцы адресов и размеров стояли друг под другом.
+                            lbl.Font = new System.Drawing.Font(System.Drawing.FontFamily.GenericMonospace, 8.5f);
+                        }
                         dlg.Controls.Add(lbl);
 
                         // Flow panel for buttons aligned to the right
                         var flp = new FlowLayoutPanel
                         {
                             FlowDirection = FlowDirection.RightToLeft,
-                            Location = new System.Drawing.Point(12, 80),
+                            Location = new System.Drawing.Point(12, textHeight + 20),
                             Size = new System.Drawing.Size(dlg.ClientSize.Width - 24, 48),
                             Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
                             WrapContents = false,
@@ -1774,19 +1839,19 @@ done:
                         };
 
                         var btnCancel = new Button();
-                        btnCancel.Text = "Прервать (без ребута)";
+                        btnCancel.Text = cancelText;
                         btnCancel.DialogResult = DialogResult.Cancel;
                         btnCancel.Size = new System.Drawing.Size(140, 30);
                         btnCancel.Margin = new Padding(8, 10, 8, 10);
 
                         var btnSelect = new Button();
-                        btnSelect.Text = "Выбрать другой .out";
+                        btnSelect.Text = selectText;
                         btnSelect.DialogResult = DialogResult.Retry;
                         btnSelect.Size = new System.Drawing.Size(140, 30);
                         btnSelect.Margin = new Padding(8, 10, 8, 10);
 
                         var btnRetry = new Button();
-                        btnRetry.Text = "Повторить";
+                        btnRetry.Text = okText;
                         btnRetry.DialogResult = DialogResult.Yes;
                         btnRetry.Size = new System.Drawing.Size(110, 30);
                         btnRetry.Margin = new Padding(8, 10, 8, 10);
@@ -1798,8 +1863,19 @@ done:
 
                         dlg.Controls.Add(flp);
 
-                        dlg.AcceptButton = btnRetry;
+                        // Escape — отмена, везде одинаково.
                         dlg.CancelButton = btnCancel;
+
+                        // А вот Enter кнопку подтверждения нажимает НЕ везде.
+                        // У диалогов восстановления это «Повторить» и так было.
+                        // У подтверждения перед прошивкой — не ставим совсем:
+                        // стирание необратимо, и запускать его случайно нажатым
+                        // Enter'ом (диалог всплывает ровно тогда, когда человек
+                        // только что закрыл окно выбора файла) нельзя.
+                        if (!question)
+                        {
+                            dlg.AcceptButton = btnRetry;
+                        }
 
                         res = dlg.ShowDialog(this);
                     }
@@ -1809,14 +1885,16 @@ done:
             {
                 // If invoke fails (rare), fall back to MessageBox with Yes/No and treat No as Cancel.
                 res = MessageBox.Show(
-                    message + "\nНажмите 'Да' чтобы повторить, 'Нет' чтобы выбрать другой .out.",
+                    message + $"\nНажмите 'Да' — {okText}, 'Нет' — {selectText}.",
                     caption,
                     MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning,
-                    MessageBoxDefaultButton.Button1);
+                    question ? MessageBoxIcon.Question : MessageBoxIcon.Warning,
+                    // Тот же довод, что и про AcceptButton выше: у подтверждения
+                    // перед прошивкой умолчание не должно быть «Да».
+                    question ? MessageBoxDefaultButton.Button2 : MessageBoxDefaultButton.Button1);
             }
 
-            if (res == DialogResult.Yes) return 0; // Повторить
+            if (res == DialogResult.Yes) return 0; // Подтвердить
             if (res == DialogResult.Retry) return 1; // Выбрать другой .out
             return 2; // Отмена/Выход
         }
@@ -1824,6 +1902,119 @@ done:
         private int AskRetryOrSelectOther()
         {
             return AskRecoveryAction("Проверка контрольной суммы", "Несовпадение контрольной суммы. Выберите действие:");
+        }
+
+        /// <summary>
+        /// Переводит прибор в режим прошивки: команда 9999 и отключение UI.
+        /// </summary>
+        /// <remarks>
+        /// ТОЧКА НЕВОЗВРАТА, И ЗВАТЬ ЕЁ РАНЬШЕ ПОДТВЕРЖДЕНИЯ НЕЛЬЗЯ. По команде
+        /// 9999 прибор гасит IGBT, запрещает прерывания и уходит в загрузчик -
+        /// приложение в нём больше не работает. Вернуться оттуда можно только
+        /// удачной прошивкой или снятием питания.
+        ///
+        /// Раньше этот кусок стоял в обработчике пункта меню, до диалога выбора
+        /// файла: человек ещё выбирал, что заливать, а прибор уже стоял. Отсюда
+        /// и брался «выбрал не тот файл, а отменить нечем».
+        ///
+        /// Работает с UI, поэтому каждый кусок через Invoke: зовут её из
+        /// рабочего потока.
+        /// </remarks>
+        private void EnterBootloaderMode()
+        {
+            try
+            {
+                File.AppendAllText(Path.Combine(Application.StartupPath, "Bootloader_trace.log"),
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Отправляем 9999 — перевод прибора в загрузчик{Environment.NewLine}");
+            }
+            catch { }
+
+            BeginInvoke(new Action(() => Text = @"Перевод прибора в режим прошивки..."));
+
+            // Команда уходит по рабочему протоколу (ID 2), канал ещё в обычном
+            // режиме - его переоткроет уже фаза связи ниже по коду.
+            Invoke(new Action(() => SendCanCommand(9999, skipConnectionCheck: true)));
+
+            // Пауза на то, чтобы прибор успел дойти до bootloader_main() и
+            // перенастроить MCAN под себя.
+            Thread.Sleep(200);
+
+            // UI переводим в отключённое состояние. Команду 3 не шлём - слушать
+            // её уже некому, приложение в приборе остановлено.
+            Invoke(new Action(() =>
+            {
+                disconnect_CAN();
+                CanA_Ok = false;
+                tsmConnect.Text = "Подключить";
+                tsmConnect.BackColor = Color.DarkSeaGreen;
+            }));
+        }
+
+        /// <summary>
+        /// Подтверждение перед началом прошивки. 0 — прошивать, 1 — выбрать
+        /// другой .out, 2 — отмена.
+        /// </summary>
+        /// <remarks>
+        /// ЗАЧЕМ ОНО ВООБЩЕ. Обработчик FileOk диалога выбора запускает рабочий
+        /// поток прямо из события, и раньше между «Открыть» и стиранием флеша не
+        /// было ни одного шага. Выбрали не тот файл — и всё, прервать нечем:
+        /// кнопка «Выбрать другой .out» появляется только в ответ на отказ, а
+        /// правильно собранный, но не тот образ прошивается без единого вопроса.
+        ///
+        /// Показываем не только имя: два соседних билда часто зовутся одинаково
+        /// и различаются папкой, датой и точкой входа. Всё это к моменту вызова
+        /// уже разобрано из ELF, платить за показ нечем.
+        ///
+        /// Зовётся ДО первого обращения к прибору — на плате ещё ничего не
+        /// тронуто, отмена здесь совершенно безопасна.
+        /// </remarks>
+        private int AskFlashConfirmation(List<LoadRun> loadRuns, uint totalBytes)
+        {
+            string name = "(неизвестно)";
+            string dir = string.Empty;
+            string stamp = string.Empty;
+
+            try
+            {
+                name = Path.GetFileName(_selectedFileName);
+                dir = Path.GetDirectoryName(_selectedFileName) ?? string.Empty;
+                stamp = File.GetLastWriteTime(_selectedFileName).ToString("dd.MM.yyyy HH:mm");
+            }
+            catch
+            {
+                // Имя — единственное, что здесь обязательно; остальное украшение.
+            }
+
+            uint firstAddr = loadRuns[0].StartAddr;
+            uint lastAddr = firstAddr;
+
+            foreach (var run in loadRuns)
+            {
+                if (run.StartAddr < firstAddr)
+                    firstAddr = run.StartAddr;
+
+                uint runEnd = run.StartAddr + (uint)(run.Data.Length / AddrSize) - 1U;
+                if (runEnd > lastAddr)
+                    lastAddr = runEnd;
+            }
+
+            var msg = new StringBuilder();
+            msg.AppendLine(name);
+            msg.AppendLine(dir);
+            msg.AppendLine("изменён " + stamp);
+            msg.AppendLine();
+            msg.AppendLine($"Адреса:      0x{firstAddr:X6}..0x{lastAddr:X6}");
+            msg.AppendLine($"Размер:      {totalBytes} байт ({totalBytes / BootDataBytes} кадров)");
+            msg.AppendLine($"Точка входа: 0x{_appEntryAddr:X6}");
+            msg.AppendLine();
+            msg.Append("Стирание начнётся сразу, прервать его будет нельзя.");
+
+            return AskRecoveryAction("Прошивка прибора", msg.ToString(),
+                                     okText: "Прошить",
+                                     selectText: "Выбрать другой .out",
+                                     cancelText: "Отмена",
+                                     question: true,
+                                     monospace: true);
         }
 
 
