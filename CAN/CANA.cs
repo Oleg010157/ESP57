@@ -166,7 +166,23 @@ namespace ICDIBasic
                 Gain_Mode_Refresh(M2);
                 int_128(M2.gain.tbar.Value, 3333, M2.gain.modeH_kod, 76);
 
-                NUD_RPM.Value = 0;
+                // Обнуляем задание при подключении, чтобы сеанс не начинался с
+                // числа, оставшегося от прошлого. Когда движок переключён на
+                // частоту (SpeedSlider_ToFreq), тем же органом крутят герцы:
+                // его шкала начинается с 40, ноль в неё не лезет, и WinForms
+                // бросает ArgumentOutOfRangeException. Обороты в этом режиме
+                // лежат в заначке SpeedSlider_ToFreq - обнуляем её, и вернувшись
+                // к оборотам оператор получит ноль, а не прошлое задание.
+                if (_freqOnSpeed)
+                {
+                    _nudRpmVal = Satur(0m, _nudRpmMin, _nudRpmMax);
+                    _rpmVal    = Satur(0, _rpmMin, _rpmMax);
+                }
+                else
+                {
+                    NUD_RPM.Value = Satur(0, NUD_RPM.Minimum, NUD_RPM.Maximum);
+                }
+
                 uint_128(0xA6, 0, 0, 338); // !!! Выкл ручн. упр. IGBT
                 refresh_Form1();
 
