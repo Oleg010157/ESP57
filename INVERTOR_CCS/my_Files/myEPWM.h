@@ -58,7 +58,6 @@ typedef union
 
 void TRIP_Clear(void);
 void TRIP_Init(void); // раскладка X-BAR и trip-zone: токовая защита на TRIP5
-void CMPSS_BackgroundCheck(void);
 void IGBT1_Disable();
 void IGBT2_Disable();
 void PWM1_On(void);

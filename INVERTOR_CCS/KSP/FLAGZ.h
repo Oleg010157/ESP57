@@ -147,25 +147,10 @@ struct SharpFlag{
     extern union CCS ccs;
    //---------------------------------------------------------------------------------------
    // флаги срабатывания защиты в момент отключения IGBT.
-    struct Overload
-    {
-        uint16_t Ia_Overload : 1; //1
-        uint16_t Ib_Overload : 1; //2
-        uint16_t Ic_Overload : 1; //3
-
-        uint16_t Idc_Overload : 1; //4
-        uint16_t Udc_Overload : 1; //5
-        uint16_t Vin_Overload : 1; //6
-    };
-
-    union ErrorFlags
-    {
-      struct Overload bin;
-      uint16_t   all;
-    };
-
-    extern union ErrorFlags overload;
-   //------------------------------------------------------------------------------------------- 
+    // struct Overload / union ErrorFlags / overload убраны: поля Ia..Ic и Idc
+    // описывали трёхфазник B81, и ни одного чтения этой переменной в проекте
+    // не осталось. Перегрузки по току живут в таблице ошибок (Errors.c).
+   //-------------------------------------------------------------------------------------------
 
     typedef struct  {
          Uint32   rg2: 1;      //1

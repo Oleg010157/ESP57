@@ -61,33 +61,10 @@ typedef struct
     uint16_t  AGC : 1;  // Флаг преобразования/получения данных с АЦП
 } CtrlP;
 
-// структура флагов полученных с регистров сдвига U4,U5
-
-
-typedef union
-{
-    uint16_t all;
-    struct
-    {
-        uint16_t vt2 : 1;  // Bit 0
-        uint16_t vt1 : 1;  // Bit 1
-        uint16_t vt3 : 1;  // Bit 2
-        uint16_t vt4 : 1;  // Bit 3
-        uint16_t t1 : 1;   // Bit 4
-        uint16_t t2 : 1;   // Bit 5
-        uint16_t t3 : 1;   // Bit 6
-        uint16_t t4 : 1;   // Bit 7
-        uint16_t t6 : 1;   // Bit 8
-        uint16_t t5 : 1;   // Bit 9
-        uint16_t TS1 : 1;  // Bit 10
-        uint16_t TS2 : 1;  // Bit 11
-        uint16_t Inp4 : 1; // Bit 12
-        uint16_t Inp3 : 1; // Bit 13
-        uint16_t Inp2 : 1; // Bit 14
-        uint16_t Inp1 : 1; // Bit 15
-    } bit;
-} SHR_Flags;
-
+// Структура флагов регистров сдвига U4,U5 (SHR_Flags) убрана вместе с самими
+// регистрами: они были на плате B81, где за мостом стоял DC-DC конвертор
+// 48/600 В, и несли аварии его ключей vt1..vt4 и ключей трёхфазника t1..t6.
+// На этой плате аварийная линия одна - токовая защита компараторов, myEPWM.c.
 
 #define ERR_BUFF_SIZE 100
 extern ErrData   ErrBuff[ERR_BUFF_SIZE];
@@ -99,8 +76,6 @@ extern uint16_t  CurrentSessionId;
 extern ErrD      ErrorFlag;
 extern uint16_t  CheckLamp;  // период времени в секундах включения лампы ошибок.Горит пока не нуль.
 extern uint16_t  CheckLamp0; // постоянное включение лампы ошибок. Горит до ручного сброса.
-extern SHR_Flags shr;
-extern bool iprold;
 
 void ClearErrorTable(void);
 
@@ -111,8 +86,6 @@ bool     ErrHistory_HasPending(void);
 bool     ErrHistory_GetNextPendingCode(uint16_t *code);
 void     ErrHistory_ClearPending(void);
 void     SendL(void);
-uint16_t readShiftRegister();
-void     initShiftRegisterPins();
 
 void Errors_CurrentErrorWindowTick(void);
 void RegisterSessionEvent(uint16_t code);

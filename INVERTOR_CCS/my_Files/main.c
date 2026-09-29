@@ -104,7 +104,6 @@ uint16_t          request_firmware_update = 0;
 extern void       app_request_firmware_update(void);
 
 
-extern SHR_Flags shrTrip;
 //
 // Main
 //
@@ -281,8 +280,6 @@ extern volatile uint16_t epwm3time;// dbg
         // Измерено на плате, разбор в myMCAN.c.
         MCAN_keepOnBus();
 
-        CMPSS_BackgroundCheck();
-
         // Сетевой режим: закрытие IGBT и запись аварии в журнал. Из прерывания
         // это звать нельзя - IGBT*_Disable() делает EINT внутри себя (вложенное
         // прерывание посреди ISR), а RegisterSessionEvent() лезет в историю
@@ -320,23 +317,32 @@ extern volatile uint16_t epwm3time;// dbg
         // send_REF_kadr() use Timer0 and Send_kadr60() use Timer1;
 
         
-        // ловим переход из нуля в единицу и наоборот
-
+        // Автономный ПУСК/СТОП по дискретному входу. ЗАБЛОКИРОВАН.
+        //
+        // Вход читался из сдвигового регистра U4/U5 платы B81 (shr.bit.Inp1),
+        // а на этой плате таких регистров нет - shr оставался нулевым всегда.
+        // В итоге при работе без CAN условие ПУСК выполнялось на первом же
+        // проходе фона, и мост запускался сам, без команды оператора.
+        //
+        // Блок оставлен как напоминание: автономный пуск задуман, но вход
+        // под него надо назначить заново - прочитать нужный GPIO и ловить
+        // фронт по нему.
+#if 0
         if (!sbit.bit.connect) // ПУСК/СТОП только для автономной работы ( без CAN )
         {
-
-            if (!shr.bit.Inp1 && iprold) // 1-> 0 это команда ПУСК
+            if (!pusk_in && iprold) // 1-> 0 это команда ПУСК
             {
                 // включаем IGBT инвертора- аналог команды ПУСК
                 PUSK();
             }
-            else if (shr.bit.Inp1 && !iprold) // 0->1 это команда СТОП
+            else if (pusk_in && !iprold) // 0->1 это команда СТОП
             {
                 // выключаем IGBT инвертора - аналог команды СТОП
                 STOP();
             }
-            iprold = shr.bit.Inp1;
+            iprold = pusk_in;
         }
+#endif
         // Timer 0  -----------------------------------------------
 
         if (CpuTimer0Regs.TCR.bit.TIF == 1) // таймер0 отработал заданный период

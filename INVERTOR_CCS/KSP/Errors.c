@@ -20,8 +20,11 @@ uint16_t       ErrSessionEdgeLatch[ERR_BUFF_SIZE];
 uint16_t       CurrentSessionId = 0U;
 
 ErrD     ErrorFlag;
-uint16_t CheckLamp  = 10; // период времени в секундах включения лампы ошибок.Горит пока не нуль.
-uint16_t CheckLamp0 = 0;  // постоянное включение лампы ошибок. Горит до ручного сброса.
+// Обе переменные обязаны стартовать нулями: лампа ошибок в UI горит, пока их
+// сумма не нуль, а после сброса прибора таблица ошибок пуста. Стояла десятка -
+// и чистый прибор десять секунд показывал красную лампу при пустом окне кодов.
+uint16_t CheckLamp  = 0; // период времени в секундах включения лампы ошибок.Горит пока не нуль.
+uint16_t CheckLamp0 = 0; // постоянное включение лампы ошибок. Горит до ручного сброса.
 
 CtrlP CTL;
 static uint16_t ErrHistoryPending[(ERR_BUFF_SIZE + 15U) / 16U];
@@ -200,34 +203,4 @@ void SendErrs(void)
         Send_mbox(4, 32011, 32011, 32011, 32011);
         Req_336 = Req_336 & 0xfffd; // сброс флага вывода в фоне кодов из буффера ошибок
     }
-}
-
-
-// -----------------------------------------------------------
-// чтение регистров сдвига U4, U5 (обозначение на принц.схеме)
-SHR_Flags shr;
-bool iprold = 1;       // работа инвертора выключена
-
-uint16_t readShiftRegister()
-{
-    uint16_t data = 0;
-    uint16_t i;
-    // Загрузка параллельных входов
- //   GPIO_writePin(SH_LD_PIN, 0);
-
-    DEVICE_DELAY_US(10); // Небольшая задержка
-//    GPIO_writePin(SH_LD_PIN, 1);
-
-    // Считывание 16 бит (2 регистра)
-    for ( i = 0; i < 16; i++)
-    {
-  //      GPIO_writePin(SHR_CLOCK, 0);
-        DEVICE_DELAY_US(1);
-        data <<= 1;
- //       data |= GPIO_readPin(SHR_DATA);
- //       GPIO_writePin(SHR_CLOCK, 1);
-        DEVICE_DELAY_US(1);
-    }
-
-    return data;
 }

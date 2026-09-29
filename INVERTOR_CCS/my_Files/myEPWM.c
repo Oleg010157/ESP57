@@ -13,9 +13,6 @@
 #include "KSP.h"
 #include "interrupt.h"
 
-union XBARFLG1_REG xbarFlg1;
-union ErrorFlags overload;
-
 __interrupt void INT_EPWM2_Iu_ISR(void)
 {
 
@@ -24,7 +21,6 @@ __interrupt void INT_EPWM2_Iu_ISR(void)
 }
 
 Uint16    dbgEPWM_TZ;
-SHR_Flags shrTrip;
 bool eventDetected = false;
 
  void RegisterSessionEvent(uint16_t code)
@@ -56,143 +52,53 @@ bool eventDetected = false;
 
 
 
+// Единственная аварийная линия платы - токовая защита компараторов:
+// TRIP5 -> DCBEVT1, раскладка в TRIP_Init(). Линия TRIP4 (аварии драйверов
+// через сдвиговые регистры U4/U5) и разбор на коды inv_T*/conv_T* достались
+// от B81, где за мостом стоял ещё и DC-DC конвертор 48/600 В. Этого железа
+// здесь нет, и читать его флаги было нечем: обработчик подставлял 0xffff.
 __interrupt void INT_EPWM2_Iu_TZ_ISR(void)
 {
-
     dbgEPWM_TZ++;
 
-
+    // Глушим источник на время разбора. Флаг DCBEVT1 в TZFLG держится до явной
+    // очистки в TRIP_Clear(), поэтому с разрешённым прерыванием обработчик
+    // входил бы заново до самой очистки - а она приходит из фона, раз в секунду.
     EALLOW;
-    EPwm2Regs.TZEINT.bit.DCAEVT1 = 0; // Disabled Interrupt for Digital Compare Output A Event 1 (DCAEVT1)
-    EPwm2Regs.TZEINT.bit.OST     = 0; // Disabled Interrupt for One Shot Event
+    EPwm2Regs.TZEINT.bit.DCBEVT1 = 0;
+    EPwm2Regs.TZEINT.bit.OST     = 0;
     EDIS;
 
-    // Токовая защита от компараторов приходит по отдельной линии TRIP5 -> DCBEVT1,
-    // а аварии драйверов по TRIP4. Разбираем причину по флагу, не лезя в сдвиговый
-    // регистр: иначе срабатывание по току диагностировалось бы как trip4_uknow.
-    if ((EPwm1Regs.TZFLG.bit.DCBEVT1) || (EPwm2Regs.TZFLG.bit.DCBEVT1))
-    {
-        // Какая фаза - различаем по защёлкам компараторов.
-        // CMPSS2 = Ia (первичка), CMPSS4 = Ib (вторичка).
-        if (Cmpss2Regs.COMPSTS.bit.COMPHLATCH || Cmpss2Regs.COMPSTS.bit.COMPLLATCH)
-        {
-            RegisterSessionEvent(gt_overIpri);
-        }
-        if (Cmpss4Regs.COMPSTS.bit.COMPHLATCH || Cmpss4Regs.COMPSTS.bit.COMPLLATCH)
-        {
-            RegisterSessionEvent(gt_overIsec);
-        }
-
-        CheckLamp0 = 1;
-        PieCtrlRegs.PIEACK.all = PIEACK_GROUP2;
-        return;
-    }
-
-    shrTrip.all   = 0xffff;//readShiftRegister(); //читаем сдвиговый регистр
-
-
-    CheckLamp0    = 1;                   // зажигаем лампу диагностики постоянно до сброса от UI
     eventDetected = false;
 
-    //проверяем ножку 57. Если в нуле то значит есть сигнал ошибки хотя от одного драйвера транзистора six-pack.
-    if (XbarRegs.XBARFLG2.bit.INPUT4 == 1)
+    // Какой канал - различаем по защёлкам компараторов.
+    // CMPSS2 = Ia (первичка), CMPSS4 = Ib (вторичка).
+    if (Cmpss2Regs.COMPSTS.bit.COMPHLATCH || Cmpss2Regs.COMPSTS.bit.COMPLLATCH)
     {
-        // делаем поиск от какого транзистора пришёл сигнал ошибки и формируем соответствующий код.
-        if (!shrTrip.bit.t1)
-        {
-            RegisterSessionEvent(inv_T1);
-        }
-        if (!shrTrip.bit.t2)
-        {
-            RegisterSessionEvent(inv_T2);
-        }
-        if (!shrTrip.bit.t3)
-        {
-            RegisterSessionEvent(inv_T3);
-        }
-        if (!shrTrip.bit.t4)
-        {
-            RegisterSessionEvent(inv_T4);
-        }
-        if (!shrTrip.bit.t5)
-        {
-            RegisterSessionEvent(inv_T5);
-        }
-        if (!shrTrip.bit.t6)
-        {
-            RegisterSessionEvent(inv_T6);
-        }
+        RegisterSessionEvent(gt_overIpri);
+    }
+    if (Cmpss4Regs.COMPSTS.bit.COMPHLATCH || Cmpss4Regs.COMPSTS.bit.COMPLLATCH)
+    {
+        RegisterSessionEvent(gt_overIsec);
     }
 
-    // проверяем ножку GPIO8 (INPUTXBAR1 -> TRIP4): перегрузка драйверов dc/dc конвертора
-    if (XbarRegs.XBARFLG2.bit.INPUT1 == 1)
+    // Ни одна защёлка не читается - авария всё равно была, раз мы здесь.
+    // Код обязателен: лампа CheckLamp0 горит до ручного сброса, и зажечь её
+    // без записи в таблицу значит оставить наладчика с красной лампой и
+    // пустым окном кодов.
+    if (!eventDetected)
     {
-        if (shrTrip.bit.vt1)
-        {
-            RegisterSessionEvent(conv_T1);
-        }
-
-        if (shrTrip.bit.vt2)
-        {
-            RegisterSessionEvent(conv_T2);
-        }
-
-        if (shrTrip.bit.vt3)
-        {
-            RegisterSessionEvent(conv_T3);
-        }
-
-        if (shrTrip.bit.vt4)
-        {
-            RegisterSessionEvent(conv_T4);
-        }
+        RegisterSessionEvent(tz_unknown);
     }
-       if (!eventDetected)
-        {
-           shrTrip.bit.TS2 = 0;
-           RegisterSessionEvent(trip4_uknow);
-        }
+
+    CheckLamp0 = 1; // зажигаем лампу диагностики постоянно до сброса от UI
 
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP2;
 }
 
-void CMPSS_BackgroundCheck(void)
-{
-    xbarFlg1 = XbarRegs.XBARFLG1;
-  
-    if (XbarRegs.XBARFLG1.bit.CMPSS3_CTRIPL)
-    {
-        RegisterSessionEvent(cmp3L_Ia);
-     }
-
-    if (XbarRegs.XBARFLG1.bit.CMPSS3_CTRIPH)
-    {
-        RegisterSessionEvent(cmp3H_Ia);
-    }
-
-    if (XbarRegs.XBARFLG1.bit.CMPSS1_CTRIPL)
-    {
-        RegisterSessionEvent(cmp1L_Ib);
-    }
-
-    if (XbarRegs.XBARFLG1.bit.CMPSS1_CTRIPH)
-    {
-        RegisterSessionEvent(cmp1H_Ib);
-    }
- 
-
-}
-
 /* Раскладка аварийных линий.
  *
- *   TRIP4 - аварии драйверов ключей (входы INPUTXBAR). Как было.
- *   TRIP5 - токовая защита от компараторов. НОВОЕ.
- *
- * Зачем отдельная линия, а не всё на TRIP4: обработчик INT_EPWM2_Iu_TZ_ISR
- * по TRIP4 читает сдвиговый регистр, чтобы понять, КАКОЙ транзистор пожаловался.
- * Если завести туда же ток, каждое срабатывание токовой защиты диагностировалось
- * бы как trip4_uknow, и причина терялась бы. С разными линиями источник аварии
- * виден сразу по флагу TZFLG, без разбора регистров.
+ *   TRIP5 - токовая защита от компараторов. Единственная линия на этой плате.
  *
  * Раскладка мультиплексоров EPWM X-BAR на F28P55x:
  *   MUX02 - CMPSS2_CTRIPH_OR_L  -> Ia, первичка
@@ -267,16 +173,23 @@ void TRIP_Clear(void)
     XbarRegs.XBARCLR1.all = 0xFFFFFFFFU;
     XbarRegs.XBARCLR2.all = 0xFFFFFFFFU;
 
+    // Защёлки компараторов держатся до явной очистки, а не снимаются вместе
+    // с флагом trip-zone. Не чистить их значит навсегда запомнить первый
+    // сработавший канал: следующая авария по вторичке всё равно показала бы
+    // gt_overIpri, потому что защёлка первички так и осталась взведённой.
+    Cmpss2Regs.COMPSTSCLR.bit.HLATCHCLR = 1;
+    Cmpss2Regs.COMPSTSCLR.bit.LLATCHCLR = 1;
+    Cmpss4Regs.COMPSTSCLR.bit.HLATCHCLR = 1;
+    Cmpss4Regs.COMPSTSCLR.bit.LLATCHCLR = 1;
+
     EALLOW;
     EPwm2Regs.TZCLR.bit.OST      = 1;
     EPwm1Regs.TZCLR.all          = 0xFFFF; // токовая защита живёт и на EPWM1
     EPwm2Regs.TZCLR.all          = 0xFFFF;
     EPwm3Regs.TZCLR.all          = 0xFFFF;
     EPwm4Regs.TZCLR.all          = 0xFFFF;
-    EPwm2Regs.TZEINT.bit.DCAEVT1 = 1;
+    EPwm2Regs.TZEINT.bit.DCBEVT1 = 1; // источник тот же, что разрешает TRIP_Init()
     EPwm2Regs.TZEINT.bit.OST     = 1;
     EDIS;
 
 }
-
-__interrupt void six_overload_XINT1_ISR(void) {}
