@@ -109,6 +109,48 @@ extern void       app_request_firmware_update(void);
 //
 //MCAN_GlobalFiltConfig filterConfig;
 void main(void)
+\
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {
     motors[0] = &motor1;
     motors[1] = &motor2;
@@ -304,12 +346,27 @@ extern volatile uint16_t epwm3time;// dbg
         dbgphone = (EPwm7Regs.TBCTR - dbgT0); // время в 0.1 мкс
         dbgT0    = EPwm7Regs.TBCTR;
 
-        // 3. Включение CAN загрузчика программы:
+        // 3. Прошивка по CAN. Команду 9999 разбирает cmd_MBOX28() и только
+        // взводит флаг: уйти в загрузчик прямо из обработчика MCAN нельзя, он
+        // этот же MCAN перенастраивает под себя. Разбор - в
+        // my_Files/Bootloader/app_boot_request.c.
+        //
+        // Возврата отсюда нет: загрузчик заканчивается переходом на _c_int00
+        // новой прошивки. Сброс флага оставлен на случай, если загрузчик
+        // однажды научится отказываться от работы и возвращать управление.
+        //
+        // Только во флеш-сборке. В CPU1_RAM прошивать флеш нечем и незачем:
+        // папка my_Files/Bootloader из неё исключена, и без этого условия
+        // RAM-сборка просто не слинковалась бы.
+#ifdef _FLASH
         if (request_firmware_update)
         {
- //           app_request_firmware_update();
+            app_request_firmware_update();
             request_firmware_update = 0;
         }
+#else
+        request_firmware_update = 0;
+#endif
 
      
  

@@ -24,17 +24,39 @@ namespace ICDIBasic
         private System.Windows.Forms.Timer _verifyTimer;
         private int _loadProgress = -1;
 
-        // F280039C: приложение начинается с Bank0 Sec2, загрузчик в Sec0-1
-        private const uint FStartAddr = 0x082000; // Bank0 Sec2 — начало области приложения
-        private const uint FEndAddr = 0x0AFFFF;   // Bank2 Sec15 — конец flash
+        // F28P55x: под приложение отданы BANK0..BANK3 целиком, включая нулевой
+        // сектор с codestart — только так прибор поднимется по питанию, а не
+        // одним лишь переходом по адресу отсюда. BANK4 (0x100000) — калибровки,
+        // загрузчик его не трогает (разбор — can_boot_protocol.h на MCU).
+        private const uint FStartAddr = 0x080000; // BANK0 сектор 0
+        private const uint FEndAddr = 0x0FFFFF;   // BANK3 сектор 127
 
-        private const ushort AckLoadReadyV2 = 0x0ACC;
-        private const ushort AckLoadReadyLegacy = 0x07CC;
+        // Сектор флеша F28P55x — 0x400 слов (2 КБ). Диапазон стирания
+        // выравнивается по этой границе: стереть половину сектора нельзя.
+        private const uint FlashSectorWords = 0x400;
+
+        // Тело прошивки идёт кадрами CAN-FD по 64 байта. Это 32 слова, то есть
+        // ровно одна запись Fapi_issueAutoEcc512ProgrammingCommand на MCU.
+        // Отсюда же требование к адресу сегмента — кратность 32 словам.
+        private const int BootDataBytes = 64;
+        private const uint BootDataWords = 32;
+        private const byte BootDataDlc = 15;
+
+        // Тайминг шины. Обязан совпадать со строкой в CAN/CANA.cs: приложение и
+        // загрузчик живут на одной физической шине и на одном приборе, разные
+        // настройки здесь означают отсутствие связи, а не медленную связь.
+        // 1 Мбит/с арбитраж / 2.5 Мбит/с данные.
+        private const string BootFdBitrate =
+            "f_clock=80000000,nom_brp=1,nom_tseg1=63,nom_tseg2=16,nom_sjw=16," +
+            "data_brp=1,data_tseg1=23,data_tseg2=8,data_sjw=4";
+
+        private const ushort AckLoadReady = 0x0ACC;
         private const ushort AckEraseRange = 0x0DCC;
-        private const ushort CmdSetChunkV2 = 0xCC0A;
-        private const ushort AckSetChunkV2 = 0x0BCC;
-        private const ushort AckChunkV2 = 0x0CCC;
-        private const ushort DefaultChunkBlocksV2 = 16;
+
+        // Маркер хода стирания: младший байт — проценты. Номера банка и сектора
+        // в нём больше не передаются: у F28P55x 128 секторов на банк, в четыре
+        // бита прежнего 0xEB{банк}{сектор} они не помещались.
+        private const ushort MarkEraseProgress = 0xEB00;
 
         #region 03 - Загрузчик
         private void FlWrk_DoWork(object sender, DoWorkEventArgs e)
@@ -123,9 +145,11 @@ namespace ICDIBasic
                         if (!File.Exists(pBin)) throw new Exception("Converted bin not found");
 
                         fileCs = ReadFile(pBin);
-                        cycles = (uint)fileCs.Length;
-                        _checksum = (_imgStartAddr - FStartAddr) * 2 * 0xFF;
-                        for (uint bytepos = 0; bytepos < cycles; bytepos++) _checksum += fileCs[bytepos];
+                        // cycles и _checksum здесь не считаем: ниже, после
+                        // BuildLoadRuns, они считаются по тому, что реально
+                        // уйдёт в шину, — вместе с добивкой до целых кадров.
+                        // MCU суммирует принятые байты, и любая другая база
+                        // гарантированно разойдётся с ним.
                         convOk = true;
                     }
                     catch (Exception ex)
@@ -219,15 +243,17 @@ namespace ICDIBasic
                         _checksum += run.Data[i];
                 }
 
-                // PCAN уже инициализирован на 1 Мбит/с — загрузчик работает на той же скорости
+                // Канал уже открыт основным приложением в режиме CAN-FD, и
+                // загрузчик работает на том же тайминге — переоткрытие ниже
+                // только снимает возможное error-passive.
                 BeginInvoke(new Action(() => Text = @"CAN OK"));
                 Invoke(new Action(MnSet));
                 Thread.Sleep(500);
 
                 short T = 0;
 
-                // Handshake: проверка связи с загрузчиком F280039C
-                // MCU уже перезагрузился в режим загрузчика (команда 9999 отправлена ранее)
+                // Связь с загрузчиком. MCU уже ушёл в него по команде 9999,
+                // отправленной ранее, и слушает ID 0x33.
                 T = 0;
                 BeginInvoke(new Action(() => Text = @"Ожидание загрузчика..."));
                 Thread.Sleep(1000); // Дополнительная пауза для стабилизации
@@ -238,13 +264,21 @@ namespace ICDIBasic
                 for (var stopWait = 0; stopWait < 200 && _crw.IsBusy; stopWait++)
                     Thread.Sleep(10);
 
-                // Ensure PCAN channel is configured to 1Mbit/s before handshake.
+                // Переоткрытие канала снимает error-passive, если телеметрия
+                // успела загнать узел в него до входа в загрузчик.
+                //
+                // ИМЕННО InitializeFD и ИМЕННО с этой строкой тайминга. Прибор
+                // на CAN-FD: 1 Мбит/с арбитраж, 2.5 Мбит/с данные. Классический
+                // Initialize(PCAN_BAUD_1M), стоявший здесь со времён F280039C,
+                // открывает канал в режиме CAN 2.0 — 64-байтные кадры данных с
+                // него не уйдут вообще, а WriteFD вернёт ошибку. Строка обязана
+                // совпадать с той, что в CAN/CANA.cs: разойдутся — MCU будет
+                // молчать, и это выглядит как неисправная плата.
                 try
                 {
-                    // Reinitialize interface to 1M to recover from error-passive states
                     PCANBasic.Uninitialize(_canHandle);
                     Thread.Sleep(50);
-                    PCANBasic.Initialize(_canHandle, TPCANBaudrate.PCAN_BAUD_1M);
+                    PCANBasic.InitializeFD(_canHandle, BootFdBitrate);
                     // Restore receive event so background receiver keeps working
                     var hp = _re.SafeWaitHandle.DangerousGetHandle();
                     ulong ev = unchecked((ulong)hp.ToInt64());
@@ -263,7 +297,7 @@ namespace ICDIBasic
                 var drainSwHandshake = Stopwatch.StartNew();
                 while (drainSwHandshake.ElapsedMilliseconds < 200)
                 {
-                    var drainSts = PCANBasic.Read(_canHandle, out _, out _);
+                    var drainSts = PCANBasic.ReadFD(_canHandle, out _, out _);
                     if ((drainSts & TPCANStatus.PCAN_ERROR_QRCVEMPTY) != 0)
                         break;
                     Thread.Sleep(1);
@@ -292,7 +326,7 @@ namespace ICDIBasic
                 var drainSw = Stopwatch.StartNew();
                 while (drainSw.ElapsedMilliseconds < 200)
                 {
-                    var drainSts = PCANBasic.Read(_canHandle, out _, out _);
+                    var drainSts = PCANBasic.ReadFD(_canHandle, out _, out _);
                     if ((drainSts & TPCANStatus.PCAN_ERROR_QRCVEMPTY) != 0)
                         break; // Queue is empty, safe to proceed
                     Thread.Sleep(1);
@@ -327,6 +361,13 @@ namespace ICDIBasic
                     if (eraseEnd > FEndAddr) eraseEnd = FEndAddr;
                     if (eraseEnd < eraseStart) eraseEnd = eraseStart;
 
+                    // Выравнивание на границы секторов 0x400 слов: стереть
+                    // половину сектора нельзя, и просить об этом MCU незачем —
+                    // он всё равно расширит диапазон, но уже молча.
+                    eraseStart &= ~(FlashSectorWords - 1);
+                    eraseEnd |= (FlashSectorWords - 1);
+                    if (eraseEnd > FEndAddr) eraseEnd = FEndAddr;
+
                     SendEraseRange33(eraseStart, eraseEnd);
 
                     var swEraseRangeAck = Stopwatch.StartNew();
@@ -350,7 +391,7 @@ namespace ICDIBasic
                 var swErase = Stopwatch.StartNew();
 
                 // Erase: ждём ACK_ERASE (0x05CC).
-                // MCU шлёт комбинированные маркеры 0xEBbs (b=банк, s=сектор).
+                // Ход работы MCU шлёт маркером 0xEBnn, где nn — проценты.
                 while (true)
                 {
                     resp = Read_32();
@@ -358,10 +399,9 @@ namespace ICDIBasic
                     {
                         bool importantEraseMarker =
                             resp == 0x05CC ||
-                            (resp & 0xFF00) == 0xEB00 ||
+                            (resp & 0xFF00) == MarkEraseProgress ||
                             (resp & 0xFF00) == 0xD000 ||
-                            (resp & 0xFF00) == 0xD100 ||
-                            (resp & 0xFF00) == 0xD200 ||
+                            (resp & 0xFF00) == 0xDE00 ||
                             resp == 0xEE00 || resp == 0xEE01 || resp == 0xEE02 || resp == 0xDEAD;
 
                         if (importantEraseMarker)
@@ -371,15 +411,14 @@ namespace ICDIBasic
                     }
                     if (resp == 0x05CC) break;
 
-                    // Combined bank+sector marker: 0xEB0s (Bank0), 0xEB1s (Bank1), 0xEB2s (Bank2)
-                        if ((resp & 0xFF00) == 0xEB00)
+                    if ((resp & 0xFF00) == MarkEraseProgress)
                     {
-                        var bank = (resp >> 4) & 0x0F;
-                        var sec = resp & 0x0F;
-                        BeginInvoke(new Action(() => Text = $@"Очистка FLASH... Bank {bank} Sector {sec}"));
+                        var percent = resp & 0x00FF;
+                        if (percent <= 100)
+                            BeginInvoke(new Action(() => Text = $@"Очистка FLASH... {percent}%"));
                     }
-                    // Timeout marker: 0xD0nn/0xD1nn/0xD2nn
-                    else if ((resp & 0xFF00) == 0xD000 || (resp & 0xFF00) == 0xD100 || (resp & 0xFF00) == 0xD200)
+                    // 0xD0nn — таймаут стирания сектора, 0xDEnn — отказ Flash API
+                    else if ((resp & 0xFF00) == 0xD000 || (resp & 0xFF00) == 0xDE00)
                     {
                         if (TryRecoverAfterMcuError(resp, ref fileCs, ref cycles, ref loadRuns, ref pOut, ref pBin))
                             goto erase_start;
@@ -414,17 +453,20 @@ namespace ICDIBasic
                     _verifyTimer.Start();
                 }));
 
-                // F280039C: передаём по 8 байт (Flash API программирует блоками по 64 бита)
-                // и ждём ACK_BLOCK после каждого блока. Это убирает зависимость
-                // от таймингов и исключает зависание из-за потери кадра.
-                var canMsg = new TPCANMsg
+                // Тело прошивки идёт кадрами CAN-FD по 64 байта с BRS, то есть
+                // на скорости данных 2.5 Мбит/с. Кадр = 32 слова = одна запись
+                // флеша на 512 бит, поэтому MCU ничего не накапливает.
+                //
+                // Квитанция ACK_BLOCK ждётся после КАЖДОГО кадра. Это не быстро,
+                // зато не зависит от таймингов: потерянный кадр превращается в
+                // таймаут с диагностикой, а не в тихо испорченную прошивку.
+                var canMsg = new TPCANMsgFD
                 {
-                    DATA = new byte[8],
+                    DATA = new byte[64],
                     ID = 0x33,
-                    LEN = 8,
-                    MSGTYPE = TPCANMessageType.PCAN_MESSAGE_STANDARD
+                    DLC = BootDataDlc,
+                    MSGTYPE = TPCANMessageType.PCAN_MESSAGE_FD | TPCANMessageType.PCAN_MESSAGE_BRS
                 };
-                bool useChunkAckV2 = false;
                 var swLoad = Stopwatch.StartNew();
                 int lastProgress = -1;
                 uint sentBytes = 0;
@@ -451,7 +493,7 @@ namespace ICDIBasic
                             resp = Read_32();
                             if (resp != 0)
                                 lastLoadReadyResp = resp;
-                            if (resp == AckLoadReadyV2 || resp == AckLoadReadyLegacy)
+                            if (resp == AckLoadReady)
                             {
                                 gotLoadReady = true;
                                 try
@@ -468,7 +510,6 @@ namespace ICDIBasic
                         if (!gotLoadReady)
                             continue;
 
-                        useChunkAckV2 = false;
                         SendLoadHeader33(addrHi, addrLo, sizeHi, sizeLo);
                     }
 
@@ -485,14 +526,17 @@ namespace ICDIBasic
                             $"Таймаут ACK на CMD_LOAD (addr=0x{run.StartAddr:X6}, size={run.Data.Length}, last=0x{lastLoadReadyResp:X4}).");
                     }
 
-                    for (uint byteIndex = 0; byteIndex < run.Data.Length; byteIndex += 8)
+                    // Длина сегмента кратна 64 байтам — это обеспечивает
+                    // BuildLoadRuns, и MCU на этом настаивает: неполный кадр он
+                    // отвергает, а не дописывает чем попало.
+                    for (uint byteIndex = 0; byteIndex < run.Data.Length; byteIndex += (uint)BootDataBytes)
                     {
-                        var remaining = (uint)Math.Min(8, run.Data.Length - byteIndex);
-                        for (int j = 0; j < 8; j++)
+                        var remaining = (uint)Math.Min(BootDataBytes, run.Data.Length - byteIndex);
+                        for (int j = 0; j < BootDataBytes; j++)
                             canMsg.DATA[j] = j < remaining ? run.Data[byteIndex + j] : (byte)0xFF;
 
                         var wrT0 = Stopwatch.GetTimestamp();
-                        var stsResult = PCANBasic.Write(_canHandle, ref canMsg);
+                        var stsResult = PCANBasic.WriteFD(_canHandle, ref canMsg);
                         var wrT1 = Stopwatch.GetTimestamp();
                         if (stsResult != TPCANStatus.PCAN_ERROR_OK) throw new Exception();
                         blockWriteTicks += (wrT1 - wrT0);
@@ -743,11 +787,29 @@ namespace ICDIBasic
                                         pBin = $"{Application.StartupPath}\\Ldr.bin";
                                         File.Copy(_selectedFileName, pOut, true);
                                         Cnv2(pOut, pBin);
-                                        // Recompute checksum and related values used later
+                                        // Пересобираем ВСЁ, что зависит от файла.
+                                        //
+                                        // Здесь раньше пересчитывалась только
+                                        // сумма, а loadRuns оставались от
+                                        // прежнего файла: дальше по goto
+                                        // erase_start прошивался старый образ с
+                                        // новой контрольной суммой, то есть
+                                        // сверка падала на ровном месте. Порядок
+                                        // тот же, что в TrySelectAndConvertOutFile().
                                         fileCs = ReadFile(pBin);
-                                        cycles = (uint)fileCs.Length;
-                                        _checksum = (_imgStartAddr - FStartAddr) * 2 * 0xFF;
-                                        for (uint bytepos = 0; bytepos < cycles; bytepos++) _checksum += fileCs[bytepos];
+                                        loadRuns = BuildLoadRuns(fileCs, _imgStartAddr);
+                                        if (loadRuns.Count == 0)
+                                            throw new InvalidOperationException("Converted image contains no programmable data blocks.");
+
+                                        cycles = 0;
+                                        _checksum = 0;
+                                        foreach (var run in loadRuns)
+                                        {
+                                            cycles += (uint)run.Data.Length;
+                                            for (int i = 0; i < run.Data.Length; i++)
+                                                _checksum += run.Data[i];
+                                        }
+
                                         convOk = true;
                                     }
                                     catch (Exception)
@@ -915,7 +977,7 @@ namespace ICDIBasic
                 var avgAckUs = blockCount == 0 ? 0 : (blockAckTicks * 1_000_000.0 / Stopwatch.Frequency) / blockCount;
                 var avgWriteUs = blockCount == 0 ? 0 : (blockWriteTicks * 1_000_000.0 / Stopwatch.Frequency) / blockCount;
                 var perfLine =
-                    $"[BL PERF] total={swTotal.ElapsedMilliseconds}ms erase={eraseMs}ms load={loadMs}ms verify={verifyMs}ms reboot={rebootMs}ms blocks={blockCount} ackWaits={ackWaitEvents} mode={(useChunkAckV2 ? "chunk" : "legacy")} avgAck={avgAckUs:F1}us avgWrite={avgWriteUs:F1}us speed={kbPerSec:F1}KB/s";
+                    $"[BL PERF] total={swTotal.ElapsedMilliseconds}ms erase={eraseMs}ms load={loadMs}ms verify={verifyMs}ms reboot={rebootMs}ms frames={blockCount} ackWaits={ackWaitEvents} frameBytes={BootDataBytes} avgAck={avgAckUs:F1}us avgWrite={avgWriteUs:F1}us speed={kbPerSec:F1}KB/s";
                 Debug.WriteLine(perfLine);
                 Trace.WriteLine(perfLine);
                 try
@@ -1011,6 +1073,22 @@ done:
             return ((dword & 0x0000FFFF) << 16) | ((dword & 0xFFFF0000) >> 16);
         }
 
+        /// <summary>
+        /// Режет образ на сегменты, пропуская сплошные области 0xFF.
+        /// </summary>
+        /// <remarks>
+        /// Шаг ровно 64 байта, а не 8, как было на F280039C. Причина в том, что
+        /// кадр CAN-FD несёт 64 байта и MCU кладёт его во флеш одной записью на
+        /// 512 бит. Отсюда два следствия, на которые MCU прямо проверяет и без
+        /// которых отказывается писать: адрес каждого сегмента кратен 32 словам,
+        /// длина каждого сегмента кратна 64 байтам.
+        ///
+        /// Выравнивание держится само собой: baseAddr уже округлён вниз до 32
+        /// слов в Cnv2, а границы кусков здесь всегда кратны 64 байтам.
+        ///
+        /// Пропущенные области остаются стёртыми (0xFF) — так и задумано, туда
+        /// линкер ничего не положил.
+        /// </remarks>
         private static List<LoadRun> BuildLoadRuns(byte[] image, uint baseAddr)
         {
             if (image == null) throw new ArgumentNullException(nameof(image));
@@ -1018,9 +1096,9 @@ done:
             var runs = new List<LoadRun>();
             int runStart = -1;
 
-            for (int byteIndex = 0; byteIndex < image.Length; byteIndex += 8)
+            for (int byteIndex = 0; byteIndex < image.Length; byteIndex += BootDataBytes)
             {
-                int remaining = Math.Min(8, image.Length - byteIndex);
+                int remaining = Math.Min(BootDataBytes, image.Length - byteIndex);
                 bool blockAllFF = true;
                 for (int j = 0; j < remaining; j++)
                 {
@@ -1054,8 +1132,16 @@ done:
 
             if (runStart >= 0)
             {
+                // Хвост образа добиваем до целого кадра. Cnv2 уже выравнивает
+                // длину, но последний сегмент — единственное место, где
+                // некратность вообще возможна, и платить за неё отказом MCU в
+                // конце многоминутной прошивки не хочется.
                 int runLength = image.Length - runStart;
-                var runData = new byte[runLength];
+                int padded = ((runLength + BootDataBytes - 1) / BootDataBytes) * BootDataBytes;
+
+                var runData = new byte[padded];
+                for (int i = runLength; i < padded; i++)
+                    runData[i] = 0xFF;
                 Buffer.BlockCopy(image, runStart, runData, 0, runLength);
 
                 runs.Add(new LoadRun
@@ -1437,12 +1523,24 @@ done:
                         $"Expected within [0x{FStartAddr:X6}..0x{FEndAddr:X6}].");
                 }
 
-                // Clip to application area — Sec0-1 (0x080000-0x081FFF) are not erased
-                // and must not be programmed by the bootloader.
+                // Обрезки образа по началу области больше нет: нулевой сектор
+                // с codestart теперь стирается и пишется вместе со всем
+                // остальным, иначе после снятия питания прибор уходил бы по
+                // точке входа от прошлой прошивки.
+                //
+                // Начало округляется ВНИЗ до 32 слов, конец — ВВЕРХ: запись на
+                // 512 бит (Fapi_issueAutoEcc512ProgrammingCommand на MCU) иначе
+                // не ляжет. Добивка остаётся 0xFF — значением стёртого флеша,
+                // так что содержимого она не меняет.
                 uint effectiveMinA = minA < FStartAddr ? FStartAddr : minA;
+                effectiveMinA &= ~(BootDataWords - 1);
+
+                uint effectiveMaxA = maxA;
+                if ((effectiveMaxA & (BootDataWords - 1)) != 0)
+                    effectiveMaxA = (effectiveMaxA + BootDataWords) & ~(BootDataWords - 1);
 
                 var wr = new BinaryWriter(File.Open(oUtput1, FileMode.Create));
-                var sz = (maxA - effectiveMinA) * AddrSize;
+                var sz = (effectiveMaxA - effectiveMinA) * AddrSize;
                 for (uint bt = 0; bt < sz; bt++) wr.Write((byte)0xFF);
 
                 foreach (var s in segs)
@@ -1473,119 +1571,64 @@ done:
             rd.Close();
         }
 
-        private void Send_33(ushort msg)
+        /// <summary>
+        /// Служебный кадр ПК -> MCU: четыре 16-битных слова, DLC=8.
+        /// </summary>
+        /// <remarks>
+        /// Кадр отправляется без FDF и BRS. Канал открыт в режиме FD, но сами
+        /// команды короткие и переключать на них скорость данных незачем —
+        /// выигрыш в микросекундах, а классический кадр принимает и обычный
+        /// приёмник, что заметно упрощает разбор осциллографом и логами.
+        /// Ускорять имеет смысл только тело прошивки, и оно ускорено.
+        ///
+        /// Слово укладывается младшим байтом вперёд — так же, как его читает
+        /// MCU из Message RAM (boot_poll_rx в can_bootloader.c).
+        /// </remarks>
+        private void SendBootFrame33(ushort w0, ushort w1 = 0, ushort w2 = 0, ushort w3 = 0)
         {
-            // Use bootloader PC->MCU ID (set to 0x33)
-            const uint idNum = 0x33;
-            // Always send full 8-byte classic CAN frames to match DMA/bootloader expectations
-            var canMsg = new TPCANMsg
+            var canMsg = new TPCANMsgFD
             {
-                DATA = new byte[8],
-                ID = idNum,
-                LEN = 8,
+                DATA = new byte[64],
+                ID = 0x33,
+                DLC = 8,
                 MSGTYPE = TPCANMessageType.PCAN_MESSAGE_STANDARD
             };
-            // Place 16-bit word into first two bytes, rest remain zero
-            canMsg.DATA[0] = (byte)(msg & 0x00FF);
-            canMsg.DATA[1] = (byte)((msg >> 8) & 0x00FF);
-            var stsResult = PCANBasic.Write(_canHandle, ref canMsg);
+
+            canMsg.DATA[0] = (byte)(w0 & 0x00FF);
+            canMsg.DATA[1] = (byte)((w0 >> 8) & 0x00FF);
+            canMsg.DATA[2] = (byte)(w1 & 0x00FF);
+            canMsg.DATA[3] = (byte)((w1 >> 8) & 0x00FF);
+            canMsg.DATA[4] = (byte)(w2 & 0x00FF);
+            canMsg.DATA[5] = (byte)((w2 >> 8) & 0x00FF);
+            canMsg.DATA[6] = (byte)(w3 & 0x00FF);
+            canMsg.DATA[7] = (byte)((w3 >> 8) & 0x00FF);
+
+            var stsResult = PCANBasic.WriteFD(_canHandle, ref canMsg);
             if (stsResult == TPCANStatus.PCAN_ERROR_OK) return;
-            throw new Exception();
+            throw new Exception($"Ошибка записи в CAN: {stsResult}");
+        }
+
+        private void Send_33(ushort msg)
+        {
+            SendBootFrame33(msg);
         }
 
         private void SendEraseRange33(uint startAddr, uint endAddr)
         {
-            var canMsg = new TPCANMsg
-            {
-                DATA = new byte[8],
-                ID = 0x33,
-                LEN = 8,
-                MSGTYPE = TPCANMessageType.PCAN_MESSAGE_STANDARD
-            };
-
-            ushort startHi = (ushort)((startAddr >> 16) & 0xFFFF);
-            ushort startLo = (ushort)(startAddr & 0xFFFF);
-            ushort endHi = (ushort)((endAddr >> 16) & 0xFFFF);
-            ushort endLo = (ushort)(endAddr & 0xFFFF);
-
-            canMsg.DATA[0] = (byte)(startHi & 0x00FF);
-            canMsg.DATA[1] = (byte)((startHi >> 8) & 0x00FF);
-            canMsg.DATA[2] = (byte)(startLo & 0x00FF);
-            canMsg.DATA[3] = (byte)((startLo >> 8) & 0x00FF);
-            canMsg.DATA[4] = (byte)(endHi & 0x00FF);
-            canMsg.DATA[5] = (byte)((endHi >> 8) & 0x00FF);
-            canMsg.DATA[6] = (byte)(endLo & 0x00FF);
-            canMsg.DATA[7] = (byte)((endLo >> 8) & 0x00FF);
-
-            var stsResult = PCANBasic.Write(_canHandle, ref canMsg);
-            if (stsResult == TPCANStatus.PCAN_ERROR_OK) return;
-            throw new Exception();
+            SendBootFrame33((ushort)((startAddr >> 16) & 0xFFFF),
+                            (ushort)(startAddr & 0xFFFF),
+                            (ushort)((endAddr >> 16) & 0xFFFF),
+                            (ushort)(endAddr & 0xFFFF));
         }
 
         private void SendRebootEntry33(ushort entryHi, ushort entryLo)
         {
-            var canMsg = new TPCANMsg
-            {
-                DATA = new byte[8],
-                ID = 0x33,
-                LEN = 8,
-                MSGTYPE = TPCANMessageType.PCAN_MESSAGE_STANDARD
-            };
-
-            canMsg.DATA[0] = (byte)(entryHi & 0x00FF);
-            canMsg.DATA[1] = (byte)((entryHi >> 8) & 0x00FF);
-            canMsg.DATA[2] = (byte)(entryLo & 0x00FF);
-            canMsg.DATA[3] = (byte)((entryLo >> 8) & 0x00FF);
-
-            var stsResult = PCANBasic.Write(_canHandle, ref canMsg);
-            if (stsResult == TPCANStatus.PCAN_ERROR_OK) return;
-            throw new Exception();
+            SendBootFrame33(entryHi, entryLo);
         }
-
-        private void SendSetChunk33(ushort blocksPerChunk)
-        {
-            var canMsg = new TPCANMsg
-            {
-                DATA = new byte[8],
-                ID = 0x33,
-                LEN = 8,
-                MSGTYPE = TPCANMessageType.PCAN_MESSAGE_STANDARD
-            };
-
-            canMsg.DATA[0] = (byte)(CmdSetChunkV2 & 0x00FF);
-            canMsg.DATA[1] = (byte)((CmdSetChunkV2 >> 8) & 0x00FF);
-            canMsg.DATA[2] = (byte)(blocksPerChunk & 0x00FF);
-            canMsg.DATA[3] = (byte)((blocksPerChunk >> 8) & 0x00FF);
-
-            var stsResult = PCANBasic.Write(_canHandle, ref canMsg);
-            if (stsResult == TPCANStatus.PCAN_ERROR_OK) return;
-            throw new Exception();
-        }
-
-
 
         private void SendLoadHeader33(ushort addrHi, ushort addrLo, ushort sizeHi, ushort sizeLo)
         {
-            var canMsg = new TPCANMsg
-            {
-                DATA = new byte[8],
-                ID = 0x33,
-                LEN = 8,
-                MSGTYPE = TPCANMessageType.PCAN_MESSAGE_STANDARD
-            };
-
-            canMsg.DATA[0] = (byte)(addrHi & 0x00FF);
-            canMsg.DATA[1] = (byte)((addrHi >> 8) & 0x00FF);
-            canMsg.DATA[2] = (byte)(addrLo & 0x00FF);
-            canMsg.DATA[3] = (byte)((addrLo >> 8) & 0x00FF);
-            canMsg.DATA[4] = (byte)(sizeHi & 0x00FF);
-            canMsg.DATA[5] = (byte)((sizeHi >> 8) & 0x00FF);
-            canMsg.DATA[6] = (byte)(sizeLo & 0x00FF);
-            canMsg.DATA[7] = (byte)((sizeLo >> 8) & 0x00FF);
-
-            var stsResult = PCANBasic.Write(_canHandle, ref canMsg);
-            if (stsResult == TPCANStatus.PCAN_ERROR_OK) return;
-            throw new Exception();
+            SendBootFrame33(addrHi, addrLo, sizeHi, sizeLo);
         }
 
         private ushort Read_32()
@@ -1611,12 +1654,16 @@ done:
 
             // Fallback: single non-blocking poll from PCAN queue.
             // Keep this path fast because bootloader loops call Read_32() very frequently.
+            //
+            // ReadFD, а не Read: канал открыт в режиме FD, и классическое Read
+            // на нём вернёт ошибку. Ответы MCU при этом короткие (DLC=8), но
+            // читать их всё равно обязан FD-приёмник.
             const ushort msgid = 0x32;
-            var sts = PCANBasic.Read(_canHandle, out var canMsg, out var _);
+            var sts = PCANBasic.ReadFD(_canHandle, out var canMsg, out var _);
             if (sts != TPCANStatus.PCAN_ERROR_OK)
                 return 0;
 
-            if (canMsg.ID != msgid || canMsg.LEN < 2)
+            if (canMsg.ID != msgid || canMsg.DLC < 2)
                 return 0;
 
             ushort rcvdWord = canMsg.DATA[0];
@@ -1636,16 +1683,16 @@ done:
             var sw = Stopwatch.StartNew();
             while (sw.ElapsedMilliseconds < timeoutMs)
             {
-                var sts = PCANBasic.Read(_canHandle, out var canMsg, out var _);
+                var sts = PCANBasic.ReadFD(_canHandle, out var canMsg, out var _);
                 if (sts == TPCANStatus.PCAN_ERROR_OK)
                 {
-                    if (canMsg.ID == 0x32 && canMsg.LEN >= 4)
+                    if (canMsg.ID == 0x32 && canMsg.DLC >= 4)
                     {
                         w0 = (ushort)(canMsg.DATA[0] | (canMsg.DATA[1] << 8));
                         w1 = (ushort)(canMsg.DATA[2] | (canMsg.DATA[3] << 8));
-                        if (canMsg.LEN >= 6)
+                        if (canMsg.DLC >= 6)
                             w2 = (ushort)(canMsg.DATA[4] | (canMsg.DATA[5] << 8));
-                        if (canMsg.LEN >= 8)
+                        if (canMsg.DLC >= 8)
                             w3 = (ushort)(canMsg.DATA[6] | (canMsg.DATA[7] << 8));
                         return true;
                     }

@@ -1,17 +1,28 @@
-# CAN Bootloader F280039C
+# CAN-загрузчик F28P55x
 
-## Integracia v suschestvuyuschiy proekt 3ph_Inverter
+Прошивка прибора по CAN-FD из UI Motor_Control, без JTAG.
 
-### Shag 1: Dobavit faily v CCS
-Right-click project -> Add Files:
-- Bootloader/can_bootloader.c
-- Bootloader/app_boot_request.c
-- Bootloader/can_boot_protocol.h
+| Файл | Что делает |
+|---|---|
+| `can_bootloader.c` | сам загрузчик: транспорт MCAN и работа с флешем |
+| `can_boot_protocol.h` | команды, квитанции, карта флеша |
+| `app_boot_request.c` | вход из приложения по команде 9999 |
+| `CAN_Bootloader_Protocol.md` | описание протокола — читать первым |
 
-### Shag 2: Include Path
-Project -> Properties -> Build -> C2000 Compiler -> Include Options
-Add: ${PROJECT_ROOT}/Bootloader
+## Что уже сделано в проекте
 
-### Shag 3: Flash API Library
-Project -> Properties -> Build -> C2000 Linker -> File Search Path
-Add lib: C:\ti\C2000Ware_6_00_01_00\libraries\flash_api\f28003x\lib\FAPI_F28003x_EABI_v1.58.10.lib
+Ничего доподключать не нужно, всё на месте:
+
+- папка входит в сборку конфигурации **CPU1_FLASH** и исключена из **CPU1_RAM**
+  (прошивать флеш из RAM-сборки незачем);
+- библиотека Flash API подключена и втянута в `.TI.ramfunc` — GROUP в
+  `28p55x_generic_flash_lnk.cmd`, путь поиска в настройках линкера
+  (`-i"${COM_TI_C2000WARE_INSTALL_DIR}/libraries/flash_api/f28p55x/lib"`);
+- вызов `app_request_firmware_update()` стоит в фоновом цикле `main()`.
+
+## Если правите загрузчик
+
+Проверьте по `CPU1_FLASH/invertor.map`, что у `can_bootloader.obj` и
+`app_boot_request.obj` нет ни одной строки с `(.text)`. Появилась — во флеш
+уехала функция, которая будет вызвана после стирания этого самого флеша.
+Разбор — в конце `CAN_Bootloader_Protocol.md`.

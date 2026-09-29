@@ -78,8 +78,28 @@ SECTIONS
    ramgs1 : > RAMGS1
    ramgs2 : > RAMGS2
 
+   /* .TI.ramfunc втягивает В СЕБЯ код библиотеки Flash API.
+    *
+    * ЗАЧЕМ. Библиотека сама по себе линкуется в .text, то есть во флеш.
+    * calib_store с этим живёт: он стирает BANK4, а исполняется из BANK0, и
+    * банки независимы. CAN-загрузчику так нельзя - он стирает BANK0..BANK3
+    * целиком, вместе с той страницей, откуда сейчас идёт выборка команд, и
+    * вырубает сам себя на первом же секторе. В ОЗУ должен лежать не только
+    * код загрузчика, но и весь Fapi_*, который он зовёт.
+    *
+    * Синтаксис втягивания библиотеки - шаблон TI, см.
+    * C2000Ware/device_support/f28p55x/common/cmd/28p55x_flash_api_512bit_lnk.cmd
+    *
+    * Копирование делает Device_init() (syscfg/device.c) по символам
+    * Ramfuncs*, отдельного memcpy не нужно. Имя .lib обязано совпадать с тем,
+    * что подключено в настройках проекта: разойдутся - линковка пройдёт, а
+    * Fapi останется во флеше, и это обнаружится только на живой прошивке.
+    */
    #if defined(__TI_EABI__)
-       .TI.ramfunc : {} LOAD = FLASH_BANK0,
+       GROUP
+       {
+          .TI.ramfunc : { -l FAPI_F28P55x_EABI_v4.00.00.lib }
+       }                 LOAD = FLASH_BANK0,
                         RUN = RAMGS0,
                         LOAD_START(RamfuncsLoadStart),
                         LOAD_SIZE(RamfuncsLoadSize),
@@ -89,7 +109,10 @@ SECTIONS
                         RUN_END(RamfuncsRunEnd),
                         ALIGN(8)
    #else
-       .TI.ramfunc : {} LOAD = FLASH_BANK0,
+       GROUP
+       {
+          .TI.ramfunc : { -l FAPI_F28P55x_COFF_v4.00.00.lib }
+       }                 LOAD = FLASH_BANK0,
                         RUN = RAMGS0,
                         LOAD_START(_RamfuncsLoadStart),
                         LOAD_SIZE(_RamfuncsLoadSize),
