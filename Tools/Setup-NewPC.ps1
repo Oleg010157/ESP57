@@ -25,8 +25,7 @@
 [CmdletBinding()]
 param(
     [switch]$Check,
-    [string]$C2000Ware,
-    [string]$StablePath = 'C:\K57'
+    [string]$C2000Ware
 )
 
 $ErrorActionPreference = 'Stop'
@@ -265,47 +264,6 @@ foreach ($f in $claudeFiles) {
 }
 
 # --------------------------------------------------------------------------
-# Стабильный путь к проекту (junction).
-#
-# Состояние рабочего стола CCStudio - открытые вкладки, выражения Watch,
-# переменные терминала - хранится в localStorage Electron под ключом, в который
-# входит ПОЛНЫЙ путь к файлу .theia-workspace. Поэтому всё это теряется и при
-# переезде на другую машину, и просто при переименовании папки проекта.
-#
-# Лечение: держать на каждой машине junction с одним и тем же именем и всегда
-# открывать workspace через него. Проверено 30.09.2026 - Theia НЕ разворачивает
-# junction в реальный путь: открыв C:\K57\..., она пишет ключ
-# file:///c%3A/K57/INVERTOR_CCS/K57.theia-workspace:... как есть. Значит при
-# переименовании настоящей папки достаточно пересоздать junction, а состояние
-# останется на месте.
-#
-# Junction - не символическая ссылка: прав администратора не требует, удаляется
-# как обычная папка (rmdir) и на файлы по ту сторону не влияет.
-# --------------------------------------------------------------------------
-$stableNorm = $StablePath.TrimEnd('\\')
-$repoNorm   = $RepoRoot.TrimEnd('\\')
-
-if ($repoNorm -ieq $stableNorm) {
-    # Скрипт запущен через сам junction - значит он есть и работает.
-    Say "Стабильный путь" "OK" "запущено через $StablePath"
-} elseif (Test-Path $StablePath) {
-    $link = Get-Item $StablePath -Force
-    $tgt  = @($link.Target) -join ''
-    if ($link.LinkType -eq 'Junction' -and $tgt.TrimEnd('\\') -ieq $repoNorm) {
-        Say "Стабильный путь" "OK" "$StablePath -> $RepoRoot"
-    } else {
-        Say "Стабильный путь" "НУЖЕН" "$StablePath занят и ведёт не сюда: $tgt"
-        $script:Manual++
-    }
-} elseif (Need-Action) {
-    New-Item -ItemType Junction -Path $StablePath -Target $RepoRoot | Out-Null
-    $script:Changed++
-    Say "Стабильный путь" "ПРИМЕНЁН" "$StablePath -> $RepoRoot"
-} else {
-    Say "Стабильный путь" "НУЖЕН" "будет создан junction $StablePath"
-}
-
-# --------------------------------------------------------------------------
 # Выражения окна Watch (Expressions). CCStudio держит их в localStorage
 # Electron (LevelDB):
 #   %LOCALAPPDATA%\Texas Instruments\CCS\ccs2100\0\electron\Local Storage\leveldb
@@ -372,9 +330,6 @@ Write-Host ""
 Write-Host "В любом случае вручную, из IDE:" -ForegroundColor White
 Write-Host "  - Project -> Build Configurations -> Set Active (CPU1_RAM или CPU1_FLASH)"
 Write-Host "  - пересобрать обе конфигурации и убедиться, что чисто"
-Write-Host "  - открывать workspace ЧЕРЕЗ стабильный путь, иначе вкладки и Watch"
-Write-Host "    будут привязаны к реальному пути и потеряются при переезде:"
-Write-Host "      $StablePath\INVERTOR_CCS\K57.theia-workspace"
 Write-Host "  - окно Expressions -> Import, если Watch пуст, а файл выражений есть;"
 Write-Host "    в диалоге указать путь целиком:"
 Write-Host "      $watchFile"
