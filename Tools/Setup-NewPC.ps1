@@ -277,11 +277,14 @@ foreach ($f in $claudeFiles) {
 # --------------------------------------------------------------------------
 $watchFile = Join-Path $RepoRoot 'INVERTOR_CCS\watch_expressions.json'
 if (Test-Path $watchFile) {
-    Say "Watch: выражения" "OK" "восстановить: Expressions -> Import"
+    Say "Watch: выражения" "OK" "файл есть, восстановить через Expressions -> Import"
 } else {
-    Say "Watch: выражения" "НУЖЕН" "нет INVERTOR_CCS\watch_expressions.json"
+    Say "Watch: выражения" "НУЖЕН" "файла нет - Export на машине, где выражения есть"
     $script:Manual++
 }
+# Диалог Export/Import просит полный путь, а он на каждой машине свой, поэтому
+# печатаем готовый - скопировать и вставить.
+Write-Host ("  {0,-30} {1}" -f "", $watchFile) -ForegroundColor DarkGray
 
 # --------------------------------------------------------------------------
 # Claude Code: вход. Автоматизировать нельзя, но можно не гадать - пустое окно
@@ -327,5 +330,7 @@ Write-Host ""
 Write-Host "В любом случае вручную, из IDE:" -ForegroundColor White
 Write-Host "  - Project -> Build Configurations -> Set Active (CPU1_RAM или CPU1_FLASH)"
 Write-Host "  - пересобрать обе конфигурации и убедиться, что чисто"
-Write-Host "  - окно Expressions -> Import, если Watch пуст, а файл выражений есть"
+Write-Host "  - окно Expressions -> Import, если Watch пуст, а файл выражений есть;"
+Write-Host "    в диалоге указать путь целиком:"
+Write-Host "      $watchFile"
 Write-Host ""
