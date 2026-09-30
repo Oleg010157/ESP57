@@ -114,6 +114,14 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="CAN\PcanFdMessageConverter.cs" />
+    <Compile Include="Scope\F3Channels.cs" />
+    <Compile Include="Scope\ScopeRing.cs" />
+    <Compile Include="Scope\ScopeControl.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Scope\ScopeForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Class1.cs" />
     <Compile Include="Form_imitation1.Designer.cs">
       <AutoGen>True</AutoGen>

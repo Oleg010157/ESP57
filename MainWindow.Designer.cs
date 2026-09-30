@@ -139,6 +139,7 @@
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.видToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.tsmChView = new System.Windows.Forms.ToolStripMenuItem();
+            this.tsmScope = new System.Windows.Forms.ToolStripMenuItem();
             this.МенюУправленияToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.управлениеToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.yokogawaWTToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -1515,16 +1516,25 @@
             // видToolStripMenuItem
             // 
             this.видToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.tsmChView});
+            this.tsmChView,
+            this.tsmScope});
             this.видToolStripMenuItem.Name = "видToolStripMenuItem";
             this.видToolStripMenuItem.Size = new System.Drawing.Size(49, 24);
             this.видToolStripMenuItem.Text = "Вид";
-            // 
+            //
             // tsmChView
-            // 
+            //
             this.tsmChView.Name = "tsmChView";
             this.tsmChView.Size = new System.Drawing.Size(190, 26);
             this.tsmChView.Text = "Изменить вид";
+            //
+            // tsmScope
+            //
+            this.tsmScope.Name = "tsmScope";
+            this.tsmScope.Size = new System.Drawing.Size(190, 26);
+            this.tsmScope.Text = "Осциллограф";
+            this.tsmScope.ToolTipText = "Живая лента кадра 103, набор F3_convertor";
+            this.tsmScope.Click += new System.EventHandler(this.tsmScope_Click);
             // 
             // МенюУправленияToolStripMenuItem
             // 
@@ -3804,6 +3814,7 @@
         public System.Windows.Forms.CheckBox Load_Sym;
         private System.Windows.Forms.ToolStripMenuItem видToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem tsmChView;
+        private System.Windows.Forms.ToolStripMenuItem tsmScope;
         public System.Windows.Forms.Button btnTblLoad2;
         public System.Windows.Forms.Button btnTblLoad1;
         private System.Windows.Forms.TextBox AIN2_flag;

@@ -1784,6 +1784,18 @@ namespace ICDIBasic
         }
 
        #endregion
+        #region Открытие окна осциллографа быстрой ленты
+        private void tsmScope_Click(object sender, EventArgs e)
+        {
+            // Одно окно на всю программу: второе смотрело бы на то же кольцо и
+            // делило бы с первым курсор и заморозку. Открытое поднимается.
+            //
+            // Подключение к данным живёт в самом окне (ScopeForm.Feed вызывается
+            // из Kadr60Rx), поэтому здесь ничего передавать не надо.
+            ScopeForm.Open(this);
+        }
+
+       #endregion
         #region Открытие окна графиков в окне индикации
         private void button_ain1_plot_Click(object sender, EventArgs e)
         {
