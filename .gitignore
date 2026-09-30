@@ -26,6 +26,13 @@ WscopeE.ini
 # Локальные настройки среды и кэш IDE
 .metadata/
 .theia/
+# ...кроме конфигурации отладки и настроек редактора самого проекта: они
+# машинно-независимы (ни одного абсолютного пути) и обязаны ездить с ним.
+# Корневой .theia остаётся скрытым - он от постороннего empty_driverlib_project.
+!/INVERTOR_CCS/.theia/
+/INVERTOR_CCS/.theia/*
+!/INVERTOR_CCS/.theia/launch.json
+!/INVERTOR_CCS/.theia/settings.json
 .vscode/
 .launches/
 .clangd/

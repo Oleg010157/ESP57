@@ -1,0 +1,12 @@
+{
+    "editor.fontSize": 15,
+    "files.encoding": "utf8",
+    "files.autoGuessEncoding": false,
+    "editor.inlayHints.enabled": "on",
+    "editor.inlayHints.maximumLength": 80,
+    "editor.inlayHints.padding": true,
+    "editor.inlayHints.fontSize": 0,
+    "editor.inlayHints.fontFamily": "",
+    "ai-features.AiEnable.enableAI": true,
+    "ai-features.codeCompletion.automaticCodeCompletion": true
+}
