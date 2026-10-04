@@ -37,15 +37,17 @@ namespace ICDIBasic
      */
     internal sealed class ScopeControl : Control
     {
-        private const int Ch = F3Channels.Count;
-
         private readonly ScopeRing _ring;
+        private readonly IniChannelMap _map;
 
-        private readonly bool[] _visible = new bool[Ch];
-        private readonly float[] _scale = new float[Ch];
+        /// <summary>Каналов в шаблоне. У разных кадров разное - отсюда поле, а не const.</summary>
+        private readonly int _ch;
+
+        private readonly bool[] _visible;
+        private readonly float[] _scale;
 
         /* Снимок для рисования: приёмный поток не должен ждать GDI+. */
-        private readonly float[] _snapV = new float[ScopeRing.Capacity * Ch];
+        private readonly float[] _snapV;
         private readonly uint[] _snapT = new uint[ScopeRing.Capacity];
 
         /// <summary>Часы для сдерживания таблицы отсчёта. Stopwatch, а не TickCount: тот переполняется.</summary>
@@ -54,6 +56,12 @@ namespace ICDIBasic
         public ScopeControl(ScopeRing ring)
         {
             _ring = ring;
+            _map = ring.Map;
+            _ch = _map.Count;
+
+            _visible = new bool[_ch];
+            _scale = new float[_ch];
+            _snapV = new float[ScopeRing.Capacity * _ch];
 
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                      ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
@@ -65,12 +73,29 @@ namespace ICDIBasic
 
             BackColor = Color.FromArgb(18, 22, 27);
 
-            for (int c = 0; c < Ch; c++)
+            _trig = _map.DefaultTrigger;
+
+            /* Сразу показываем первые три канала, кроме такта: рисовать все
+             * пятнадцать значит не увидеть ни одного, а какие именно нужны -
+             * знает только оператор. Счётчик такта как кривая бесполезен, его
+             * дело - ось времени. */
+            int shown = 0;
+            for (int c = 0; c < _ch; c++)
             {
                 _scale[c] = 1.0f;
-                _visible[c] = F3Channels.All[c].Shown;
+                _visible[c] = c != _map.TickIndex && shown < 3;
+                if (_visible[c]) shown++;
             }
         }
+
+        /// <summary>Канал, по которому идёт запуск развёртки.</summary>
+        public int TrigChannel
+        {
+            get { return _trig; }
+            set { _trig = value; Invalidate(); }
+        }
+
+        private int _trig;
 
         /// <summary>Ширина окна по времени, мс. Ноль здесь дал бы окно в два отсчёта.</summary>
         [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -180,14 +205,14 @@ namespace ICDIBasic
         /// <summary>Значение канала в снимке.</summary>
         private float Snap(int i, int c)
         {
-            return _snapV[i * Ch + c];
+            return _snapV[i * _ch + c];
         }
 
         /// <summary>Шаг между отсчётами в тактах, из кольца.</summary>
         private int _step = 1;
 
         /// <summary>Сколько каналов в кадре настоящие; остальные - нули старой прошивки.</summary>
-        private int _live = Ch;
+        private int _live;
 
         /*-----------------------------------------------------------------------
          * Поиск точки запуска. Вызывается только под замком кольца.
@@ -205,7 +230,7 @@ namespace ICDIBasic
             float peak = 0f;
             for (int a = 0; a < count; a++)
             {
-                float v = Math.Abs(_ring.At(a, F3Channels.Trig));
+                float v = Math.Abs(_ring.At(a, _trig));
                 if (v > peak) peak = v;
             }
 
@@ -222,7 +247,7 @@ namespace ICDIBasic
 
             for (int a = count - 1; a >= n - 1; --a)
             {
-                float v = _ring.At(a, F3Channels.Trig);
+                float v = _ring.At(a, _trig);
 
                 if (v < arm) armed = true;
                 else if (armed && v >= 0f) { armed = false; best = a; }
@@ -243,8 +268,8 @@ namespace ICDIBasic
 
             if (best >= 0 && best + 1 < count)
             {
-                float cur = _ring.At(best, F3Channels.Trig);
-                float prev = _ring.At(best + 1, F3Channels.Trig);
+                float cur = _ring.At(best, _trig);
+                float prev = _ring.At(best + 1, _trig);
                 float d = cur - prev;
 
                 if (d > 0f) _trigFrac = Clamp(cur / d, 0f, 1f);
@@ -506,7 +531,7 @@ namespace ICDIBasic
                     if ((int)(tick - baseTick) > limit) break;
 
                     _snapT[k] = tick;
-                    _ring.CopyTo(age0 - i, _snapV, k * Ch);
+                    _ring.CopyTo(age0 - i, _snapV, k * _ch);
                     k++;
                 }
 
@@ -546,7 +571,7 @@ namespace ICDIBasic
             g.SetClip(plot);
 
             int legendY = plot.Top + 4;
-            for (int c = 0; c < Ch; c++)
+            for (int c = 0; c < _ch; c++)
             {
                 if (!_visible[c] || c >= _live) continue;
 
@@ -661,7 +686,7 @@ namespace ICDIBasic
                               m >= 0 ? Signed(ni - nm) : "", DimColor));
 
             _rows.Add(new Row("мс", ti.ToString("0.##"), m >= 0 ? tm.ToString("0.##") : "",
-                              m >= 0 ? Signed(ti - tm) : "", DimColor));
+                              m >= 0 ? Signed(ti - tm, "0.##") : "", DimColor));
 
             /* 1/Δt: так меряют период. Метку на переход через ноль, курсор на
              * следующий такой же - и частота видна без арифметики. */
@@ -671,18 +696,27 @@ namespace ICDIBasic
                                   (1000f / Math.Abs(ti - tm)).ToString("0.###"), DimColor));
             }
 
-            for (int c = 0; c < Ch; c++)
+            for (int c = 0; c < _ch; c++)
             {
                 if (!_visible[c] || c >= _live) continue;
 
-                F3Channel ch = F3Channels.All[c];
-                string label = string.IsNullOrEmpty(ch.Unit) ? ch.Name : ch.Name + ", " + ch.Unit;
+                IniChannel ch =_map[c];
                 float vc = Snap(i, c);
 
-                if (m < 0) { _rows.Add(new Row(label, Sig4(vc), "", "", ch.Color)); continue; }
+                /* Печатаем с точностью, ОБЪЯВЛЕННОЙ В .ini (поле format), а не
+                 * по своей эвристике. В этом и смысл общего с Wscope формата:
+                 * числа под курсором должны совпадать с тем, что Wscope
+                 * показывает на той же записи. Единиц в .ini нет - их там
+                 * просто негде взять, они лежат в комментариях. */
+                if (m < 0)
+                {
+                    _rows.Add(new Row(ch.Name, vc.ToString(ch.Format), "", "", ch.Color));
+                    continue;
+                }
 
                 float vm = Snap(m, c);
-                _rows.Add(new Row(label, Sig4(vc), Sig4(vm), Signed(vc - vm), ch.Color));
+                _rows.Add(new Row(ch.Name, vc.ToString(ch.Format), vm.ToString(ch.Format),
+                                  Signed(vc - vm, ch.Format), ch.Color));
             }
         }
 
@@ -691,17 +725,31 @@ namespace ICDIBasic
             return v > 0 ? "+" + v : v.ToString();
         }
 
-        private static string Signed(float v)
+        private static string Signed(float v, string fmt)
         {
-            return (v > 0f ? "+" : "") + Sig4(v);
+            return (v > 0f ? "+" : "") + v.ToString(fmt);
         }
 
         /// <summary>
-        /// Самое длинное, что может выдать <see cref="Sig4"/> со знаком: знак,
-        /// ноль, запятая и пять знаков после неё. По ней и меряются числовые
-        /// столбцы, чтобы ширина рамки не зависела от текущих значений.
+        /// Самое широкое число, которое вообще могут выдать показанные каналы:
+        /// знак, пять разрядов целой части (беззнаковый код 16 бит даёт не
+        /// больше 65535) и самое большое объявленное число знаков после запятой.
+        ///
+        /// Меряется по НЕМУ, а не по тому, что стоит в столбце сейчас. Иначе
+        /// рамка дёргается на каждом переходе через разряд: 9,999 длиннее, чем
+        /// 10,00, строка короче - и рамка на глазах меняет ширину и уезжает
+        /// вбок, потому что прижата к правому краю. Зависит от набора каналов, а
+        /// не от значений, поэтому стоит ровно.
         /// </summary>
-        private const string WidestNum = "-0.00000";
+        private string WidestNum()
+        {
+            int digits = 0;
+
+            for (int c = 0; c < _ch; c++)
+                if (_visible[c] && c < _live && _map[c].Digits > digits) digits = _map[c].Digits;
+
+            return "-00000" + (digits > 0 ? "." + new string('0', digits) : "");
+        }
 
         private void DrawReadout(Graphics g, Rectangle plot, float x, bool withMark)
         {
@@ -715,13 +763,13 @@ namespace ICDIBasic
             // Ширины столбцов считаются заранее: числа выравниваются вправо, чтобы
             // разряды стояли под разрядами, а для этого нужна ширина столбца.
             //
-            // Числовые столбцы меряются по САМОМУ ШИРОКОМУ, что вообще может выдать
-            // Sig4, а не по тому, что стоит в них сейчас. Иначе рамка дёргается на
-            // каждом переходе через разряд: 9,999 длиннее, чем 10,00, строка
-            // короче - и рамка на глазах меняет ширину и уезжает вбок, потому что
-            // прижата к правому краю. Столбец подписей так мерить нельзя и не
+            // Числовые столбцы меряются по САМОМУ ШИРОКОМУ, что вообще могут выдать
+            // показанные каналы (см. WidestNum), а не по тому, что стоит в них
+            // сейчас. Иначе рамка дёргается на каждом переходе через разряд, то
+            // есть на глазах меняет ширину и уезжает вбок, потому что прижата к
+            // правому краю. Столбец подписей так мерить нельзя и не
             // нужно: подписи меняются только вместе с набором каналов.
-            int numW = TextRenderer.MeasureText(WidestNum, Font).Width;
+            int numW = TextRenderer.MeasureText(WidestNum(), Font).Width;
 
             var w = new int[4];
             int boxW = Pad * 2 + Gap * (cols - 1);
@@ -814,7 +862,7 @@ namespace ICDIBasic
                 new PointF(plot.Left + 1, midY + 5f),
             };
 
-            using (var b = new SolidBrush(F3Channels.All[F3Channels.Trig].Color))
+            using (var b = new SolidBrush(_map[_trig].Color))
             {
                 g.FillPolygon(b, tri);
             }
@@ -823,20 +871,8 @@ namespace ICDIBasic
         private int VisibleCount()
         {
             int k = 0;
-            for (int c = 0; c < Ch; c++) if (_visible[c] && c < _live) k++;
+            for (int c = 0; c < _ch; c++) if (_visible[c] && c < _live) k++;
             return k;
-        }
-
-        /// <summary>Четыре значащие цифры.</summary>
-        private static string Sig4(float v)
-        {
-            float a = Math.Abs(v);
-
-            return a >= 1000f ? v.ToString("0")
-                 : a >= 100f ? v.ToString("0.#")
-                 : a >= 10f ? v.ToString("0.##")
-                 : a >= 1f ? v.ToString("0.###")
-                 : v.ToString("0.#####");
         }
 
         /// <summary>Масштаб канала: округлён до 1/2/5, вниз отпускается при двукратном запасе.</summary>
@@ -872,7 +908,7 @@ namespace ICDIBasic
             float midY = plot.Top + plot.Height * 0.5f;
             float ky = -plot.Height * 0.5f / scale;
 
-            using (var pen = new Pen(F3Channels.All[c].Color, 1f))
+            using (var pen = new Pen(_map[c].Color, 1f))
             {
                 // Точек меньше, чем пикселей - рисуем настоящую полилинию:
                 // огибающая здесь выродилась бы в набор отдельных точек и
@@ -1007,13 +1043,14 @@ namespace ICDIBasic
 
         private void DrawLegend(Graphics g, Rectangle plot, int c, float scale, ref int y)
         {
-            F3Channel ch = F3Channels.All[c];
+            IniChannel ch =_map[c];
 
             var box = new Rectangle(plot.Left + 8, y + 6, 10, 3);
             using (var b = new SolidBrush(ch.Color)) g.FillRectangle(b, box);
 
-            string unit = string.IsNullOrEmpty(ch.Unit) ? "" : " " + ch.Unit;
-            TextRenderer.DrawText(g, ch.Name + " ±" + scale.ToString("0.###") + unit, Font,
+            /* Без единицы измерения: в .ini её негде взять - поля для неё нет, а
+             * в комментариях она записана как придётся и не везде. */
+            TextRenderer.DrawText(g, ch.Name + " ±" + scale.ToString("0.###"), Font,
                                   new Point(plot.Left + 22, y), ch.Color);
             y += 15;
         }
@@ -1056,8 +1093,8 @@ namespace ICDIBasic
             }
             else if (_synced)
             {
-                text = "синхр. " + F3Channels.All[F3Channels.Trig].Name + " ↑";
-                color = F3Channels.All[F3Channels.Trig].Color;
+                text = "синхр. " + _map[_trig].Name + " ↑";
+                color = _map[_trig].Color;
             }
             else
             {

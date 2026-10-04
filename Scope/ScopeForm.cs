@@ -9,6 +9,11 @@ namespace ICDIBasic
     /*
      * Окно осциллографа быстрой ленты.
      *
+     * Перечень каналов НЕ ЗАШИТ: он читается из того же .ini, что и настройки
+     * Wscope, по имени выбранного набора кадра. Поэтому окно работает по любому
+     * быстрому кадру, а разойтись с Wscope в масштабах и знаковости физически не
+     * может - таблица у них одна. Разбор - IniChannelMap.
+     *
      * Кадр 103 приходит во ВТОРИЧНОМ потоке (CAN_RxData в ASt_MainF.cs), а окно
      * может быть и закрыто. Поэтому подключение сделано статическим методом Feed:
      * в Kadr60Rx стоит один его вызов, и когда окна нет, он стоит ровно одну
@@ -21,22 +26,48 @@ namespace ICDIBasic
      */
     internal sealed class ScopeForm : Form
     {
-        /// <summary>Набор кадра, который окно умеет читать. Кадр 103 везёт и другие раскладки.</summary>
-        private const string Frame = "F3_convertor";
-
         /// <summary>
-        /// Живое окно. volatile: ссылку пишет поток окна, а читает поток CAN.
+        /// Кольцо вместе с набором кадра, для которого прочитан шаблон.
+        ///
+        /// ОДНОЙ ССЫЛКОЙ, и это важно. Поток CAN читает и то, и другое; лежи они
+        /// в двух полях, он мог бы на один кадр взять новый набор со старым
+        /// кольцом и разобрать кадр чужой картой. Получились бы правдоподобные
+        /// неверные числа - то самое, от чего вся эта затея и защищает.
         /// </summary>
+        private sealed class Source
+        {
+            public Source(ScopeRing ring, string frame)
+            {
+                Ring = ring;
+                Frame = frame;
+            }
+
+            public readonly ScopeRing Ring;
+            public readonly string Frame;
+        }
+
+        /// <summary>Живое окно. volatile: ссылку пишет поток окна, читает поток CAN.</summary>
         private static volatile ScopeForm _live;
 
-        private readonly ScopeRing _ring = new ScopeRing();
-        private readonly ScopeControl _scope;
+        private volatile Source _src;
+
+        private ScopeControl _scope;
+        private readonly Panel _host;
+        private readonly Label _msg;
 
         private readonly ToolStripComboBox _window;
         private readonly ToolStripButton _btnSync;
         private readonly ToolStripButton _btnFreeze;
         private readonly ToolStripButton _btnCursor;
         private readonly ToolStripButton _btnReset;
+
+        /// <summary>Вторая панель: выбор канала запуска и кнопки каналов. Пересобирается на каждый шаблон.</summary>
+        private readonly ToolStrip _chTool;
+
+        /// <summary>Выбор канала запуска. Живёт один шаблон, как и кнопки каналов.</summary>
+        private ToolStripComboBox _trig;
+
+        private readonly List<int> _trigCh = new List<int>();
         private readonly List<ToolStripButton> _chButtons = new List<ToolStripButton>();
 
         private readonly ToolStripStatusLabel _stFrame;
@@ -47,7 +78,9 @@ namespace ICDIBasic
 
         private readonly Timer _timer;
 
-        /// <summary>Сколько каналов было живо в прошлый раз - чтобы не трогать кнопки зря.</summary>
+        /// <summary>Набор, для которого собрано окно. Пусто - шаблона нет.</summary>
+        private string _frame;
+
         private int _liveShown = -1;
 
         /*-------------------------------------------------------------------
@@ -55,8 +88,8 @@ namespace ICDIBasic
          *------------------------------------------------------------------*/
 
         /// <summary>
-        /// Вызывается ИЗ ПОТОКА CAN на каждый кадр 103. Окна нет - выходим
-        /// немедленно.
+        /// Вызывается ИЗ ПОТОКА CAN на каждый кадр 103. Окна нет или шаблон не
+        /// прочитан - выходим немедленно.
         /// </summary>
         public static void Feed(TPCANMsgFD msg)
         {
@@ -65,23 +98,23 @@ namespace ICDIBasic
 
             try
             {
-                // Кадр 103 везёт четыре разные раскладки (F3_convertor,
+                Source s = f._src;
+                if (s == null) return;
+
+                // Кадр 103 везёт несколько разных раскладок (F3_convertor,
                 // F3_invertor, F1_*), имён внутри кадра нет, и различить их можно
-                // только по тому, какой набор выбран в поле «F2 Кадр». Разобрать
-                // чужую раскладку по нашей таблице значит показать правдоподобную
-                // чушь.
-                //
-                // До первого нажатия F2 имя пустое - там же оно и присваивается.
-                if (Form1.f2kadrName != Frame) return;
+                // только по тому, какой набор выбран в поле «F2 Кадр». Если его
+                // переключили, а окно ещё не успело перечитать шаблон, разбирать
+                // нечем: чужая карта дала бы правдоподобную чушь.
+                if (Form1.f2kadrName != s.Frame) return;
 
-                /* Кадр приходит извне, а читаем мы из него фиксированные тридцать
-                 * два байта. Обычные пути дают ровно 64 байта (PCANBasic маршалит
-                 * массив по SizeConst, PcanFdMessageConverter выделяет столько
-                 * же), но проверка стоит дешевле разбирательства. */
-                byte[] d = msg.DATA;
-                if (d == null || d.Length < 2 * F3Channels.WordsIn(msg.DLC)) return;
+                /* Кадр приходит извне, а читаем мы из него фиксированное число
+                 * байт. Обычные пути дают ровно 64 (PCANBasic маршалит массив по
+                 * SizeConst, PcanFdMessageConverter выделяет столько же), но
+                 * проверка стоит дешевле разбирательства. */
+                if (!s.Ring.Map.Fits(msg.DATA, msg.DLC)) return;
 
-                f._ring.Append(msg);
+                s.Ring.Append(msg);
             }
             catch (Exception ex)
             {
@@ -136,7 +169,16 @@ namespace ICDIBasic
 
         private ScopeForm()
         {
-            _scope = new ScopeControl(_ring) { Dock = DockStyle.Fill };
+            _host = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 22, 27) };
+
+            _msg = new Label
+            {
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                ForeColor = Color.FromArgb(170, 180, 190),
+                BackColor = Color.FromArgb(18, 22, 27),
+            };
+            _host.Controls.Add(_msg);
 
             _window = new ToolStripComboBox
             {
@@ -156,9 +198,9 @@ namespace ICDIBasic
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
                 CheckOnClick = true,
                 Checked = true,
-                ToolTipText = "Пуск развёртки по переходу uGrid через ноль вверх",
+                ToolTipText = "Пуск развёртки по переходу выбранного канала через ноль вверх",
             };
-            _btnSync.CheckedChanged += (s, e) => _scope.Sync = _btnSync.Checked;
+            _btnSync.CheckedChanged += (s, e) => { if (_scope != null) _scope.Sync = _btnSync.Checked; };
 
             _btnFreeze = new ToolStripButton("Заморозить")
             {
@@ -167,6 +209,8 @@ namespace ICDIBasic
             };
             _btnFreeze.CheckedChanged += (s, e) =>
             {
+                if (_scope == null) return;
+
                 _scope.Frozen = _btnFreeze.Checked;
 
                 // Замораживают, чтобы что-то измерить, поэтому курсор включается
@@ -188,6 +232,8 @@ namespace ICDIBasic
             };
             _btnCursor.CheckedChanged += (s, e) =>
             {
+                if (_scope == null) return;
+
                 _scope.ShowCursor = _btnCursor.Checked;
                 if (_btnCursor.Checked) _scope.Focus();
             };
@@ -196,7 +242,14 @@ namespace ICDIBasic
             {
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
             };
-            _btnReset.Click += (s, e) => { _ring.Reset(); _scope.Invalidate(); };
+            _btnReset.Click += (s, e) =>
+            {
+                Source src = _src;
+                if (src == null) return;
+
+                src.Ring.Reset();
+                if (_scope != null) _scope.Invalidate();
+            };
 
             var tool = new ToolStrip
             {
@@ -209,31 +262,14 @@ namespace ICDIBasic
             tool.Items.Add(_btnFreeze);
             tool.Items.Add(_btnCursor);
             tool.Items.Add(_btnReset);
-            tool.Items.Add(new ToolStripSeparator());
 
-            // Кнопки каналов красятся в цвет линии: подпись рядом с графиком и
-            // кнопка должны читаться как одно и то же, иначе на пятнадцати
-            // каналах приходится сверять названия.
-            for (int i = 0; i < F3Channels.Count; i++)
+            _chTool = new ToolStrip
             {
-                int idx = i;
-                F3Channel ch = F3Channels.All[i];
+                GripStyle = ToolStripGripStyle.Hidden,
+                Renderer = new ToolStripSystemRenderer(),
+            };
 
-                var b = new ToolStripButton(ch.Name)
-                {
-                    DisplayStyle = ToolStripItemDisplayStyle.Text,
-                    CheckOnClick = true,
-                    Checked = _scope.IsVisibleChannel(i),
-                    ForeColor = Darken(ch.Color),
-                    ToolTipText = "слово " + i + (string.IsNullOrEmpty(ch.Unit) ? "" : ", " + ch.Unit),
-                };
-                b.CheckedChanged += (s, e) => _scope.SetVisibleChannel(idx, b.Checked);
-
-                _chButtons.Add(b);
-                tool.Items.Add(b);
-            }
-
-            _stFrame = NewStatus(240);
+            _stFrame = NewStatus(260);
             _stTick = NewStatus(120);
             _stCount = NewStatus(140);
             _stGaps = NewStatus(130);
@@ -243,16 +279,20 @@ namespace ICDIBasic
             status.Items.AddRange(new ToolStripItem[] { _stFrame, _stTick, _stCount, _stGaps, _stHz });
 
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1100, 620);
-            MinimumSize = new Size(720, 420);
-            Text = "Осциллограф - кадр 103, " + Frame;
+            ClientSize = new Size(1100, 640);
+            MinimumSize = new Size(720, 440);
+            Text = "Осциллограф быстрой ленты";
             StartPosition = FormStartPosition.CenterParent;
 
             // Порядок добавления важен: закреплённый по краю элемент забирает
-            // место у добавленных РАНЬШЕ, поэтому заполняющий идёт первым.
-            Controls.Add(_scope);
+            // место у добавленных РАНЬШЕ, поэтому заполняющий идёт первым, а из
+            // двух верхних панелей выше окажется добавленная позже.
+            Controls.Add(_host);
+            Controls.Add(_chTool);
             Controls.Add(tool);
             Controls.Add(status);
+
+            Rebuild();
 
             /* 25 Гц на перерисовку - чаще, чем обновляется экран, показывать
              * некому. Строка состояния - раз в пять кадров: счётчики, меняющиеся
@@ -272,14 +312,166 @@ namespace ICDIBasic
             };
         }
 
+        /*-------------------------------------------------------------------
+         * Пересборка под выбранный набор кадра
+         *------------------------------------------------------------------*/
+
+        /// <summary>
+        /// Перечитать шаблон и собрать окно заново.
+        ///
+        /// Порядок важен: сначала гасим ссылку, по которой кормит поток CAN, и
+        /// только потом разбираем и собираем. Иначе он мог бы попасть на
+        /// полусобранное кольцо.
+        /// </summary>
+        private void Rebuild()
+        {
+            _src = null;
+
+            if (_scope != null)
+            {
+                _host.Controls.Remove(_scope);
+                _scope.Dispose();
+                _scope = null;
+            }
+
+            /* Элементы панели каналов живут один шаблон. Снимать их надо с
+             * освобождением: Items.Clear() только отвязывает, а пересобирается
+             * панель на каждое переключение набора. Копию списка берём потому,
+             * что Dispose сам вынимает элемент из коллекции. */
+            var old = new ToolStripItem[_chTool.Items.Count];
+            _chTool.Items.CopyTo(old, 0);
+
+            _chTool.Items.Clear();
+            foreach (ToolStripItem it in old) it.Dispose();
+
+            _chButtons.Clear();
+            _trigCh.Clear();
+            _trig = null;
+
+            _frame = Form1.f2kadrName;
+            _liveShown = -1;
+
+            string err;
+            IniChannelMap map = IniChannelMap.Load(_frame, out err);
+
+            if (map == null)
+            {
+                /* Внятная причина вместо пустого поля. Самый частый случай - до
+                 * первого нажатия F2 набор не выбран; второй по частоте -
+                 * F1_invertor, для которого шаблона в bin/Wscope просто нет. */
+                _msg.Text = err + Environment.NewLine + Environment.NewLine +
+                            "Шаблоны каналов лежат в " + IniChannelMap.Dir;
+                _msg.Visible = true;
+
+                Text = "Осциллограф быстрой ленты";
+                return;
+            }
+
+            _msg.Visible = false;
+
+            var ring = new ScopeRing(map);
+
+            _scope = new ScopeControl(ring) { Dock = DockStyle.Fill };
+            _scope.Sync = _btnSync.Checked;
+            _scope.ShowCursor = _btnCursor.Checked;
+            _scope.Frozen = _btnFreeze.Checked;
+            ApplyWindow();
+
+            _host.Controls.Add(_scope);
+
+            BuildChannelTool(map);
+
+            Text = "Осциллограф быстрой ленты - " + map.Template;
+
+            /* Публикуем последней строкой: с этого момента поток CAN начинает
+             * кормить уже готовое кольцо. */
+            _src = new Source(ring, _frame);
+        }
+
+        private void BuildChannelTool(IniChannelMap map)
+        {
+            /* Канал запуска выбирается, а не зашит: шаблон произвольный, и какой
+             * из каналов есть напряжение сети, заранее неизвестно. По умолчанию
+             * карта предлагает uGrid/U220/Va, если такое имя в ней нашлось. */
+            _trig = new ToolStripComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = 110,
+                AutoSize = false,
+                ToolTipText = "Канал, по переходу которого через ноль вверх пускается развёртка",
+            };
+
+            _chTool.Items.Add(new ToolStripLabel("Синхр. по:"));
+            _chTool.Items.Add(_trig);
+            _chTool.Items.Add(new ToolStripSeparator());
+
+            for (int i = 0; i < map.Count; i++)
+            {
+                if (i == map.TickIndex) continue; /* счётчик такта - не сигнал */
+
+                _trigCh.Add(i);
+                _trig.Items.Add(map[i].Name);
+            }
+
+            /* Обработчик вешаем ПОСЛЕ наполнения списка: иначе он сработал бы на
+             * каждое добавление и лазил в ещё не готовый _trigCh. */
+            int def = _trigCh.IndexOf(map.DefaultTrigger);
+            if (def >= 0) _trig.SelectedIndex = def;
+            else if (_trig.Items.Count > 0) _trig.SelectedIndex = 0;
+
+            _trig.SelectedIndexChanged += TrigChanged;
+
+            if (_trig.SelectedIndex >= 0) _scope.TrigChannel = _trigCh[_trig.SelectedIndex];
+
+            // Кнопки каналов красятся в цвет линии: подпись рядом с графиком и
+            // кнопка должны читаться как одно и то же, иначе на пятнадцати
+            // каналах приходится сверять названия.
+            for (int i = 0; i < map.Count; i++)
+            {
+                int idx = i;
+                IniChannel ch = map[i];
+
+                var b = new ToolStripButton(ch.Name)
+                {
+                    DisplayStyle = ToolStripItemDisplayStyle.Text,
+                    CheckOnClick = true,
+                    Checked = _scope.IsVisibleChannel(i),
+                    ForeColor = Darken(ch.Color),
+                    ToolTipText = "слово " + ch.Word +
+                                  (Math.Abs(ch.K - 1f) < 1e-9f ? ", код" : ", x" + ch.K) +
+                                  (i == map.TickIndex ? " - счётчик такта" : ""),
+                };
+                b.CheckedChanged += (s, e) => { if (_scope != null) _scope.SetVisibleChannel(idx, b.Checked); };
+
+                _chButtons.Add(b);
+                _chTool.Items.Add(b);
+            }
+        }
+
         /// <summary>Цвет линии на тёмном фоне слишком светлый для подписи на светлой панели.</summary>
         private static Color Darken(Color c)
         {
             return Color.FromArgb((int)(c.R * 0.62f), (int)(c.G * 0.62f), (int)(c.B * 0.62f));
         }
 
+        private void TrigChanged(object sender, EventArgs e)
+        {
+            if (_scope == null) return;
+
+            int i = _trig.SelectedIndex;
+            if (i >= 0 && i < _trigCh.Count) _scope.TrigChannel = _trigCh[i];
+        }
+
         private void WindowChanged(object sender, EventArgs e)
         {
+            ApplyWindow();
+            if (_scope != null) _scope.Invalidate();
+        }
+
+        private void ApplyWindow()
+        {
+            if (_scope == null) return;
+
             switch (_window.SelectedIndex)
             {
                 case 0: _scope.WindowMs = 20; break;
@@ -289,45 +481,31 @@ namespace ICDIBasic
                 case 4: _scope.WindowMs = 500; break;
                 default: _scope.WindowMs = 1000; break;
             }
-
-            _scope.Invalidate();
         }
 
+        /*-------------------------------------------------------------------
+         * Таймер
+         *------------------------------------------------------------------*/
         private int _tickN;
 
         private void Tick(object sender, EventArgs e)
         {
-            _scope.Invalidate();
+            if (_scope != null) _scope.Invalidate();
 
             if (++_tickN < 5) return;
             _tickN = 0;
+
+            /* Набор кадра переключают в главном окне, и узнать об этом можно
+             * только посмотрев. Пять раз в секунду - с запасом: переключение
+             * делается руками. */
+            if (Form1.f2kadrName != _frame) { Rebuild(); return; }
 
             UpdateStatus();
         }
 
         private void UpdateStatus()
         {
-            long received, gaps;
-            uint tick;
-            float hz;
-            int live;
-
-            /* Счётчики - long, и на 32-битной машине их чтение без замка не
-             * атомарно. */
-            lock (_ring.Gate)
-            {
-                received = _ring.Received;
-                gaps = _ring.Gaps;
-                tick = _ring.Tick;
-                hz = _ring.Hz;
-                live = _ring.Channels;
-            }
-
-            /* Выбранный набор кадра - первым делом. Если он не тот, ленты нет и
-             * не будет, и это единственное, что нужно знать, глядя на пустое
-             * поле. Клавиша названа не для красоты: F2 и выбирает набор, и
-             * командует прошивке его слать - без неё кадра на шине нет вовсе. */
-            bool ok = Form1.f2kadrName == Frame;
+            Source src = _src;
 
             if (_broken)
             {
@@ -336,13 +514,43 @@ namespace ICDIBasic
                 _stFrame.Text = "осциллограф отключён, запись идёт";
                 _stFrame.ForeColor = Color.FromArgb(170, 40, 40);
                 _stFrame.ToolTipText = _brokenWhy;
+                return;
             }
-            else
+
+            if (src == null)
             {
-                _stFrame.Text = ok ? "кадр " + Frame : "выберите " + Frame + " и F2";
-                _stFrame.ForeColor = ok ? SystemColors.ControlText : Color.FromArgb(160, 90, 0);
-                _stFrame.ToolTipText = null;
+                _stFrame.Text = "шаблон не прочитан";
+                _stFrame.ForeColor = Color.FromArgb(160, 90, 0);
+                _stTick.Text = _stCount.Text = _stGaps.Text = _stHz.Text = "";
+                return;
             }
+
+            long received, gaps;
+            uint tick;
+            float hz;
+            int live;
+
+            /* Счётчики - long, и на 32-битной машине их чтение без замка не
+             * атомарно. */
+            lock (src.Ring.Gate)
+            {
+                received = src.Ring.Received;
+                gaps = src.Ring.Gaps;
+                tick = src.Ring.Tick;
+                hz = src.Ring.Hz;
+                live = src.Ring.Channels;
+            }
+
+            IniChannelMap map = src.Ring.Map;
+
+            string s = "кадр " + map.Template;
+            if (map.Skipped > 0) s += ", вычисл. " + map.Skipped + " мимо";
+
+            _stFrame.Text = map.Warning == null ? s : s + " (!)";
+            _stFrame.ForeColor = map.Warning == null
+                ? SystemColors.ControlText
+                : Color.FromArgb(160, 90, 0);
+            _stFrame.ToolTipText = map.Warning;
 
             _stTick.Text = "такт " + tick;
             _stCount.Text = "отсч. " + received;
@@ -356,9 +564,8 @@ namespace ICDIBasic
             _stHz.Text = "такт " + hz.ToString("0") + " Гц";
 
             /* Каналы, которых в кадре нет, гасим и отключаем. Старая прошивка
-             * присылает двенадцать слов вместо шестнадцати, и последние каналы
-             * существуют только как нули - плоскую линию нельзя показывать так,
-             * будто это измерение. */
+             * присылает меньше слов, и последние каналы существуют только как
+             * нули - плоскую линию нельзя показывать так, будто это измерение. */
             if (live == _liveShown) return;
             _liveShown = live;
 
@@ -373,8 +580,8 @@ namespace ICDIBasic
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            /* Ссылку убираем ДО base: с этого момента поток CAN перестаёт
-             * трогать кольцо. */
+            /* Гасим ДО base: с этого момента поток CAN перестаёт трогать кольцо. */
+            _src = null;
             _live = null;
 
             _timer.Stop();

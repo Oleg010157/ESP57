@@ -34,6 +34,30 @@ namespace ICDIBasic
         public const int Capacity = 5000;
 
         /// <summary>
+        /// Номинальная частота такта управления, Гц. Прерывание ADCB INT1,
+        /// my_Files/grid_tie.h. Настоящая измеряется по такту, см. MeasureRate.
+        /// </summary>
+        public const float NominalHz = 5000f;
+
+        private readonly IniChannelMap _map;
+
+        /// <summary>Каналов в шаблоне. Разное число у разных кадров, отсюда и не const.</summary>
+        private readonly int _n;
+
+        public ScopeRing(IniChannelMap map)
+        {
+            _map = map;
+            _n = map.Count;
+
+            _v = new float[Capacity * _n];
+            _one = new float[_n];
+            _channels = _n;
+        }
+
+        /// <summary>Карта каналов, по которой разобран кадр.</summary>
+        public IniChannelMap Map { get { return _map; } }
+
+        /// <summary>
         /// Замок кольца. Окно берёт его на время копирования снимка: приёмный
         /// поток не должен ждать GDI+, а картинка не должна собираться из
         /// половины старых и половины новых отсчётов.
@@ -46,14 +70,14 @@ namespace ICDIBasic
          * чисел, и обращаются к ним по НОМЕРУ КАНАЛА: канал соответствует слову
          * кадра, и в таком виде таблица каналов остаётся данными, а не набором
          * делегатов к полям структуры. */
-        private readonly float[] _v = new float[Capacity * F3Channels.Count];
+        private readonly float[] _v;
         private readonly uint[] _t = new uint[Capacity];
 
         private int _head;
         private int _count;
 
         /// <summary>Буфер разбора одного кадра. Под _lock, поэтому один на всех.</summary>
-        private readonly float[] _one = new float[F3Channels.Count];
+        private readonly float[] _one;
 
         private ushort _last16;
         private uint _tick32;
@@ -61,7 +85,7 @@ namespace ICDIBasic
 
         private long _received;
         private long _gaps;
-        private int _channels = F3Channels.Count;
+        private int _channels;
 
         private bool _frozen;
 
@@ -69,7 +93,7 @@ namespace ICDIBasic
         private bool _rateHave;
         private long _rateMs;
         private uint _rateTick;
-        private float _hz = F3Channels.NominalHz;
+        private float _hz = NominalHz;
 
         /*-------------------------------------------------------------------
          * Всё ниже читается ПОД Gate. Счётчики - long, и на 32-битной машине
@@ -115,7 +139,7 @@ namespace ICDIBasic
         public float At(int age, int ch)
         {
             int i = (_head - 1 - age + 2 * Capacity) % Capacity;
-            return _v[i * F3Channels.Count + ch];
+            return _v[i * _n + ch];
         }
 
         /// <summary>Такт отсчёта по тому же «возрасту».</summary>
@@ -128,7 +152,7 @@ namespace ICDIBasic
         public void CopyTo(int age, float[] dst, int at)
         {
             int i = (_head - 1 - age + 2 * Capacity) % Capacity;
-            Array.Copy(_v, i * F3Channels.Count, dst, at, F3Channels.Count);
+            Array.Copy(_v, i * _n, dst, at, _n);
         }
 
         /*-------------------------------------------------------------------
@@ -165,13 +189,11 @@ namespace ICDIBasic
         /// </summary>
         public void Append(TPCANMsgFD msg)
         {
-            int words = F3Channels.WordsIn(msg.DLC);
-
             lock (_lock)
             {
-                _channels = F3Channels.ChannelsIn(words);
+                _channels = _map.LiveCount(msg.DLC);
 
-                ushort t16 = F3Channels.Decode(msg.DATA, words, _one, 0);
+                ushort t16 = _map.Decode(msg.DATA, msg.DLC, _one, 0);
 
                 if (!_have)
                 {
@@ -209,7 +231,7 @@ namespace ICDIBasic
                 // на них никто не смотрит.
                 if (_frozen) return;
 
-                Array.Copy(_one, 0, _v, _head * F3Channels.Count, F3Channels.Count);
+                Array.Copy(_one, 0, _v, _head * _n, _n);
                 _t[_head] = _tick32;
 
                 _head = (_head + 1) % Capacity;
