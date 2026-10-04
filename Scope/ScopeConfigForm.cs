@@ -9,9 +9,14 @@ namespace ICDIBasic
      * Настройка вида каналов - по образцу окна Config в Wscope, которым этот
      * прибор настраивают уже не первый год.
      *
-     * Слева список всех каналов кадра, справа две группы по шесть слотов. На
+     * Слева список всех каналов шаблона, справа два поля по шесть слотов. На
      * график попадает только то, что перенесено в слот: показывать все
      * пятнадцать кривых разом бессмысленно, а выбор - дело оператора.
+     *
+     * ВЫЧИСЛЯЕМЫЕ КАНАЛЫ В СПИСКЕ ЕСТЬ И ПОКАЗАНЫ КРАСНЫМ, как в Wscope, но
+     * перетащить их нельзя. Это не полумера, а честный показ положения дел: в
+     * шаблоне они объявлены, и не увидев их, оператор искал бы их глазами зря;
+     * но считает их выражения только Wscope, и нарисовать их мы не можем.
      *
      * КОЭФФИЦИЕНТА И СМЕЩЕНИЯ ЗДЕСЬ НЕТ, в отличие от окна Wscope. По опыту их
      * не применяют, а в нашем случае они и не нужны: пересчёт кода в физику уже
@@ -30,6 +35,9 @@ namespace ICDIBasic
         private const int ColMax = 2;
         private const int ColColor = 3;
 
+        /// <summary>Ширина списка каналов. Хватает на самое длинное имя с запасом.</summary>
+        private const int ListWidth = 210;
+
         private readonly IniChannelMap _map;
         private readonly ScopeView _view;
 
@@ -38,6 +46,24 @@ namespace ICDIBasic
 
         /// <summary>Правим копию: Отмена должна возвращать как было.</summary>
         public ScopeView Result { get { return _view; } }
+
+        /// <summary>Строка списка: имя и признак «вычисляемый», чтобы красить.</summary>
+        private sealed class Item
+        {
+            public Item(string name, bool calculated)
+            {
+                Name = name;
+                Calculated = calculated;
+            }
+
+            public readonly string Name;
+            public readonly bool Calculated;
+
+            public override string ToString()
+            {
+                return Name;
+            }
+        }
 
         public ScopeConfigForm(IniChannelMap map, ScopeView view)
         {
@@ -49,24 +75,34 @@ namespace ICDIBasic
             StartPosition = FormStartPosition.CenterParent;
             MinimizeBox = false;
             MaximizeBox = false;
-            ClientSize = new Size(700, 420);
-            MinimumSize = new Size(620, 360);
+
+            /* Ширина с запасом на четыре столбца в обоих полях: прежние 700
+             * обрезали «Макс» и «Цвет». */
+            ClientSize = new Size(880, 460);
+            MinimumSize = new Size(760, 400);
 
             _list = new ListBox
             {
                 Dock = DockStyle.Fill,
                 IntegralHeight = false,
                 SelectionMode = SelectionMode.One,
+                DrawMode = DrawMode.OwnerDrawFixed,
             };
+            _list.DrawItem += ListDrawItem;
             _list.MouseDown += ListMouseDown;
             _list.MouseMove += ListMouseMove;
+            _list.MouseUp += ListMouseUp;
             _list.DoubleClick += ListDoubleClick;
 
-            for (int i = 0; i < map.Count; i++) _list.Items.Add(map[i].Name);
+            FillList();
 
-            var leftBox = new GroupBox { Dock = DockStyle.Fill, Text = "Каналы кадра" };
-            leftBox.Controls.Add(new Panel { Dock = DockStyle.Fill, Padding = new Padding(6, 2, 6, 6) });
-            ((Panel)leftBox.Controls[0]).Controls.Add(_list);
+            var leftBox = new GroupBox
+            {
+                Dock = DockStyle.Fill,
+                Text = "Каналы кадра",
+                Padding = new Padding(6, 4, 6, 6),
+            };
+            leftBox.Controls.Add(_list);
 
             var right = new TableLayoutPanel
             {
@@ -85,20 +121,28 @@ namespace ICDIBasic
                 {
                     Dock = DockStyle.Fill,
                     Text = g == 0 ? "Верхнее поле" : "Нижнее поле",
-                    Padding = new Padding(6, 2, 6, 6),
+                    Padding = new Padding(6, 4, 6, 6),
                 };
                 box.Controls.Add(_grid[g]);
                 right.Controls.Add(box, 0, g);
             }
 
-            var split = new SplitContainer
+            /* TableLayoutPanel, а не SplitContainer: у того SplitterDistance,
+             * заданный в конструкторе, не держится - контрол тогда ещё узкий, и
+             * значение обрезается по его ширине. Именно из-за этого список
+             * занимал почти всё окно, а поля уезжали за правый край. */
+            var main = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                Orientation = Orientation.Vertical,
-                SplitterDistance = 180,
+                ColumnCount = 2,
+                RowCount = 1,
+                Padding = new Padding(8, 8, 8, 4),
             };
-            split.Panel1.Controls.Add(leftBox);
-            split.Panel2.Controls.Add(right);
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, ListWidth));
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            main.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            main.Controls.Add(leftBox, 0, 0);
+            main.Controls.Add(right, 1, 0);
 
             var ok = new Button { Text = "ОК", DialogResult = DialogResult.OK, Width = 90 };
             var cancel = new Button { Text = "Отмена", DialogResult = DialogResult.Cancel, Width = 90 };
@@ -117,14 +161,17 @@ namespace ICDIBasic
             var hint = new Label
             {
                 Dock = DockStyle.Bottom,
-                Height = 22,
+                Height = 38,
                 ForeColor = SystemColors.GrayText,
-                Padding = new Padding(10, 4, 0, 0),
+                Padding = new Padding(10, 2, 10, 0),
                 Text = "Перетащите канал в поле или щёлкните дважды. Delete убирает, " +
-                       "щелчок по цвету меняет. Пустые границы - масштаб сам.",
+                       "щелчок по цвету меняет. Пустые границы - масштаб сам." +
+                       Environment.NewLine +
+                       "Красные - вычисляемые каналы шаблона: их считает только Wscope, " +
+                       "сюда их перенести нельзя.",
             };
 
-            Controls.Add(split);
+            Controls.Add(main);
             Controls.Add(hint);
             Controls.Add(buttons);
 
@@ -132,6 +179,43 @@ namespace ICDIBasic
             CancelButton = cancel;
 
             Fill();
+        }
+
+        /// <summary>
+        /// Список каналов по алфавиту, без учёта регистра - как в Wscope: на
+        /// двадцати именах искать нужное в порядке слов кадра неудобно.
+        /// Вычисляемые идут вперемешку с измеряемыми, отличаясь цветом.
+        /// </summary>
+        private void FillList()
+        {
+            var items = new System.Collections.Generic.List<Item>();
+
+            for (int i = 0; i < _map.Count; i++) items.Add(new Item(_map[i].Name, false));
+            foreach (string n in _map.Calculated) items.Add(new Item(n, true));
+
+            items.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+
+            foreach (Item it in items) _list.Items.Add(it);
+        }
+
+        private void ListDrawItem(object sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0) return;
+
+            var it = (Item)_list.Items[e.Index];
+
+            e.DrawBackground();
+
+            bool sel = (e.State & DrawItemState.Selected) != 0;
+
+            Color fore = it.Calculated
+                ? (sel ? Color.FromArgb(255, 200, 200) : Color.Firebrick)
+                : (sel ? SystemColors.HighlightText : SystemColors.WindowText);
+
+            TextRenderer.DrawText(e.Graphics, it.Name, e.Font, e.Bounds, fore,
+                                  TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+
+            e.DrawFocusRectangle();
         }
 
         private DataGridView NewGrid(int group)
@@ -142,35 +226,52 @@ namespace ICDIBasic
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 AllowUserToResizeRows = false,
+                AllowUserToOrderColumns = false,
                 RowHeadersVisible = false,
                 MultiSelect = false,
                 SelectionMode = DataGridViewSelectionMode.CellSelect,
                 AllowDrop = true,
                 BackgroundColor = SystemColors.Window,
-                EditMode = DataGridViewEditMode.EditOnEnter,
                 Tag = group,
             };
+
+            /* EditOnEnter здесь СТОЯЛ И ЛОМАЛ ПЕРЕТАСКИВАНИЕ: текущая клетка
+             * сразу уходила в правку, поверх неё ложился редактор TextBox, у
+             * которого AllowDrop нет, и курсор с грузом попадал на него, а не на
+             * таблицу. Снаружи это выглядело как «перетаскивание не работает».
+             * Оставляем обычный режим: правка по щелчку или F2. */
 
             dg.Columns.Add(new DataGridViewTextBoxColumn
             {
                 HeaderText = "Канал",
                 ReadOnly = true,
-                FillWeight = 120,
+                FillWeight = 130,
                 AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
             });
-            dg.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Мин", FillWeight = 90, AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill });
-            dg.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Макс", FillWeight = 90, AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill });
+            dg.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                HeaderText = "Мин",
+                FillWeight = 85,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            });
+            dg.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                HeaderText = "Макс",
+                FillWeight = 85,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            });
             dg.Columns.Add(new DataGridViewTextBoxColumn
             {
                 HeaderText = "Цвет",
                 ReadOnly = true,
-                FillWeight = 50,
+                FillWeight = 55,
                 AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
             });
 
             for (int s = 0; s < ScopeView.SlotsPerGroup; s++) dg.Rows.Add();
 
-            dg.DragEnter += GridDragEnter;
+            dg.DragEnter += GridDragOver;
+            dg.DragOver += GridDragOver;
             dg.DragDrop += GridDragDrop;
             dg.CellClick += GridCellClick;
             dg.KeyDown += GridKeyDown;
@@ -186,8 +287,33 @@ namespace ICDIBasic
         private void Fill()
         {
             for (int g = 0; g < ScopeView.Groups; g++)
-                for (int s = 0; s < ScopeView.SlotsPerGroup; s++)
-                    FillRow(g, s);
+            {
+                for (int s = 0; s < ScopeView.SlotsPerGroup; s++) FillRow(g, s);
+
+                ClearPick(g);
+            }
+        }
+
+        /// <summary>
+        /// Снять выделение: таблица сама подсвечивает первую клетку, и пустой
+        /// слот с синей полосой читается как занятый.
+        /// </summary>
+        private void ClearPick(int g)
+        {
+            _grid[g].ClearSelection();
+            _grid[g].CurrentCell = null;
+        }
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+
+            /* Повторяем после показа: в конструкторе это не держится - таблица
+             * восстанавливает текущую клетку, когда получает фокус. Фокус отдаём
+             * списку, с него и начинают. */
+            ActiveControl = _list;
+
+            for (int g = 0; g < ScopeView.Groups; g++) ClearPick(g);
         }
 
         private void FillRow(int g, int s)
@@ -230,6 +356,7 @@ namespace ICDIBasic
         {
             if (o == null) return float.NaN;
 
+            /* Запятая и точка оба годятся: в клетку набирают как привычнее. */
             string s = o.ToString().Trim().Replace(',', '.');
             if (s.Length == 0) return float.NaN;
 
@@ -257,23 +384,53 @@ namespace ICDIBasic
          * Перетаскивание
          *------------------------------------------------------------------*/
         private int _dragIndex = -1;
+        private Point _dragFrom;
 
         private void ListMouseDown(object sender, MouseEventArgs e)
         {
-            _dragIndex = _list.IndexFromPoint(e.Location);
+            int i = _list.IndexFromPoint(e.Location);
+
+            _dragIndex = i;
+            _dragFrom = e.Location;
+
+            if (i >= 0) _list.SelectedIndex = i;
+        }
+
+        private void ListMouseUp(object sender, MouseEventArgs e)
+        {
+            _dragIndex = -1;
         }
 
         private void ListMouseMove(object sender, MouseEventArgs e)
         {
             if (e.Button != MouseButtons.Left || _dragIndex < 0) return;
 
-            _list.DoDragDrop(_list.Items[_dragIndex].ToString(), DragDropEffects.Copy);
+            /* Порог системы: без него любое дрожание руки при щелчке начинало бы
+             * перетаскивание, и выбрать канал в списке было бы нельзя. */
+            Size d = SystemInformation.DragSize;
+            if (Math.Abs(e.X - _dragFrom.X) < d.Width && Math.Abs(e.Y - _dragFrom.Y) < d.Height)
+                return;
+
+            var it = (Item)_list.Items[_dragIndex];
             _dragIndex = -1;
+
+            /* Вычисляемые не переносим - считать их мы не умеем. */
+            if (it.Calculated) return;
+
+            _list.DoDragDrop(new DataObject(DataFormats.StringFormat, it.Name),
+                             DragDropEffects.Copy);
         }
 
-        private void GridDragEnter(object sender, DragEventArgs e)
+        /// <summary>
+        /// Эффект ставится и на DragEnter, и на DragOver. Одного DragEnter мало:
+        /// пока груз ходит над таблицей, она пересчитывает состояние, и без
+        /// DragOver курсор показывает запрет, а бросок не доходит.
+        /// </summary>
+        private void GridDragOver(object sender, DragEventArgs e)
         {
-            e.Effect = e.Data.GetDataPresent(typeof(string)) ? DragDropEffects.Copy : DragDropEffects.None;
+            e.Effect = e.Data.GetDataPresent(DataFormats.StringFormat)
+                ? DragDropEffects.Copy
+                : DragDropEffects.None;
         }
 
         private void GridDragDrop(object sender, DragEventArgs e)
@@ -281,30 +438,45 @@ namespace ICDIBasic
             var dg = (DataGridView)sender;
             int g = (int)dg.Tag;
 
-            if (!e.Data.GetDataPresent(typeof(string))) return;
+            if (!e.Data.GetDataPresent(DataFormats.StringFormat)) return;
 
             Point p = dg.PointToClient(new Point(e.X, e.Y));
             DataGridView.HitTestInfo hit = dg.HitTest(p.X, p.Y);
 
             int s = hit.RowIndex;
-            if (s < 0 || s >= ScopeView.SlotsPerGroup) return;
 
-            Place(g, s, (string)e.Data.GetData(typeof(string)));
+            /* Бросок мимо строки - в шапку или ниже последней - кладём в первый
+             * свободный слот этого поля, а не теряем: попасть в строку высотой
+             * в два десятка пикселей выходит не всегда. */
+            if (s < 0 || s >= ScopeView.SlotsPerGroup) s = FreeSlot(g);
+            if (s < 0) return;
+
+            Place(g, s, (string)e.Data.GetData(DataFormats.StringFormat));
+        }
+
+        private int FreeSlot(int g)
+        {
+            for (int s = 0; s < ScopeView.SlotsPerGroup; s++)
+                if (_view[g, s].Empty) return s;
+
+            return -1;
         }
 
         private void ListDoubleClick(object sender, EventArgs e)
         {
-            if (_list.SelectedItem == null) return;
+            var it = _list.SelectedItem as Item;
+            if (it == null || it.Calculated) return;
 
             /* Первый свободный слот, сверху вниз: мышью попадать в строку не
              * всегда удобно, а действие то же самое. */
             for (int g = 0; g < ScopeView.Groups; g++)
-                for (int s = 0; s < ScopeView.SlotsPerGroup; s++)
-                    if (_view[g, s].Empty)
-                    {
-                        Place(g, s, _list.SelectedItem.ToString());
-                        return;
-                    }
+            {
+                int s = FreeSlot(g);
+                if (s < 0) continue;
+
+                Place(g, s, it.Name);
+                return;
+            }
         }
 
         private void Place(int g, int s, string name)

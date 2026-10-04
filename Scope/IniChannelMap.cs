@@ -102,7 +102,16 @@ namespace ICDIBasic
         public string Template { get; private set; }
 
         /// <summary>Сколько вычисляемых каналов пропущено - показываем, а не умалчиваем.</summary>
-        public int Skipped { get; private set; }
+        public int Skipped { get { return _calc.Count; } }
+
+        /// <summary>
+        /// Имена вычисляемых каналов, в порядке файла. Мы их не считаем, но в
+        /// списке каналов показываем - красным, как это делает Wscope: оператор
+        /// должен видеть, что в шаблоне они есть, и не искать их глазами зря.
+        /// </summary>
+        public IList<string> Calculated { get { return _calc; } }
+
+        private readonly List<string> _calc = new List<string>();
 
         /// <summary>Индекс канала такта: с наибольшим номером слова.</summary>
         public int TickIndex { get; private set; }
@@ -245,8 +254,8 @@ namespace ICDIBasic
 
                 if (name.Length == 0 || val.Length == 0) continue;
 
-                /* Вычисляемый канал. Считаем и идём дальше - см. шапку. */
-                if (val[0] == '@') { map.Skipped++; continue; }
+                /* Вычисляемый канал. Запоминаем имя и идём дальше - см. шапку. */
+                if (val[0] == '@') { map._calc.Add(name); continue; }
 
                 IniChannel ch = ParseChannel(name, val);
                 if (ch == null) continue;
