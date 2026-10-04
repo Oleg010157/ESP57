@@ -115,7 +115,11 @@
     </Compile>
     <Compile Include="CAN\PcanFdMessageConverter.cs" />
     <Compile Include="Scope\IniChannelMap.cs" />
+    <Compile Include="Scope\ScopeView.cs" />
     <Compile Include="Scope\ScopeRing.cs" />
+    <Compile Include="Scope\ScopeConfigForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Scope\ScopeControl.cs">
       <SubType>Component</SubType>
     </Compile>

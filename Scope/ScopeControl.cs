@@ -9,12 +9,11 @@ using System.Windows.Forms;
 namespace ICDIBasic
 {
     /*
-     * Осциллограф быстрой телеметрии - кадр 103, набор F3_convertor.
+     * Осциллограф быстрой ленты.
      *
      * Перенесён из проекта ESP_INV (c:\Work\ESP_INV, ui/EspInv.App/ScopeControl.cs),
      * где писался для однофазного инвертора на ESP32. Данные там приходили пачками
-     * по UDP, здесь - по одному отсчёту на кадр CAN, и это единственное, что
-     * поменялось по существу: рисование, синхронизация и курсор те же.
+     * по UDP, здесь - по одному отсчёту на кадр CAN.
      *
      * Три вещи здесь сделаны не так, как просится, и каждая по своей причине.
      *
@@ -29,38 +28,47 @@ namespace ICDIBasic
      *    полилиния по всем точкам стоит втрое дороже и при этом теряет пики,
      *    потому что GDI+ соединяет точки, а не показывает размах внутри пикселя.
      *
-     * 3. У каждого канала свой масштаб. Общая ось смысла не имеет: вольты, амперы
-     *    и безразмерный индекс модуляции в одной шкале означают, что видно будет
-     *    только вольты. Масштаб округляется до 1/2/5 и отпускается вниз лишь при
-     *    двукратном запасе - иначе он пересчитывается на каждой перерисовке и
-     *    картинка дышит.
+     * 3. У каждой кривой свой размах по вертикали. Общая ось смысла не имеет:
+     *    вольты, амперы и безразмерный индекс модуляции в одной шкале означают,
+     *    что видно будет только вольты. Размах берётся из настройки слота, а
+     *    если он не задан - подбирается сам, с округлением до 1/2/5.
+     *
+     * ДВЕ ГРУППЫ рисуются ОДНИМ контролом, а не двумя. Ось времени,
+     * синхронизация, курсор и метка у групп общие; два отдельных контрола
+     * пришлось бы синхронизировать между собой, и первая же рассинхронизация
+     * читалась бы как потеря данных.
      */
     internal sealed class ScopeControl : Control
     {
         private readonly ScopeRing _ring;
         private readonly IniChannelMap _map;
+        private ScopeView _view;
 
-        /// <summary>Каналов в шаблоне. У разных кадров разное - отсюда поле, а не const.</summary>
+        /// <summary>Каналов в шаблоне.</summary>
         private readonly int _ch;
-
-        private readonly bool[] _visible;
-        private readonly float[] _scale;
 
         /* Снимок для рисования: приёмный поток не должен ждать GDI+. */
         private readonly float[] _snapV;
         private readonly uint[] _snapT = new uint[ScopeRing.Capacity];
 
+        /// <summary>Канал каждого слота, -1 для пустого. Пересчитывается при смене вида.</summary>
+        private readonly int[,] _slotCh = new int[ScopeView.Groups, ScopeView.SlotsPerGroup];
+
+        /// <summary>Показывать ли кривую слота. Кнопки панели гасят её, не трогая настройку.</summary>
+        private readonly bool[,] _shown = new bool[ScopeView.Groups, ScopeView.SlotsPerGroup];
+
+        /// <summary>Подобранный масштаб слота, когда размах не задан.</summary>
+        private readonly float[,] _auto = new float[ScopeView.Groups, ScopeView.SlotsPerGroup];
+
         /// <summary>Часы для сдерживания таблицы отсчёта. Stopwatch, а не TickCount: тот переполняется.</summary>
         private static readonly Stopwatch Clock = Stopwatch.StartNew();
 
-        public ScopeControl(ScopeRing ring)
+        public ScopeControl(ScopeRing ring, ScopeView view)
         {
             _ring = ring;
             _map = ring.Map;
             _ch = _map.Count;
 
-            _visible = new bool[_ch];
-            _scale = new float[_ch];
             _snapV = new float[ScopeRing.Capacity * _ch];
 
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
@@ -75,27 +83,26 @@ namespace ICDIBasic
 
             _trig = _map.DefaultTrigger;
 
-            /* Сразу показываем первые три канала, кроме такта: рисовать все
-             * пятнадцать значит не увидеть ни одного, а какие именно нужны -
-             * знает только оператор. Счётчик такта как кривая бесполезен, его
-             * дело - ось времени. */
-            int shown = 0;
-            for (int c = 0; c < _ch; c++)
-            {
-                _scale[c] = 1.0f;
-                _visible[c] = c != _map.TickIndex && shown < 3;
-                if (_visible[c]) shown++;
-            }
+            SetView(view);
         }
 
-        /// <summary>Канал, по которому идёт запуск развёртки.</summary>
-        public int TrigChannel
+        /// <summary>Применить настройку вида: какие каналы в каких слотах, их цвета и размах.</summary>
+        public void SetView(ScopeView view)
         {
-            get { return _trig; }
-            set { _trig = value; Invalidate(); }
+            _view = view;
+
+            for (int g = 0; g < ScopeView.Groups; g++)
+                for (int s = 0; s < ScopeView.SlotsPerGroup; s++)
+                {
+                    _slotCh[g, s] = ScopeView.IndexOf(_map, view[g, s].Name);
+                    _shown[g, s] = true;
+                    _auto[g, s] = 1f;
+                }
+
+            Invalidate();
         }
 
-        private int _trig;
+        public ScopeView View { get { return _view; } }
 
         /// <summary>Ширина окна по времени, мс. Ноль здесь дал бы окно в два отсчёта.</summary>
         [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -115,13 +122,9 @@ namespace ICDIBasic
          * попадает в случайную точку периода сети, и синусоида уезжает вбок.
          * Смотреть на такое нельзя - глазу не за что зацепиться.
          *
-         * С синхронизацией левый край окна ставится на переход uGrid через ноль
-         * вверх. Точка привязки всегда в одной и той же фазе сети, и картинка
-         * стоит, хотя данные продолжают идти.
-         *
-         * Почему именно uGrid: всё в этом приборе привязано к сети - и фаза
-         * модулятора, и задание тока. Синхронизация по любому другому каналу
-         * дала бы ту же самую точку, только через лишнее звено.
+         * С синхронизацией левый край окна ставится на переход выбранного канала
+         * через ноль вверх. Точка привязки всегда в одной и той же фазе сети, и
+         * картинка стоит, хотя данные продолжают идти.
          *
          * Плата за это - задержка. Левый край берётся не у самого свежего
          * отсчёта, а у последнего перехода, после которого набралось целое окно,
@@ -132,13 +135,22 @@ namespace ICDIBasic
         private bool _sync = true;
         private bool _synced; /* нашли ли переход в этот раз - для подписи */
 
-        /// <summary>Пускать развёртку по переходу uGrid через ноль вверх.</summary>
+        /// <summary>Пускать развёртку по переходу канала запуска через ноль вверх.</summary>
         [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool Sync
         {
             get { return _sync; }
             set { _sync = value; Invalidate(); }
         }
+
+        /// <summary>Канал, по которому идёт запуск развёртки.</summary>
+        public int TrigChannel
+        {
+            get { return _trig; }
+            set { _trig = value; Invalidate(); }
+        }
+
+        private int _trig;
 
         /*-----------------------------------------------------------------------
          * Курсор и метка
@@ -187,14 +199,14 @@ namespace ICDIBasic
             set { _ring.Frozen = value; Invalidate(); }
         }
 
-        public bool IsVisibleChannel(int i)
+        public bool IsVisibleSlot(int g, int s)
         {
-            return _visible[i];
+            return _shown[g, s];
         }
 
-        public void SetVisibleChannel(int i, bool on)
+        public void SetVisibleSlot(int g, int s, bool on)
         {
-            _visible[i] = on;
+            _shown[g, s] = on;
             Invalidate();
         }
 
@@ -214,6 +226,13 @@ namespace ICDIBasic
         /// <summary>Сколько каналов в кадре настоящие; остальные - нули старой прошивки.</summary>
         private int _live;
 
+        /// <summary>Виден ли слот: занят, не погашен и канал реально приходит.</summary>
+        private bool Live(int g, int s)
+        {
+            int c = _slotCh[g, s];
+            return c >= 0 && c < _live && _shown[g, s];
+        }
+
         /*-----------------------------------------------------------------------
          * Поиск точки запуска. Вызывается только под замком кольца.
          *----------------------------------------------------------------------*/
@@ -225,8 +244,8 @@ namespace ICDIBasic
         private int FindTrigger(int n, int count)
         {
             // Порог берётся от размаха самого сигнала, а не задаётся в вольтах:
-            // масштаб канала uGrid зависит от тарировки kU220, и зашитый порог
-            // пришлось бы менять вместе с ней.
+            // масштаб канала зависит от тарировки, и зашитый порог пришлось бы
+            // менять вместе с ней.
             float peak = 0f;
             for (int a = 0; a < count; a++)
             {
@@ -234,7 +253,7 @@ namespace ICDIBasic
                 if (v > peak) peak = v;
             }
 
-            if (peak < 1e-3f) return -1; /* сети нет - синхронизировать не по чему */
+            if (peak < 1e-3f) return -1; /* сигнала нет - синхронизировать не по чему */
 
             float arm = -0.05f * peak;
 
@@ -279,8 +298,52 @@ namespace ICDIBasic
         }
 
         /*-----------------------------------------------------------------------
-         * Управление курсором
+         * Поля групп
          *----------------------------------------------------------------------*/
+        private const int MarginL = 52;
+        private const int MarginR = 8;
+        private const int MarginT = 8;
+        private const int MarginB = 20;
+
+        /// <summary>Зазор между группами.</summary>
+        private const int GroupGap = 8;
+
+        private readonly Rectangle[] _rect = new Rectangle[ScopeView.Groups];
+        private readonly bool[] _used = new bool[ScopeView.Groups];
+
+        /// <summary>
+        /// Разложить высоту по группам. Пустая группа места не занимает: если
+        /// вторая не используется, первая получает всё поле целиком.
+        /// </summary>
+        private void Layout()
+        {
+            int left = MarginL;
+            int width = Math.Max(1, Width - MarginL - MarginR);
+            int top = MarginT;
+            int height = Math.Max(1, Height - MarginT - MarginB);
+
+            int used = 0;
+            for (int g = 0; g < ScopeView.Groups; g++)
+            {
+                _used[g] = _view.GroupUsed(g);
+                if (_used[g]) used++;
+            }
+
+            if (used == 0) { _used[0] = true; used = 1; } /* нечего показывать - рисуем пустое поле */
+
+            int each = (height - GroupGap * (used - 1)) / used;
+            int y = top;
+
+            for (int g = 0; g < ScopeView.Groups; g++)
+            {
+                if (!_used[g]) { _rect[g] = Rectangle.Empty; continue; }
+
+                _rect[g] = new Rectangle(left, y, width, Math.Max(1, each));
+                y += each + GroupGap;
+            }
+        }
+
+        /// <summary>Всё поле графика - для мыши: ось X у групп общая.</summary>
         private Rectangle PlotRect()
         {
             return new Rectangle(MarginL, MarginT,
@@ -301,7 +364,8 @@ namespace ICDIBasic
          * Ради этого sineTick и лежит последним словом каждого кадра.
          *
          * Считается один раз за перерисовку, и все - кривые, курсор, мышь -
-         * пользуются одной и той же осью, иначе они разъедутся.
+         * пользуются одной и той же осью, иначе они разъедутся. Группы делят её
+         * между собой.
          *----------------------------------------------------------------------*/
         private uint _baseTick;  /* такт отсчёта, попавшего на левый край */
         private float _trigFrac; /* доля такта до истинного перехода через ноль */
@@ -470,21 +534,13 @@ namespace ICDIBasic
         /*-----------------------------------------------------------------------
          * Рисование
          *----------------------------------------------------------------------*/
-        private const int MarginL = 52;
-        private const int MarginR = 8;
-        private const int MarginT = 8;
-        private const int MarginB = 20;
 
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
             g.Clear(BackColor);
 
-            var plot = new Rectangle(MarginL, MarginT,
-                                     Math.Max(1, Width - MarginL - MarginR),
-                                     Math.Max(1, Height - MarginT - MarginB));
-
-            DrawGrid(g, plot);
+            Layout();
 
             int want;
             int n;
@@ -548,44 +604,121 @@ namespace ICDIBasic
              * тронувший мышь не увидит ничего и не догадается, что он есть. */
             if (_showCursor && _cursorIdx < 0 && n >= 2) _cursorIdx = n / 2;
 
+            Rectangle all = PlotRect();
+
             if (n < 2)
             {
-                TextRenderer.DrawText(g, "нет данных", Font, plot,
+                for (int gr = 0; gr < ScopeView.Groups; gr++)
+                    if (_used[gr]) DrawGrid(g, gr, _rect[gr]);
+
+                TextRenderer.DrawText(g, "нет данных", Font, all,
                                       Color.FromArgb(120, 130, 140),
                                       TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
                 return;
             }
 
-            /* Масштаб задаётся ВЫБРАННЫМ окном, а не числом набранных отсчётов.
-             * Иначе при потерях картинка ужималась бы по горизонтали, подгоняя
-             * себя под ширину, и потеря снова оказалась бы незаметной. */
+            /* Масштаб по горизонтали задаётся ВЫБРАННЫМ окном, а не числом
+             * набранных отсчётов. Иначе при потерях картинка ужималась бы,
+             * подгоняя себя под ширину, и потеря снова оказалась бы незаметной. */
             _baseTick = _snapT[0];
-            _xk = (float)(plot.Width - 1) / Math.Max(1, want - 1);
-            _x0 = plot.Left + _trigFrac * _xk;
+            _xk = (float)(all.Width - 1) / Math.Max(1, want - 1);
+            _x0 = all.Left + _trigFrac * _xk;
             _spanMs = want * 1000f * Math.Max(1, _step) / CtrlHz;
 
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-
-            /* Сдвиг выносит последний отсчёт на долю такта за правый край. Проще
-             * обрезать по рамке, чем ужимать окно на один отсчёт. */
-            g.SetClip(plot);
-
-            int legendY = plot.Top + 4;
-            for (int c = 0; c < _ch; c++)
+            for (int gr = 0; gr < ScopeView.Groups; gr++)
             {
-                if (!_visible[c] || c >= _live) continue;
+                if (!_used[gr]) continue;
 
-                float scale = UpdateScale(c, n);
-                DrawChannel(g, plot, c, scale, n);
-                DrawLegend(g, plot, c, scale, ref legendY);
+                Rectangle r = _rect[gr];
+
+                DrawGrid(g, gr, r);
+
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                /* Сдвиг выносит последний отсчёт на долю такта за правый край.
+                 * Проще обрезать по рамке, чем ужимать окно на один отсчёт. */
+                g.SetClip(r);
+
+                int legendY = r.Top + 4;
+
+                for (int s = 0; s < ScopeView.SlotsPerGroup; s++)
+                {
+                    if (!Live(gr, s)) continue;
+
+                    float lo, hi;
+                    Range(gr, s, n, out lo, out hi);
+
+                    DrawChannel(g, r, gr, s, lo, hi, n);
+                    DrawLegend(g, r, gr, s, lo, hi, ref legendY);
+                }
+
+                g.ResetClip();
+                g.SmoothingMode = SmoothingMode.Default;
             }
 
-            DrawTrigMark(g, plot);
+            DrawTrigMark(g);
+            DrawTimeAxis(g, all, n);
+            DrawCursors(g, all, n);
+        }
 
-            g.ResetClip();
-            g.SmoothingMode = SmoothingMode.Default;
-            DrawTimeAxis(g, plot, n);
-            DrawCursors(g, plot, n);
+        /*-----------------------------------------------------------------------
+         * Размах слота
+         *----------------------------------------------------------------------*/
+
+        /// <summary>
+        /// Границы кривой. Заданы в настройке - берём как есть; не заданы -
+        /// подбираем по окну, с округлением до 1/2/5 и симметрично нулю.
+        ///
+        /// Подобранный масштаб отпускается вниз только при двукратном запасе -
+        /// иначе он пересчитывается на каждой перерисовке и картинка дышит.
+        /// </summary>
+        private void Range(int g, int s, int n, out float lo, out float hi)
+        {
+            ScopeSlot sl = _view[g, s];
+
+            if (!sl.Auto) { lo = sl.Min; hi = sl.Max; return; }
+
+            int c = _slotCh[g, s];
+
+            float peak = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float v = Math.Abs(Snap(i, c));
+                if (v > peak) peak = v;
+            }
+
+            float want = Nice(peak);
+            float cur = _auto[g, s];
+
+            if (want > cur || want < cur * 0.5f) cur = want;
+            _auto[g, s] = cur;
+
+            lo = -cur;
+            hi = cur;
+        }
+
+        private static float Nice(float v)
+        {
+            if (!(v > 0f)) return 1f;
+
+            float e = (float)Math.Pow(10.0, Math.Floor(Math.Log10(v)));
+            float m = v / e;
+            float n = m <= 1f ? 1f : m <= 2f ? 2f : m <= 5f ? 5f : 10f;
+            return n * e;
+        }
+
+        /// <summary>
+        /// Значение -> пиксель внутри поля группы. За границами обрезается по
+        /// рамке: уход за край видно по тому, что кривая легла на неё.
+        /// </summary>
+        private static float Y(Rectangle r, float v, float lo, float hi)
+        {
+            float t = (v - lo) / (hi - lo);
+
+            if (t < 0f) t = 0f;
+            else if (t > 1f) t = 1f;
+
+            return r.Bottom - t * (r.Height - 1);
         }
 
         /*-----------------------------------------------------------------------
@@ -621,33 +754,35 @@ namespace ICDIBasic
         private static readonly Color MarkColor = Color.FromArgb(214, 176, 96);
         private static readonly Color DimColor = Color.FromArgb(150, 158, 168);
 
-        private void DrawCursors(Graphics g, Rectangle plot, int n)
+        private void DrawCursors(Graphics g, Rectangle all, int n)
         {
             if (!_showCursor || _cursorIdx < 0) return;
 
             int i = Clamp(_cursorIdx, 0, n - 1);
             int m = _markIdx >= 0 ? Clamp(_markIdx, 0, n - 1) : -1;
 
-            /* Метка - точками и другим цветом. Двумя одинаковыми линиями пришлось
-             * бы вспоминать, какая из них какая, а в таблице столбцы подписаны
-             * ровно этими же цветами. */
+            /* Черта идёт через ОБЕ группы: отсчёт под курсором один и тот же, и
+             * разрывать его по полям значило бы предлагать сверять глазом две
+             * разные вертикали. */
             if (m >= 0)
             {
                 float xm = IdxToX(m);
                 using (var pen = new Pen(MarkColor) { DashStyle = DashStyle.Dot })
-                {
-                    g.DrawLine(pen, xm, plot.Top, xm, plot.Bottom);
-                }
+                    foreach (Rectangle r in Used()) g.DrawLine(pen, xm, r.Top, xm, r.Bottom);
             }
 
             float x = IdxToX(i);
             using (var pen = new Pen(CurColor) { DashStyle = DashStyle.Dash })
-            {
-                g.DrawLine(pen, x, plot.Top, x, plot.Bottom);
-            }
+                foreach (Rectangle r in Used()) g.DrawLine(pen, x, r.Top, x, r.Bottom);
 
             BuildRows(i, m);
-            DrawReadout(g, plot, x, m >= 0);
+            DrawReadout(g, all, x, m >= 0);
+        }
+
+        private IEnumerable<Rectangle> Used()
+        {
+            for (int g = 0; g < ScopeView.Groups; g++)
+                if (_used[g]) yield return _rect[g];
         }
 
         /// <summary>
@@ -696,28 +831,31 @@ namespace ICDIBasic
                                   (1000f / Math.Abs(ti - tm)).ToString("0.###"), DimColor));
             }
 
-            for (int c = 0; c < _ch; c++)
-            {
-                if (!_visible[c] || c >= _live) continue;
-
-                IniChannel ch =_map[c];
-                float vc = Snap(i, c);
-
-                /* Печатаем с точностью, ОБЪЯВЛЕННОЙ В .ini (поле format), а не
-                 * по своей эвристике. В этом и смысл общего с Wscope формата:
-                 * числа под курсором должны совпадать с тем, что Wscope
-                 * показывает на той же записи. Единиц в .ini нет - их там
-                 * просто негде взять, они лежат в комментариях. */
-                if (m < 0)
+            for (int g = 0; g < ScopeView.Groups; g++)
+                for (int s = 0; s < ScopeView.SlotsPerGroup; s++)
                 {
-                    _rows.Add(new Row(ch.Name, vc.ToString(ch.Format), "", "", ch.Color));
-                    continue;
-                }
+                    if (!Live(g, s)) continue;
 
-                float vm = Snap(m, c);
-                _rows.Add(new Row(ch.Name, vc.ToString(ch.Format), vm.ToString(ch.Format),
-                                  Signed(vc - vm, ch.Format), ch.Color));
-            }
+                    int c = _slotCh[g, s];
+                    IniChannel ch = _map[c];
+                    float vc = Snap(i, c);
+
+                    /* Печатаем с точностью, ОБЪЯВЛЕННОЙ В .ini (поле format), а
+                     * не по своей эвристике. В этом и смысл общего с Wscope
+                     * формата: числа под курсором должны совпадать с тем, что
+                     * Wscope показывает на той же записи. */
+                    Color col = _view[g, s].Color;
+
+                    if (m < 0)
+                    {
+                        _rows.Add(new Row(ch.Name, vc.ToString(ch.Format), "", "", col));
+                        continue;
+                    }
+
+                    float vm = Snap(m, c);
+                    _rows.Add(new Row(ch.Name, vc.ToString(ch.Format), vm.ToString(ch.Format),
+                                      Signed(vc - vm, ch.Format), col));
+                }
         }
 
         private static string Signed(int v)
@@ -738,20 +876,25 @@ namespace ICDIBasic
         /// Меряется по НЕМУ, а не по тому, что стоит в столбце сейчас. Иначе
         /// рамка дёргается на каждом переходе через разряд: 9,999 длиннее, чем
         /// 10,00, строка короче - и рамка на глазах меняет ширину и уезжает
-        /// вбок, потому что прижата к правому краю. Зависит от набора каналов, а
-        /// не от значений, поэтому стоит ровно.
+        /// вбок, потому что прижата к правому краю.
         /// </summary>
         private string WidestNum()
         {
             int digits = 0;
 
-            for (int c = 0; c < _ch; c++)
-                if (_visible[c] && c < _live && _map[c].Digits > digits) digits = _map[c].Digits;
+            for (int g = 0; g < ScopeView.Groups; g++)
+                for (int s = 0; s < ScopeView.SlotsPerGroup; s++)
+                {
+                    if (!Live(g, s)) continue;
+
+                    int d = _map[_slotCh[g, s]].Digits;
+                    if (d > digits) digits = d;
+                }
 
             return "-00000" + (digits > 0 ? "." + new string('0', digits) : "");
         }
 
-        private void DrawReadout(Graphics g, Rectangle plot, float x, bool withMark)
+        private void DrawReadout(Graphics g, Rectangle all, float x, bool withMark)
         {
             /* Без метки столбец один, и шапка не нужна: подписывать нечего. */
             int cols = withMark ? 4 : 2;
@@ -762,13 +905,6 @@ namespace ICDIBasic
 
             // Ширины столбцов считаются заранее: числа выравниваются вправо, чтобы
             // разряды стояли под разрядами, а для этого нужна ширина столбца.
-            //
-            // Числовые столбцы меряются по САМОМУ ШИРОКОМУ, что вообще могут выдать
-            // показанные каналы (см. WidestNum), а не по тому, что стоит в них
-            // сейчас. Иначе рамка дёргается на каждом переходе через разряд, то
-            // есть на глазах меняет ширину и уезжает вбок, потому что прижата к
-            // правому краю. Столбец подписей так мерить нельзя и не
-            // нужно: подписи меняются только вместе с набором каналов.
             int numW = TextRenderer.MeasureText(WidestNum(), Font).Width;
 
             var w = new int[4];
@@ -797,12 +933,12 @@ namespace ICDIBasic
 
             /* Рамка уходит в сторону от курсора: иначе она закрывает ровно тот
              * участок кривой, ради которого курсор и поставили. */
-            int boxX = (x > plot.Left + plot.Width / 2) ? plot.Left + 6 : plot.Right - boxW - 6;
-            int boxY = plot.Top + 6;
+            int boxX = (x > all.Left + all.Width / 2) ? all.Left + 6 : all.Right - boxW - 6;
+            int boxY = all.Top + 6;
 
-            /* Легенда живёт в левом верхнем углу. Если рамка встала туда же,
-             * опускаем её под легенду. */
-            if (boxX < plot.Left + 12) boxY = plot.Top + 6 + VisibleCount() * 15 + 6;
+            /* Легенда живёт в левом верхнем углу первой группы. Если рамка встала
+             * туда же, опускаем её под легенду. */
+            if (boxX < all.Left + 12) boxY = all.Top + 6 + VisibleCount(0) * 15 + 6;
 
             var box = new Rectangle(boxX, boxY, boxW, boxH);
 
@@ -845,75 +981,61 @@ namespace ICDIBasic
         }
 
         /// <summary>
-        /// Метка запуска: уголок на левом краю, ровно на нулевой линии. Стоит
-        /// там же, где физически произошёл переход, - видно, что развёртка
-        /// зацепилась, а не просто показывает хвост кольца.
+        /// Метка запуска: уголок на левом краю той группы, где стоит канал
+        /// запуска. Видно, что развёртка зацепилась, а не просто показывает
+        /// хвост кольца.
         /// </summary>
-        private void DrawTrigMark(Graphics g, Rectangle plot)
+        private void DrawTrigMark(Graphics g)
         {
             if (!_synced) return;
 
-            float midY = plot.Top + plot.Height * 0.5f;
+            /* Ищем группу, в которой показан канал запуска. Нет такой - ставим в
+             * первую: синхронизация-то работает, и сказать об этом надо. */
+            int gr = 0;
+            Color col = Color.FromArgb(120, 130, 140);
+
+            for (int gg = 0; gg < ScopeView.Groups && col.A == 255 && gr == 0; gg++)
+                for (int s = 0; s < ScopeView.SlotsPerGroup; s++)
+                    if (_used[gg] && Live(gg, s) && _slotCh[gg, s] == _trig)
+                    {
+                        gr = gg;
+                        col = _view[gg, s].Color;
+                        break;
+                    }
+
+            if (!_used[gr]) return;
+
+            Rectangle r = _rect[gr];
+            float midY = r.Top + r.Height * 0.5f;
 
             PointF[] tri =
             {
-                new PointF(plot.Left + 1, midY - 5f),
-                new PointF(plot.Left + 9, midY),
-                new PointF(plot.Left + 1, midY + 5f),
+                new PointF(r.Left + 1, midY - 5f),
+                new PointF(r.Left + 9, midY),
+                new PointF(r.Left + 1, midY + 5f),
             };
 
-            using (var b = new SolidBrush(_map[_trig].Color))
-            {
-                g.FillPolygon(b, tri);
-            }
+            using (var b = new SolidBrush(col)) g.FillPolygon(b, tri);
         }
 
-        private int VisibleCount()
+        private int VisibleCount(int g)
         {
             int k = 0;
-            for (int c = 0; c < _ch; c++) if (_visible[c] && c < _live) k++;
+            for (int s = 0; s < ScopeView.SlotsPerGroup; s++) if (Live(g, s)) k++;
             return k;
         }
 
-        /// <summary>Масштаб канала: округлён до 1/2/5, вниз отпускается при двукратном запасе.</summary>
-        private float UpdateScale(int c, int n)
+        private void DrawChannel(Graphics g, Rectangle r, int gr, int s,
+                                 float lo, float hi, int n)
         {
-            float peak = 0f;
-            for (int i = 0; i < n; i++)
-            {
-                float v = Math.Abs(Snap(i, c));
-                if (v > peak) peak = v;
-            }
+            int c = _slotCh[gr, s];
 
-            float want = Nice(peak);
-            float cur = _scale[c];
-
-            if (want > cur || want < cur * 0.5f) cur = want;
-            _scale[c] = cur;
-            return cur;
-        }
-
-        private static float Nice(float v)
-        {
-            if (!(v > 0f)) return 1f;
-
-            float e = (float)Math.Pow(10.0, Math.Floor(Math.Log10(v)));
-            float m = v / e;
-            float n = m <= 1f ? 1f : m <= 2f ? 2f : m <= 5f ? 5f : 10f;
-            return n * e;
-        }
-
-        private void DrawChannel(Graphics g, Rectangle plot, int c, float scale, int n)
-        {
-            float midY = plot.Top + plot.Height * 0.5f;
-            float ky = -plot.Height * 0.5f / scale;
-
-            using (var pen = new Pen(_map[c].Color, 1f))
+            using (var pen = new Pen(_view[gr, s].Color, 1f))
             {
                 // Точек меньше, чем пикселей - рисуем настоящую полилинию:
                 // огибающая здесь выродилась бы в набор отдельных точек и
                 // потеряла форму.
-                if (n <= plot.Width)
+                if (n <= r.Width)
                 {
                     var pts = new PointF[n];
                     int len = 0, run = 0;
@@ -930,7 +1052,7 @@ namespace ICDIBasic
                             run = len;
                         }
 
-                        pts[len++] = new PointF(IdxToX(i), midY + ClampY(Snap(i, c) * ky, plot.Height));
+                        pts[len++] = new PointF(IdxToX(i), Y(r, Snap(i, c), lo, hi));
                     }
 
                     Flush(g, pen, pts, run, len - run);
@@ -940,19 +1062,19 @@ namespace ICDIBasic
                 float prevY = float.NaN;
 
                 int col = 0;
-                float lo = float.MaxValue, hi = float.MinValue;
+                float mn = float.MaxValue, mx = float.MinValue;
 
                 for (int i = 0; i <= n; i++)
                 {
-                    int cx = i < n ? (int)(IdxToX(i) - plot.Left) : -1;
+                    int cx = i < n ? (int)(IdxToX(i) - r.Left) : -1;
 
                     if (cx != col || i == n)
                     {
-                        if (lo <= hi)
+                        if (mn <= mx)
                         {
-                            float x = plot.Left + col;
-                            float y0 = midY + ClampY(hi * ky, plot.Height);
-                            float y1 = midY + ClampY(lo * ky, plot.Height);
+                            float x = r.Left + col;
+                            float y0 = Y(r, mx, lo, hi);
+                            float y1 = Y(r, mn, lo, hi);
 
                             // Соединяем со столбцом слева: без этого на крутых
                             // участках получается пунктир из вертикальных штрихов.
@@ -968,13 +1090,13 @@ namespace ICDIBasic
                         if (cx - col > 1) prevY = float.NaN;
 
                         col = cx;
-                        lo = float.MaxValue;
-                        hi = float.MinValue;
+                        mn = float.MaxValue;
+                        mx = float.MinValue;
                     }
 
                     float v = Snap(i, c);
-                    if (v < lo) lo = v;
-                    if (v > hi) hi = v;
+                    if (v < mn) mn = v;
+                    if (v > mx) mx = v;
                 }
             }
         }
@@ -996,13 +1118,6 @@ namespace ICDIBasic
             g.DrawLines(pen, seg);
         }
 
-        private static float ClampY(float y, int h)
-        {
-            float lim = h * 0.5f;
-            return y > lim ? lim : y < -lim ? -lim : y;
-        }
-
-        /// <summary>Math.Clamp появился только в .NET Core.</summary>
         private static int Clamp(int v, int lo, int hi)
         {
             return v < lo ? lo : v > hi ? hi : v;
@@ -1013,56 +1128,77 @@ namespace ICDIBasic
             return v < lo ? lo : v > hi ? hi : v;
         }
 
-        private void DrawGrid(Graphics g, Rectangle plot)
+        private void DrawGrid(Graphics g, int gr, Rectangle r)
         {
             using (var thin = new Pen(Color.FromArgb(38, 46, 54)))
             using (var axis = new Pen(Color.FromArgb(70, 82, 94)))
             {
                 for (int i = 0; i <= 8; i++)
-                {
-                    int y = plot.Top + plot.Height * i / 8;
-                    g.DrawLine(i == 4 ? axis : thin, plot.Left, y, plot.Right, y);
-                }
+                    g.DrawLine(thin, r.Left, r.Top + r.Height * i / 8, r.Right, r.Top + r.Height * i / 8);
 
                 for (int i = 0; i <= 10; i++)
+                    g.DrawLine(thin, r.Left + r.Width * i / 10, r.Top, r.Left + r.Width * i / 10, r.Bottom);
+
+                g.DrawRectangle(axis, r);
+
+                /* Подписи оси - по ПЕРВОЙ показанной кривой группы, её же цветом.
+                 * У каждой кривой свой размах, и общих чисел тут быть не может;
+                 * без цвета было бы непонятно, к чему они относятся. Остальные
+                 * читают свой размах в легенде. */
+                int first = -1;
+                for (int s = 0; s < ScopeView.SlotsPerGroup && first < 0; s++)
+                    if (Live(gr, s)) first = s;
+
+                if (first < 0) return;
+
+                float lo, hi;
+                Range(gr, first, 0, out lo, out hi);
+
+                /* Нулевую линию выделяем, если ноль внутри размаха: по ней видно
+                 * знак, а на несимметричной шкале середина поля нулём не является. */
+                if (lo < 0f && hi > 0f)
                 {
-                    int x = plot.Left + plot.Width * i / 10;
-                    g.DrawLine(thin, x, plot.Top, x, plot.Bottom);
+                    float zy = Y(r, 0f, lo, hi);
+                    g.DrawLine(axis, r.Left, zy, r.Right, zy);
                 }
 
-                g.DrawRectangle(axis, plot);
-            }
+                IniChannel ch = _map[_slotCh[gr, first]];
+                Color col = _view[gr, first].Color;
 
-            // Подписи вертикальной оси - в долях полной шкалы: у каждого канала
-            // она своя, поэтому единственное общее число здесь относительное.
-            var grey = Color.FromArgb(120, 130, 140);
-            TextRenderer.DrawText(g, "+1", Font, new Point(4, plot.Top - 2), grey);
-            TextRenderer.DrawText(g, " 0", Font, new Point(4, plot.Top + plot.Height / 2 - 8), grey);
-            TextRenderer.DrawText(g, "-1", Font, new Point(4, plot.Bottom - 15), grey);
+                TextRenderer.DrawText(g, hi.ToString(ch.Format), Font,
+                                      new Point(2, r.Top - 2), col);
+                TextRenderer.DrawText(g, lo.ToString(ch.Format), Font,
+                                      new Point(2, r.Bottom - 15), col);
+            }
         }
 
-        private void DrawLegend(Graphics g, Rectangle plot, int c, float scale, ref int y)
+        private void DrawLegend(Graphics g, Rectangle r, int gr, int s,
+                                float lo, float hi, ref int y)
         {
-            IniChannel ch =_map[c];
+            IniChannel ch = _map[_slotCh[gr, s]];
+            Color col = _view[gr, s].Color;
 
-            var box = new Rectangle(plot.Left + 8, y + 6, 10, 3);
-            using (var b = new SolidBrush(ch.Color)) g.FillRectangle(b, box);
+            var box = new Rectangle(r.Left + 8, y + 6, 10, 3);
+            using (var b = new SolidBrush(col)) g.FillRectangle(b, box);
 
-            /* Без единицы измерения: в .ini её негде взять - поля для неё нет, а
-             * в комментариях она записана как придётся и не везде. */
-            TextRenderer.DrawText(g, ch.Name + " ±" + scale.ToString("0.###"), Font,
-                                  new Point(plot.Left + 22, y), ch.Color);
+            /* Размах рядом с именем: на двух группах по шесть кривых иначе не
+             * понять, в каких границах нарисована каждая. Единиц в .ini нет -
+             * поля для них там не предусмотрено. */
+            string text = ch.Name + "  " + lo.ToString(ch.Format) + "…" + hi.ToString(ch.Format);
+            if (_view[gr, s].Auto) text += " (авто)";
+
+            TextRenderer.DrawText(g, text, Font, new Point(r.Left + 22, y), col);
             y += 15;
         }
 
-        private void DrawTimeAxis(Graphics g, Rectangle plot, int n)
+        private void DrawTimeAxis(Graphics g, Rectangle all, int n)
         {
             var grey = Color.FromArgb(120, 130, 140);
 
             /* Правая подпись прижимается к краю выравниванием, а не отступом в
              * фиксированные 60 px: при крупном шрифте или значении «1000 мс»
              * такой отступ не спасает, и хвост уезжает за край. */
-            var right = new Rectangle(plot.Left, plot.Bottom + 3, plot.Width, MarginB - 3);
+            var right = new Rectangle(all.Left, all.Bottom + 3, all.Width, MarginB - 3);
 
             TextRenderer.DrawText(g, _spanMs.ToString("0.#") + " мс", Font, right, grey,
                                   TextFormatFlags.Right | TextFormatFlags.NoPadding);
@@ -1094,7 +1230,7 @@ namespace ICDIBasic
             else if (_synced)
             {
                 text = "синхр. " + _map[_trig].Name + " ↑";
-                color = _map[_trig].Color;
+                color = Color.FromArgb(150, 180, 210);
             }
             else
             {

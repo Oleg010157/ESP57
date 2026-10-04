@@ -91,3 +91,8 @@ bin/Wscope/WScope.ini
 bin/Wscope/WScopeE.ini
 /bin/Wscope/WScope.ini
 /bin/Wscope/WScopeE.ini
+
+# Вид осциллографа: какие каналы в каких полях, их границы и цвета.
+# Пользовательская настройка, как и WScope*.ini рядом, - у каждой машины своя.
+# Захотите, чтобы она ездила с проектом, - уберите эту строку.
+/bin/Debug/Scope/*.view.ini

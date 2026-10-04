@@ -60,6 +60,10 @@ namespace ICDIBasic
         private readonly ToolStripButton _btnFreeze;
         private readonly ToolStripButton _btnCursor;
         private readonly ToolStripButton _btnReset;
+        private readonly ToolStripButton _btnChannels;
+
+        /// <summary>Карта текущего шаблона. Нужна окну настройки и пересборке панели.</summary>
+        private IniChannelMap _map;
 
         /// <summary>Вторая панель: выбор канала запуска и кнопки каналов. Пересобирается на каждый шаблон.</summary>
         private readonly ToolStrip _chTool;
@@ -251,6 +255,13 @@ namespace ICDIBasic
                 if (_scope != null) _scope.Invalidate();
             };
 
+            _btnChannels = new ToolStripButton("Каналы…")
+            {
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                ToolTipText = "Какие каналы показывать, в каких границах и каким цветом",
+            };
+            _btnChannels.Click += ChannelsClick;
+
             var tool = new ToolStrip
             {
                 GripStyle = ToolStripGripStyle.Hidden,
@@ -262,6 +273,8 @@ namespace ICDIBasic
             tool.Items.Add(_btnFreeze);
             tool.Items.Add(_btnCursor);
             tool.Items.Add(_btnReset);
+            tool.Items.Add(new ToolStripSeparator());
+            tool.Items.Add(_btnChannels);
 
             _chTool = new ToolStrip
             {
@@ -325,6 +338,10 @@ namespace ICDIBasic
         /// </summary>
         private void Rebuild()
         {
+            /* Вид уходящего шаблона сохраняем: переключение кадра не должно
+             * стоить настройки, которую только что сделали. */
+            SaveView();
+
             _src = null;
 
             if (_scope != null)
@@ -334,20 +351,9 @@ namespace ICDIBasic
                 _scope = null;
             }
 
-            /* Элементы панели каналов живут один шаблон. Снимать их надо с
-             * освобождением: Items.Clear() только отвязывает, а пересобирается
-             * панель на каждое переключение набора. Копию списка берём потому,
-             * что Dispose сам вынимает элемент из коллекции. */
-            var old = new ToolStripItem[_chTool.Items.Count];
-            _chTool.Items.CopyTo(old, 0);
+            ClearChannelTool();
 
-            _chTool.Items.Clear();
-            foreach (ToolStripItem it in old) it.Dispose();
-
-            _chButtons.Clear();
-            _trigCh.Clear();
-            _trig = null;
-
+            _map = null;
             _frame = Form1.f2kadrName;
             _liveShown = -1;
 
@@ -368,10 +374,13 @@ namespace ICDIBasic
             }
 
             _msg.Visible = false;
+            _map = map;
 
             var ring = new ScopeRing(map);
 
-            _scope = new ScopeControl(ring) { Dock = DockStyle.Fill };
+            /* Вид: свой файл, иначе настройки Wscope, иначе первые три канала.
+             * Подробности - в ScopeView. */
+            _scope = new ScopeControl(ring, ScopeView.Load(map)) { Dock = DockStyle.Fill };
             _scope.Sync = _btnSync.Checked;
             _scope.ShowCursor = _btnCursor.Checked;
             _scope.Frozen = _btnFreeze.Checked;
@@ -423,29 +432,93 @@ namespace ICDIBasic
 
             if (_trig.SelectedIndex >= 0) _scope.TrigChannel = _trigCh[_trig.SelectedIndex];
 
-            // Кнопки каналов красятся в цвет линии: подпись рядом с графиком и
-            // кнопка должны читаться как одно и то же, иначе на пятнадцати
-            // каналах приходится сверять названия.
-            for (int i = 0; i < map.Count; i++)
-            {
-                int idx = i;
-                IniChannel ch = map[i];
+            /* Кнопка на КАЖДЫЙ ЗАНЯТЫЙ СЛОТ, а не на каждый канал кадра. Что
+             * показывать вообще - решает окно «Каналы…»; кнопки здесь только
+             * гасят и возвращают кривую, не трогая настройку слота. Иначе на
+             * пятнадцати каналах панель превращается в частокол, в котором
+             * выбранные три не найти.
+             *
+             * Красятся в цвет линии: подпись у графика и кнопка должны читаться
+             * как одно и то же. */
+            ScopeView view = _scope.View;
 
-                var b = new ToolStripButton(ch.Name)
+            for (int g = 0; g < ScopeView.Groups; g++)
+                for (int s = 0; s < ScopeView.SlotsPerGroup; s++)
                 {
-                    DisplayStyle = ToolStripItemDisplayStyle.Text,
-                    CheckOnClick = true,
-                    Checked = _scope.IsVisibleChannel(i),
-                    ForeColor = Darken(ch.Color),
-                    ToolTipText = "слово " + ch.Word +
-                                  (Math.Abs(ch.K - 1f) < 1e-9f ? ", код" : ", x" + ch.K) +
-                                  (i == map.TickIndex ? " - счётчик такта" : ""),
-                };
-                b.CheckedChanged += (s, e) => { if (_scope != null) _scope.SetVisibleChannel(idx, b.Checked); };
+                    ScopeSlot sl = view[g, s];
+                    if (sl.Empty) continue;
 
-                _chButtons.Add(b);
-                _chTool.Items.Add(b);
+                    int gg = g, ss = s;
+                    int ci = ScopeView.IndexOf(map, sl.Name);
+                    IniChannel ch = map[ci];
+
+                    var b = new ToolStripButton(ch.Name)
+                    {
+                        DisplayStyle = ToolStripItemDisplayStyle.Text,
+                        CheckOnClick = true,
+                        Checked = _scope.IsVisibleSlot(g, s),
+                        ForeColor = Darken(sl.Color),
+                        ToolTipText = (g == 0 ? "верхнее поле" : "нижнее поле") +
+                                      ", слово " + ch.Word +
+                                      (Math.Abs(ch.K - 1f) < 1e-9f ? ", код" : ", x" + ch.K),
+                    };
+                    b.CheckedChanged += (sn, e) =>
+                    {
+                        if (_scope != null) _scope.SetVisibleSlot(gg, ss, b.Checked);
+                    };
+
+                    _chButtons.Add(b);
+                    _chTool.Items.Add(b);
+                }
+        }
+
+        /// <summary>
+        /// Снять элементы панели каналов с освобождением: Items.Clear() только
+        /// отвязывает, а панель пересобирается на каждое переключение набора и
+        /// на каждую правку в окне «Каналы…». Копию списка берём потому, что
+        /// Dispose сам вынимает элемент из коллекции.
+        /// </summary>
+        private void ClearChannelTool()
+        {
+            var old = new ToolStripItem[_chTool.Items.Count];
+            _chTool.Items.CopyTo(old, 0);
+
+            _chTool.Items.Clear();
+            foreach (ToolStripItem it in old) it.Dispose();
+
+            _chButtons.Clear();
+            _trigCh.Clear();
+            _trig = null;
+        }
+
+        /*-------------------------------------------------------------------
+         * Настройка вида
+         *------------------------------------------------------------------*/
+
+        private void ChannelsClick(object sender, EventArgs e)
+        {
+            if (_scope == null || _map == null) return;
+
+            using (var d = new ScopeConfigForm(_map, _scope.View))
+            {
+                if (d.ShowDialog(this) != DialogResult.OK) return;
+
+                _scope.SetView(d.Result);
+
+                /* Кнопки строятся по слотам, значит набор кнопок изменился. */
+                ClearChannelTool();
+                BuildChannelTool(_map);
+
+                SaveView();
             }
+        }
+
+        /// <summary>Записать вид текущего шаблона. Без шаблона записывать нечего.</summary>
+        private void SaveView()
+        {
+            if (_scope == null || _map == null) return;
+
+            _scope.View.Save(_map.Template);
         }
 
         /// <summary>Цвет линии на тёмном фоне слишком светлый для подписи на светлой панели.</summary>
@@ -580,6 +653,8 @@ namespace ICDIBasic
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
+            SaveView();
+
             /* Гасим ДО base: с этого момента поток CAN перестаёт трогать кольцо. */
             _src = null;
             _live = null;
