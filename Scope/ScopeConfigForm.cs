@@ -43,6 +43,8 @@ namespace ICDIBasic
 
         private readonly ListBox _list;
         private readonly DataGridView[] _grid = new DataGridView[ScopeView.Groups];
+        private readonly Button _btnUp;
+        private readonly Button _btnDown;
 
         /// <summary>Правим копию: Отмена должна возвращать как было.</summary>
         public ScopeView Result { get { return _view; } }
@@ -96,6 +98,21 @@ namespace ICDIBasic
 
             FillList();
 
+            /* Кнопки переноса. Перетаскивание мышью - приятный способ, но не
+             * единственный и не на всяком устройстве надёжный: на тачпаде жест
+             * «нажал - веди - отпусти» срывается легко, а дело должно делаться
+             * в любом случае. Кнопка кладёт выбранный канал в первый свободный
+             * слот указанного поля. */
+            _btnUp = new Button { Text = "В верхнее ▲", Dock = DockStyle.Top, Height = 26 };
+            _btnDown = new Button { Text = "В нижнее ▼", Dock = DockStyle.Top, Height = 26 };
+
+            _btnUp.Click += (s, e) => AddSelected(0);
+            _btnDown.Click += (s, e) => AddSelected(1);
+
+            var leftButtons = new Panel { Dock = DockStyle.Bottom, Height = 58, Padding = new Padding(0, 3, 0, 0) };
+            leftButtons.Controls.Add(_btnDown);
+            leftButtons.Controls.Add(_btnUp);
+
             var leftBox = new GroupBox
             {
                 Dock = DockStyle.Fill,
@@ -103,6 +120,7 @@ namespace ICDIBasic
                 Padding = new Padding(6, 4, 6, 6),
             };
             leftBox.Controls.Add(_list);
+            leftBox.Controls.Add(leftButtons);
 
             var right = new TableLayoutPanel
             {
@@ -117,12 +135,21 @@ namespace ICDIBasic
             {
                 _grid[g] = NewGrid(g);
 
+                /* Рамка поля тоже принимает бросок: промахнуться мимо таблицы на
+                 * несколько пикселей легко, и груз не должен из-за этого
+                 * пропадать. Канал тогда идёт в первый свободный слот. */
                 var box = new GroupBox
                 {
                     Dock = DockStyle.Fill,
                     Text = g == 0 ? "Верхнее поле" : "Нижнее поле",
                     Padding = new Padding(6, 4, 6, 6),
+                    AllowDrop = true,
+                    Tag = g,
                 };
+                box.DragEnter += GridDragOver;
+                box.DragOver += GridDragOver;
+                box.DragDrop += BoxDragDrop;
+
                 box.Controls.Add(_grid[g]);
                 right.Controls.Add(box, 0, g);
             }
@@ -164,11 +191,11 @@ namespace ICDIBasic
                 Height = 38,
                 ForeColor = SystemColors.GrayText,
                 Padding = new Padding(10, 2, 10, 0),
-                Text = "Перетащите канал в поле или щёлкните дважды. Delete убирает, " +
-                       "щелчок по цвету меняет. Пустые границы - масштаб сам." +
+                Text = "Выберите канал и нажмите «В верхнее» или «В нижнее» - либо " +
+                       "перетащите мышью, либо щёлкните дважды." +
                        Environment.NewLine +
-                       "Красные - вычисляемые каналы шаблона: их считает только Wscope, " +
-                       "сюда их перенести нельзя.",
+                       "Delete убирает из слота, щелчок по цвету меняет цвет, пустые " +
+                       "границы - масштаб сам. Красные - вычисляемые, их считает только Wscope.",
             };
 
             Controls.Add(main);
@@ -454,6 +481,19 @@ namespace ICDIBasic
             Place(g, s, (string)e.Data.GetData(DataFormats.StringFormat));
         }
 
+        /// <summary>Бросок на рамку поля, мимо таблицы: в первый свободный слот.</summary>
+        private void BoxDragDrop(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent(DataFormats.StringFormat)) return;
+
+            int g = (int)((Control)sender).Tag;
+            int s = FreeSlot(g);
+
+            if (s < 0) return;
+
+            Place(g, s, (string)e.Data.GetData(DataFormats.StringFormat));
+        }
+
         private int FreeSlot(int g)
         {
             for (int s = 0; s < ScopeView.SlotsPerGroup; s++)
@@ -464,19 +504,49 @@ namespace ICDIBasic
 
         private void ListDoubleClick(object sender, EventArgs e)
         {
-            var it = _list.SelectedItem as Item;
-            if (it == null || it.Calculated) return;
-
-            /* Первый свободный слот, сверху вниз: мышью попадать в строку не
-             * всегда удобно, а действие то же самое. */
+            /* Двойной щелчок - в первое поле, где есть место. */
             for (int g = 0; g < ScopeView.Groups; g++)
-            {
-                int s = FreeSlot(g);
-                if (s < 0) continue;
+                if (FreeSlot(g) >= 0) { AddSelected(g); return; }
+        }
 
-                Place(g, s, it.Name);
+        /// <summary>Выбранный в списке канал - в первый свободный слот поля.</summary>
+        private void AddSelected(int g)
+        {
+            var it = _list.SelectedItem as Item;
+
+            if (it == null)
+            {
+                _list.Focus();
                 return;
             }
+
+            if (it.Calculated)
+            {
+                /* Говорим вслух, а не молчим: красный канал внешне ничем не
+                 * отличается от обычного, и на молчание кнопки человек подумает,
+                 * что сломалась кнопка. */
+                MessageBox.Show(this,
+                                "«" + it.Name + "» - вычисляемый канал шаблона.\n\n" +
+                                "Его выражение считает только Wscope, осциллограф его не " +
+                                "рисует. В списке такие показаны красным.",
+                                "Канал не переносится",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int s = FreeSlot(g);
+
+            if (s < 0)
+            {
+                MessageBox.Show(this,
+                                "В поле нет свободных слотов - их шесть, как в Wscope.\n\n" +
+                                "Уберите ненужный канал клавишей Delete и повторите.",
+                                "Поле заполнено",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            Place(g, s, it.Name);
         }
 
         private void Place(int g, int s, string name)
