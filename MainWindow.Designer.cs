@@ -1521,15 +1521,15 @@
             this.видToolStripMenuItem.Name = "видToolStripMenuItem";
             this.видToolStripMenuItem.Size = new System.Drawing.Size(49, 24);
             this.видToolStripMenuItem.Text = "Вид";
-            //
+            // 
             // tsmChView
-            //
+            // 
             this.tsmChView.Name = "tsmChView";
             this.tsmChView.Size = new System.Drawing.Size(190, 26);
             this.tsmChView.Text = "Изменить вид";
-            //
+            // 
             // tsmScope
-            //
+            // 
             this.tsmScope.Name = "tsmScope";
             this.tsmScope.Size = new System.Drawing.Size(190, 26);
             this.tsmScope.Text = "Осциллограф";

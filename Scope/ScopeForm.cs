@@ -61,25 +61,51 @@ namespace ICDIBasic
         public static void Feed(TPCANMsgFD msg)
         {
             ScopeForm f = _live;
-            if (f == null) return;
+            if (f == null || _broken) return;
 
-            // Кадр 103 везёт четыре разные раскладки (F3_convertor, F3_invertor,
-            // F1_*), имён внутри кадра нет, и различить их можно только по тому,
-            // какой набор выбран в поле «F2 Кадр». Разобрать чужую раскладку по
-            // нашей таблице значит показать правдоподобную чушь.
-            //
-            // До первого нажатия F2 имя пустое - там же оно и присваивается.
-            if (Form1.f2kadrName != Frame) return;
+            try
+            {
+                // Кадр 103 везёт четыре разные раскладки (F3_convertor,
+                // F3_invertor, F1_*), имён внутри кадра нет, и различить их можно
+                // только по тому, какой набор выбран в поле «F2 Кадр». Разобрать
+                // чужую раскладку по нашей таблице значит показать правдоподобную
+                // чушь.
+                //
+                // До первого нажатия F2 имя пустое - там же оно и присваивается.
+                if (Form1.f2kadrName != Frame) return;
 
-            /* Кадр приходит извне, а читаем мы из него фиксированные тридцать два
-             * байта. Обычные пути дают ровно 64 байта (PCANBasic маршалит массив
-             * по SizeConst, PcanFdMessageConverter выделяет столько же), но
-             * исключение из потока приёма CAN искать потом пришлось бы долго. */
-            byte[] d = msg.DATA;
-            if (d == null || d.Length < 2 * F3Channels.WordsIn(msg.DLC)) return;
+                /* Кадр приходит извне, а читаем мы из него фиксированные тридцать
+                 * два байта. Обычные пути дают ровно 64 байта (PCANBasic маршалит
+                 * массив по SizeConst, PcanFdMessageConverter выделяет столько
+                 * же), но проверка стоит дешевле разбирательства. */
+                byte[] d = msg.DATA;
+                if (d == null || d.Length < 2 * F3Channels.WordsIn(msg.DLC)) return;
 
-            f._ring.Append(msg);
+                f._ring.Append(msg);
+            }
+            catch (Exception ex)
+            {
+                // ЗАЩИТА ЗАПИСИ, А НЕ ОСЦИЛЛОГРАФА.
+                //
+                // Мы стоим в Kadr60Rx ПЕРЕД ProcessFrame103, а весь вызов
+                // CAN_RxData обёрнут глухим catch {} в CANA.cs. Значит исключение
+                // отсюда не всплыло бы нигде, но унесло бы с собой разбор кадра и
+                // запись ленты в файл - и повторялось бы на каждом кадре, то есть
+                // лента встала бы совсем. Ради картинки на экране ломать запись
+                // нельзя: она и есть результат опыта.
+                //
+                // Поэтому осциллограф выключается до закрытия окна - один раз, а
+                // не глотает ошибку на каждом кадре, - и причина уходит в строку
+                // состояния. Молча пропадать он не должен: пустое поле без
+                // объяснения хуже, чем пустое поле с причиной.
+                _broken = true;
+                _brokenWhy = ex.GetType().Name + ": " + ex.Message;
+            }
         }
+
+        /// <summary>Осциллограф отключён из-за ошибки разбора. Запись при этом цела.</summary>
+        private static volatile bool _broken;
+        private static volatile string _brokenWhy;
 
         /// <summary>Открыть окно или поднять уже открытое.</summary>
         public static void Open(IWin32Window owner)
@@ -92,6 +118,12 @@ namespace ICDIBasic
                 _live.Activate();
                 return;
             }
+
+            /* Новое окно - новая попытка: прошлое могло отключиться из-за кадра
+             * старой прошивки или сбоя на шине, и держать осциллограф мёртвым до
+             * перезапуска программы незачем. */
+            _broken = false;
+            _brokenWhy = null;
 
             var f = new ScopeForm();
             _live = f;
@@ -297,8 +329,20 @@ namespace ICDIBasic
              * командует прошивке его слать - без неё кадра на шине нет вовсе. */
             bool ok = Form1.f2kadrName == Frame;
 
-            _stFrame.Text = ok ? "кадр " + Frame : "выберите " + Frame + " и F2";
-            _stFrame.ForeColor = ok ? SystemColors.ControlText : Color.FromArgb(160, 90, 0);
+            if (_broken)
+            {
+                /* Запись ленты в файл при этом идёт - это надо сказать прямо,
+                 * иначе отключившийся осциллограф выглядит как сорванный опыт. */
+                _stFrame.Text = "осциллограф отключён, запись идёт";
+                _stFrame.ForeColor = Color.FromArgb(170, 40, 40);
+                _stFrame.ToolTipText = _brokenWhy;
+            }
+            else
+            {
+                _stFrame.Text = ok ? "кадр " + Frame : "выберите " + Frame + " и F2";
+                _stFrame.ForeColor = ok ? SystemColors.ControlText : Color.FromArgb(160, 90, 0);
+                _stFrame.ToolTipText = null;
+            }
 
             _stTick.Text = "такт " + tick;
             _stCount.Text = "отсч. " + received;

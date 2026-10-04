@@ -516,7 +516,13 @@ namespace ICDIBasic
 
                 if (!Directory.Exists(spl_Dir)) Directory.CreateDirectory(spl_Dir);
 
-                spl_StartTime = DateTime.Now.ToString("yy.MM.dd_HH.mm.ss");
+                // День.месяц.год, как везде в проекте: быстрые файлы в CANB.cs,
+                // прошивка в Bootloader.cs, журнал в MainWindow.cs. Здесь стоял
+                // "yy.MM.dd" - год первым и двумя цифрами, - и это читалось как
+                // день: "26.10.04" выглядело как 26 октября вместо 4 октября
+                // 2026. Год четырьмя цифрами, чтобы спутать его с днём было
+                // нельзя даже в принципе.
+                spl_StartTime = DateTime.Now.ToString("dd.MM.yyyy_HH.mm.ss");
                 spl_tmp = spl_Dir + spl_StartTime + ".tmpm";
                 Spl_Hdr(FrlM, GetSplInfo(), F2Kadr_IniFileName, spl_tmp);
 
@@ -547,7 +553,11 @@ namespace ICDIBasic
                 _splStream?.Dispose();
                 _splStream = null;
 
-                spl_FileName = spl_Dir + DateTime.Now.ToString("yy.MM.dd_HH.mm.ss") + ".spl";
+                // Тот же формат, что у .tmpm выше. ВРЕМЯ ЗДЕСЬ - МОМЕНТ
+                // ОСТАНОВА (Alt+F2), а не старта: имя берётся свежим
+                // DateTime.Now, и у длинной записи в имени стоит её конец.
+                // Стартовое время лежит рядом, в spl_StartTime.
+                spl_FileName = spl_Dir + DateTime.Now.ToString("dd.MM.yyyy_HH.mm.ss") + ".spl";
 
                 if (File.Exists(spl_tmp))
                 {
