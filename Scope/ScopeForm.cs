@@ -372,11 +372,21 @@ namespace ICDIBasic
 
             if (map == null)
             {
-                /* Внятная причина вместо пустого поля. Самый частый случай - до
-                 * первого нажатия F2 набор не выбран; второй по частоте -
-                 * F1_invertor, для которого шаблона в bin/Wscope просто нет. */
-                _msg.Text = err + Environment.NewLine + Environment.NewLine +
-                            "Шаблоны каналов лежат в " + IniChannelMap.Dir;
+                string nl = Environment.NewLine;
+
+                /* Самый частый случай - лента ещё не пущена. Кадр при этом УЖЕ
+                 * выбран в поле «F2 Кадр», и говорить «набор не выбран» неверно:
+                 * f2kadrName присваивается только по F2, а до того пусто, хотя в
+                 * списке стоит имя. Человек смотрит на выбранный кадр и читает,
+                 * что кадр не выбран. */
+                _msg.Text = string.IsNullOrEmpty(_frame)
+                    ? "Лента не запущена." + nl + nl +
+                      "Нажмите F2 в главном окне - набор берётся из поля «F2 Кадр»." + nl +
+                      "Alt+F2 останавливает ленту." + nl + nl +
+                      "Чтобы сменить кадр: Alt+F2, выбрать новый, затем F2."
+                    : err + nl + nl +
+                      "Шаблоны каналов лежат в " + IniChannelMap.Dir;
+
                 _msg.Visible = true;
 
                 Text = "Осциллограф быстрой ленты";
@@ -737,6 +747,7 @@ namespace ICDIBasic
             uint tick;
             float hz;
             int live;
+            bool wrongFrame;
 
             /* Счётчики - long, и на 32-битной машине их чтение без замка не
              * атомарно. */
@@ -748,20 +759,35 @@ namespace ICDIBasic
                 tick = src.Ring.Tick;
                 hz = src.Ring.Hz;
                 live = src.Ring.LiveCount;
+                wrongFrame = src.Ring.WrongFrame;
 
                 src.Ring.CopyLive(_liveCh);
             }
 
             IniChannelMap map = src.Ring.Map;
 
-            string s = "кадр " + map.Template;
-            if (map.Skipped > 0) s += ", вычисл. " + map.Skipped + " мимо";
+            if (wrongFrame)
+            {
+                /* Красным и первым делом: на шине кадр, который этим шаблоном не
+                 * разобрать. Рисовать нечего, и это правильно - чужие числа под
+                 * правильными именами были бы хуже пустого поля. */
+                _stFrame.Text = "на шине не " + map.Template + " - нужен Alt+F2, затем F2";
+                _stFrame.ForeColor = Color.FromArgb(170, 40, 40);
+                _stFrame.ToolTipText =
+                    "Имя набора сменилось, а команда прибору не ушла: F2 посылает её " +
+                    "только когда лента стоит. Прибор продолжает слать прежний кадр.";
+            }
+            else
+            {
+                string s = "кадр " + map.Template;
+                if (map.Skipped > 0) s += ", вычисл. " + map.Skipped + " мимо";
 
-            _stFrame.Text = map.Warning == null ? s : s + " (!)";
-            _stFrame.ForeColor = map.Warning == null
-                ? SystemColors.ControlText
-                : Color.FromArgb(160, 90, 0);
-            _stFrame.ToolTipText = map.Warning;
+                _stFrame.Text = map.Warning == null ? s : s + " (!)";
+                _stFrame.ForeColor = map.Warning == null
+                    ? SystemColors.ControlText
+                    : Color.FromArgb(160, 90, 0);
+                _stFrame.ToolTipText = map.Warning;
+            }
 
             _stTick.Text = "такт " + tick;
             _stCount.Text = "отсч. " + received;

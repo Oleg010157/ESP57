@@ -132,6 +132,15 @@ namespace ICDIBasic
         private int _gapMax;
 
         /// <summary>
+        /// На шине идёт кадр, который этим шаблоном не разобрать - он длиннее.
+        /// Так бывает, когда «F2 Кадр» переключили на ходу: имя сменилось, а
+        /// команда прибору не ушла, и он продолжает слать прежний кадр.
+        /// </summary>
+        public bool WrongFrame { get { return _wrongFrame; } }
+
+        private bool _wrongFrame;
+
+        /// <summary>
         /// Пришёл ли канал на самом деле. Со старой прошивкой кадр приходит
         /// двенадцатью словами, и последние каналы существуют только как нули.
         ///
@@ -231,6 +240,13 @@ namespace ICDIBasic
         {
             lock (_lock)
             {
+                /* Кадр длиннее, чем знает шаблон, - значит это не тот кадр.
+                 * Разбирать его нашей картой нельзя: получатся чужие числа под
+                 * правильными именами. Молчим и говорим об этом окну. */
+                if (!_map.LengthMatches(msg.DLC)) { _wrongFrame = true; return; }
+
+                _wrongFrame = false;
+
                 _map.FillLive(msg.DLC, _live);
 
                 ushort t16 = _map.Decode(msg.DATA, msg.DLC, _one, 0);
