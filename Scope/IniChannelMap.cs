@@ -8,14 +8,29 @@ using System.Windows.Forms;
 
 namespace ICDIBasic
 {
+    /// <summary>Откуда канал берёт значение.</summary>
+    internal enum ChKind
+    {
+        /// <summary>Слово кадра: код * K + A.</summary>
+        Measured,
+
+        /// <summary>Постоянная из шаблона, вида <c>Null = @0,0</c>.</summary>
+        Constant,
+
+        /// <summary>Младшие разряды другого канала, вида <c>tick256 = @0,[tick] and 255</c>.</summary>
+        Mask,
+    }
+
     /// <summary>
-    /// Один измеряемый канал, как он объявлен в .ini Wscope.
+    /// Один канал, как он объявлен в .ini Wscope.
     /// </summary>
     internal sealed class IniChannel
     {
+        /// <summary>Измеряемый канал: слово кадра.</summary>
         public IniChannel(string name, int word, bool signed, int digits,
                           float k, float a, Color color)
         {
+            Kind = ChKind.Measured;
             Name = name;
             Word = word;
             Signed = signed;
@@ -25,10 +40,31 @@ namespace ICDIBasic
             Color = color;
         }
 
+        /// <summary>Вычисляемый канал той формы, которую мы умеем считать.</summary>
+        public IniChannel(string name, ChKind kind, int digits, Color color,
+                          float value, int src, int mask)
+        {
+            Kind = kind;
+            Name = name;
+            Digits = digits;
+            Color = color;
+            Value = value;
+            Src = src;
+            Mask = mask;
+
+            K = 1f;
+            Word = src >= 0 ? -1 : -1;
+        }
+
+        public ChKind Kind { get; private set; }
+
         /// <summary>Имя из .ini - то же, что в Wscope и в прошивке.</summary>
         public string Name { get; private set; }
 
-        /// <summary>Номер слова в кадре. Выведен из позиции байт, см. IniChannelMap.</summary>
+        /// <summary>
+        /// Номер слова в кадре. Выведен из позиции байт, см. IniChannelMap.
+        /// У вычисляемых слова нет, там -1.
+        /// </summary>
         public int Word { get; private set; }
 
         public bool Signed { get; private set; }
@@ -36,12 +72,23 @@ namespace ICDIBasic
         /// <summary>Знаков после запятой, поле format. По нему печатается таблица курсора.</summary>
         public int Digits { get; private set; }
 
-        /// <summary>значение = код * K + A.</summary>
+        /// <summary>значение = код * K + A. У вычисляемых K = 1, A = 0.</summary>
         public float K { get; private set; }
 
         public float A { get; private set; }
 
         public Color Color { get; private set; }
+
+        /// <summary>Постоянная - для <see cref="ChKind.Constant"/>.</summary>
+        public float Value { get; private set; }
+
+        /// <summary>Номер канала-источника - для <see cref="ChKind.Mask"/>.</summary>
+        public int Src { get; private set; }
+
+        /// <summary>Маска - для <see cref="ChKind.Mask"/>.</summary>
+        public int Mask { get; private set; }
+
+        public bool Calculated { get { return Kind != ChKind.Measured; } }
 
         /// <summary>Формат для ToString: столько знаков, сколько объявлено в файле.</summary>
         public string Format
@@ -75,12 +122,24 @@ namespace ICDIBasic
      * проверено, исключений нет. Нерегулярную пару считаем ошибкой файла, а не
      * пытаемся угадать.
      *
-     * ВЫЧИСЛЯЕМЫЕ КАНАЛЫ (@) НЕ РАЗБИРАЕМ. Это свой язык Wscope - выражения со
-     * состоянием, историей отсчётов и ссылками двух видов ([x] - сырой код,
-     * [`x] - значение после K и A). В быстрых шаблонах вычисляемый канал ровно
-     * один, младший байт такта, и осциллографу он не нужен: такт развёрнут в 32
-     * бита, отсчёты стоят на оси по такту, на дырке линия рвётся, разрывы
-     * считаются отдельно. Остальное живёт только в медленных шаблонах.
+     * ВЫЧИСЛЯЕМЫЕ КАНАЛЫ (@) - ТОЛЬКО ДВУХ ПРОСТЕЙШИХ ВИДОВ, и это граница,
+     * проведённая намеренно.
+     *
+     *     Null    = @0,0                 постоянная
+     *     tick256 = @0,[tick] and 255    младшие разряды другого канала
+     *     isr256  = @0,[IsrTic] and $FF  то же, маска шестнадцатеричная
+     *
+     * Их видно по тексту выражения целиком, угадывать нечего - поэтому считаем.
+     * Всё прочее в языке Wscope разбирать не беремся: там состояние (БИХ-фильтры,
+     * накопители, бегущий min/max), история отсчётов [x~-1], условия if(a;b;c) и
+     * номер отсчёта (@@). Посчитать их наполовину верно значит нарисовать
+     * правдоподобную ложь - худший вид ошибки измерения. Такие каналы остаются в
+     * списке Calculated: окно показывает их красным и объясняет, что их считает
+     * только Wscope.
+     *
+     * В ССЫЛКАХ ВИДА [x] БЕРЁТСЯ СЫРОЙ КОД, а не физика - так устроен язык
+     * Wscope ([`x] дало бы значение после K и A). Для маски это единственно
+     * верно: младший байт счётчика есть свойство кода, а не величины.
      */
     internal sealed class IniChannelMap
     {
@@ -225,6 +284,7 @@ namespace ICDIBasic
 
             bool inSection = false;
             var seen = new Dictionary<int, string>();
+            var calc = new List<string[]>();
 
             foreach (string raw in lines)
             {
@@ -254,8 +314,9 @@ namespace ICDIBasic
 
                 if (name.Length == 0 || val.Length == 0) continue;
 
-                /* Вычисляемый канал. Запоминаем имя и идём дальше - см. шапку. */
-                if (val[0] == '@') { map._calc.Add(name); continue; }
+                /* Вычисляемый канал. Откладываем: разобрать его можно только
+                 * после измеряемых - маске нужен номер канала-источника. */
+                if (val[0] == '@') { calc.Add(new string[] { name, val }); continue; }
 
                 IniChannel ch = ParseChannel(name, val);
                 if (ch == null) continue;
@@ -293,7 +354,107 @@ namespace ICDIBasic
                 map.Warning = "последнее слово называется «" + map._ch[last].Name +
                               "» - если это не счётчик такта, ось времени неверна";
 
+            /* Вычисляемые - последними, когда измеряемые уже на местах: маске
+             * нужен номер канала-источника, и он обязан быть МЕНЬШЕ её
+             * собственного, иначе порядок вычисления в Decode не сойдётся. */
+            map.AddCalculated(calc);
+
             return map;
+        }
+
+        /// <summary>
+        /// Разобрать вычисляемые. Что умеем - дописываем настоящими каналами,
+        /// что нет - в список Calculated, окно покажет их красным.
+        /// </summary>
+        private void AddCalculated(List<string[]> calc)
+        {
+            foreach (string[] e in calc)
+            {
+                IniChannel ch = ParseCalculated(e[0], e[1]);
+
+                if (ch == null) { _calc.Add(e[0]); continue; }
+
+                _ch.Add(ch);
+            }
+        }
+
+        /// <summary>
+        /// Правая часть вычисляемого: <c>@[^]format,выражение</c>.
+        ///
+        /// Понимаем ровно два выражения - постоянную и маску другого канала.
+        /// Всё остальное возвращает null, и канал уходит в красные: см. шапку о
+        /// том, почему половинчатый разбор здесь хуже отказа.
+        /// </summary>
+        private IniChannel ParseCalculated(string name, string val)
+        {
+            int comma = val.IndexOf(',');
+            if (comma < 0) return null; /* @@ и @@@ - номер отсчёта, не наше */
+
+            string fmt = val.Substring(1, comma - 1).Trim();
+            if (fmt.StartsWith("^")) fmt = fmt.Substring(1).Trim();
+
+            int digits;
+            if (!int.TryParse(fmt, NumberStyles.Integer, CultureInfo.InvariantCulture, out digits))
+                return null;
+
+            string e = val.Substring(comma + 1).Trim();
+            if (e.Length == 0) return null;
+
+            /* Постоянная: Null = @0,0 */
+            float v;
+            if (float.TryParse(e, NumberStyles.Float, CultureInfo.InvariantCulture, out v))
+                return new IniChannel(name, ChKind.Constant, digits, Color.Empty, v, -1, 0);
+
+            /* Маска: tick256 = @0,[tick] and 255 */
+            string src;
+            int mask;
+            if (!TryMask(e, out src, out mask)) return null;
+
+            int si = -1;
+            for (int i = 0; i < _ch.Count; i++)
+                if (string.Equals(_ch[i].Name, src, StringComparison.OrdinalIgnoreCase)) { si = i; break; }
+
+            /* Источник должен быть измеряемым и уже разобранным: цепочки
+             * вычисляемых друг из друга мы не раскручиваем. */
+            if (si < 0 || _ch[si].Calculated) return null;
+
+            return new IniChannel(name, ChKind.Mask, digits, Color.Empty, 0f, si, mask);
+        }
+
+        /// <summary>
+        /// <c>[имя] and число</c>, число десятичное или шестнадцатеричное с $.
+        /// Скобки вокруг допускаются: в шаблонах пишут и так, и так.
+        /// </summary>
+        private static bool TryMask(string e, out string src, out int mask)
+        {
+            src = null;
+            mask = 0;
+
+            e = e.Trim();
+            if (e.StartsWith("(") && e.EndsWith(")")) e = e.Substring(1, e.Length - 2).Trim();
+
+            int lb = e.IndexOf('[');
+            int rb = e.IndexOf(']');
+            if (lb != 0 || rb < 2) return false;
+
+            src = e.Substring(1, rb - 1).Trim();
+
+            /* Обратная кавычка значила бы «после K и A», а маска имеет смысл
+             * только над сырым кодом - такое выражение не наше. */
+            if (src.StartsWith("`")) return false;
+
+            string rest = e.Substring(rb + 1).Trim();
+
+            if (!rest.StartsWith("and", StringComparison.OrdinalIgnoreCase)) return false;
+
+            rest = rest.Substring(3).Trim();
+            if (rest.Length == 0) return false;
+
+            if (rest[0] == '$')
+                return int.TryParse(rest.Substring(1), NumberStyles.HexNumber,
+                                    CultureInfo.InvariantCulture, out mask);
+
+            return int.TryParse(rest, NumberStyles.Integer, CultureInfo.InvariantCulture, out mask);
         }
 
         /// <summary>
@@ -339,18 +500,36 @@ namespace ICDIBasic
          *------------------------------------------------------------------*/
 
         /// <summary>
-        /// Сколько каналов шаблона кадр реально принёс. Со старой прошивкой слов
-        /// меньше, и последние каналы существуют только как нули - окно их гасит
-        /// и отключает кнопки, чтобы плоскую линию не прочитали как измерение.
+        /// Какие каналы кадр реально принёс. Со старой прошивкой слов меньше, и
+        /// последние каналы существуют только как нули - окно их гасит и
+        /// отключает кнопки, чтобы плоскую линию не прочитали как измерение.
+        ///
+        /// Массивом, а не счётчиком: вычисляемые каналы дописаны ПОСЛЕ
+        /// измеряемых, и «живые идут подряд от начала» больше не выполняется -
+        /// постоянная жива всегда, а маска настолько, насколько жив её источник.
         /// </summary>
-        public int LiveCount(byte dlc)
+        public void FillLive(byte dlc, bool[] dst)
         {
             int words = DlcWords(dlc);
 
-            int n = 0;
             for (int i = 0; i < _ch.Count; i++)
-                if (_ch[i].Word < words) n++;
+            {
+                IniChannel ch = _ch[i];
 
+                dst[i] = ch.Kind == ChKind.Constant ? true
+                       : ch.Kind == ChKind.Mask ? dst[ch.Src] /* Src < i всегда */
+                       : ch.Word < words;
+            }
+        }
+
+        /// <summary>Сколько каналов живо - для строки состояния.</summary>
+        public int LiveCount(byte dlc)
+        {
+            var live = new bool[_ch.Count];
+            FillLive(dlc, live);
+
+            int n = 0;
+            foreach (bool b in live) if (b) n++;
             return n;
         }
 
@@ -405,6 +584,26 @@ namespace ICDIBasic
             for (int i = 0; i < _ch.Count; i++)
             {
                 IniChannel ch = _ch[i];
+
+                if (ch.Kind == ChKind.Constant) { dst[at + i] = ch.Value; continue; }
+
+                if (ch.Kind == ChKind.Mask)
+                {
+                    /* Маска берёт СЫРОЙ КОД источника, без K и A: младший байт
+                     * счётчика есть свойство кода, а не величины. И код
+                     * беззнаковый - «младший байт» у отрицательного числа иначе
+                     * не определить.
+                     *
+                     * Источник всегда измеряемый и объявлен РАНЬШЕ (см. разбор),
+                     * поэтому его слово уже известно. */
+                    int w = _ch[ch.Src].Word;
+
+                    dst[at + i] = w < words
+                        ? (((d[w * 2 + 1] << 8) | d[w * 2]) & ch.Mask)
+                        : 0f;
+
+                    continue;
+                }
 
                 if (ch.Word >= words) { dst[at + i] = 0f; continue; }
 

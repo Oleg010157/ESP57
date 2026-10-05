@@ -74,6 +74,12 @@ namespace ICDIBasic
         private readonly List<int> _trigCh = new List<int>();
         private readonly List<ToolStripButton> _chButtons = new List<ToolStripButton>();
 
+        /// <summary>Канал каждой кнопки: кнопки идут по занятым слотам, а не по каналам.</summary>
+        private readonly List<int> _btnCh = new List<int>();
+
+        /// <summary>Признаки «канал пришёл», снятые с кольца под замком.</summary>
+        private bool[] _liveCh = new bool[0];
+
         private readonly ToolStripStatusLabel _stFrame;
         private readonly ToolStripStatusLabel _stTick;
         private readonly ToolStripStatusLabel _stCount;
@@ -375,6 +381,7 @@ namespace ICDIBasic
 
             _msg.Visible = false;
             _map = map;
+            _liveCh = new bool[map.Count];
 
             var ring = new ScopeRing(map);
 
@@ -458,9 +465,7 @@ namespace ICDIBasic
                         CheckOnClick = true,
                         Checked = _scope.IsVisibleSlot(g, s),
                         ForeColor = Darken(sl.Color),
-                        ToolTipText = (g == 0 ? "верхнее поле" : "нижнее поле") +
-                                      ", слово " + ch.Word +
-                                      (Math.Abs(ch.K - 1f) < 1e-9f ? ", код" : ", x" + ch.K),
+                        ToolTipText = (g == 0 ? "верхнее поле" : "нижнее поле") + ", " + Where(ch),
                     };
                     b.CheckedChanged += (sn, e) =>
                     {
@@ -468,6 +473,7 @@ namespace ICDIBasic
                     };
 
                     _chButtons.Add(b);
+                    _btnCh.Add(ci);
                     _chTool.Items.Add(b);
                 }
         }
@@ -487,8 +493,22 @@ namespace ICDIBasic
             foreach (ToolStripItem it in old) it.Dispose();
 
             _chButtons.Clear();
+            _btnCh.Clear();
             _trigCh.Clear();
             _trig = null;
+        }
+
+        /// <summary>Откуда канал берётся - для подсказки на кнопке.</summary>
+        private static string Where(IniChannel ch)
+        {
+            switch (ch.Kind)
+            {
+                case ChKind.Constant: return "постоянная";
+                case ChKind.Mask: return "вычисляемый, маска";
+                default:
+                    return "слово " + ch.Word +
+                           (Math.Abs(ch.K - 1f) < 1e-9f ? ", код" : ", x" + ch.K);
+            }
         }
 
         /*-------------------------------------------------------------------
@@ -611,7 +631,9 @@ namespace ICDIBasic
                 gaps = src.Ring.Gaps;
                 tick = src.Ring.Tick;
                 hz = src.Ring.Hz;
-                live = src.Ring.Channels;
+                live = src.Ring.LiveCount;
+
+                src.Ring.CopyLive(_liveCh);
             }
 
             IniChannelMap map = src.Ring.Map;
@@ -638,13 +660,18 @@ namespace ICDIBasic
 
             /* Каналы, которых в кадре нет, гасим и отключаем. Старая прошивка
              * присылает меньше слов, и последние каналы существуют только как
-             * нули - плоскую линию нельзя показывать так, будто это измерение. */
+             * нули - плоскую линию нельзя показывать так, будто это измерение.
+             *
+             * Кнопка проверяется по СВОЕМУ каналу, а не по своему номеру. Номер
+             * кнопки - это порядок занятых слотов, и сравнивать его с числом
+             * живых каналов было нельзя: при неполном кадре гасло не то. */
             if (live == _liveShown) return;
             _liveShown = live;
 
             for (int i = 0; i < _chButtons.Count; i++)
             {
-                bool has = i < live;
+                int ci = _btnCh[i];
+                bool has = ci >= 0 && ci < _liveCh.Length && _liveCh[ci];
 
                 _chButtons[i].Enabled = has;
                 if (!has && _chButtons[i].Checked) _chButtons[i].Checked = false;

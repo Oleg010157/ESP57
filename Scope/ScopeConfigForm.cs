@@ -49,17 +49,23 @@ namespace ICDIBasic
         /// <summary>Правим копию: Отмена должна возвращать как было.</summary>
         public ScopeView Result { get { return _view; } }
 
-        /// <summary>Строка списка: имя и признак «вычисляемый», чтобы красить.</summary>
+        /// <summary>
+        /// Строка списка: имя, признак «вычисляемый» (красим красным) и
+        /// признак «переносим». Это РАЗНЫЕ вещи: постоянные и маски тоже
+        /// вычисляемые, но их мы считаем сами и в поле их класть можно.
+        /// </summary>
         private sealed class Item
         {
-            public Item(string name, bool calculated)
+            public Item(string name, bool calculated, bool usable)
             {
                 Name = name;
                 Calculated = calculated;
+                Usable = usable;
             }
 
             public readonly string Name;
             public readonly bool Calculated;
+            public readonly bool Usable;
 
             public override string ToString()
             {
@@ -195,7 +201,8 @@ namespace ICDIBasic
                        "перетащите мышью, либо щёлкните дважды." +
                        Environment.NewLine +
                        "Delete убирает из слота, щелчок по цвету меняет цвет, пустые " +
-                       "границы - масштаб сам. Красные - вычисляемые, их считает только Wscope.",
+                       "границы - масштаб сам. Красные - вычисляемые: постоянные и маски " +
+                       "переносятся, выражения посложнее - нет.",
             };
 
             Controls.Add(main);
@@ -217,8 +224,15 @@ namespace ICDIBasic
         {
             var items = new System.Collections.Generic.List<Item>();
 
-            for (int i = 0; i < _map.Count; i++) items.Add(new Item(_map[i].Name, false));
-            foreach (string n in _map.Calculated) items.Add(new Item(n, true));
+            /* Красным - все вычисляемые, как в Wscope. Но красный тут значит
+             * «вычисляемый», а не «недоступный»: постоянные и маски вроде
+             * tick256 мы считаем сами, и переносить их можно. Непереносимы
+             * только те, чьё выражение нам не по зубам, - они в map.Calculated. */
+            for (int i = 0; i < _map.Count; i++)
+                items.Add(new Item(_map[i].Name, _map[i].Calculated, true));
+
+            foreach (string n in _map.Calculated)
+                items.Add(new Item(n, true, false));
 
             items.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
 
@@ -441,8 +455,9 @@ namespace ICDIBasic
             var it = (Item)_list.Items[_dragIndex];
             _dragIndex = -1;
 
-            /* Вычисляемые не переносим - считать их мы не умеем. */
-            if (it.Calculated) return;
+            /* Не переносим только то, чьё выражение нам не по зубам. Красный
+             * цвет сам по себе переносу не мешает. */
+            if (!it.Usable) return;
 
             _list.DoDragDrop(new DataObject(DataFormats.StringFormat, it.Name),
                              DragDropEffects.Copy);
@@ -520,15 +535,17 @@ namespace ICDIBasic
                 return;
             }
 
-            if (it.Calculated)
+            if (!it.Usable)
             {
-                /* Говорим вслух, а не молчим: красный канал внешне ничем не
-                 * отличается от обычного, и на молчание кнопки человек подумает,
-                 * что сломалась кнопка. */
+                /* Говорим вслух, а не молчим: на молчание кнопки человек
+                 * подумает, что сломалась кнопка. */
                 MessageBox.Show(this,
-                                "«" + it.Name + "» - вычисляемый канал шаблона.\n\n" +
-                                "Его выражение считает только Wscope, осциллограф его не " +
-                                "рисует. В списке такие показаны красным.",
+                                "«" + it.Name + "» - вычисляемый канал, выражение которого " +
+                                "осциллограф не считает.\n\n" +
+                                "Он умеет только постоянные и маски вида [канал] and 255 - " +
+                                "их переносить можно, они тоже красные. Всё прочее в языке " +
+                                "Wscope (фильтры с памятью, история отсчётов, условия) " +
+                                "считает только сам Wscope.",
                                 "Канал не переносится",
                                 MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;

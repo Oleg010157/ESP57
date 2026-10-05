@@ -51,7 +51,9 @@ namespace ICDIBasic
 
             _v = new float[Capacity * _n];
             _one = new float[_n];
-            _channels = _n;
+
+            _live = new bool[_n];
+            for (int i = 0; i < _n; i++) _live[i] = true;
         }
 
         /// <summary>Карта каналов, по которой разобран кадр.</summary>
@@ -85,7 +87,7 @@ namespace ICDIBasic
 
         private long _received;
         private long _gaps;
-        private int _channels;
+        private readonly bool[] _live;
 
         private bool _frozen;
 
@@ -116,10 +118,33 @@ namespace ICDIBasic
         public long Gaps { get { return _gaps; } }
 
         /// <summary>
-        /// Сколько каналов в кадре настоящие. Со старой прошивкой кадр приходит
+        /// Пришёл ли канал на самом деле. Со старой прошивкой кадр приходит
         /// двенадцатью словами, и последние каналы существуют только как нули.
+        ///
+        /// Поканально, а не числом: вычисляемые каналы стоят в карте ПОСЛЕ
+        /// измеряемых, и «живые идут подряд от начала» не выполняется.
         /// </summary>
-        public int Channels { get { return _channels; } }
+        public bool IsLive(int ch)
+        {
+            return _live[ch];
+        }
+
+        /// <summary>Скопировать признаки под замком - окну для одной перерисовки.</summary>
+        public void CopyLive(bool[] dst)
+        {
+            Array.Copy(_live, dst, _n);
+        }
+
+        /// <summary>Сколько каналов живо - для строки состояния.</summary>
+        public int LiveCount
+        {
+            get
+            {
+                int n = 0;
+                foreach (bool b in _live) if (b) n++;
+                return n;
+            }
+        }
 
         /// <summary>Измеренная частота такта управления, Гц.</summary>
         public float Hz { get { return _hz; } }
@@ -191,7 +216,7 @@ namespace ICDIBasic
         {
             lock (_lock)
             {
-                _channels = _map.LiveCount(msg.DLC);
+                _map.FillLive(msg.DLC, _live);
 
                 ushort t16 = _map.Decode(msg.DATA, msg.DLC, _one, 0);
 

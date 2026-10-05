@@ -70,6 +70,7 @@ namespace ICDIBasic
             _ch = _map.Count;
 
             _snapV = new float[ScopeRing.Capacity * _ch];
+            _live = new bool[_ch];
 
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                      ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
@@ -223,14 +224,17 @@ namespace ICDIBasic
         /// <summary>Шаг между отсчётами в тактах, из кольца.</summary>
         private int _step = 1;
 
-        /// <summary>Сколько каналов в кадре настоящие; остальные - нули старой прошивки.</summary>
-        private int _live;
+        /// <summary>
+        /// Какие каналы кадр реально принёс; остальные - нули старой прошивки.
+        /// Снимается под замком вместе со снимком кольца.
+        /// </summary>
+        private readonly bool[] _live;
 
         /// <summary>Виден ли слот: занят, не погашен и канал реально приходит.</summary>
         private bool Live(int g, int s)
         {
             int c = _slotCh[g, s];
-            return c >= 0 && c < _live && _shown[g, s];
+            return c >= 0 && _live[c] && _shown[g, s];
         }
 
         /*-----------------------------------------------------------------------
@@ -550,7 +554,7 @@ namespace ICDIBasic
                 /* Частота и шаг берутся из кольца здесь же, под замком: от них
                  * зависит, сколько отсчётов войдёт в окно. */
                 _step = _ring.Step;
-                _live = _ring.Channels;
+                _ring.CopyLive(_live);
                 CtrlHz = _ring.Hz;
 
                 want = Clamp((int)(WindowMs * CtrlHz / 1000f / Math.Max(1, _step)),
