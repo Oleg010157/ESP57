@@ -166,6 +166,36 @@ namespace ICDIBasic
 
         private int _trig;
 
+        /// <summary>
+        /// Уровень запуска в единицах канала. NaN - подбирается сам, см.
+        /// <see cref="AutoLevel"/>.
+        /// </summary>
+        public float TrigLevel
+        {
+            get { return _trigLevel; }
+            set { _trigLevel = value; Invalidate(); }
+        }
+
+        private float _trigLevel = float.NaN;
+
+        /// <summary>
+        /// Пускать по возрастанию. Спад нужен не для симметрии: у пилы вроде
+        /// tick256 резкое событие - это сброс с 255 в ноль, а не плавный подъём.
+        /// </summary>
+        public bool TrigRising
+        {
+            get { return _trigRising; }
+            set { _trigRising = value; Invalidate(); }
+        }
+
+        private bool _trigRising = true;
+
+        /// <summary>Уровень, по которому реально искали переход в этой перерисовке.</summary>
+        private float _trigLevelUsed;
+
+        /// <summary>Он же наружу - окну, для подписи.</summary>
+        public float TrigLevelUsed { get { return _trigLevelUsed; } }
+
         /*-----------------------------------------------------------------------
          * Курсор и метка
          *
@@ -260,24 +290,35 @@ namespace ICDIBasic
         /// </summary>
         private int FindTrigger(int n, int count)
         {
-            // Порог берётся от размаха самого сигнала, а не задаётся в вольтах:
-            // масштаб канала зависит от тарировки, и зашитый порог пришлось бы
-            // менять вместе с ней.
-            float peak = 0f;
+            /* Размах сигнала в кольце. От него берётся и автоуровень, и
+             * гистерезис: масштаб канала зависит от тарировки, и зашитый порог
+             * в вольтах пришлось бы менять вместе с ней. */
+            float lo = float.MaxValue, hi = float.MinValue;
+
             for (int a = 0; a < count; a++)
             {
-                float v = Math.Abs(_ring.At(a, _trig));
-                if (v > peak) peak = v;
+                float v = _ring.At(a, _trig);
+                if (v < lo) lo = v;
+                if (v > hi) hi = v;
             }
 
-            if (peak < 1e-3f) return -1; /* сигнала нет - синхронизировать не по чему */
+            float span = hi - lo;
+            if (span < 1e-6f) return -1; /* сигнал стоит - цепляться не за что */
 
-            float arm = -0.05f * peak;
+            _trigLevelUsed = float.IsNaN(_trigLevel) ? AutoLevel(lo, hi) : _trigLevel;
+
+            /* Уровень вне размаха - пересечений не будет вовсе. Сказать об этом
+             * надо отдельно от «нет сигнала»: причина другая и лечится иначе. */
+            if (_trigLevelUsed <= lo || _trigLevelUsed >= hi) return -1;
+
+            float hyst = 0.05f * span;
 
             // Идём от старых отсчётов к новым и запоминаем последний переход:
             // нужен самый свежий, после которого ещё помещается целое окно.
+            //
             // Гистерезис обязателен - без него развёртка цеплялась бы за каждое
-            // дрожание около нуля и картинка прыгала бы на полпериода.
+            // дрожание около уровня и картинка прыгала бы на полпериода. Взвод
+            // требует уйти за уровень на 5 % размаха В СТОРОНУ, ОБРАТНУЮ ФРОНТУ.
             bool armed = false;
             int best = -1;
 
@@ -285,8 +326,16 @@ namespace ICDIBasic
             {
                 float v = _ring.At(a, _trig);
 
-                if (v < arm) armed = true;
-                else if (armed && v >= 0f) { armed = false; best = a; }
+                if (_trigRising)
+                {
+                    if (v < _trigLevelUsed - hyst) armed = true;
+                    else if (armed && v >= _trigLevelUsed) { armed = false; best = a; }
+                }
+                else
+                {
+                    if (v > _trigLevelUsed + hyst) armed = true;
+                    else if (armed && v <= _trigLevelUsed) { armed = false; best = a; }
+                }
             }
 
             // Истинный переход лежит МЕЖДУ отсчётами, и почти никогда не попадает
@@ -304,14 +353,40 @@ namespace ICDIBasic
 
             if (best >= 0 && best + 1 < count)
             {
+                /* Возраст: best + 1 СТАРШЕ best, то есть по времени сначала
+                 * prev, потом cur. Доля отсчёта считается НАЗАД от cur - на
+                 * столько и сдвигается вся картинка вправо, чтобы переход попал
+                 * ровно на левый край.
+                 *
+                 * Формула (cur - уровень) / (cur - prev) годится обоим фронтам:
+                 * на спаде числитель и знаменатель меняют знак вместе. */
                 float cur = _ring.At(best, _trig);
                 float prev = _ring.At(best + 1, _trig);
                 float d = cur - prev;
 
-                if (d > 0f) _trigFrac = Clamp(cur / d, 0f, 1f);
+                if (Math.Abs(d) > 1e-12f)
+                    _trigFrac = Clamp((cur - _trigLevelUsed) / d, 0f, 1f);
             }
 
             return best;
+        }
+
+        /// <summary>
+        /// Уровень, когда он не задан руками.
+        ///
+        /// НОЛЬ, ЕСЛИ СИГНАЛ ЕГО ПЕРЕСЕКАЕТ. Ради этого синхронизация и делалась:
+        /// левый край окна - переход сети через ноль, и время под курсором
+        /// читается прямо как фаза. То же самое делает прошивка в
+        /// sine1ph_on_zero(). Середина размаха у двухполярного сигнала уехала бы
+        /// от нуля на любой несимметрии окна, и это свойство пропало бы.
+        ///
+        /// А у однополярного - duty 0..1, tick256 0..255, dacb 0..4095 - нуля в
+        /// размахе нет, пересекать нечего, и единственный осмысленный выбор
+        /// автоматом есть середина.
+        /// </summary>
+        private static float AutoLevel(float lo, float hi)
+        {
+            return lo < 0f && hi > 0f ? 0f : 0.5f * (lo + hi);
         }
 
         /*-----------------------------------------------------------------------
@@ -1009,30 +1084,44 @@ namespace ICDIBasic
         {
             if (!_synced) return;
 
-            /* Ищем группу, в которой показан канал запуска. Нет такой - ставим в
-             * первую: синхронизация-то работает, и сказать об этом надо. */
-            int gr = 0;
-            Color col = Color.FromArgb(120, 130, 140);
+            /* Ищем слот, в котором показан канал запуска: уголок встаёт НА
+             * УРОВЕНЬ, а уровень имеет смысл только в границах этого слота.
+             * Канал не показан - ставим уголок в середину первой группы: сказать
+             * «развёртка зацепилась» всё равно надо. */
+            int gr = -1, sl = -1;
 
-            for (int gg = 0; gg < ScopeView.Groups && col.A == 255 && gr == 0; gg++)
+            for (int gg = 0; gg < ScopeView.Groups && gr < 0; gg++)
                 for (int s = 0; s < ScopeView.SlotsPerGroup; s++)
                     if (_used[gg] && Live(gg, s) && _slotCh[gg, s] == _trig)
                     {
-                        gr = gg;
-                        col = _view[gg, s].Color;
+                        gr = gg; sl = s;
                         break;
                     }
 
-            if (!_used[gr]) return;
+            Color col = Color.FromArgb(120, 130, 140);
+            float y;
+
+            if (gr >= 0)
+            {
+                Rectangle rr = _rect[gr];
+                col = _view[gr, sl].Color;
+                y = Y(rr, _trigLevelUsed, _lo[gr, sl], _hi[gr, sl]);
+            }
+            else
+            {
+                gr = 0;
+                if (!_used[gr]) return;
+
+                y = _rect[gr].Top + _rect[gr].Height * 0.5f;
+            }
 
             Rectangle r = _rect[gr];
-            float midY = r.Top + r.Height * 0.5f;
 
             PointF[] tri =
             {
-                new PointF(r.Left + 1, midY - 5f),
-                new PointF(r.Left + 9, midY),
-                new PointF(r.Left + 1, midY + 5f),
+                new PointF(r.Left + 1, y - 5f),
+                new PointF(r.Left + 9, y),
+                new PointF(r.Left + 1, y + 5f),
             };
 
             using (var b = new SolidBrush(col)) g.FillPolygon(b, tri);
@@ -1257,12 +1346,23 @@ namespace ICDIBasic
             }
             else if (_synced)
             {
-                text = "синхр. " + _map[_trig].Name + " ↑";
+                /* Уровень в подписи - не украшение: при ручном уровне только по
+                 * нему и понятно, за что зацепилась развёртка. */
+                text = "синхр. " + _map[_trig].Name + (_trigRising ? " ↑ " : " ↓ ") +
+                       _trigLevelUsed.ToString(_map[_trig].Format) +
+                       (float.IsNaN(_trigLevel) ? " (авто)" : "");
+
                 color = Color.FromArgb(150, 180, 210);
             }
             else
             {
-                text = "синхр.: нет сигнала";
+                /* «Нет сигнала» и «уровень вне размаха» - разные беды, и лечатся
+                 * они по-разному: в первом случае канал молчит, во втором надо
+                 * подвинуть уровень или очистить поле. */
+                text = "синхр.: " + (float.IsNaN(_trigLevel)
+                    ? "нет сигнала"
+                    : "уровень вне размаха");
+
                 color = Color.FromArgb(200, 150, 90);
             }
 

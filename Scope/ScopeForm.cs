@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.Windows.Forms;
 using Peak.Can.Basic;
 
@@ -70,6 +71,9 @@ namespace ICDIBasic
 
         /// <summary>Выбор канала запуска. Живёт один шаблон, как и кнопки каналов.</summary>
         private ToolStripComboBox _trig;
+
+        private ToolStripButton _slope;
+        private ToolStripTextBox _level;
 
         private readonly List<int> _trigCh = new List<int>();
         private readonly List<ToolStripButton> _chButtons = new List<ToolStripButton>();
@@ -417,8 +421,33 @@ namespace ICDIBasic
                 ToolTipText = "Канал, по переходу которого через ноль вверх пускается развёртка",
             };
 
+            /* Фронт и уровень. Спад нужен не для симметрии: у пилы вроде
+             * tick256 резкое событие - это сброс с 255 в ноль, а не плавный
+             * подъём, и цепляться разумнее за него. */
+            _slope = new ToolStripButton("↑")
+            {
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                ToolTipText = "Фронт: ↑ по возрастанию, ↓ по спаду",
+                AutoSize = false,
+                Width = 26,
+            };
+            _slope.Click += SlopeClick;
+
+            _level = new ToolStripTextBox
+            {
+                Width = 70,
+                AutoSize = false,
+                ToolTipText = "Уровень запуска в единицах канала. Пусто - подбирается сам: " +
+                              "ноль, если сигнал его пересекает, иначе середина размаха",
+            };
+            _level.KeyDown += LevelKeyDown;
+            _level.LostFocus += (s, e) => ApplyLevel();
+
             _chTool.Items.Add(new ToolStripLabel("Синхр. по:"));
             _chTool.Items.Add(_trig);
+            _chTool.Items.Add(_slope);
+            _chTool.Items.Add(new ToolStripLabel("уровень:"));
+            _chTool.Items.Add(_level);
             _chTool.Items.Add(new ToolStripSeparator());
 
             for (int i = 0; i < map.Count; i++)
@@ -429,15 +458,41 @@ namespace ICDIBasic
                 _trig.Items.Add(map[i].Name);
             }
 
-            /* Обработчик вешаем ПОСЛЕ наполнения списка: иначе он сработал бы на
-             * каждое добавление и лазил в ещё не готовый _trigCh. */
-            int def = _trigCh.IndexOf(map.DefaultTrigger);
+            /* Канал запуска - из сохранённого вида, если он там есть; иначе то,
+             * что предлагает карта (uGrid/U220/Va). */
+            ScopeView view = _scope.View;
+
+            int want = string.IsNullOrEmpty(view.TrigChannel)
+                ? map.DefaultTrigger
+                : ScopeView.IndexOf(map, view.TrigChannel);
+
+            if (want < 0) want = map.DefaultTrigger;
+
+            /* Обработчик вешаем ПОСЛЕ наполнения списка и выбора: иначе он
+             * сработал бы на каждое добавление, лазил в ещё не готовый _trigCh и
+             * заодно сбросил бы только что прочитанный уровень. */
+            int def = _trigCh.IndexOf(want);
             if (def >= 0) _trig.SelectedIndex = def;
             else if (_trig.Items.Count > 0) _trig.SelectedIndex = 0;
 
-            _trig.SelectedIndexChanged += TrigChanged;
+            if (_trig.SelectedIndex >= 0)
+            {
+                int ci = _trigCh[_trig.SelectedIndex];
 
-            if (_trig.SelectedIndex >= 0) _scope.TrigChannel = _trigCh[_trig.SelectedIndex];
+                _scope.TrigChannel = ci;
+                view.TrigChannel = map[ci].Name;
+            }
+
+            _scope.TrigLevel = view.TrigLevel;
+            _scope.TrigRising = view.TrigRising;
+
+            _level.Text = float.IsNaN(view.TrigLevel)
+                ? ""
+                : view.TrigLevel.ToString("0.#####", CultureInfo.InvariantCulture);
+
+            _slope.Text = view.TrigRising ? "↑" : "↓";
+
+            _trig.SelectedIndexChanged += TrigChanged;
 
             /* Кнопка на КАЖДЫЙ ЗАНЯТЫЙ СЛОТ, а не на каждый канал кадра. Что
              * показывать вообще - решает окно «Каналы…»; кнопки здесь только
@@ -447,8 +502,6 @@ namespace ICDIBasic
              *
              * Красятся в цвет линии: подпись у графика и кнопка должны читаться
              * как одно и то же. */
-            ScopeView view = _scope.View;
-
             for (int g = 0; g < ScopeView.Groups; g++)
                 for (int s = 0; s < ScopeView.SlotsPerGroup; s++)
                 {
@@ -495,7 +548,10 @@ namespace ICDIBasic
             _chButtons.Clear();
             _btnCh.Clear();
             _trigCh.Clear();
+
             _trig = null;
+            _slope = null;
+            _level = null;
         }
 
         /// <summary>Откуда канал берётся - для подсказки на кнопке.</summary>
@@ -552,7 +608,65 @@ namespace ICDIBasic
             if (_scope == null) return;
 
             int i = _trig.SelectedIndex;
-            if (i >= 0 && i < _trigCh.Count) _scope.TrigChannel = _trigCh[i];
+            if (i < 0 || i >= _trigCh.Count) return;
+
+            _scope.TrigChannel = _trigCh[i];
+
+            /* Уровень задан в единицах ПРЕЖНЕГО канала: вольты на амперах - это
+             * не настройка, а ловушка. Сбрасываем в авто. */
+            _scope.TrigLevel = float.NaN;
+            _level.Text = "";
+
+            _scope.View.TrigChannel = _map[_trigCh[i]].Name;
+            _scope.View.TrigLevel = float.NaN;
+        }
+
+        private void SlopeClick(object sender, EventArgs e)
+        {
+            if (_scope == null) return;
+
+            bool rising = !_scope.TrigRising;
+
+            _scope.TrigRising = rising;
+            _scope.View.TrigRising = rising;
+            _slope.Text = rising ? "↑" : "↓";
+        }
+
+        private void LevelKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter) return;
+
+            e.SuppressKeyPress = true; /* иначе окно звякнет */
+            ApplyLevel();
+        }
+
+        /// <summary>
+        /// Снять уровень из поля. Пусто или мусор - автоуровень: отказывать
+        /// окном тут не за что, пустое поле и есть «подбирай сам».
+        /// </summary>
+        private void ApplyLevel()
+        {
+            if (_scope == null || _level == null) return;
+
+            string s = _level.Text.Trim().Replace(',', '.');
+
+            float v;
+            bool ok = s.Length > 0 &&
+                      float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v);
+
+            float level = ok ? Parsed(s) : float.NaN;
+
+            _scope.TrigLevel = level;
+            _scope.View.TrigLevel = level;
+
+            if (!ok && s.Length > 0) _level.Text = "";
+        }
+
+        private static float Parsed(string s)
+        {
+            float v;
+            float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v);
+            return v;
         }
 
         private void WindowChanged(object sender, EventArgs e)

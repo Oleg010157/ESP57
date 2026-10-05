@@ -92,6 +92,22 @@ namespace ICDIBasic
             get { return _slots[group][slot]; }
         }
 
+        /*-------------------------------------------------------------------
+         * Запуск развёртки
+         *
+         * Хранится вместе с видом, и канал - тоже. Уровень задан в единицах
+         * КОНКРЕТНОГО канала: вольты, запомненные без имени канала, после
+         * перезапуска легли бы на амперы.
+         *------------------------------------------------------------------*/
+
+        /// <summary>Канал запуска по имени. Пусто - взять из карты по умолчанию.</summary>
+        public string TrigChannel;
+
+        /// <summary>Уровень в единицах канала. NaN - подбирается сам.</summary>
+        public float TrigLevel = float.NaN;
+
+        public bool TrigRising = true;
+
         /// <summary>Есть ли в группе хоть один занятый слот. Пустая группа не рисуется.</summary>
         public bool GroupUsed(int g)
         {
@@ -109,6 +125,10 @@ namespace ICDIBasic
                 for (int s = 0; s < SlotsPerGroup; s++)
                     v._slots[g][s] = _slots[g][s].Clone();
 
+            v.TrigChannel = TrigChannel;
+            v.TrigLevel = TrigLevel;
+            v.TrigRising = TrigRising;
+
             return v;
         }
 
@@ -121,6 +141,14 @@ namespace ICDIBasic
                     ScopeSlot sl = _slots[g][s];
                     if (!sl.Empty && IndexOf(map, sl.Name) < 0) sl.Name = null;
                 }
+
+            /* Канал запуска - из другого шаблона. Вместе с ним уходит и уровень:
+             * он задан в единицах того канала и к чужому отношения не имеет. */
+            if (!string.IsNullOrEmpty(TrigChannel) && IndexOf(map, TrigChannel) < 0)
+            {
+                TrigChannel = null;
+                TrigLevel = float.NaN;
+            }
         }
 
         /// <summary>Номер канала в карте по имени, без учёта регистра. -1, если нет.</summary>
@@ -219,6 +247,8 @@ namespace ICDIBasic
                 var v = new ScopeView();
                 string[] lines = File.ReadAllLines(path, new UTF8Encoding(false));
 
+                bool trigger = false;
+
                 foreach (string raw in lines)
                 {
                     string s = raw;
@@ -227,21 +257,43 @@ namespace ICDIBasic
                     if (c >= 0) s = s.Substring(0, c);
 
                     s = s.Trim();
-                    if (s.Length == 0 || s[0] == '[') continue;
+                    if (s.Length == 0) continue;
+
+                    if (s[0] == '[')
+                    {
+                        trigger = string.Equals(s.Trim('[', ']'), "Trigger",
+                                                StringComparison.OrdinalIgnoreCase);
+                        continue;
+                    }
 
                     int eq = s.IndexOf('=');
                     if (eq <= 0) continue;
 
+                    string key = s.Substring(0, eq).Trim();
+                    string val = s.Substring(eq + 1).Trim();
+
+                    if (trigger)
+                    {
+                        if (string.Equals(key, "Channel", StringComparison.OrdinalIgnoreCase))
+                            v.TrigChannel = val.Length == 0 ? null : val;
+                        else if (string.Equals(key, "Level", StringComparison.OrdinalIgnoreCase))
+                            v.TrigLevel = ParseOrNan(val);
+                        else if (string.Equals(key, "Rising", StringComparison.OrdinalIgnoreCase))
+                            v.TrigRising = val != "0";
+
+                        continue;
+                    }
+
                     /* Ключ - "g.s", значение - "имя,цвет,min,max". Пустые min и
                      * max означают авто, как и в окне настройки. */
-                    string[] k = s.Substring(0, eq).Trim().Split('.');
+                    string[] k = key.Split('.');
                     if (k.Length != 2) continue;
 
                     int g, slot;
                     if (!int.TryParse(k[0], out g) || !int.TryParse(k[1], out slot)) continue;
                     if (g < 0 || g >= Groups || slot < 0 || slot >= SlotsPerGroup) continue;
 
-                    string[] p = s.Substring(eq + 1).Split(',');
+                    string[] p = val.Split(',');
                     if (p.Length < 2) continue;
 
                     ScopeSlot sl = v._slots[g][slot];
@@ -304,6 +356,16 @@ namespace ICDIBasic
                                       sl.Color.ToArgb().ToString(CultureInfo.InvariantCulture) + "," +
                                       Num(sl.Min) + "," + Num(sl.Max));
                     }
+
+                sb.AppendLine();
+                sb.AppendLine("; Запуск развёртки. Пустой уровень - подбирается сам:");
+                sb.AppendLine("; ноль, если сигнал его пересекает, иначе середина размаха.");
+                sb.AppendLine("[Trigger]");
+
+                if (!string.IsNullOrEmpty(TrigChannel)) sb.AppendLine("Channel=" + TrigChannel);
+
+                sb.AppendLine("Level=" + Num(TrigLevel));
+                sb.AppendLine("Rising=" + (TrigRising ? "1" : "0"));
 
                 File.WriteAllText(Path.Combine(dir, template + ".view.ini"),
                                   sb.ToString(), new UTF8Encoding(false));
