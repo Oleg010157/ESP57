@@ -295,7 +295,7 @@ namespace ICDIBasic
             _stFrame = NewStatus(260);
             _stTick = NewStatus(120);
             _stCount = NewStatus(140);
-            _stGaps = NewStatus(130);
+            _stGaps = NewStatus(230);
             _stHz = NewStatus(150);
 
             var status = new StatusStrip { SizingGrip = true };
@@ -733,6 +733,7 @@ namespace ICDIBasic
             }
 
             long received, gaps;
+            int gapMax;
             uint tick;
             float hz;
             int live;
@@ -743,6 +744,7 @@ namespace ICDIBasic
             {
                 received = src.Ring.Received;
                 gaps = src.Ring.Gaps;
+                gapMax = src.Ring.GapMax;
                 tick = src.Ring.Tick;
                 hz = src.Ring.Hz;
                 live = src.Ring.LiveCount;
@@ -764,7 +766,17 @@ namespace ICDIBasic
             _stTick.Text = "такт " + tick;
             _stCount.Text = "отсч. " + received;
 
+            /* Доля и самый большой разрыв - рядом с числом. По одному числу
+             * разрывов не отличить «много пропусков по одному такту» от
+             * «несколько проспанных пачек», а лечатся они совершенно
+             * по-разному. Доля сравнивается с расчётной 0.4 % из
+             * grid_tie.txt 6.2. */
             _stGaps.Text = "разрывы " + gaps;
+
+            if (gaps > 0 && received > 0)
+                _stGaps.Text += " · " + (100.0 * gaps / received).ToString("0.##") +
+                                "% · макс " + gapMax;
+
             _stGaps.ForeColor = gaps > 0 ? Color.FromArgb(160, 90, 0) : SystemColors.ControlText;
 
             /* Частота такта измерена, а не задана: по CAN она не передаётся, а
