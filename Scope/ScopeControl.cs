@@ -60,6 +60,14 @@ namespace ICDIBasic
         /// <summary>Подобранный масштаб слота, когда размах не задан.</summary>
         private readonly float[,] _auto = new float[ScopeView.Groups, ScopeView.SlotsPerGroup];
 
+        /// <summary>
+        /// Границы слота в этой перерисовке. Считаются ОДИН раз за кадр, до
+        /// рисования: подписи оси берут границы первой кривой группы, и к их
+        /// появлению те должны быть уже посчитаны.
+        /// </summary>
+        private readonly float[,] _lo = new float[ScopeView.Groups, ScopeView.SlotsPerGroup];
+        private readonly float[,] _hi = new float[ScopeView.Groups, ScopeView.SlotsPerGroup];
+
         /// <summary>Часы для сдерживания таблицы отсчёта. Stopwatch, а не TickCount: тот переполняется.</summary>
         private static readonly Stopwatch Clock = Stopwatch.StartNew();
 
@@ -98,6 +106,11 @@ namespace ICDIBasic
                     _slotCh[g, s] = ScopeView.IndexOf(_map, view[g, s].Name);
                     _shown[g, s] = true;
                     _auto[g, s] = 1f;
+
+                    /* Не нули: пока данных нет, подписи оси всё равно рисуются,
+                     * а нулевой размах дал бы деление на ноль в Y(). */
+                    _lo[g, s] = -1f;
+                    _hi[g, s] = 1f;
                 }
 
             Invalidate();
@@ -319,7 +332,7 @@ namespace ICDIBasic
         /// Разложить высоту по группам. Пустая группа места не занимает: если
         /// вторая не используется, первая получает всё поле целиком.
         /// </summary>
-        private void Layout()
+        private void LayoutGroups()
         {
             int left = MarginL;
             int width = Math.Max(1, Width - MarginL - MarginR);
@@ -544,7 +557,7 @@ namespace ICDIBasic
             Graphics g = e.Graphics;
             g.Clear(BackColor);
 
-            Layout();
+            LayoutGroups();
 
             int want;
             int n;
@@ -635,6 +648,12 @@ namespace ICDIBasic
 
                 Rectangle r = _rect[gr];
 
+                /* Размах СНАЧАЛА, по всем показанным слотам, и только потом
+                 * рисование: подписи оси берут границы первой кривой, и к их
+                 * появлению те обязаны быть посчитаны. */
+                for (int s = 0; s < ScopeView.SlotsPerGroup; s++)
+                    if (Live(gr, s)) Range(gr, s, n, out _lo[gr, s], out _hi[gr, s]);
+
                 DrawGrid(g, gr, r);
 
                 g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -649,11 +668,8 @@ namespace ICDIBasic
                 {
                     if (!Live(gr, s)) continue;
 
-                    float lo, hi;
-                    Range(gr, s, n, out lo, out hi);
-
-                    DrawChannel(g, r, gr, s, lo, hi, n);
-                    DrawLegend(g, r, gr, s, lo, hi, ref legendY);
+                    DrawChannel(g, r, gr, s, _lo[gr, s], _hi[gr, s], n);
+                    DrawLegend(g, r, gr, s, _lo[gr, s], _hi[gr, s], ref legendY);
                 }
 
                 g.ResetClip();
@@ -1155,8 +1171,16 @@ namespace ICDIBasic
 
                 if (first < 0) return;
 
-                float lo, hi;
-                Range(gr, first, 0, out lo, out hi);
+                /* Границы берём ГОТОВЫЕ. Здесь стоял вызов Range с нулём
+                 * отсчётов - он не только возвращал ±1 вместо настоящих чисел,
+                 * но и ЗАТИРАЛ запомненный масштаб: при пустом окне поиск
+                 * размаха не выполняется, Nice(0) даёт единицу, и правило
+                 * «отпускать вниз только при двукратном запасе» срабатывало
+                 * против самого себя. Кривые рисовались верно - их размах
+                 * пересчитывался следующей же строкой, - а подписи оси врали, и
+                 * сдерживания масштаба не было вовсе. */
+                float lo = _lo[gr, first];
+                float hi = _hi[gr, first];
 
                 /* Нулевую линию выделяем, если ноль внутри размаха: по ней видно
                  * знак, а на несимметричной шкале середина поля нулём не является. */
