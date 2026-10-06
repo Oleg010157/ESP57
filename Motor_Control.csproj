@@ -396,8 +396,6 @@
     <Content Include="bin\Debug\ICDIBasic.exe" />
     <Content Include="bin\Debug\ICDIBasic.pdb" />
     <Content Include="bin\Debug\MiscFuncs.dll" />
-    <Content Include="bin\Debug\Resources\dies.ico" />
-    <Content Include="bin\Debug\Resources\dies1.ico" />
     <Content Include="bin\Debug\Resources\start.png" />
     <Content Include="bin\Debug\Resources\stop.png" />
     <Content Include="bin\Debug\ZedGraph.dll" />
@@ -429,12 +427,6 @@
     </EmbeddedResource>
     <None Include="Resources\arrow_green1.png" />
     <None Include="Resources\arrow_blue1.png" />
-    <None Include="Resources\dies.ico">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="Resources\dies1.ico">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <Content Include="Resources\ld.png" />
     <None Include="Resources\resistor2j.png" />
     <Content Include="Resources\sv.png" />

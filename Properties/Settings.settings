@@ -80,9 +80,6 @@
     <Setting Name="CanDId" Type="System.String" Scope="User">
       <Value Profile="(Default)">D</Value>
     </Setting>
-    <Setting Name="View" Type="System.Int16" Scope="User">
-      <Value Profile="(Default)">0</Value>
-    </Setting>
     <Setting Name="TblGain2" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>

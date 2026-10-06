@@ -28,14 +28,13 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.saveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.openFileDialog = new System.Windows.Forms.OpenFileDialog();
-            this.meterTimer = new System.Windows.Forms.Timer(this.components);
+            this.meterTimer = new System.Windows.Forms.Timer();
             this.btnStartStop = new System.Windows.Forms.Button();
             this.Tbar_speed = new System.Windows.Forms.TrackBar();
-            this.contextMenuStrip2 = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.contextMenuStrip2 = new System.Windows.Forms.ContextMenuStrip();
             this.настройкиToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.Tbar_Gain1 = new System.Windows.Forms.TrackBar();
             this.Tbar_Load1 = new System.Windows.Forms.TrackBar();
@@ -120,7 +119,7 @@
             this.label_температура = new System.Windows.Forms.Label();
             this.Imax_Value = new System.Windows.Forms.TextBox();
             this.label23 = new System.Windows.Forms.Label();
-            this.timer_tick = new System.Windows.Forms.Timer(this.components);
+            this.timer_tick = new System.Windows.Forms.Timer();
             this.tsmConnect = new System.Windows.Forms.ToolStripMenuItem();
             this.параметрыToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.установкиДвигателяToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -137,8 +136,6 @@
             this.m2ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.motK60ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
-            this.видToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.tsmChView = new System.Windows.Forms.ToolStripMenuItem();
             this.tsmScope = new System.Windows.Forms.ToolStripMenuItem();
             this.МенюУправленияToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.управлениеToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -169,7 +166,7 @@
             this.label_GainBar2_unit = new System.Windows.Forms.Label();
             this.Separate_cbox = new System.Windows.Forms.CheckBox();
             this.NUD_Gain2 = new System.Windows.Forms.NumericUpDown();
-            this.error_ID = new System.Windows.Forms.ErrorProvider(this.components);
+            this.error_ID = new System.Windows.Forms.ErrorProvider();
             this.Ip2 = new System.Windows.Forms.Label();
             this.Ip4 = new System.Windows.Forms.Label();
             this.T3sixpack = new System.Windows.Forms.Label();
@@ -198,7 +195,7 @@
             this.Gain2_ModeH = new System.Windows.Forms.Button();
             this.cBox_Gain_Limit = new System.Windows.Forms.CheckBox();
             this.button_Field_RPM = new System.Windows.Forms.Button();
-            this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip();
             this.очиститьLogфайлToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.NUD_RPM = new System.Windows.Forms.NumericUpDown();
             this.NUD_Load1 = new System.Windows.Forms.NumericUpDown();
@@ -313,9 +310,9 @@
             this.nudGridUref = new System.Windows.Forms.NumericUpDown();
             this.lblGridFreq = new System.Windows.Forms.Label();
             this.nudGridFreq = new System.Windows.Forms.NumericUpDown();
-            this.timer_1sek = new System.Windows.Forms.Timer(this.components);
-            this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
-            this.timer_Yokogawa = new System.Windows.Forms.Timer(this.components);
+            this.timer_1sek = new System.Windows.Forms.Timer();
+            this.toolTip1 = new System.Windows.Forms.ToolTip();
+            this.timer_Yokogawa = new System.Windows.Forms.Timer();
             this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem3 = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.Tbar_speed)).BeginInit();
@@ -1500,7 +1497,7 @@
             this.menuStrip1.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.tsmConnect,
-            this.видToolStripMenuItem,
+            this.tsmScope,
             this.параметрыToolStripMenuItem,
             this.МенюУправленияToolStripMenuItem,
             this.управлениеToolStripMenuItem,
@@ -1513,27 +1510,12 @@
             this.menuStrip1.TabIndex = 54;
             this.menuStrip1.Text = "menuStrip1";
             // 
-            // видToolStripMenuItem
-            // 
-            this.видToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.tsmChView,
-            this.tsmScope});
-            this.видToolStripMenuItem.Name = "видToolStripMenuItem";
-            this.видToolStripMenuItem.Size = new System.Drawing.Size(49, 24);
-            this.видToolStripMenuItem.Text = "Вид";
-            // 
-            // tsmChView
-            // 
-            this.tsmChView.Name = "tsmChView";
-            this.tsmChView.Size = new System.Drawing.Size(190, 26);
-            this.tsmChView.Text = "Изменить вид";
-            // 
             // tsmScope
             // 
             this.tsmScope.Name = "tsmScope";
-            this.tsmScope.Size = new System.Drawing.Size(190, 26);
-            this.tsmScope.Text = "Осциллограф";
-            this.tsmScope.ToolTipText = "Живая лента кадра 103, набор F3_convertor";
+            this.tsmScope.Size = new System.Drawing.Size(64, 24);
+            this.tsmScope.Text = "Scope";
+            this.tsmScope.ToolTipText = "Живая лента быстрого кадра. Набор берётся из поля «F2 Кадр»";
             this.tsmScope.Click += new System.EventHandler(this.tsmScope_Click);
             // 
             // МенюУправленияToolStripMenuItem
@@ -3810,8 +3792,6 @@
         private System.Windows.Forms.DataGridView dgvAIN2;
         private System.Windows.Forms.DataGridView dgvAIN1;
         public System.Windows.Forms.CheckBox Load_Sym;
-        private System.Windows.Forms.ToolStripMenuItem видToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem tsmChView;
         private System.Windows.Forms.ToolStripMenuItem tsmScope;
         public System.Windows.Forms.Button btnTblLoad2;
         public System.Windows.Forms.Button btnTblLoad1;

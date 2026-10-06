@@ -85,11 +85,6 @@ namespace ICDIBasic
         private const string CanBText = @"[CAN B] =";
 
         //
-        private Icon _defaultIcon;
-        private Icon _diesIcon;
-        private Icon _diesIcon2;
-        private readonly string _defaultText = @"MotorControl";
-        //
         private readonly Image _brOn = (Image)Resources.ResourceManager.GetObject("resistor2");
         private readonly Image _brOff = (Image)Resources.ResourceManager.GetObject("resistor2j");
         private AlStInfoF _infof;
@@ -817,7 +812,6 @@ namespace ICDIBasic
         }
         #endregion
         #region Разное
-        private short _viewt;
         #region Инит при старте
         private void AddMenus()
         {
@@ -877,18 +871,6 @@ namespace ICDIBasic
         private void _M_INit()
         {
             _connectDefaultBackColor = tsmConnect.BackColor;
-            _diesIcon = new Icon("Resources/dies.ico");
-            _diesIcon2 = new Icon("Resources/dies1.ico");
-            _defaultIcon = Icon;
-            //
-            _viewt = Settings.Default.View;
-            TsmChView_Click();
-            tsmChView.Click += (d, f) =>
-            {
-                _viewt++;
-                if (_viewt > 2) _viewt = 0;
-                TsmChView_Click();
-            };
             const ushort sc = 15;
             var gGreen = Graphics.FromImage(_greenLed);
             var gRed = Graphics.FromImage(_redLed);
@@ -1117,36 +1099,6 @@ namespace ICDIBasic
             Tbar_Load2.Value = Satur(Convert.ToInt16(e.YOut * 100.0D), Tbar_Load2.Minimum, Tbar_Load2.Maximum);
             Tbar_Load2_ValueChanged(Tbar_Load2, EventArgs.Empty);
             Tbar_Load2_Scroll(Tbar_Load2, EventArgs.Empty);
-        }
-
-        private void TsmChView_Click()
-        {
-            switch (_viewt)
-            {
-                case 0:
-                    {
-                        Icon = _defaultIcon;
-                        Text = _defaultText;
-                        BackColor = Общак.Crem;
-                    }
-                    break;
-                case 1:
-                    {
-                        Icon = _diesIcon;
-                        Text = $@"{_defaultText} - Дизель";
-                        BackColor = Color.Moccasin;
-                    }
-                    break;
-                case 2:
-                    {
-                        Icon = _diesIcon2;
-                        Text = $@"{_defaultText} - НK Шкаф";
-                        BackColor = Color.LightSkyBlue;
-                    }
-                    break;
-            }
-            Settings.Default.View = _viewt;
-            Settings.Default.Save();
         }
 
         #region Задание ИД CANов
