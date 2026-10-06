@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
 using FlagMask; // mflag.pwm_On - бит ключей в слове 14 кадра 140
@@ -718,13 +718,20 @@ namespace ICDIBasic
             I1rms_selector.Text = TeleSelName(d1);
         }
 
+        // Все три значения ключа названы, а не два с "rms" в default. Так
+        // константа TeleRms перестаёт быть мёртвой, но дело не в ней: под
+        // default пряталось обещание. Ключ трёхпозиционный, и чужое число
+        // в нём - это рассинхрон с прошивкой, а не rms; метка "?" об этом
+        // говорит, а "rms" врала бы, и четыре поля рядом читались бы как
+        // действующие значения.
         private static string TeleSelName(ushort sel)
         {
             switch (sel)
             {
                 case TeleKod: return "код";
                 case TeleIns: return "мгн";
-                default: return "rms";
+                case TeleRms: return "rms";
+                default: return "?";
             }
         }
     }

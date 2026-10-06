@@ -3150,7 +3150,6 @@
             this.Vq1_name.Size = new System.Drawing.Size(43, 26);
             this.Vq1_name.TabIndex = 198;
             this.Vq1_name.Text = "Err";
-            this.Vq1_name.DoubleClick += new System.EventHandler(this.Vq1_name_DoubleClick);
             // 
             // Iq1_name
             // 
@@ -3162,7 +3161,6 @@
             this.Iq1_name.Size = new System.Drawing.Size(38, 26);
             this.Iq1_name.TabIndex = 196;
             this.Iq1_name.Text = "GT";
-            this.Iq1_name.DoubleClick += new System.EventHandler(this.Iq1_name_DoubleClick);
             // 
             // panel3
             // 
