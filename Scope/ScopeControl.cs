@@ -210,13 +210,57 @@ namespace ICDIBasic
          * показывается настоящий отсчёт, просто реже. Сдвинули курсор - таблица
          * пересобирается сразу, без ожидания.
          *
-         * Позиции хранятся ИНДЕКСАМИ отсчёта, а не пикселями. Иначе мышь и стрелки
-         * задавали бы курсор в разных единицах, и при смене ширины окна он
-         * уезжал бы не туда.
+         * ЧЕРТА СТОИТ НА ОСИ ВРЕМЕНИ, а не на отсчёте и не на пикселе. Единица
+         * позиции - ширина отсчёта, ноль - левый край поля, то есть сам переход
+         * через ноль. Пиксель не годится: при смене ширины окна курсор уехал бы
+         * не туда. А отсчёт не годится по причине, которую стоит записать, -
+         * иначе черту вернут на него обратно как «очевидно более точную».
+         *
+         * ПОЧЕМУ НЕ ИНДЕКС. Картинка прибита к переходу через ноль, и прибита
+         * ТОЧНО: _trigFrac сдвигает всё поле на долю такта (см. FindTrigger),
+         * чтобы переход лёг ровно на край. Отсчёты при этом под неподвижной
+         * кривой СКОЛЬЗЯТ: частота такта не кратна частоте сети - при 5038 и 50
+         * Гц на период приходится 100.76 такта, - поэтому доля уезжает от нуля к
+         * единице и заворачивается десятки раз в секунду. Курсор, прибитый к
+         * отсчёту, ездил вместе с ними и дёргался на такт. Форма кривой этого не
+         * показывает, она держится своим переходом, а вертикальная черта
+         * показывала сразу.
+         *
+         * Второй источник того же дрожания - разрывы ленты: индекс есть номер
+         * отсчёта, а место на оси считается по ТАКТУ, и потерянный такт между
+         * краем и курсором сдвигал ту же черту на такт вправо.
+         *
+         * РЯДОМ С ПОЗИЦИЕЙ ХРАНИТСЯ НОМЕР ОТСЧЁТА, и ставятся они ВСЕГДА ВМЕСТЕ -
+         * и мышью, и стрелками. Позиция держит черту, номер держит показание.
+         *
+         * Одной позицией не обойтись. Брать значение с ближайшего к ней отсчёта
+         * нельзя: отсчёты скользят, соседний то и дело оказывается ближе, и
+         * показание прыгает между двумя соседями. А соседи на крутом участке
+         * синусоиды различаются сильно - такт это 3.6 градуса фазы при 5 кГц и 50
+         * Гц, то есть около 6 % амплитуды. Выходило, что вертикаль стоит, кривая
+         * не шевелится, а число скачет на десятки вольт. Пробовано и отвергнуто.
+         *
+         * Номер отсчёта - это НОМЕР ПОСЛЕ ПЕРЕХОДА ЧЕРЕЗ НОЛЬ, а не место в
+         * памяти: снимок каждый раз заново прибивается к свежему переходу.
+         * Поэтому фаза под номером одна и та же, а значит и показание спокойно.
+         *
+         * Он же держит и шаг стрелками: шаг по одному отсчёту сделан затем, чтобы
+         * по росту номера такта видеть плотность прихода - единица значит дошло
+         * всё, больше значит кадр потерялся. От ближайшего к позиции шаг выходил
+         * бы то нулевым, то двойным, и признак врал бы. По той же причине номер
+         * держит и метка: разность двух отсчётов гуляла бы на такт, а ею мерят
+         * период - при 100.76 такта на период это процент.
+         *
+         * ЦЕНА. Черта и отсчёт, с которого снято показание, могут разойтись на
+         * такт: черта стоит, а отсчёт под ней уползает вместе с долей такта. На
+         * такте разрешения измерения это и есть предел точности, а неподвижность
+         * черты дороже.
          *----------------------------------------------------------------------*/
-        private int _cursorIdx = -1; /* -1 = не поставлен */
-        private int _markIdx = -1;   /* -1 = метки нет, разность не считается */
-        private int _snapN;          /* сколько отсчётов было в последнем снимке */
+        private float _curPos = float.NaN;  /* NaN = курсор не поставлен */
+        private int _curIdx = -1;           /* отсчёт, с которого снято показание */
+        private float _markPos = float.NaN; /* NaN = метки нет, разность не считается */
+        private int _markIdx = -1;          /* то же для метки */
+        private int _snapN;                 /* сколько отсчётов было в последнем снимке */
 
         private bool _showCursor;
 
@@ -229,7 +273,11 @@ namespace ICDIBasic
             {
                 _showCursor = value;
 
-                if (!value) { _cursorIdx = -1; _markIdx = -1; }
+                if (!value)
+                {
+                    _curPos = _markPos = float.NaN;
+                    _curIdx = _markIdx = -1;
+                }
 
                 Invalidate();
             }
@@ -463,6 +511,7 @@ namespace ICDIBasic
         private float _trigFrac; /* доля такта до истинного перехода через ноль */
         private float _xk = 1f;  /* пикселей на такт */
         private float _x0;       /* x нулевого отсчёта окна */
+        private float _xLeft;    /* x левого края поля - он же сам переход через ноль */
         private float _spanMs;   /* сколько времени на самом деле показано */
 
         /// <summary>
@@ -494,14 +543,55 @@ namespace ICDIBasic
             return _x0 + Off(i) * _xk;
         }
 
-        /// <summary>Пиксель -> индекс отсчёта. Обратное к <see cref="IdxToX"/>.</summary>
-        private int XToIdx(int x, int n)
+        /*
+         * ПОЗИЦИЯ НА ОСИ - в ширинах отсчёта от левого края поля. Ноль есть сам
+         * переход через ноль, на него поле и прибито. Этими единицами живут
+         * курсор и метка, разбор - у их объявления выше.
+         *
+         * Отсчёт лежит на оси НЕ в целой позиции: его место Off(i) отмеряно от
+         * нулевого отсчёта, а тот стоит правее края на долю такта _trigFrac.
+         */
+
+        /// <summary>Позиция на оси -> пиксель.</summary>
+        private float PosToX(float p)
+        {
+            return _xLeft + p * _xk;
+        }
+
+        /// <summary>Пиксель -> позиция на оси.</summary>
+        private float XToPos(int x)
+        {
+            return _xk > 0f ? (x - _xLeft) / _xk : 0f;
+        }
+
+        /// <summary>Где на оси лежит отсчёт.</summary>
+        private float IdxToPos(int i)
+        {
+            return Off(i) + _trigFrac;
+        }
+
+        /// <summary>
+        /// Отсчёт, с которого читаются значения и считается время. Обычно он
+        /// выбран вместе с позицией и просто зажимается по длине снимка. Ветка с
+        /// поиском по позиции - страховка: номер и позиция ставятся вместе, и
+        /// номера без позиции быть не должно.
+        /// </summary>
+        private int Resolve(float pos, int idx, int n)
+        {
+            return idx >= 0 ? Clamp(idx, 0, n - 1) : PosToIdx(pos, n);
+        }
+
+        /// <summary>
+        /// Ближайший к позиции отсчёт. Показывать надо то, что измерено, а не
+        /// то, что пришлось на пиксель.
+        /// </summary>
+        private int PosToIdx(float p, int n)
         {
             if (n < 2 || _xk <= 0f) return 0;
 
             /* Двоичный поиск, а не деление: при потерях отсчёты стоят на оси
              * неравномерно, и прямой формулы больше нет. */
-            float want = (x - _x0) / _xk;
+            float want = p - _trigFrac;
 
             int lo = 0, hi = n - 1;
             while (lo < hi)
@@ -552,10 +642,14 @@ namespace ICDIBasic
             Rectangle plot = PlotRect();
             if (e.X < plot.Left || e.X > plot.Right) return;
 
-            int i = XToIdx(e.X, _snapN);
-            if (i == _cursorIdx) return;
+            float p = XToPos(e.X);
+            if (p == _curPos) return;
 
-            _cursorIdx = i;
+            /* Позиция и отсчёт - вместе: черта встаёт под указатель, показание
+             * снимается с ближайшего к нему отсчёта и дальше за ним и держится.
+             * Разбор у объявления _curIdx. */
+            _curPos = p;
+            _curIdx = PosToIdx(p, _snapN);
             Invalidate();
         }
 
@@ -574,8 +668,16 @@ namespace ICDIBasic
             /* Левая кнопка прибивает метку туда, где стоит курсор, правая её
              * убирает. Так измерение делается одним движением: подвели, щёлкнули,
              * повели дальше - разность считается на ходу. */
-            if (e.Button == MouseButtons.Left) _markIdx = XToIdx(e.X, _snapN);
-            else if (e.Button == MouseButtons.Right) _markIdx = -1;
+            if (e.Button == MouseButtons.Left)
+            {
+                _markPos = XToPos(e.X);
+                _markIdx = PosToIdx(_markPos, _snapN);
+            }
+            else if (e.Button == MouseButtons.Right)
+            {
+                _markPos = float.NaN;
+                _markIdx = -1;
+            }
 
             Invalidate();
         }
@@ -595,24 +697,41 @@ namespace ICDIBasic
         {
             base.OnKeyDown(e);
 
-            if (!_showCursor || _cursorIdx < 0 || _snapN < 2) return;
+            if (!_showCursor || float.IsNaN(_curPos) || _snapN < 2) return;
 
-            /* Пробел ставит метку в текущий курсор. Мышью точнее одного пикселя
-             * не попасть, а стрелками - можно, и мерить период надо именно так. */
-            if (e.KeyCode == Keys.Space) { _markIdx = _cursorIdx; e.Handled = true; Invalidate(); return; }
-            if (e.KeyCode == Keys.Escape) { _markIdx = -1; e.Handled = true; Invalidate(); return; }
+            /* Пробел ставит метку в текущий курсор - вместе с привязкой: номер
+             * отсчёта метке нужен по той же причине, что и курсору. Мышью точнее
+             * одного пикселя не попасть, а стрелками - можно, и мерить период
+             * надо именно так. */
+            if (e.KeyCode == Keys.Space)
+            {
+                _markPos = _curPos; _markIdx = _curIdx;
+                e.Handled = true; Invalidate(); return;
+            }
+
+            if (e.KeyCode == Keys.Escape)
+            {
+                _markPos = float.NaN; _markIdx = -1;
+                e.Handled = true; Invalidate(); return;
+            }
 
             /* Shift ускоряет: перебирать пять тысяч отсчётов по одному невозможно. */
             int step = e.Shift ? 25 : 1;
 
-            int i = _cursorIdx;
-            if (e.KeyCode == Keys.Left) i = _cursorIdx - step;
-            else if (e.KeyCode == Keys.Right) i = _cursorIdx + step;
+            /* ШАГ ИДЁТ ОТ ОТСЧЁТА К ОТСЧЁТУ. Отсюда и номер рядом с позицией -
+             * разбор у объявления _curIdx. */
+            int cur = Resolve(_curPos, _curIdx, _snapN);
+
+            int i = cur;
+            if (e.KeyCode == Keys.Left) i = cur - step;
+            else if (e.KeyCode == Keys.Right) i = cur + step;
 
             i = Clamp(i, 0, _snapN - 1);
-            if (i == _cursorIdx) return;
 
-            _cursorIdx = i;
+            if (i == cur) return; /* у края дальше некуда */
+
+            _curIdx = i;
+            _curPos = IdxToPos(i);
 
             /* Курсор теперь наш. Запоминаем, где лежит указатель: пока он не
              * уедет от этой точки, MouseMove курсор не трогает. */
@@ -686,15 +805,10 @@ namespace ICDIBasic
                 n = k;
             }
 
-            /* Курсор адресуется индексом в этом снимке, поэтому его размер надо
-             * знать обработчикам мыши и клавиш. */
+            /* Обработчики мыши и клавиш ищут по снимку ближайший отсчёт, поэтому
+             * его размер им надо знать. Сами позиции курсора и метки зажимаются
+             * ниже - для этого нужна ось, а она ещё не посчитана. */
             _snapN = n;
-            if (_cursorIdx >= n) _cursorIdx = n - 1;
-            if (_markIdx >= n) _markIdx = n - 1;
-
-            /* Ставим курсор в середину, а не ждём мыши: иначе включивший его и не
-             * тронувший мышь не увидит ничего и не догадается, что он есть. */
-            if (_showCursor && _cursorIdx < 0 && n >= 2) _cursorIdx = n / 2;
 
             Rectangle all = PlotRect();
 
@@ -714,8 +828,40 @@ namespace ICDIBasic
              * подгоняя себя под ширину, и потеря снова оказалась бы незаметной. */
             _baseTick = _snapT[0];
             _xk = (float)(all.Width - 1) / Math.Max(1, want - 1);
-            _x0 = all.Left + _trigFrac * _xk;
+            _xLeft = all.Left;
+            _x0 = _xLeft + _trigFrac * _xk;
             _spanMs = want * 1000f * Math.Max(1, _step) / CtrlHz;
+
+            /* Ось готова - можно разбираться с курсором.
+             *
+             * Держим его в пределах ПОЛЯ: окно могли сузить, и черта оказалась бы
+             * за рамкой. Границы поля - 0 и want-1, они заданы выбранным окном и
+             * не зависят ни от данных, ни от доли такта.
+             *
+             * Зажимать по крайним отсчётам - IdxToPos(0) и IdxToPos(n-1) - было
+             * бы точнее по смыслу, но эти границы САМИ ЕЗДЯТ вместе с _trigFrac,
+             * и у края курсор дёргался бы на такт - ровно то, от чего мы и
+             * уходим. Цена: у самой рамки черта может встать там, где отсчёта
+             * рядом нет. Это видно по времени в таблице - оно считается по такту
+             * отсчёта, а не по месту черты, и разойдётся с ней заметно. */
+            float pMax = Math.Max(1, want - 1);
+
+            /* Ставим курсор в середину, а не ждём мыши: иначе включивший его и не
+             * тронувший мышь не увидит ничего и не догадается, что он есть.
+             * Середина берётся по ОТСЧЁТАМ: в начале приёма лента короче окна, и
+             * середина поля пришлась бы на пустое место. */
+            if (_showCursor && float.IsNaN(_curPos))
+            {
+                _curIdx = n / 2;
+                _curPos = IdxToPos(_curIdx);
+            }
+
+            if (!float.IsNaN(_curPos)) _curPos = Clamp(_curPos, 0f, pMax);
+            if (!float.IsNaN(_markPos)) _markPos = Clamp(_markPos, 0f, pMax);
+
+            /* Лента могла стать короче - окно сузили или шаблон сменился. */
+            if (_curIdx >= n) _curIdx = n - 1;
+            if (_markIdx >= n) _markIdx = n - 1;
 
             for (int gr = 0; gr < ScopeView.Groups; gr++)
             {
@@ -841,9 +987,9 @@ namespace ICDIBasic
 
         private readonly List<Row> _rows = new List<Row>();
 
-        private long _rowsMs;      /* когда таблица собиралась в последний раз */
-        private int _rowsCur = -2; /* и при каких позициях курсора и метки */
-        private int _rowsMark = -2;
+        private long _rowsMs;                 /* когда таблица собиралась в последний раз */
+        private float _rowsCur = float.NaN;   /* и при каких позициях курсора и метки */
+        private float _rowsMark = float.NaN;
 
         private static readonly Color CurColor = Color.FromArgb(220, 224, 232);
         private static readonly Color MarkColor = Color.FromArgb(214, 176, 96);
@@ -851,22 +997,26 @@ namespace ICDIBasic
 
         private void DrawCursors(Graphics g, Rectangle all, int n)
         {
-            if (!_showCursor || _cursorIdx < 0) return;
+            if (!_showCursor || float.IsNaN(_curPos)) return;
 
-            int i = Clamp(_cursorIdx, 0, n - 1);
-            int m = _markIdx >= 0 ? Clamp(_markIdx, 0, n - 1) : -1;
+            /* ЧЕРТА СТОИТ ПО ПОЗИЦИИ, А ЗНАЧЕНИЕ ЧИТАЕТСЯ С ОТСЧЁТА - они
+             * выбраны вместе и за такт не разойдутся. Прибей черту к отсчёту -
+             * задёргается черта; бери значение с ближайшего к черте - запрыгает
+             * число. Разбор обоих у объявления _curPos. */
+            int i = Resolve(_curPos, _curIdx, n);
+            int m = float.IsNaN(_markPos) ? -1 : Resolve(_markPos, _markIdx, n);
 
             /* Черта идёт через ОБЕ группы: отсчёт под курсором один и тот же, и
              * разрывать его по полям значило бы предлагать сверять глазом две
              * разные вертикали. */
             if (m >= 0)
             {
-                float xm = IdxToX(m);
+                float xm = PosToX(_markPos);
                 using (var pen = new Pen(MarkColor) { DashStyle = DashStyle.Dot })
                     foreach (Rectangle r in Used()) g.DrawLine(pen, xm, r.Top, xm, r.Bottom);
             }
 
-            float x = IdxToX(i);
+            float x = PosToX(_curPos);
             using (var pen = new Pen(CurColor) { DashStyle = DashStyle.Dash })
                 foreach (Rectangle r in Used()) g.DrawLine(pen, x, r.Top, x, r.Bottom);
 
@@ -890,10 +1040,19 @@ namespace ICDIBasic
         {
             long now = Clock.ElapsedMilliseconds;
 
-            bool moved = i != _rowsCur || m != _rowsMark;
+            /* «Сдвинули» считаем по ПОЗИЦИИ, а не по номеру отсчёта. Номер
+             * ближайшего отсчёта может перескочить сам, пока курсор стоит на
+             * месте: доля такта уезжает, и соседний отсчёт становится ближе. По
+             * номеру это читалось бы как действие оператора, и таблица
+             * пересобиралась бы все 25 раз в секунду - ровно то мельтешение, от
+             * которого её и придерживают. */
+            /* Equals, а не !=: метки нет - это NaN, а NaN != NaN истинно, и
+             * сравнение через != считало бы «сдвинули» на каждом кадре, пока
+             * метки нет. Single.Equals на двух NaN даёт true. */
+            bool moved = !_curPos.Equals(_rowsCur) || !_markPos.Equals(_rowsMark);
             if (!moved && _rows.Count > 0 && now - _rowsMs < 200) return;
 
-            _rowsMs = now; _rowsCur = i; _rowsMark = m;
+            _rowsMs = now; _rowsCur = _curPos; _rowsMark = _markPos;
             _rows.Clear();
 
             /* По тактам, а не по местам в массиве: иначе после потери отсчётов
