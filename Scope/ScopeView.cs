@@ -245,7 +245,10 @@ namespace ICDIBasic
             try
             {
                 var v = new ScopeView();
-                string[] lines = File.ReadAllLines(path, new UTF8Encoding(false));
+                /* Пишем мы его в UTF-8, но читаем так же, как все .ini проекта:
+                 * файл могли открыть и сохранить редактором в cp1251. */
+                string[] lines = IniChannelMap.ReadText(File.ReadAllBytes(path))
+                                 .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
 
                 bool trigger = false;
 
@@ -427,7 +430,11 @@ namespace ICDIBasic
                 var kv = new Dictionary<string, float[]>(StringComparer.OrdinalIgnoreCase);
 
                 string section = "";
-                string[] lines = System.IO.File.ReadAllLines(path, Encoding.GetEncoding(1251));
+                /* Кодировка - по содержимому, одним способом со всеми .ini
+                 * проекта: Wscope пишет свой файл в cp1251, но полагаться на
+                 * это незачем, см. IniChannelMap.ReadText. */
+                string[] lines = IniChannelMap.ReadText(System.IO.File.ReadAllBytes(path))
+                                 .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
 
                 foreach (string raw in lines)
                 {

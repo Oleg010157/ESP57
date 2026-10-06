@@ -248,7 +248,7 @@ namespace ICDIBasic
 
             try
             {
-                return Parse(File.ReadAllLines(path, PickEncoding(path)), frame, out error);
+                return Parse(ReadLines(path), frame, out error);
             }
             catch (IOException ex)
             {
@@ -258,24 +258,43 @@ namespace ICDIBasic
         }
 
         /// <summary>
-        /// UTF-8 при наличии BOM, иначе cp1251.
+        /// Текст файла. Кодировка определяется ПО СОДЕРЖИМОМУ, а не по BOM.
         ///
-        /// Шаблоны в проекте разные: F3_convertor.ini намеренно ASCII,
-        /// SPL_Power.ini в UTF-8, остальные в cp1251. Имена каналов везде ASCII,
-        /// кириллица только в комментариях, но читать её как Latin-1 значит
-        /// получить мусор там, где человек ждёт текст.
+        /// В папке лежат шаблоны всех трёх видов: F3_convertor.ini в UTF-8 без
+        /// BOM, F3_invertor.ini и большинство прочих в cp1251, встречается и
+        /// чистый ASCII. BOM нет ни у одного, так что отличить их можно только
+        /// попыткой разбора.
+        ///
+        /// Приём простой и надёжный: русский текст в cp1251 почти никогда не
+        /// складывается в правильные последовательности UTF-8 - у кириллицы там
+        /// байты 0xC0..0xFF, а продолжающий байт UTF-8 обязан быть 0x80..0xBF.
+        /// Поэтому строгий разбор UTF-8 на файле cp1251 бросает исключение, и мы
+        /// честно переходим к cp1251. Чистый ASCII проходит как UTF-8 и даёт тот
+        /// же результат.
+        ///
+        /// Имена каналов везде ASCII, так что на разбор кодировка почти не
+        /// влияет. Но мусор вместо текста в комментариях - это мусор в глазах
+        /// того, кто полезет разбираться.
         /// </summary>
-        private static Encoding PickEncoding(string path)
+        internal static string ReadText(byte[] b)
         {
-            var bom = new byte[3];
+            if (b.Length >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF)
+                return new UTF8Encoding(false).GetString(b, 3, b.Length - 3);
 
-            using (FileStream fs = File.OpenRead(path))
+            try
             {
-                if (fs.Read(bom, 0, 3) == 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF)
-                    return new UTF8Encoding(true);
+                return new UTF8Encoding(false, true).GetString(b);
             }
+            catch (DecoderFallbackException)
+            {
+                return Encoding.GetEncoding(1251).GetString(b);
+            }
+        }
 
-            return Encoding.GetEncoding(1251);
+        private static string[] ReadLines(string path)
+        {
+            return ReadText(File.ReadAllBytes(path))
+                   .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
         }
 
         private static IniChannelMap Parse(string[] lines, string frame, out string error)
