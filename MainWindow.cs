@@ -2901,18 +2901,8 @@ namespace ICDIBasic
 
                     break;
 
-                case 338:
-                    if (igbt != null)
-                    {
-                        if ((d1 == igbt.on1) || (d1 == igbt.off1))
-                        {
-                            igbt.OnOff_IGBT1.BackColor = Color.Empty;
-                        }
-                        if ((d1 == igbt.on2) || (d1 == igbt.off2))
-                        {
-                            igbt.OnOff_IGBT2.BackColor = Color.Empty;
-                        }
-                    }
+                case 338: // тест IGBT: d3 - открытые ключи и флаги теста
+                    igbt?.FeedBack(d1, d2, d3);
                     break;
 
                 //---------------------------------------------------------------------------------------------------------------------------

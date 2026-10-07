@@ -28,7 +28,8 @@
 uint16_t          IsrTicker = 0; // счётчик PWM прерываний
 uint16_t          cTicker   = 0; // счётчик PWM прерываний или периодов при калибровке
 
-uint16_t igbt_manually = 0;// логическая переменная для включения прямого управления IGBT
+uint16_t igbt_manually = 0; // 1 - мост под ручным управлением (тест IGBT)
+uint16_t igbt_tripped  = 0; // 1 - тест прерван токовой защитой
 IGBT igbt;
 
 extern float    Tpwm;          //  период ШИМ в мкс

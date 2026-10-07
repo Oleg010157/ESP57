@@ -11,14 +11,14 @@
 #include "f28p55x_device.h"
 #include "myDCAN.h"
 
-// Команды управления IGBT для CAN
-#define IGBT_SEND1_CMD   0xA5A5U
-#define IGBT_SEND2_CMD   0xA7A7U
-#define IGBT_ON1_CMD     0xA6A6U
-#define IGBT_ON2_CMD     0xA4A4U
-#define IGBT_OFF1_CMD    0xA3A3U
-#define IGBT_OFF2_CMD    0xA2A2U
-#define IGBT_OFFALL_CMD  0xA1A1U
+// Тест IGBT, команда 338: data1 - код ниже, data2 - маска ключей (для SEND).
+// Ответ: data3 = Bridge_ManualState(). Коды взяты от инверторного блока B81;
+// коды DC-DC (A3A3, A5A5, A6A6) на этой плате не нужны и убраны.
+#define IGBT_SEND_CMD    0xA7A7U // открыть ключи по маске data2
+#define IGBT_ON_CMD      0xA4A4U // войти в тест, все ключи закрыты
+#define IGBT_OFF_CMD     0xA2A2U // выйти из теста, мост закрыт
+#define IGBT_OFFALL_CMD  0xA1A1U // то же, код от прежних двух блоков
+#define IGBT_STATE_CMD   0xA0A0U // только ответить состоянием
 
 extern uint16_t Req_336;
 

@@ -93,6 +93,11 @@ __interrupt void INT_EPWM2_Iu_TZ_ISR(void)
 
     CheckLamp0 = 1; // зажигаем лампу диагностики постоянно до сброса от UI
 
+    // Тест IGBT: ключи держит форсаж, и после снятия защёлки фоном он открыл
+    // бы их снова. Гасим его здесь же.
+    if (igbt_manually)
+        Bridge_ManualTrip();
+
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP2;
 }
 

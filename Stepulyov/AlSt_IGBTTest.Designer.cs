@@ -31,272 +31,199 @@ namespace ICDIBasic.Stepulyov
         /// </summary>
         private void InitializeComponent()
         {
-            this.OnOff_IGBT1 = new System.Windows.Forms.Button();
-            this.OnOff_IGBT2 = new System.Windows.Forms.Button();
-            this.gbAIN1 = new System.Windows.Forms.GroupBox();
-            this.cbVT7_1 = new System.Windows.Forms.CheckBox();
-            this.cbVT6_1 = new System.Windows.Forms.CheckBox();
-            this.cbVT5_1 = new System.Windows.Forms.CheckBox();
-            this.cbVT4_1 = new System.Windows.Forms.CheckBox();
-            this.cbVT3_1 = new System.Windows.Forms.CheckBox();
-            this.cbVT2_1 = new System.Windows.Forms.CheckBox();
-            this.cbVT1_1 = new System.Windows.Forms.CheckBox();
-            this.gbAIN2 = new System.Windows.Forms.GroupBox();
-            this.cbVT7_2 = new System.Windows.Forms.CheckBox();
-            this.cbVT6_2 = new System.Windows.Forms.CheckBox();
-            this.cbVT5_2 = new System.Windows.Forms.CheckBox();
-            this.cbVT4_2 = new System.Windows.Forms.CheckBox();
-            this.cbVT3_2 = new System.Windows.Forms.CheckBox();
-            this.cbVT2_2 = new System.Windows.Forms.CheckBox();
-            this.cbVT1_2 = new System.Windows.Forms.CheckBox();
-            this.gbAIN1.SuspendLayout();
-            this.gbAIN2.SuspendLayout();
+            this.components = new System.ComponentModel.Container();
+            this.btnTest = new System.Windows.Forms.Button();
+            this.gbBridge = new System.Windows.Forms.GroupBox();
+            this.lblLegB = new System.Windows.Forms.Label();
+            this.lblLegA = new System.Windows.Forms.Label();
+            this.cbVT4 = new System.Windows.Forms.CheckBox();
+            this.cbVT3 = new System.Windows.Forms.CheckBox();
+            this.cbVT2 = new System.Windows.Forms.CheckBox();
+            this.cbVT1 = new System.Windows.Forms.CheckBox();
+            this.btnAllOff = new System.Windows.Forms.Button();
+            this.lblUdcName = new System.Windows.Forms.Label();
+            this.lblUdc = new System.Windows.Forms.Label();
+            this.lblIpriName = new System.Windows.Forms.Label();
+            this.lblIpri = new System.Windows.Forms.Label();
+            this.lblState = new System.Windows.Forms.Label();
+            this.timerView = new System.Windows.Forms.Timer(this.components);
+            this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
+            this.gbBridge.SuspendLayout();
             this.SuspendLayout();
-            // 
-            // OnOff_IGBT1
-            // 
-            this.OnOff_IGBT1.Location = new System.Drawing.Point(12, 12);
-            this.OnOff_IGBT1.Name = "OnOff_IGBT1";
-            this.OnOff_IGBT1.Size = new System.Drawing.Size(82, 23);
-            this.OnOff_IGBT1.TabIndex = 0;
-            this.OnOff_IGBT1.Text = "Вкл";
-            this.OnOff_IGBT1.UseVisualStyleBackColor = true;
-            this.OnOff_IGBT1.Click += new System.EventHandler(this.OnOff_IGBT1_Click);
-            // 
-            // OnOff_IGBT2
-            // 
-            this.OnOff_IGBT2.Location = new System.Drawing.Point(100, 12);
-            this.OnOff_IGBT2.Name = "OnOff_IGBT2";
-            this.OnOff_IGBT2.Size = new System.Drawing.Size(82, 23);
-            this.OnOff_IGBT2.TabIndex = 1;
-            this.OnOff_IGBT2.Text = "Вкл";
-            this.OnOff_IGBT2.TextImageRelation = System.Windows.Forms.TextImageRelation.ImageAboveText;
-            this.OnOff_IGBT2.UseVisualStyleBackColor = true;
-            this.OnOff_IGBT2.Click += new System.EventHandler(this.OnOff_IGBT2_Click);
-            // 
-            // gbAIN1
-            // 
-            this.gbAIN1.Controls.Add(this.cbVT7_1);
-            this.gbAIN1.Controls.Add(this.cbVT6_1);
-            this.gbAIN1.Controls.Add(this.cbVT5_1);
-            this.gbAIN1.Controls.Add(this.cbVT4_1);
-            this.gbAIN1.Controls.Add(this.cbVT3_1);
-            this.gbAIN1.Controls.Add(this.cbVT2_1);
-            this.gbAIN1.Controls.Add(this.cbVT1_1);
-            this.gbAIN1.Location = new System.Drawing.Point(12, 54);
-            this.gbAIN1.Name = "gbAIN1";
-            this.gbAIN1.Size = new System.Drawing.Size(82, 190);
-            this.gbAIN1.TabIndex = 2;
-            this.gbAIN1.TabStop = false;
-            this.gbAIN1.Text = "АИН 1";
-            // 
-            // cbVT7_1
-            // 
-            this.cbVT7_1.AutoSize = true;
-            this.cbVT7_1.Location = new System.Drawing.Point(6, 130);
-            this.cbVT7_1.Name = "cbVT7_1";
-            this.cbVT7_1.Size = new System.Drawing.Size(46, 17);
-            this.cbVT7_1.TabIndex = 9;
-            this.cbVT7_1.Text = "VT7";
-            this.cbVT7_1.UseVisualStyleBackColor = true;
-            this.cbVT7_1.CheckedChanged += new System.EventHandler(this.cbVT7_1_CheckedChanged);
-            // 
-            // cbVT6_1
-            // 
-            this.cbVT6_1.AutoSize = true;
-            this.cbVT6_1.Location = new System.Drawing.Point(6, 107);
-            this.cbVT6_1.Name = "cbVT6_1";
-            this.cbVT6_1.Size = new System.Drawing.Size(46, 17);
-            this.cbVT6_1.TabIndex = 8;
-            this.cbVT6_1.Text = "VT6";
-            this.cbVT6_1.UseVisualStyleBackColor = true;
-            this.cbVT6_1.CheckedChanged += new System.EventHandler(this.cbVT6_1_CheckedChanged);
-            // 
-            // cbVT5_1
-            // 
-            this.cbVT5_1.AutoSize = true;
-            this.cbVT5_1.Location = new System.Drawing.Point(6, 93);
-            this.cbVT5_1.Name = "cbVT5_1";
-            this.cbVT5_1.Size = new System.Drawing.Size(46, 17);
-            this.cbVT5_1.TabIndex = 7;
-            this.cbVT5_1.Text = "VT5";
-            this.cbVT5_1.UseVisualStyleBackColor = true;
-            this.cbVT5_1.CheckedChanged += new System.EventHandler(this.cbVT5_1_CheckedChanged);
-            // 
-            // cbVT4_1
-            // 
-            this.cbVT4_1.AutoSize = true;
-            this.cbVT4_1.Location = new System.Drawing.Point(6, 70);
-            this.cbVT4_1.Name = "cbVT4_1";
-            this.cbVT4_1.Size = new System.Drawing.Size(46, 17);
-            this.cbVT4_1.TabIndex = 6;
-            this.cbVT4_1.Text = "VT4";
-            this.cbVT4_1.UseVisualStyleBackColor = true;
-            this.cbVT4_1.CheckedChanged += new System.EventHandler(this.cbVT4_1_CheckedChanged);
-            // 
-            // cbVT3_1
-            // 
-            this.cbVT3_1.AutoSize = true;
-            this.cbVT3_1.Location = new System.Drawing.Point(6, 56);
-            this.cbVT3_1.Name = "cbVT3_1";
-            this.cbVT3_1.Size = new System.Drawing.Size(46, 17);
-            this.cbVT3_1.TabIndex = 5;
-            this.cbVT3_1.Text = "VT3";
-            this.cbVT3_1.UseVisualStyleBackColor = true;
-            this.cbVT3_1.CheckedChanged += new System.EventHandler(this.cbVT3_1_CheckedChanged);
-            // 
-            // cbVT2_1
-            // 
-            this.cbVT2_1.AutoSize = true;
-            this.cbVT2_1.Location = new System.Drawing.Point(6, 33);
-            this.cbVT2_1.Name = "cbVT2_1";
-            this.cbVT2_1.Size = new System.Drawing.Size(46, 17);
-            this.cbVT2_1.TabIndex = 4;
-            this.cbVT2_1.Text = "VT2";
-            this.cbVT2_1.UseVisualStyleBackColor = true;
-            this.cbVT2_1.CheckedChanged += new System.EventHandler(this.cbVT2_1_CheckedChanged);
-            // 
-            // cbVT1_1
-            // 
-            this.cbVT1_1.AutoSize = true;
-            this.cbVT1_1.Location = new System.Drawing.Point(6, 19);
-            this.cbVT1_1.Name = "cbVT1_1";
-            this.cbVT1_1.Size = new System.Drawing.Size(46, 17);
-            this.cbVT1_1.TabIndex = 3;
-            this.cbVT1_1.Text = "VT1";
-            this.cbVT1_1.UseVisualStyleBackColor = true;
-            this.cbVT1_1.CheckedChanged += new System.EventHandler(this.cbVT1_1_CheckedChanged);
-            // 
-            // gbAIN2
-            // 
-            this.gbAIN2.Controls.Add(this.cbVT7_2);
-            this.gbAIN2.Controls.Add(this.cbVT6_2);
-            this.gbAIN2.Controls.Add(this.cbVT5_2);
-            this.gbAIN2.Controls.Add(this.cbVT4_2);
-            this.gbAIN2.Controls.Add(this.cbVT3_2);
-            this.gbAIN2.Controls.Add(this.cbVT2_2);
-            this.gbAIN2.Controls.Add(this.cbVT1_2);
-            this.gbAIN2.Location = new System.Drawing.Point(100, 54);
-            this.gbAIN2.Name = "gbAIN2";
-            this.gbAIN2.Size = new System.Drawing.Size(82, 190);
-            this.gbAIN2.TabIndex = 3;
-            this.gbAIN2.TabStop = false;
-            this.gbAIN2.Text = "Инвертор";
-            // 
-            // cbVT7_2
-            // 
-            this.cbVT7_2.AutoSize = true;
-            this.cbVT7_2.Location = new System.Drawing.Point(6, 130);
-            this.cbVT7_2.Name = "cbVT7_2";
-            this.cbVT7_2.Size = new System.Drawing.Size(46, 17);
-            this.cbVT7_2.TabIndex = 9;
-            this.cbVT7_2.Text = "VT7";
-            this.cbVT7_2.UseVisualStyleBackColor = true;
-            // 
-            // cbVT6_2
-            // 
-            this.cbVT6_2.AutoSize = true;
-            this.cbVT6_2.Location = new System.Drawing.Point(6, 107);
-            this.cbVT6_2.Name = "cbVT6_2";
-            this.cbVT6_2.Size = new System.Drawing.Size(46, 17);
-            this.cbVT6_2.TabIndex = 8;
-            this.cbVT6_2.Text = "VT6";
-            this.cbVT6_2.UseVisualStyleBackColor = true;
-            this.cbVT6_2.CheckedChanged += new System.EventHandler(this.cbVT6_2_CheckedChanged);
-            // 
-            // cbVT5_2
-            // 
-            this.cbVT5_2.AutoSize = true;
-            this.cbVT5_2.Location = new System.Drawing.Point(6, 93);
-            this.cbVT5_2.Name = "cbVT5_2";
-            this.cbVT5_2.Size = new System.Drawing.Size(46, 17);
-            this.cbVT5_2.TabIndex = 7;
-            this.cbVT5_2.Text = "VT5";
-            this.cbVT5_2.UseVisualStyleBackColor = true;
-            this.cbVT5_2.CheckedChanged += new System.EventHandler(this.cbVT5_2_CheckedChanged);
-            // 
-            // cbVT4_2
-            // 
-            this.cbVT4_2.AutoSize = true;
-            this.cbVT4_2.Location = new System.Drawing.Point(6, 70);
-            this.cbVT4_2.Name = "cbVT4_2";
-            this.cbVT4_2.Size = new System.Drawing.Size(46, 17);
-            this.cbVT4_2.TabIndex = 6;
-            this.cbVT4_2.Text = "VT4";
-            this.cbVT4_2.UseVisualStyleBackColor = true;
-            this.cbVT4_2.CheckedChanged += new System.EventHandler(this.cbVT4_2_CheckedChanged);
-            // 
-            // cbVT3_2
-            // 
-            this.cbVT3_2.AutoSize = true;
-            this.cbVT3_2.Location = new System.Drawing.Point(6, 56);
-            this.cbVT3_2.Name = "cbVT3_2";
-            this.cbVT3_2.Size = new System.Drawing.Size(46, 17);
-            this.cbVT3_2.TabIndex = 5;
-            this.cbVT3_2.Text = "VT3";
-            this.cbVT3_2.UseVisualStyleBackColor = true;
-            this.cbVT3_2.CheckedChanged += new System.EventHandler(this.cbVT3_2_CheckedChanged);
-            // 
-            // cbVT2_2
-            // 
-            this.cbVT2_2.AutoSize = true;
-            this.cbVT2_2.Location = new System.Drawing.Point(6, 33);
-            this.cbVT2_2.Name = "cbVT2_2";
-            this.cbVT2_2.Size = new System.Drawing.Size(46, 17);
-            this.cbVT2_2.TabIndex = 4;
-            this.cbVT2_2.Text = "VT2";
-            this.cbVT2_2.UseVisualStyleBackColor = true;
-            this.cbVT2_2.CheckedChanged += new System.EventHandler(this.cbVT2_2_CheckedChanged);
-            // 
-            // cbVT1_2
-            // 
-            this.cbVT1_2.AutoSize = true;
-            this.cbVT1_2.Location = new System.Drawing.Point(6, 19);
-            this.cbVT1_2.Name = "cbVT1_2";
-            this.cbVT1_2.Size = new System.Drawing.Size(46, 17);
-            this.cbVT1_2.TabIndex = 3;
-            this.cbVT1_2.Text = "VT1";
-            this.cbVT1_2.UseVisualStyleBackColor = true;
-            this.cbVT1_2.CheckedChanged += new System.EventHandler(this.cbVT1_2_CheckedChanged);
-            // 
+            //
+            // btnTest
+            //
+            this.btnTest.Location = new System.Drawing.Point(12, 12);
+            this.btnTest.Name = "btnTest";
+            this.btnTest.Size = new System.Drawing.Size(90, 25);
+            this.btnTest.TabIndex = 0;
+            this.btnTest.Text = "Вкл";
+            this.btnTest.UseVisualStyleBackColor = true;
+            this.btnTest.Click += new System.EventHandler(this.btnTest_Click);
+            //
+            // btnAllOff
+            //
+            this.btnAllOff.Location = new System.Drawing.Point(108, 12);
+            this.btnAllOff.Name = "btnAllOff";
+            this.btnAllOff.Size = new System.Drawing.Size(100, 25);
+            this.btnAllOff.TabIndex = 1;
+            this.btnAllOff.Text = "Закрыть все";
+            this.btnAllOff.UseVisualStyleBackColor = true;
+            this.btnAllOff.Click += new System.EventHandler(this.btnAllOff_Click);
+            //
+            // gbBridge
+            //
+            this.gbBridge.Controls.Add(this.lblLegB);
+            this.gbBridge.Controls.Add(this.lblLegA);
+            this.gbBridge.Controls.Add(this.cbVT4);
+            this.gbBridge.Controls.Add(this.cbVT3);
+            this.gbBridge.Controls.Add(this.cbVT2);
+            this.gbBridge.Controls.Add(this.cbVT1);
+            this.gbBridge.Location = new System.Drawing.Point(12, 45);
+            this.gbBridge.Name = "gbBridge";
+            this.gbBridge.Size = new System.Drawing.Size(196, 100);
+            this.gbBridge.TabIndex = 2;
+            this.gbBridge.TabStop = false;
+            this.gbBridge.Text = "Ключи моста";
+            //
+            // lblLegA
+            //
+            this.lblLegA.AutoSize = true;
+            this.lblLegA.Location = new System.Drawing.Point(14, 20);
+            this.lblLegA.Name = "lblLegA";
+            this.lblLegA.Text = "Плечо A";
+            //
+            // lblLegB
+            //
+            this.lblLegB.AutoSize = true;
+            this.lblLegB.Location = new System.Drawing.Point(108, 20);
+            this.lblLegB.Name = "lblLegB";
+            this.lblLegB.Text = "Плечо B";
+            //
+            // cbVT1
+            //
+            this.cbVT1.AutoCheck = false;
+            this.cbVT1.AutoSize = true;
+            this.cbVT1.Location = new System.Drawing.Point(17, 42);
+            this.cbVT1.Name = "cbVT1";
+            this.cbVT1.TabIndex = 0;
+            this.cbVT1.Text = "VT1 верх";
+            this.cbVT1.Click += new System.EventHandler(this.cbKey_Click);
+            //
+            // cbVT2
+            //
+            this.cbVT2.AutoCheck = false;
+            this.cbVT2.AutoSize = true;
+            this.cbVT2.Location = new System.Drawing.Point(17, 68);
+            this.cbVT2.Name = "cbVT2";
+            this.cbVT2.TabIndex = 1;
+            this.cbVT2.Text = "VT2 низ";
+            this.cbVT2.Click += new System.EventHandler(this.cbKey_Click);
+            //
+            // cbVT3
+            //
+            this.cbVT3.AutoCheck = false;
+            this.cbVT3.AutoSize = true;
+            this.cbVT3.Location = new System.Drawing.Point(111, 42);
+            this.cbVT3.Name = "cbVT3";
+            this.cbVT3.TabIndex = 2;
+            this.cbVT3.Text = "VT3 верх";
+            this.cbVT3.Click += new System.EventHandler(this.cbKey_Click);
+            //
+            // cbVT4
+            //
+            this.cbVT4.AutoCheck = false;
+            this.cbVT4.AutoSize = true;
+            this.cbVT4.Location = new System.Drawing.Point(111, 68);
+            this.cbVT4.Name = "cbVT4";
+            this.cbVT4.TabIndex = 3;
+            this.cbVT4.Text = "VT4 низ";
+            this.cbVT4.Click += new System.EventHandler(this.cbKey_Click);
+            //
+            // lblUdcName
+            //
+            this.lblUdcName.AutoSize = true;
+            this.lblUdcName.Location = new System.Drawing.Point(14, 155);
+            this.lblUdcName.Name = "lblUdcName";
+            this.lblUdcName.Text = "Udc, В";
+            //
+            // lblUdc
+            //
+            this.lblUdc.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold);
+            this.lblUdc.Location = new System.Drawing.Point(100, 152);
+            this.lblUdc.Name = "lblUdc";
+            this.lblUdc.Size = new System.Drawing.Size(100, 18);
+            this.lblUdc.Text = "-";
+            this.lblUdc.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            //
+            // lblIpriName
+            //
+            this.lblIpriName.AutoSize = true;
+            this.lblIpriName.Location = new System.Drawing.Point(14, 179);
+            this.lblIpriName.Name = "lblIpriName";
+            this.lblIpriName.Text = "Iперв, А";
+            //
+            // lblIpri
+            //
+            this.lblIpri.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold);
+            this.lblIpri.Location = new System.Drawing.Point(100, 176);
+            this.lblIpri.Name = "lblIpri";
+            this.lblIpri.Size = new System.Drawing.Size(100, 18);
+            this.lblIpri.Text = "-";
+            this.lblIpri.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            //
+            // lblState
+            //
+            this.lblState.Location = new System.Drawing.Point(12, 202);
+            this.lblState.Name = "lblState";
+            this.lblState.Size = new System.Drawing.Size(196, 44);
+            this.lblState.Text = "Тест выключен";
+            //
+            // timerView
+            //
+            this.timerView.Interval = 500;
+            this.timerView.Tick += new System.EventHandler(this.timerView_Tick);
+            //
             // AlStIgbtTest
-            // 
+            //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(195, 256);
-            this.Controls.Add(this.gbAIN2);
-            this.Controls.Add(this.gbAIN1);
-            this.Controls.Add(this.OnOff_IGBT2);
-            this.Controls.Add(this.OnOff_IGBT1);
+            this.ClientSize = new System.Drawing.Size(220, 254);
+            this.Controls.Add(this.lblState);
+            this.Controls.Add(this.lblIpri);
+            this.Controls.Add(this.lblIpriName);
+            this.Controls.Add(this.lblUdc);
+            this.Controls.Add(this.lblUdcName);
+            this.Controls.Add(this.gbBridge);
+            this.Controls.Add(this.btnAllOff);
+            this.Controls.Add(this.btnTest);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedToolWindow;
             this.Name = "AlStIgbtTest";
-            this.Text = "IGBT";
-            this.gbAIN1.ResumeLayout(false);
-            this.gbAIN1.PerformLayout();
-            this.gbAIN2.ResumeLayout(false);
-            this.gbAIN2.PerformLayout();
+            this.Text = "Тест IGBT";
+            this.gbBridge.ResumeLayout(false);
+            this.gbBridge.PerformLayout();
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
         #endregion
 
-        public Button OnOff_IGBT1;
-        public Button OnOff_IGBT2;
-        public GroupBox gbAIN1;
-        public CheckBox cbVT7_1;
-        public CheckBox cbVT6_1;
-        public CheckBox cbVT5_1;
-        public CheckBox cbVT4_1;
-        public CheckBox cbVT3_1;
-        public CheckBox cbVT2_1;
-        public CheckBox cbVT1_1;
-        public GroupBox gbAIN2;
-        public CheckBox cbVT7_2;
-        public CheckBox cbVT6_2;
-        public CheckBox cbVT5_2;
-        public CheckBox cbVT4_2;
-        public CheckBox cbVT3_2;
-        public CheckBox cbVT2_2;
-        public CheckBox cbVT1_2;
+        private Button btnTest;
+        private Button btnAllOff;
+        private GroupBox gbBridge;
+        private Label lblLegA;
+        private Label lblLegB;
+        private CheckBox cbVT1;
+        private CheckBox cbVT2;
+        private CheckBox cbVT3;
+        private CheckBox cbVT4;
+        private Label lblUdcName;
+        private Label lblUdc;
+        private Label lblIpriName;
+        private Label lblIpri;
+        private Label lblState;
+        private Timer timerView;
+        private ToolTip toolTip1;
     }
 }

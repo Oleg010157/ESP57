@@ -1,312 +1,200 @@
-﻿using Peak.Can.Basic;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System;
+using System.Drawing;
 using System.Windows.Forms;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Button;
-using CheckBox = System.Windows.Forms.CheckBox;
-using GroupBox = System.Windows.Forms.GroupBox;
 
 namespace ICDIBasic.Stepulyov
 {
+    //-------------------------------------------------------------------
+    // Тест IGBT однофазного моста. На мост подают малое напряжение, ключи
+    // открывают по одному или диагональю и смотрят ток по датчику первички:
+    //
+    //   плечо A: VT1 верх, VT2 низ        плечо B: VT3 верх, VT4 низ
+    //   VT1+VT4 и VT3+VT2 - ток через первичку разных знаков
+    //   один ключ - тока нет, если исправен второй ключ того же плеча
+    //
+    // Команда 338, прошивка - KSP/pwm_funcs.c, блок "ТЕСТ IGBT". Сквозной ток
+    // (оба ключа плеча) не допускают обе стороны: здесь галочка соседа по
+    // плечу заперта, а прибор такую маску не исполняет и закрывает мост.
+    // Токовая защита компараторов в тесте работает как при пуске.
+    //
+    // Галочки ставятся только из ответа прибора (data3 - открытые ключи и
+    // флаги), нажатие лишь шлёт команду и красит контрол жёлтым до ACK.
+    //-------------------------------------------------------------------
     public partial class AlStIgbtTest : Form
     {
-
         public Form1.DSend128 Send128;
-        // список команд
-        public ushort send1 = 0xA5A5; 
-        public ushort send2 = 0xA7A7;
-        public ushort on1 = 0xA6A6;
-        public ushort on2 = 0xA4A4;
-        public ushort off1 = 0xA3A3;
-        public ushort off2 = 0xA2A2;
-        public ushort offall = 0xA1A1;
 
-        short igbtnum = 0;
-        private bool _suppressAutoSend;
+        private const ushort Cmd      = 338;
+        private const ushort CmdSend  = 0xA7A7; // открыть ключи по маске d2
+        private const ushort CmdOn    = 0xA4A4; // войти в тест (и сброс после аварии)
+        private const ushort CmdOff   = 0xA2A2; // выйти из теста
+        private const ushort CmdState = 0xA0A0; // только спросить состояние
+
+        // Слово состояния в data3 ответа - Bridge_ManualState() в прошивке
+        private const ushort StKeys = 0x000F;
+        private const ushort StTest = 0x0100;
+        private const ushort StTrip = 0x0200;
+        private const ushort LegA   = 0x0003; // VT1 | VT2
+        private const ushort LegB   = 0x000C; // VT3 | VT4
+
+        private readonly CheckBox[] _keys;
+        private ushort _state;
+        private Control _pending;   // ждёт ACK, горит жёлтым
+        private ushort _pendingCmd;
+        private int _pollDiv;
+
         public AlStIgbtTest()
         {
             InitializeComponent();
-            Load += AlSt_IGBTTest_Load;
+            _keys = new[] { cbVT1, cbVT2, cbVT3, cbVT4 };
 
-            Closing += (h, k) =>
+            toolTip1.SetToolTip(btnTest,
+                "Ручное управление ключами моста.\n" +
+                "Включается только при выключенном мосте:\n" +
+                "сначала снимите питание моста в главном окне.");
+            toolTip1.SetToolTip(btnAllOff, "Закрыть все четыре ключа, тест остаётся включённым");
+            toolTip1.SetToolTip(gbBridge,
+                "Диагональ VT1+VT4 или VT3+VT2 даёт ток через первичку.\n" +
+                "Оба ключа одного плеча открыть нельзя — это сквозной ток.");
+
+            Load += (s, e) =>
             {
-                Send128(0xA6, 0, 0, 338); // Выкл ручн. упр.IGBT
+                ApplyState(0, false);
+                Send128(CmdState, 0, 0, Cmd); // вдруг тест остался включённым
+                timerView.Start();
+            };
+
+            FormClosing += (s, e) =>
+            {
+                timerView.Stop();
+                if ((_state & StTest) != 0)
+                    Send128(CmdOff, 0, 0, Cmd); // ключи не оставляем открытыми
             };
         }
-        private void AlSt_IGBTTest_Load(object sender, EventArgs e)
+
+        //---------------------------------------------------------------
+        // Ответ на 338, зовётся из Mbox13Rx (MainWindow.cs) в потоке UI.
+        //---------------------------------------------------------------
+        public void FeedBack(ushort d1, ushort d2, ushort d3)
         {
-            ResetCheckboxes(gbAIN1);
-            gbAIN1.Enabled = false;
-            ResetCheckboxes(gbAIN2);
-            gbAIN2.Enabled = false;
+            if ((_pending != null) && (d1 == _pendingCmd))
+            {
+                _pending.BackColor = Color.Empty;
+                _pending = null;
+            }
+
+            // Вход в тест не состоялся - мост работает, прибор отказал.
+            bool refused = (d1 == CmdOn) && ((d3 & StTest) == 0);
+            ApplyState(d3, refused);
         }
 
-        private void OnOff_IGBT1_Click(object sender, EventArgs e)
+        private void ApplyState(ushort st, bool refused)
         {
-            ResetCheckboxes(gbAIN1);
-            OnOff_IGBT1.BackColor = System.Drawing.Color.Yellow;
-            if (OnOff_IGBT1.Text == "Вкл")
+            _state = st;
+
+            bool test = (st & StTest) != 0;
+            bool trip = (st & StTrip) != 0;
+            bool live = test && !trip;
+
+            for (int i = 0; i < _keys.Length; i++)
             {
-                gbAIN1.Enabled = true;
-                igbtnum &= ~((short)(64 | 128 | 256 | 512 | 1024 | 2048 | 4096));
-                Send128(on1, 0, 0, 338); // Вкл все ключи IGBT
-                OnOff_IGBT1.Text = "Выкл";
+                bool on = ((st >> i) & 1) != 0;
+                _keys[i].Checked   = on;
+                _keys[i].ForeColor = on ? Color.Red : SystemColors.ControlText;
             }
+
+            // Открытый ключ запирает соседа по плечу
+            cbVT1.Enabled = live && !cbVT2.Checked;
+            cbVT2.Enabled = live && !cbVT1.Checked;
+            cbVT3.Enabled = live && !cbVT4.Checked;
+            cbVT4.Enabled = live && !cbVT3.Checked;
+            btnAllOff.Enabled = live;
+
+            btnTest.Text = !test ? "Вкл" : trip ? "Сброс" : "Выкл";
+
+            lblState.ForeColor = (trip || refused) ? Color.Red : SystemColors.ControlText;
+            if (refused)
+                lblState.Text = "Прибор отказал: мост работает. Выключите питание моста в главном окне.";
+            else if (!test)
+                lblState.Text = "Тест выключен";
+            else if (trip)
+                lblState.Text = "Сработала токовая защита, ключи закрыты. «Сброс» — продолжить.";
+            else if ((st & StKeys) == 0)
+                lblState.Text = "Тест включён, все ключи закрыты";
             else
-            {
-                gbAIN1.Enabled = false;
-                Send128(off1, 0, 0, 338); // Выкл все ключи
-                OnOff_IGBT1.Text = "Вкл";
-            }
+                lblState.Text = "Тест включён, ключи открыты";
         }
 
-        private void OnOff_IGBT2_Click(object sender, EventArgs e)
+        private void Send(Control c, ushort d1, ushort d2)
         {
-            ResetCheckboxes(gbAIN2);
-            OnOff_IGBT2.BackColor = System.Drawing.Color.Yellow;
-            if (OnOff_IGBT2.Text == "Вкл")
-            {
-                gbAIN2.Enabled = true;
-                igbtnum &= ~((short)(1 | 2 | 4 | 8 | 16 | 32));
-                Send128(on2, 0, 0, 338); // Вкл все ключи IGBT
-                OnOff_IGBT2.Text = "Выкл";
-            }
-            else
-            {
-                gbAIN2.Enabled = false;
-                Send128(off2, 0, 0, 338); // Выкл все ключи IGBT
-                OnOff_IGBT2.Text = "Вкл";
-            }
+            if (_pending != null)
+                _pending.BackColor = Color.Empty; // прежний ответ уже не ждём
+
+            _pending    = c;
+            _pendingCmd = d1;
+            c.BackColor = Color.Yellow;
+            Send128(d1, d2, 0, Cmd);
         }
 
-        private void ResetCheckboxes(GroupBox groupBox)
+        private void btnTest_Click(object sender, EventArgs e)
         {
-            _suppressAutoSend = true;
-            try
-            {
-                foreach (Control control in groupBox.Controls)
-                {
-                    if (control is CheckBox checkbox)
-                    {
-                        checkbox.Checked = false;
-                        checkbox.Enabled = true;
-                    }
-                }
-            }
-            finally
-            {
-                _suppressAutoSend = false;
-            }
+            bool live = ((_state & StTest) != 0) && ((_state & StTrip) == 0);
+            Send(btnTest, live ? CmdOff : CmdOn, 0);
         }
 
-        private void SendIgbt1ConfigIfNeeded()
+        private void btnAllOff_Click(object sender, EventArgs e)
         {
-            if (_suppressAutoSend || !gbAIN1.Enabled)
-            {
+            Send(btnAllOff, CmdSend, 0);
+        }
+
+        private void cbKey_Click(object sender, EventArgs e)
+        {
+            var cb = (CheckBox)sender;
+            int bit = Array.IndexOf(_keys, cb);
+            ushort mask = (ushort)((_state & StKeys) ^ (1 << bit));
+
+            // Сюда не пускает и Enabled, но маску проверяем ещё раз:
+            // цена ошибки - сквозной ток.
+            if (((mask & LegA) == LegA) || ((mask & LegB) == LegB))
                 return;
-            }
 
-            Send128(send1, (ushort)igbtnum, 0, 338);
+            Send(cb, CmdSend, mask);
         }
 
-        private void SendIgbt2ConfigIfNeeded()
+        //---------------------------------------------------------------
+        // Показания и опрос. Udc и ток первички - из кадра 140, который
+        // идёт постоянно. Ток - в том наборе, что выбран ключом телеметрии
+        // в главном окне (коды / мгновенные / rms); для теста нужен
+        // мгновенный - только в нём виден знак тока диагонали.
+        //
+        // Раз в секунду, пока тест включён, спрашиваем состояние: о том,
+        // что токовая защита закрыла ключи, прибор сам не сообщает.
+        //---------------------------------------------------------------
+        private void timerView_Tick(object sender, EventArgs e)
         {
-            if (_suppressAutoSend || !gbAIN2.Enabled)
+            lblUdc.Text = $@"{ccs.UdcBat:0.0}";
+
+            switch (ccs.teleSel)
             {
-                return;
+                case 0:
+                    lblIpriName.Text = @"Iперв, код";
+                    lblIpri.Text = $@"{ccs.iPri:0}";
+                    break;
+                case 1:
+                    lblIpriName.Text = @"Iперв, А";
+                    lblIpri.Text = $@"{ccs.iPri:0.00}";
+                    break;
+                default:
+                    lblIpriName.Text = @"Iперв rms, А";
+                    lblIpri.Text = $@"{ccs.iPri:0.00}";
+                    break;
             }
 
-            Send128(send2, (ushort)igbtnum, 0, 338);
+            if ((++_pollDiv >= 2) && (_pending == null) && ((_state & StTest) != 0))
+            {
+                _pollDiv = 0;
+                Send128(CmdState, 0, 0, Cmd);
+            }
         }
-
-
-        private void cbVT1_2_CheckedChanged(object sender, EventArgs e)
-        {
-            if (!cbVT1_2.Checked)
-            {
-                igbtnum &= ~1; // сбросить бит 0 VT1-0ff
-                cbVT2_2.Enabled = true; // разблокировать чекбокс VT2
-            }
-            else
-            {
-                igbtnum |= 1; // установить бит 0 -> включить VT1
-                cbVT2_2.Enabled = false; // блокировать чекбокс VT2
-            }
-
-            SendIgbt2ConfigIfNeeded();
-        }
-
-        private void cbVT2_2_CheckedChanged(object sender, EventArgs e)
-        {
-            if (!cbVT2_2.Checked)
-            {
-                igbtnum &= ~2; // сбросить бит 1 -> выключить VT2
-                cbVT1_2.Enabled = true; // разблокировать чекбокс VT1
-            }
-            else
-            {
-                igbtnum |= 2; // установить бит 1 -> включить VT2
-                cbVT1_2.Enabled = false; // блокировать чекбокс VT1
-            }
-
-            SendIgbt2ConfigIfNeeded();
-
-        }
-
-        private void cbVT3_2_CheckedChanged(object sender, EventArgs e)
-        {
-            if (!cbVT3_2.Checked)
-            {
-                igbtnum &= ~4; // сбросить бит 2 -> выключить VT3
-                cbVT4_2.Enabled = true; // разблокировать чекбокс VT4
-            }
-            else
-            {
-                igbtnum |= 4; // установить бит 2 -> включить VT3
-                cbVT4_2.Enabled = false; // блокировать чекбокс VT4
-            }
-
-            SendIgbt2ConfigIfNeeded();
-            
-        }
-
-        private void cbVT4_2_CheckedChanged(object sender, EventArgs e)
-        {
-            if (!cbVT4_2.Checked)
-            {
-                igbtnum &= ~8; // сбросить бит 3 -> выключить VT4
-                cbVT3_2.Enabled = true; // разблокировать чекбокс VT3
-            }
-            else
-            {
-                igbtnum |= 8; // установить бит 3 -> включить VT4
-                cbVT3_2.Enabled = false; // блокировать чекбокс VT3
-            }
-
-            SendIgbt2ConfigIfNeeded();
-        }
-
-        private void cbVT5_2_CheckedChanged(object sender, EventArgs e)
-        {
-            if (!cbVT5_2.Checked)
-            {
-                igbtnum &= ~16; //  -> выключить VT5
-                cbVT6_2.Enabled = true; // разблокировать чекбокс VT6
-            }
-            else
-            {
-                igbtnum |= 16; // -> включить VT5
-                cbVT6_2.Enabled = false; // блокировать чекбокс VT6
-            }
-
-            SendIgbt2ConfigIfNeeded();
-        }
-
-        private void cbVT6_2_CheckedChanged(object sender, EventArgs e)
-        {
-            if (!cbVT6_2.Checked)
-            {
-                igbtnum &= ~32; //  -> выключить VT6
-                cbVT5_2.Enabled = true; // разблокировать чекбокс VT5
-            }
-            else
-            {
-                igbtnum |= 32; //  -> включить VT6
-                cbVT5_2.Enabled = false; // блокировать чекбокс VT5
-            }
-
-            SendIgbt2ConfigIfNeeded();
-        }
-
-        private void cbVT1_1_CheckedChanged(object sender, EventArgs e)
-        {
-            if (!cbVT1_1.Checked)
-            {
-                igbtnum &= ~64; // сбросить бит 6
-                cbVT2_1.Enabled = true; // разблокировать VT2
-            }
-            else
-            {
-                igbtnum |= 64; // установить бит 6
-                cbVT2_1.Enabled = false; // блокировать VT2
-            }
-
-            SendIgbt1ConfigIfNeeded();
-        }
-
-        private void cbVT2_1_CheckedChanged(object sender, EventArgs e)
-        {
-            if (!cbVT2_1.Checked)
-            {
-                igbtnum &= ~128; // сбросить бит 7
-                cbVT1_1.Enabled = true; // разблокировать VT1
-            }
-            else
-            {
-                igbtnum |= 128; // установить бит 7
-                cbVT1_1.Enabled = false; // блокировать VT1
-            }
-
-            SendIgbt1ConfigIfNeeded();
-        }
-
-        private void cbVT3_1_CheckedChanged(object sender, EventArgs e)
-        {
-            if (!cbVT3_1.Checked)
-            {
-                igbtnum &= ~256; // сбросить бит 8
-                cbVT4_1.Enabled = true; // разблокировать VT4
-            }
-            else
-            {
-                igbtnum |= 256; // установить бит 8
-                cbVT4_1.Enabled = false; // блокировать VT4
-            }
-
-            SendIgbt1ConfigIfNeeded();
-        }
-
-        private void cbVT4_1_CheckedChanged(object sender, EventArgs e)
-        {
-            if (!cbVT4_1.Checked)
-            {
-                igbtnum &= ~512; // сбросить бит 9
-                cbVT3_1.Enabled = true; // разблокировать VT3
-            }
-            else
-            {
-                igbtnum |= 512; // установить бит 9
-                cbVT3_1.Enabled = false; // блокировать VT3
-            }
-
-            SendIgbt1ConfigIfNeeded();
-        }
-
-        private void cbVT5_1_CheckedChanged(object sender, EventArgs e)
-        {
-            if (cbVT5_1.Checked) igbtnum |= 1024;   // установить бит 10
-            else igbtnum &= ~1024;  // сбросить бит 10
-
-            SendIgbt1ConfigIfNeeded();
-        }
-
-        private void cbVT6_1_CheckedChanged(object sender, EventArgs e)
-        {
-            if (cbVT6_1.Checked) igbtnum |= 2048;   // установить бит 11
-            else igbtnum &= ~2048;  // сбросить бит 11
-
-            SendIgbt1ConfigIfNeeded();
-        }
-
-        private void cbVT7_1_CheckedChanged(object sender, EventArgs e)
-        {
-            if (cbVT7_1.Checked) igbtnum |= 4096;   // установить бит 12
-            else igbtnum &= ~4096;  // сбросить бит 12
-
-            SendIgbt1ConfigIfNeeded();
-        }
-
-
     }
 }

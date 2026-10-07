@@ -1966,53 +1966,20 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
         }
         break;
 
+        // Тест IGBT, ручное управление ключами моста. Разбор - pwm_funcs.c,
+        // блок "ТЕСТ IGBT". Отказ (мост работает, сквозная маска, авария)
+        // отдельным кодом не сообщается: GUI ставит галочки из data3, то есть
+        // из того, что прибор реально открыл, и расхождение видно само.
         case 338:
         {
-            igbt.all = data2;
+            if (data1 == IGBT_ON_CMD)
+                Bridge_ManualEnable();
+            else if ((data1 == IGBT_OFF_CMD) || (data1 == IGBT_OFFALL_CMD))
+                Bridge_ManualDisable();
+            else if (data1 == IGBT_SEND_CMD)
+                Bridge_ManualApply(data2);
 
-            if (data1 == IGBT_ON1_CMD) // Включить прямое упр IGBT1 (DC-DC, VT1..VT4)
-            {
-                IGBT1_ManualEnable();
-            }
-
-            else if (data1 == IGBT_OFF1_CMD) // Выключить прямое упр IGBT1 (DC-DC)
-            {
-                IGBT1_ManualDisable();
-            }
-
-            else if (data1 == IGBT_SEND1_CMD) // Управление ключами IGBT1 (DC-DC)
-            {
-                if ((igbt_manually & (1U << 0)) != 0U)
-                {
-                    IGBT1_ManualApply(data2);
-                }
-            }
-
-            else if (data1 == IGBT_ON2_CMD) // Включить прямое упр IGBT инвертора (стартовое состояние: все ключи выключены)
-            {
-                IGBT2_ManualEnable();
-            }
-
-            else if (data1 == IGBT_OFF2_CMD) // Выключить прямое упр IGBT инвертора.
-            {
-                IGBT2_ManualDisable();
-            }
-
-            else if (data1 == IGBT_SEND2_CMD) // Управление ключами. Принята новая конфигурация транзисторов инвертора.
-            {
-                if ((igbt_manually & (1U << 1)) != 0U)
-                {
-                    IGBT2_ManualApply(data2);
-                }
-            }
-
-            else if (data1 == IGBT_OFFALL_CMD) // Выключить прямое управление обоими блоками
-            {
-                IGBT1_ManualDisable();
-                IGBT2_ManualDisable();
-            }
-
-            SendAck(data1, data2, igbt.all, cmd);
+            SendAck(data1, data2, Bridge_ManualState(), cmd);
             break;
         }
 
