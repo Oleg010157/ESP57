@@ -115,7 +115,14 @@ void grid_tie_init(void)
     gt.Iq       = 0.0f;
 
     gt.u220Zero = 2048.0f; // до первого захвата; дальше - середина вилки
-    gt.kU220    = 0.152f;  // В/код: 311 В пика на 2048 кодов. Уточнить при тарировке
+    // В/код канала U220. Уточнить при тарировке.
+    //
+    // До 07.10.2026 стояло 0.152: 311 В пика на 2048 кодов, то есть номинал
+    // 220 В ровно в полную шкалу без запаса. Плохо и на железе (230 В +10 % -
+    // уже 358 В пика), и на стенде: имитатор сети на DACA заведён на этот же
+    // канал, и выше 220 В его было не поднять. 0.2 даёт полную шкалу 289 В
+    // действующих, номинал 220 В - это 1556 кодов.
+    gt.kU220    = 0.2f;
     gt.iSign    = 1.0f;
 
     gt.UdcSrc = 0; // на стенде АКБ нет - берём константу
@@ -137,6 +144,29 @@ void grid_tie_init(void)
     gt.pr.x2   = 0.0f;
     gt.pr.xMax = 100.0f; // В на вторичке: падение на рассеянии много меньше
     gt.pr.out  = 0.0f;
+
+    // Контур напряжения слежения. Подобрано прогонкой модели с ZOH-объектом
+    // (рассеяние 8 мГн, такт 200 мкс) на нагрузке от ХХ до 320 Ом, с
+    // задержкой и в один такт (модель), и в два (железо): ошибка копии
+    // меньше 0.1 В через 0.1 с во всех случаях.
+    //
+    // Kp < 1 обязательно: объект по напряжению - почти единица с задержкой,
+    // и при Kp >= 1 контур сам раскачивается на половине частоты такта.
+    // Утечка в сорок раз меньше, чем у контура тока: при 0.002 резонатор
+    // не добирал 2..5 В на нагрузке 16..50 Ом.
+    gt.prv.Kp   = 0.3f;
+    gt.prv.Ki   = 300.0f; // 1/с
+    gt.prv.KiTs = 0.0f;   // считается в grid_tie_onGridZero()
+    gt.prv.leak = 5e-5f;
+    gt.prv.step = 0.0f;
+    gt.prv.x1   = 0.0f;
+    gt.prv.x2   = 0.0f;
+    gt.prv.xMax = 100.0f; // В: падение под током номинала - десятки вольт
+    gt.prv.out  = 0.0f;
+
+    gt.uerr        = 0.0f;
+    gt.uGridDly[0] = 0.0f;
+    gt.uGridDly[1] = 0.0f;
 
     gt.mMax = 0.95f;
     gt.m    = 0.0f;
@@ -174,8 +204,8 @@ void grid_tie_init(void)
     gt.UdcMax    = 65.0f;
     gt.freqMin   = 47.0f;
     gt.freqMax   = 53.0f;
-    gt.ampMin    = 1200.0f;
-    gt.ampMax    = 2000.0f;
+    gt.uGridMin  = 170.0f; // В действующих
+    gt.uGridMax  = 260.0f;
     gt.phaseOk   = 0.10f;
     gt.satCount  = 0;
     gt.satLimit  = 10; // из 100 тактов периода
@@ -220,17 +250,14 @@ void grid_tie_init(void)
 
 void grid_tie_apply_uref(void)
 {
-    float udc = (gt.Udc > 1.0f) ? gt.Udc : ((gt.UdcFixed > 1.0f) ? gt.UdcFixed : 48.0f);
-    float n   = (gt.n > 0.1f) ? gt.n : 7.0f;
-
     // Уставка вместе с поправкой контура. Обе в вольтах ДЕЙСТВУЮЩИХ на
-    // вторичке, отсюда единственный корень из двух во всём тракте.
+    // вторичке, отсюда корень из двух.
     float uref = uOutRef + uOutCor;
 
     if (uref < 0.0f)
         uref = 0.0f;
 
-    float g    = 2048.0f * (uref * 1.41421356f / n) / udc;
+    float g    = grid_tie_gain_from_peak(uref * 1.41421356f);
     float gMax = 2048.0f * gt.mMax;
 
     if (g < 0.0f)
@@ -266,8 +293,10 @@ void grid_tie_fault(uint16_t code)
     gt.acContactor = 0;
     gt.shutdownReq = 1;
 
-    gt.pr.x1 = 0.0f;
-    gt.pr.x2 = 0.0f;
+    gt.pr.x1  = 0.0f;
+    gt.pr.x2  = 0.0f;
+    gt.prv.x1 = 0.0f;
+    gt.prv.x2 = 0.0f;
 }
 
 //---------------------------------------------------------------------------
@@ -297,6 +326,8 @@ void grid_tie_start(void)
         gt.Iset        = 0.0f;
         gt.pr.x1       = 0.0f;
         gt.pr.x2       = 0.0f;
+        gt.prv.x1      = 0.0f;
+        gt.prv.x2      = 0.0f;
         gt.State       = GT_SYNC;
 
         // Поправку постоянки начинаем с нуля. Прямая запись mDC тут не
@@ -324,6 +355,8 @@ void grid_tie_stop(void)
     gt.connReq     = 0;
     gt.pr.x1       = 0.0f;
     gt.pr.x2       = 0.0f;
+    gt.prv.x1      = 0.0f;
+    gt.prv.x2      = 0.0f;
     gt.shutdownReq = 1;
 }
 
@@ -575,45 +608,76 @@ void grid_tie_step(void)
     }
 
     //-----------------------------------------------------------------
-    // 2. Контур тока
+    // 2. Контур: напряжения в GT_SYNC, тока в GT_RAMP / GT_RUN
     //-----------------------------------------------------------------
-    // GT_SYNC тоже считает контур, но с нулевой уставкой. Смысл: мост уже
-    // модулирует и активно держит нулевой ток, то есть его напряжение само
-    // подстраивается под сетевое. К моменту замыкания контактора разность
-    // на его контактах нулевая, и переход в GT_RAMP получается безударным -
-    // уставка просто начинает расти от нуля.
+    // Оба - PR поверх прямой связи по сети, разница только в ошибке:
+    //
+    //   GT_SYNC  контактор разомкнут, мост держит КОПИЮ СЕТИ на выходе.
+    //            Ошибка - сеть минус выход инвертора, регулятор gt.prv.
+    //            К замыканию контактора разность на его контактах нулевая
+    //            при любой нагрузке, и переход в GT_RAMP безударный.
+    //
+    //   GT_RAMP  контактор замкнут, сеть держит напряжение сама, мост
+    //   GT_RUN   регулирует свой ток. Ошибка - уставка минус iSec, gt.pr.
+    //
+    // До 07.10.2026 GT_SYNC считал контур ТОКА с нулевой уставкой. На
+    // холостом ходу это одно и то же, но датчик iSec стоит перед
+    // нагрузкой, и с нагрузкой контур давил её ток, роняя напряжение.
+    // Разбор - у поля prv в grid_tie.h.
     if (gt.State == GT_SYNC || gt.State == GT_RAMP || gt.State == GT_RUN)
     {
-        // Угол сети - тот же, по которому идёт вся синхронизация.
-        // Берём ДО приращения, как это делает sine_invertor1().
-        float theta = sineB.angle + sineB.offset;
-        float s     = sinf(theta);
+        struct PRreg *p;
+        float         err;
 
-        gt.iref = (gt.State == GT_SYNC) ? 0.0f : (gt.Iset * s);
-        if ((gt.Iq != 0.0f) && (gt.State != GT_SYNC))
-            gt.iref += gt.Iq * cosf(theta);
+        if (gt.State == GT_SYNC)
+        {
+            // Сеть того такта, к которому относится uSec_volt, - см.
+            // uGridDly в grid_tie.h.
+            float uRef = sim.on ? gt.uGridDly[0] : gt.uGridDly[1];
 
-        gt.ierr = gt.iref - iSec_amp;
+            gt.iref = 0.0f;
+            gt.ierr = 0.0f;
+            gt.uerr = uRef - uSec_volt;
+
+            p   = &gt.prv;
+            err = gt.uerr;
+        }
+        else
+        {
+            // Угол сети - тот же, по которому идёт вся синхронизация.
+            // Берём ДО приращения, как это делает sine_invertor1().
+            float theta = sineB.angle + sineB.offset;
+
+            gt.iref = gt.Iset * sinf(theta);
+            if (gt.Iq != 0.0f)
+                gt.iref += gt.Iq * cosf(theta);
+
+            gt.ierr = gt.iref - iSec_amp;
+            gt.uerr = 0.0f;
+
+            p   = &gt.pr;
+            err = gt.ierr;
+        }
 
         // PR: пропорциональная часть плюс резонатор ровно на частоте сети.
         // Состояние сохраняем - при упоре по m его придётся откатить.
-        float x1old = gt.pr.x1;
-        float x2old = gt.pr.x2;
+        float x1old = p->x1;
+        float x2old = p->x2;
 
-        gt.pr.x1 += gt.pr.step * gt.pr.x2 + gt.pr.KiTs * gt.ierr - gt.pr.leak * gt.pr.x1;
-        gt.pr.x2 -= gt.pr.step * gt.pr.x1;
+        p->x1 += p->step * p->x2 + p->KiTs * err - p->leak * p->x1;
+        p->x2 -= p->step * p->x1;
 
-        if (gt.pr.x1 > gt.pr.xMax)
-            gt.pr.x1 = gt.pr.xMax;
-        else if (gt.pr.x1 < -gt.pr.xMax)
-            gt.pr.x1 = -gt.pr.xMax;
+        if (p->x1 > p->xMax)
+            p->x1 = p->xMax;
+        else if (p->x1 < -p->xMax)
+            p->x1 = -p->xMax;
 
-        gt.pr.out = gt.pr.Kp * gt.ierr + gt.pr.x1;
+        p->out = p->Kp * err + p->x1;
 
         // Прямая связь по сети снимает с регулятора всю основную синусоиду:
-        // PR остаётся отрабатывать только падение на индуктивности рассеяния,
-        // а это единицы вольт.
-        gt.uSec = gt.uGrid + gt.pr.out;
+        // PR остаётся отрабатывать только падение на рассеянии и обмотках,
+        // а это единицы, под нагрузкой - десятки вольт.
+        gt.uSec = gt.uGrid + p->out;
 
         // Коэффициент трансформации входит ровно один раз, здесь.
         float denom = gt.n * gt.Udc;
@@ -624,8 +688,8 @@ void grid_tie_step(void)
             gt.m = (gt.m > 0.0f) ? gt.mMax : -gt.mMax;
 
             // Упор. Интегратор в упоре наматывать не должен - откатываем.
-            gt.pr.x1 = x1old;
-            gt.pr.x2 = x2old;
+            p->x1 = x1old;
+            p->x2 = x2old;
             gt.satCount++;
         }
 
@@ -633,9 +697,15 @@ void grid_tie_step(void)
     else
     {
         // GT_OFF / GT_FAULT: оба плеча на 50 %, напряжение моста равно нулю.
-        gt.m      = 0.0f;
-        gt.pr.out = 0.0f;
+        gt.m       = 0.0f;
+        gt.pr.out  = 0.0f;
+        gt.prv.out = 0.0f;
     }
+
+    // История сети для контура напряжения - каждый такт и в любом
+    // состоянии, чтобы на входе в GT_SYNC она уже была правдой.
+    gt.uGridDly[1] = gt.uGridDly[0];
+    gt.uGridDly[0] = gt.uGrid;
 
     // Отсчёт четверти периода от нуля напряжения до замыкания контактора -
     // см. взвод startDelay в grid_tie_onGridZero(). Поток есть интеграл
@@ -645,6 +715,13 @@ void grid_tie_step(void)
     {
         if (--gt.startDelay == 0)
         {
+            // Контур тока подхватывает поправку контура напряжения: оба
+            // добавляют своё к одной и той же прямой связи uGrid, и
+            // резонаторы у них на одной частоте. Иначе в момент замыкания
+            // пропала бы поправка на падение под током нагрузки.
+            gt.pr.x1 = gt.prv.x1;
+            gt.pr.x2 = gt.prv.x2;
+
             gt.Iset        = 0.0f;
             gt.acContactor = 1;
             gt.State       = GT_RAMP;
@@ -735,6 +812,9 @@ void grid_tie_onGridZero(void)
     gt.pr.KiTs = gt.pr.Ki * gt.Ts;
     gt.pr.step = sineB.step; // резонанс автоматически едет за частотой сети
 
+    gt.prv.KiTs = gt.prv.Ki * gt.Ts;
+    gt.prv.step = sineB.step;
+
     // Ноль канала U220 - середина вилки огибающей. Вилка живёт в myADC.c
     // и обхватывает реальный сигнал сверху и снизу, так что её середина и
     // есть измеренный ноль. Обновляем раз за период: чаще незачем, а к
@@ -744,8 +824,12 @@ void grid_tie_onGridZero(void)
     //-----------------------------------------------------------------
     // Качество синхронизма за прошедший период
     //-----------------------------------------------------------------
+    // Напряжение сети из полураствора вилки огибающей, В действующих. Окно
+    // в вольтах, чтобы перетарировка kU220 его не сдвигала.
+    float uGridRms = u220amp * gt.kU220 * 0.70710678f;
+
     uint16_t gridOk = ((u220freq >= gt.freqMin) && (u220freq <= gt.freqMax) &&
-                       (u220amp >= gt.ampMin) && (u220amp <= gt.ampMax) &&
+                       (uGridRms >= gt.uGridMin) && (uGridRms <= gt.uGridMax) &&
                        (fabsf(phaseErr) < gt.phaseOk))
                           ? 1U
                           : 0U;
@@ -759,7 +843,7 @@ void grid_tie_onGridZero(void)
     if (gt.State != GT_FAULT)
     {
         gt.syncBad = (((u220freq < gt.freqMin) || (u220freq > gt.freqMax)) ? 1U : 0U) |
-                     (((u220amp < gt.ampMin) || (u220amp > gt.ampMax)) ? 2U : 0U) |
+                     (((uGridRms < gt.uGridMin) || (uGridRms > gt.uGridMax)) ? 2U : 0U) |
                      ((fabsf(phaseErr) >= gt.phaseOk) ? 4U : 0U);
     }
 
@@ -792,6 +876,11 @@ void grid_tie_onGridZero(void)
         gt.Iset        = 0.0f;
         gt.syncCnt     = 0;
         gt.startDelay  = 0;
+
+        // Обратная передача поправки, см. замыкание в grid_tie_step().
+        gt.prv.x1 = gt.pr.x1;
+        gt.prv.x2 = gt.pr.x2;
+
         gt.State       = GT_SYNC;
 
         // Поправку постоянки - с нуля, как и при пуске. Запросом, а не

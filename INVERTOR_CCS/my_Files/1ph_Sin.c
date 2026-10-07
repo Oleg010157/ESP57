@@ -64,7 +64,10 @@ float duty; // Значение скважности ШИМ (в тактах т�
 // upDown - режим счёта таймера, которому синусоида отдаёт pwm_period, см.
 // struct sine в 1ph_Sin.h. EPWM6 под sineA считает только вверх, EPWM1 под
 // sineB - вверх-вниз (CTRMODE = UP_DOWN), и период у него вдвое длиннее TBPRD.
-struct sine sineA = {.resolution = 256, .freq = 50, .gain = 1800};              // EPWM6
+//
+// sineA - имитатор сети на DACA. gain 1556 - это 220 В действующих при
+// kU220 = 0.2 (grid_tie.c); в вольтах его задаёт команда 627.
+struct sine sineA = {.resolution = 256, .freq = 50, .gain = 1556};              // EPWM6
 struct sine sineB = {.resolution = 100, .freq = 50, .gain = 1800, .upDown = 1}; // EPWM1
 
 // iPri_* / iSec_* переехали в CLA/cla_shared.c - туда, где объявлены все шесть

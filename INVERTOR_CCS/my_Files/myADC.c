@@ -134,9 +134,13 @@ void u220_sample(void)
     // grid_tie_apply_uref() (grid_tie.txt, 11). Слежение за огибающей U220 -
     // только в GridMode (подстройка к сети перед замыканием контактора).
     // Разделение обязательно: два регулятора на один sineB.gain дрались бы.
+    //
+    // Сравнение - в единицах gain, через вольты: пик сети по kU220, затем
+    // в gain по n и Udc. До 07.10.2026 gain сравнивался с кодами АЦП
+    // напрямую, см. grid_tie_gain_from_peak().
     if (gridMode)
     {
-        if (u220amp > sineB.gain)
+        if (grid_tie_gain_from_peak(u220amp * gt.kU220) > sineB.gain)
             sineB.gain++;
         else
             sineB.gain--;
