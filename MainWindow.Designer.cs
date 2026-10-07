@@ -28,13 +28,14 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.saveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.openFileDialog = new System.Windows.Forms.OpenFileDialog();
-            this.meterTimer = new System.Windows.Forms.Timer();
+            this.meterTimer = new System.Windows.Forms.Timer(this.components);
             this.btnStartStop = new System.Windows.Forms.Button();
             this.Tbar_speed = new System.Windows.Forms.TrackBar();
-            this.contextMenuStrip2 = new System.Windows.Forms.ContextMenuStrip();
+            this.contextMenuStrip2 = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.настройкиToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.Tbar_Gain1 = new System.Windows.Forms.TrackBar();
             this.Tbar_Load1 = new System.Windows.Forms.TrackBar();
@@ -119,7 +120,7 @@
             this.label_температура = new System.Windows.Forms.Label();
             this.Imax_Value = new System.Windows.Forms.TextBox();
             this.label23 = new System.Windows.Forms.Label();
-            this.timer_tick = new System.Windows.Forms.Timer();
+            this.timer_tick = new System.Windows.Forms.Timer(this.components);
             this.tsmConnect = new System.Windows.Forms.ToolStripMenuItem();
             this.параметрыToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.установкиДвигателяToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -166,7 +167,7 @@
             this.label_GainBar2_unit = new System.Windows.Forms.Label();
             this.Separate_cbox = new System.Windows.Forms.CheckBox();
             this.NUD_Gain2 = new System.Windows.Forms.NumericUpDown();
-            this.error_ID = new System.Windows.Forms.ErrorProvider();
+            this.error_ID = new System.Windows.Forms.ErrorProvider(this.components);
             this.Ip2 = new System.Windows.Forms.Label();
             this.Ip4 = new System.Windows.Forms.Label();
             this.T3sixpack = new System.Windows.Forms.Label();
@@ -195,7 +196,7 @@
             this.Gain2_ModeH = new System.Windows.Forms.Button();
             this.cBox_Gain_Limit = new System.Windows.Forms.CheckBox();
             this.button_Field_RPM = new System.Windows.Forms.Button();
-            this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip();
+            this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.очиститьLogфайлToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.NUD_RPM = new System.Windows.Forms.NumericUpDown();
             this.NUD_Load1 = new System.Windows.Forms.NumericUpDown();
@@ -310,9 +311,9 @@
             this.nudGridUref = new System.Windows.Forms.NumericUpDown();
             this.lblGridFreq = new System.Windows.Forms.Label();
             this.nudGridFreq = new System.Windows.Forms.NumericUpDown();
-            this.timer_1sek = new System.Windows.Forms.Timer();
-            this.toolTip1 = new System.Windows.Forms.ToolTip();
-            this.timer_Yokogawa = new System.Windows.Forms.Timer();
+            this.timer_1sek = new System.Windows.Forms.Timer(this.components);
+            this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
+            this.timer_Yokogawa = new System.Windows.Forms.Timer(this.components);
             this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem3 = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.Tbar_speed)).BeginInit();
