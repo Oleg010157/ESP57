@@ -72,12 +72,21 @@ __interrupt void INT_EPWM2_Iu_TZ_ISR(void)
     eventDetected = false;
 
     // Какой канал - различаем по защёлкам компараторов.
-    // CMPSS2 = Ia (первичка), CMPSS4 = Ib (вторичка).
-    if (Cmpss2Regs.COMPSTS.bit.COMPHLATCH || Cmpss2Regs.COMPSTS.bit.COMPLLATCH)
+    // CMPSS2 = Ia (первичка), CMPSS4 = Ib (вторичка). Верхняя защёлка -
+    // превышение в плюс, нижняя - в минус; знак нужен тесту IGBT, чтобы
+    // сверить его с открытой диагональю.
+    uint16_t src = 0U;
+
+    if (Cmpss2Regs.COMPSTS.bit.COMPHLATCH) src |= TRIP_SRC_IPRI_H;
+    if (Cmpss2Regs.COMPSTS.bit.COMPLLATCH) src |= TRIP_SRC_IPRI_L;
+    if (Cmpss4Regs.COMPSTS.bit.COMPHLATCH) src |= TRIP_SRC_ISEC_H;
+    if (Cmpss4Regs.COMPSTS.bit.COMPLLATCH) src |= TRIP_SRC_ISEC_L;
+
+    if (src & (TRIP_SRC_IPRI_H | TRIP_SRC_IPRI_L))
     {
         RegisterSessionEvent(gt_overIpri);
     }
-    if (Cmpss4Regs.COMPSTS.bit.COMPHLATCH || Cmpss4Regs.COMPSTS.bit.COMPLLATCH)
+    if (src & (TRIP_SRC_ISEC_H | TRIP_SRC_ISEC_L))
     {
         RegisterSessionEvent(gt_overIsec);
     }
@@ -96,7 +105,7 @@ __interrupt void INT_EPWM2_Iu_TZ_ISR(void)
     // Тест IGBT: ключи держит форсаж, и после снятия защёлки фоном он открыл
     // бы их снова. Гасим его здесь же.
     if (igbt_manually)
-        Bridge_ManualTrip();
+        Bridge_ManualTrip(src);
 
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP2;
 }

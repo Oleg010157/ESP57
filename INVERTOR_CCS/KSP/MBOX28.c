@@ -1970,16 +1970,29 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
         // блок "ТЕСТ IGBT". Отказ (мост работает, сквозная маска, авария)
         // отдельным кодом не сообщается: GUI ставит галочки из data3, то есть
         // из того, что прибор реально открыл, и расхождение видно само.
+        //
+        // data2 ответа: на IGBT_ILIM_CMD - фактический порог первички, на
+        // остальные - ток первички перед аварией теста; оба в 0.1 А, со знаком.
         case 338:
         {
+            float d2 = igbt_tripI;
+
             if (data1 == IGBT_ON_CMD)
                 Bridge_ManualEnable();
             else if ((data1 == IGBT_OFF_CMD) || (data1 == IGBT_OFFALL_CMD))
                 Bridge_ManualDisable();
             else if (data1 == IGBT_SEND_CMD)
                 Bridge_ManualApply(data2);
+            else if (data1 == IGBT_ILIM_CMD)
+            {
+                igbt_testIlim = 0.1f * (float)data2;
+                if (igbt_manually)
+                    currentLimit(Imax);
+                d2 = currentLimitPriActual();
+            }
 
-            SendAck(data1, data2, Bridge_ManualState(), cmd);
+            d2 = saturfloat(10.0f * d2, 32767.0f, -32767.0f);
+            SendAck(data1, (int16_t)d2, Bridge_ManualState(), cmd);
             break;
         }
 

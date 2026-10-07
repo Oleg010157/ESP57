@@ -17,6 +17,13 @@ namespace ICDIBasic.Stepulyov
     // плечу заперта, а прибор такую маску не исполняет и закрывает мост.
     // Токовая защита компараторов в тесте работает как при пуске.
     //
+    // ПРОВЕРКА ЗАЩИТЫ. Порог первички на время теста задаётся здесь же
+    // (nudIlim) - ниже тока диагонали, и тогда защита срабатывает уже на
+    // малом Udc. Прибор отвечает фактическим порогом из кодов ЦАП, а после
+    // аварии - какая защёлка сработала (компаратор и знак) и ток первички
+    // последнего отсчёта АЦП перед аварией. Знак сверяется с диагональю:
+    // VT1+VT4 и VT3+VT2 должны давать разные защёлки.
+    //
     // Галочки ставятся только из ответа прибора (data3 - открытые ключи и
     // флаги), нажатие лишь шлёт команду и красит контрол жёлтым до ACK.
     //-------------------------------------------------------------------
@@ -29,16 +36,20 @@ namespace ICDIBasic.Stepulyov
         private const ushort CmdOn    = 0xA4A4; // войти в тест (и сброс после аварии)
         private const ushort CmdOff   = 0xA2A2; // выйти из теста
         private const ushort CmdState = 0xA0A0; // только спросить состояние
+        private const ushort CmdIlim  = 0xA8A8; // порог первички на время теста, 0.1 А
 
         // Слово состояния в data3 ответа - Bridge_ManualState() в прошивке
         private const ushort StKeys = 0x000F;
         private const ushort StTest = 0x0100;
         private const ushort StTrip = 0x0200;
+        private const int    StSrcShift = 10;   // биты 10..13: какая защёлка компаратора
+        private static readonly string[] SrcNames = { "Iперв+", "Iперв−", "Iвтор+", "Iвтор−" };
         private const ushort LegA   = 0x0003; // VT1 | VT2
         private const ushort LegB   = 0x000C; // VT3 | VT4
 
         private readonly CheckBox[] _keys;
         private ushort _state;
+        private double _tripI;      // ток первички перед аварией, А (data2 ответа)
         private Control _pending;   // ждёт ACK, горит жёлтым
         private ushort _pendingCmd;
         private int _pollDiv;
@@ -56,11 +67,19 @@ namespace ICDIBasic.Stepulyov
             toolTip1.SetToolTip(gbBridge,
                 "Диагональ VT1+VT4 или VT3+VT2 даёт ток через первичку.\n" +
                 "Оба ключа одного плеча открыть нельзя — это сквозной ток.");
+            toolTip1.SetToolTip(nudIlim,
+                "Порог компаратора тока первички на время теста.\n" +
+                "Ставится ниже тока диагонали, чтобы проверить защиту при малом Udc.\n" +
+                "0 — рабочий порог (из Imax). При выходе из теста рабочий возвращается сам.");
+            toolTip1.SetToolTip(lblIlimFact,
+                "Порог, пересчитанный прибором из кодов ЦАП компаратора.\n" +
+                "С заданным расходится на шаг ЦАП и на ограничения диапазона.");
 
             Load += (s, e) =>
             {
                 ApplyState(0, false);
                 Send128(CmdState, 0, 0, Cmd); // вдруг тест остался включённым
+                Send128(CmdIlim, IlimCode(), 0, Cmd); // и узнать действующий порог
                 timerView.Start();
             };
 
@@ -83,9 +102,34 @@ namespace ICDIBasic.Stepulyov
                 _pending = null;
             }
 
+            // data2: на порог - фактический порог, на остальное - ток
+            // первички перед аварией. Оба в 0.1 А со знаком.
+            double a = (short)d2 * 0.1;
+            if (d1 == CmdIlim)
+                lblIlimFact.Text = (nudIlim.Value == 0 ? "рабочий: " : "факт: ") + $@"{a:0.0} А";
+            else
+                _tripI = a;
+
             // Вход в тест не состоялся - мост работает, прибор отказал.
             bool refused = (d1 == CmdOn) && ((d3 & StTest) == 0);
+            bool entered = (d1 == CmdOn) && ((d3 & StTest) != 0) && ((_state & StTest) == 0);
+
             ApplyState(d3, refused);
+
+            // Порог теста прибор помнит, но входом в тест мы его подтверждаем:
+            // ответ покажет, какой порог действует именно сейчас.
+            if (entered)
+                Send(nudIlim, CmdIlim, IlimCode());
+        }
+
+        private ushort IlimCode()
+        {
+            return (ushort)Math.Round(nudIlim.Value * 10);
+        }
+
+        private void nudIlim_ValueChanged(object sender, EventArgs e)
+        {
+            Send(nudIlim, CmdIlim, IlimCode());
         }
 
         private void ApplyState(ushort st, bool refused)
@@ -118,11 +162,23 @@ namespace ICDIBasic.Stepulyov
             else if (!test)
                 lblState.Text = "Тест выключен";
             else if (trip)
-                lblState.Text = "Сработала токовая защита, ключи закрыты. «Сброс» — продолжить.";
+                lblState.Text = $@"Сработала защита: {TripSource(st)}. " +
+                                $@"Ток перед аварией {_tripI:0.0} А. Ключи закрыты, «Сброс» — продолжить.";
             else if ((st & StKeys) == 0)
                 lblState.Text = "Тест включён, все ключи закрыты";
             else
                 lblState.Text = "Тест включён, ключи открыты";
+        }
+
+        private static string TripSource(ushort st)
+        {
+            var names = new System.Collections.Generic.List<string>();
+            for (int i = 0; i < SrcNames.Length; i++)
+                if (((st >> (StSrcShift + i)) & 1) != 0)
+                    names.Add(SrcNames[i]);
+
+            // Защёлки могли снять раньше, чем их прочитал обработчик
+            return names.Count > 0 ? string.Join(", ", names) : "компаратор не определён";
         }
 
         private void Send(Control c, ushort d1, ushort d2)

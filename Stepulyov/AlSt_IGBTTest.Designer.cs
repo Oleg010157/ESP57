@@ -46,9 +46,13 @@ namespace ICDIBasic.Stepulyov
             this.lblIpriName = new System.Windows.Forms.Label();
             this.lblIpri = new System.Windows.Forms.Label();
             this.lblState = new System.Windows.Forms.Label();
+            this.lblIlimName = new System.Windows.Forms.Label();
+            this.nudIlim = new System.Windows.Forms.NumericUpDown();
+            this.lblIlimFact = new System.Windows.Forms.Label();
             this.timerView = new System.Windows.Forms.Timer(this.components);
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.gbBridge.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.nudIlim)).BeginInit();
             this.SuspendLayout();
             //
             // btnTest
@@ -172,11 +176,38 @@ namespace ICDIBasic.Stepulyov
             this.lblIpri.Text = "-";
             this.lblIpri.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             //
+            // lblIlimName
+            //
+            this.lblIlimName.AutoSize = true;
+            this.lblIlimName.Location = new System.Drawing.Point(14, 205);
+            this.lblIlimName.Name = "lblIlimName";
+            this.lblIlimName.Text = "Порог Iперв, А";
+            //
+            // nudIlim
+            //
+            this.nudIlim.DecimalPlaces = 1;
+            this.nudIlim.Increment = new decimal(new int[] { 5, 0, 0, 65536 });
+            this.nudIlim.Location = new System.Drawing.Point(120, 202);
+            this.nudIlim.Maximum = new decimal(new int[] { 3000, 0, 0, 0 });
+            this.nudIlim.Name = "nudIlim";
+            this.nudIlim.Size = new System.Drawing.Size(80, 20);
+            this.nudIlim.TabIndex = 3;
+            this.nudIlim.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.nudIlim.ValueChanged += new System.EventHandler(this.nudIlim_ValueChanged);
+            //
+            // lblIlimFact
+            //
+            this.lblIlimFact.Location = new System.Drawing.Point(14, 228);
+            this.lblIlimFact.Name = "lblIlimFact";
+            this.lblIlimFact.Size = new System.Drawing.Size(186, 16);
+            this.lblIlimFact.Text = "факт: -";
+            this.lblIlimFact.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            //
             // lblState
             //
-            this.lblState.Location = new System.Drawing.Point(12, 202);
+            this.lblState.Location = new System.Drawing.Point(12, 252);
             this.lblState.Name = "lblState";
-            this.lblState.Size = new System.Drawing.Size(196, 44);
+            this.lblState.Size = new System.Drawing.Size(196, 58);
             this.lblState.Text = "Тест выключен";
             //
             // timerView
@@ -188,8 +219,11 @@ namespace ICDIBasic.Stepulyov
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(220, 254);
+            this.ClientSize = new System.Drawing.Size(220, 316);
             this.Controls.Add(this.lblState);
+            this.Controls.Add(this.lblIlimFact);
+            this.Controls.Add(this.nudIlim);
+            this.Controls.Add(this.lblIlimName);
             this.Controls.Add(this.lblIpri);
             this.Controls.Add(this.lblIpriName);
             this.Controls.Add(this.lblUdc);
@@ -202,6 +236,7 @@ namespace ICDIBasic.Stepulyov
             this.Text = "Тест IGBT";
             this.gbBridge.ResumeLayout(false);
             this.gbBridge.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.nudIlim)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -223,6 +258,9 @@ namespace ICDIBasic.Stepulyov
         private Label lblIpriName;
         private Label lblIpri;
         private Label lblState;
+        private Label lblIlimName;
+        private NumericUpDown nudIlim;
+        private Label lblIlimFact;
         private Timer timerView;
         private ToolTip toolTip1;
     }

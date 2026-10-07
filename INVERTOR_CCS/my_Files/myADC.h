@@ -135,5 +135,6 @@ extern uint16_t ControlSum(ADCpar *c);
 extern void     floatKadc();
 void            ADC_SendOffsets(void);
 void            currentLimit(uint16_t Imax);
+float           currentLimitPriActual(void); // фактический порог первички, А
 
 #endif /* ADC_H_ */

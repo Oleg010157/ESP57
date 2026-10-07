@@ -11,6 +11,10 @@
 #include "Motor.h"
 #include "PARAMS_INOUT.h"
 #include "myEPWM.h"
+#include "myADC.h"      // currentLimit
+#include "cla_shared.h" // iPri_amp
+
+extern uint16_t Imax;
 
 static void bridge_manual_release(void);
 
@@ -221,6 +225,8 @@ static void bridge_manual_release(void)
 
     igbt.all      = 0U;
     igbt_manually = 0U;
+
+    currentLimit(Imax); // порог теста снят, компараторы снова на рабочем
 }
 
 uint16_t Bridge_ManualEnable(void)
@@ -229,10 +235,14 @@ uint16_t Bridge_ManualEnable(void)
 
     if (igbt_manually)
     {
-        // Повторный вход - тот же старт: всё закрыто, авария забыта.
+        // Повторный вход - тот же старт: всё закрыто, авария забыта ("Сброс"
+        // в окне теста). Защёлку trip-zone снимаем сразу, не дожидаясь фона:
+        // иначе первая маска после сброса до секунды упиралась бы в неё, и
+        // галочки показывали бы открытые ключи, которых нет.
         s = __disable_interrupts();
         bridge_force(0U);
         igbt_tripped = 0U;
+        TRIP_Clear();
         __restore_interrupts(s);
         return 1U;
     }
@@ -265,6 +275,8 @@ uint16_t Bridge_ManualEnable(void)
 
     igbt_manually = 1U;
     igbt_tripped  = 0U;
+
+    currentLimit(Imax); // с igbt_manually = 1 он ставит порог теста, если задан
 
     // Пины назад на EPWM - уже под форсажем "всё закрыто".
     EALLOW;
@@ -330,15 +342,29 @@ uint16_t Bridge_ManualApply(uint16_t mask)
 // фон снимает раз в секунду (TRIP_Clear), и форсаж открыл бы ключи снова -
 // на тот же ток. Поэтому форсаж в ноль, а дальнейшие маски не исполняются
 // до нового входа в тест.
-void Bridge_ManualTrip(void)
+//
+// src - какие защёлки компараторов подняты (TRIP_SRC_*). Пустой src тоже
+// авария: защёлки уже могли снять. igbt_tripI - последний отсчёт АЦП перед
+// аварией, а не ток срабатывания: компаратор быстрее АЦП, и ток в момент
+// отсечки выше этого отсчёта не больше чем на нарастание за такт АЦП.
+void Bridge_ManualTrip(uint16_t src)
 {
     bridge_force(0U);
-    igbt_tripped = 1U;
+    igbt_tripI   = iPri_amp;
+    igbt_tripped = 0x8000U | (src & 0x000FU);
 }
 
-// Слово состояния для Motor_Control: биты 0..3 - открытые ключи (VT1..VT4),
-// бит 8 - тест включён, бит 9 - тест прерван токовой защитой.
+// Слово состояния для Motor_Control:
+//   биты 0..3   открытые ключи VT1..VT4
+//   бит 8       тест включён
+//   бит 9       тест прерван токовой защитой
+//   биты 10..13 какая защёлка: Iперв+, Iперв-, Iвтор+, Iвтор- (TRIP_SRC_* << 10)
 uint16_t Bridge_ManualState(void)
 {
-    return igbt.all | (igbt_manually ? 0x0100U : 0U) | (igbt_tripped ? 0x0200U : 0U);
+    uint16_t st = igbt.all | (igbt_manually ? 0x0100U : 0U);
+
+    if (igbt_tripped)
+        st |= 0x0200U | ((igbt_tripped & 0x000FU) << 10);
+
+    return st;
 }

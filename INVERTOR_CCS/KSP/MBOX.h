@@ -19,6 +19,7 @@
 #define IGBT_OFF_CMD     0xA2A2U // выйти из теста, мост закрыт
 #define IGBT_OFFALL_CMD  0xA1A1U // то же, код от прежних двух блоков
 #define IGBT_STATE_CMD   0xA0A0U // только ответить состоянием
+#define IGBT_ILIM_CMD    0xA8A8U // порог первички на время теста, data2 в 0.1 А, 0 - рабочий
 
 extern uint16_t Req_336;
 

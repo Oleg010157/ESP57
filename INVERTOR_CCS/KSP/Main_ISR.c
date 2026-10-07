@@ -29,7 +29,9 @@ uint16_t          IsrTicker = 0; // счётчик PWM прерываний
 uint16_t          cTicker   = 0; // счётчик PWM прерываний или периодов при калибровке
 
 uint16_t igbt_manually = 0; // 1 - мост под ручным управлением (тест IGBT)
-uint16_t igbt_tripped  = 0; // 1 - тест прерван токовой защитой
+uint16_t igbt_tripped  = 0; // тест прерван токовой защитой: TRIP_SRC_* | 0x8000
+float    igbt_testIlim = 0.0f; // порог первички на время теста, А; 0 - рабочий
+float    igbt_tripI    = 0.0f; // ток первички перед аварией теста, А
 IGBT igbt;
 
 extern float    Tpwm;          //  период ШИМ в мкс

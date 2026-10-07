@@ -16,6 +16,7 @@
 #include "1ph_Sin.h" // DBG_SIN_DAC
 #include "grid_tie.h" // gt.n - коэффициент трансформации для порога первички
 #include "cla_shared.h"
+#include "myEPWM.h" // igbt_manually, igbt_testIlim - порог теста IGBT
 #include "SPI_EEPROM.h"
 
 
@@ -518,6 +519,13 @@ void currentLimit(uint16_t Imax)
     float ImaxSec = (float)Imax;
     float ImaxPri = ImaxSec * gt.n * currentLimitMagK;
 
+    // Тест IGBT: свой порог первички, чтобы проверить защиту на малом
+    // напряжении, где до рабочего порога ток не дорастёт. Действует, только
+    // пока тест включён; вход и выход из теста зовут эту функцию заново.
+    // Вторичку не трогаем: в тесте контактор разомкнут, тока там нет.
+    if (igbt_manually && (igbt_testIlim > 0.0f))
+        ImaxPri = igbt_testIlim;
+
     long dPri = (long)(ImaxPri / kadcf.iPri); // отклонение порога от нуля, коды
     long dSec = (long)(ImaxSec / kadcf.iSec);
 
@@ -529,6 +537,19 @@ void currentLimit(uint16_t Imax)
 
     Cmpss4Regs.DACHVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.iSec + dSec, 4000, 2048);
     Cmpss4Regs.DACLVALS.bit.DACVAL = (uint16_t)saturlong((long)offsets.iSec - dSec, 2048, 96);
+}
+
+/* Фактический порог защиты первички, А - обратным счётом из кодов ЦАП.
+ * Заданный и фактический расходятся: шаг ЦАП, а главное ограничители
+ * 4000/96 выше. Из двух сторон берётся бОльшая по модулю - защита
+ * гарантированно сработает не позже этого тока любого знака.
+ */
+float currentLimitPriActual(void)
+{
+    long dH = (long)Cmpss2Regs.DACHVALS.bit.DACVAL - (long)offsets.iPri;
+    long dL = (long)offsets.iPri - (long)Cmpss2Regs.DACLVALS.bit.DACVAL;
+
+    return (float)((dH > dL) ? dH : dL) * kadcf.iPri;
 }
 
 

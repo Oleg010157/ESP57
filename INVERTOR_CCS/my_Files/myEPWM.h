@@ -69,14 +69,23 @@ void IGBT1_Disable();
 void IGBT2_Disable();
 void PWM1_On(void);
 void PWM2_On(void);
+// Какая защёлка компаратора подняла аварию (INT_EPWM2_Iu_TZ_ISR).
+// H - превышение в плюс, L - в минус.
+#define TRIP_SRC_IPRI_H 0x0001U // CMPSS2, первичка
+#define TRIP_SRC_IPRI_L 0x0002U
+#define TRIP_SRC_ISEC_H 0x0004U // CMPSS4, вторичка
+#define TRIP_SRC_ISEC_L 0x0008U
+
 uint16_t Bridge_ManualEnable(void);  // 1 - вошли в тест, 0 - мост работает, отказ
 void     Bridge_ManualDisable(void);
 uint16_t Bridge_ManualApply(uint16_t mask); // 1 - исполнено, 0 - сквозная маска, всё закрыто
-void     Bridge_ManualTrip(void);    // из прерывания trip-zone: закрыть ключи теста
+void     Bridge_ManualTrip(uint16_t src);   // из прерывания trip-zone: закрыть ключи теста
 uint16_t Bridge_ManualState(void);   // для ответа в Motor_Control, см. MBOX28.c case 338
 
 extern IGBT     igbt;          // ключи, открытые тестом сейчас
 extern uint16_t igbt_manually; // 1 - мост под ручным управлением (тест IGBT)
-extern uint16_t igbt_tripped;  // 1 - тест прерван токовой защитой, до следующего входа
+extern uint16_t igbt_tripped;  // 0 - аварии не было; иначе TRIP_SRC_* | 0x8000
+extern float    igbt_testIlim; // порог первички на время теста, А; 0 - рабочий (Imax)
+extern float    igbt_tripI;    // ток первички последнего отсчёта перед аварией, А
 extern volatile uint16_t epwmcount;// dbg счётчик для измерения периода прерываний
 extern volatile uint16_t epwmtime;// dbg период прерываний
