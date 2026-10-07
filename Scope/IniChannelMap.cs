@@ -160,8 +160,20 @@ namespace ICDIBasic
         /// <summary>Имя шаблона без расширения.</summary>
         public string Template { get; private set; }
 
-        /// <summary>Сколько вычисляемых каналов пропущено - показываем, а не умалчиваем.</summary>
-        public int Skipped { get { return _calc.Count; } }
+        /// <summary>
+        /// Сколько вычисляемых каналов пропущено - показываем, а не умалчиваем.
+        ///
+        /// Номер отсчёта (@@, @@@) сюда НЕ входит. Это служебная величина самого
+        /// Wscope, она возникает только при проигрывании файла, и на живой ленте
+        /// ей просто неоткуда взяться - пропуск тут ничего не значит. А число
+        /// стоит в строке состояния ради другого: чтобы было видно, что в
+        /// шаблоне есть кривая, которую рисует только Wscope. Со служебными в
+        /// нём оно горело всегда и приучало себя не замечать.
+        /// </summary>
+        public int Skipped { get { return _calc.Count - _service; } }
+
+        /// <summary>Сколько из Calculated - номер отсчёта, см. Skipped.</summary>
+        private int _service;
 
         /// <summary>
         /// Имена вычисляемых каналов, в порядке файла. Мы их не считаем, но в
@@ -394,7 +406,14 @@ namespace ICDIBasic
             {
                 IniChannel ch = ParseCalculated(e[0], e[1]);
 
-                if (ch == null) { _calc.Add(e[0]); continue; }
+                if (ch == null)
+                {
+                    /* В список красных идёт и номер отсчёта - в окне «Каналы» он
+                     * есть и в Wscope, - но в счётчик пропусков нет. */
+                    _calc.Add(e[0]);
+                    if (e[1].Trim().StartsWith("@@")) _service++;
+                    continue;
+                }
 
                 _ch.Add(ch);
             }

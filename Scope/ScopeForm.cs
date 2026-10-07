@@ -89,6 +89,8 @@ namespace ICDIBasic
         /// <summary>Признаки «канал пришёл», снятые с кольца под замком.</summary>
         private bool[] _liveCh = new bool[0];
 
+        /// <summary>«● запись» и сколько она идёт. Пусто - записи нет.</summary>
+        private readonly ToolStripStatusLabel _stRec;
         private readonly ToolStripStatusLabel _stFrame;
         private readonly ToolStripStatusLabel _stTick;
         private readonly ToolStripStatusLabel _stCount;
@@ -317,6 +319,16 @@ namespace ICDIBasic
                 Renderer = new ToolStripSystemRenderer(),
             };
 
+            /* Признак записи - первым и по своей ширине: пока записи нет, он
+             * пустой и места не занимает. */
+            _stRec = new ToolStripStatusLabel
+            {
+                AutoSize = true,
+                ForeColor = Color.FromArgb(190, 30, 30),
+                ToolTipText = "Идёт запись в файл для Wscope. F2 - пуск, Alt+F2 - стоп; " +
+                              "обе клавиши работают и из этого окна",
+            };
+
             _stFrame = NewStatus(260);
             _stTick = NewStatus(120);
             _stCount = NewStatus(140);
@@ -324,7 +336,7 @@ namespace ICDIBasic
             _stHz = NewStatus(150);
 
             var status = new StatusStrip { SizingGrip = true };
-            status.Items.AddRange(new ToolStripItem[] { _stFrame, _stTick, _stCount, _stGaps, _stHz });
+            status.Items.AddRange(new ToolStripItem[] { _stRec, _stFrame, _stTick, _stCount, _stGaps, _stHz });
 
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1100, 640);
@@ -736,6 +748,11 @@ namespace ICDIBasic
             if (++_tickN < 5) return;
             _tickN = 0;
 
+            /* Запись - до всего остального: строка состояния ниже может уйти
+             * раньше (нет шаблона, сбой разбора), а знать, пишется ли файл,
+             * нужно и тогда. */
+            UpdateRec();
+
             /* Набор кадра переключают в главном окне, и узнать об этом можно
              * только посмотрев. Пять раз в секунду - с запасом: переключение
              * делается руками. */
@@ -744,15 +761,32 @@ namespace ICDIBasic
             UpdateStatus();
         }
 
+        private void UpdateRec()
+        {
+            if (!_owner.Recording)
+            {
+                if (_stRec.Text.Length > 0) _stRec.Text = "";
+                return;
+            }
+
+            /* Длительность - потому что длина файла и была поводом отделить
+             * запись от осциллографа: забытая запись растёт молча. */
+            TimeSpan t = DateTime.Now - _owner.RecordingSince;
+            _stRec.Text = "● запись " + (int)t.TotalMinutes + ":" + t.Seconds.ToString("00");
+        }
+
         private void UpdateStatus()
         {
             Source src = _src;
 
             if (_broken)
             {
-                /* Запись ленты в файл при этом идёт - это надо сказать прямо,
-                 * иначе отключившийся осциллограф выглядит как сорванный опыт. */
-                _stFrame.Text = "осциллограф отключён, запись идёт";
+                /* Сбой разбора выключает только картинку: запись в файл, если
+                 * она идёт, цела - Feed стоит до ProcessFrame103 и ошибку туда
+                 * не пропускает. Идёт ли она, показывает признак слева. Раньше
+                 * здесь было «запись идёт» безусловно - с тех пор как лента и
+                 * запись разделены, это бывало неправдой. */
+                _stFrame.Text = "осциллограф отключён, приём цел";
                 _stFrame.ForeColor = Color.FromArgb(170, 40, 40);
                 _stFrame.ToolTipText = _brokenWhy;
                 return;
@@ -854,6 +888,26 @@ namespace ICDIBasic
                 _chButtons[i].Enabled = has;
                 if (!has && _chButtons[i].Checked) _chButtons[i].Checked = false;
             }
+        }
+
+        /// <summary>
+        /// F2 и Alt+F2 - глобальные: запись в файл пускается и останавливается
+        /// и отсюда, не только из главного окна.
+        ///
+        /// ProcessCmdKey, а не KeyDown с KeyPreview: сюда клавиша приходит при
+        /// любом фокусе - на графике, в поле уровня, в выпадающем списке, - и
+        /// Alt+F2 тоже (WM_SYSKEYDOWN идёт тем же путём).
+        ///
+        /// Передаём ТОЛЬКО эти две. Весь BControl сюда не годится, хотя главное
+        /// окно так подключает окно F9: пробел здесь ставит метку курсора, а
+        /// там - маркер в файле записи, и одно нажатие сделало бы оба.
+        /// </summary>
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == Keys.F2) { _owner.RecStart(); UpdateRec(); return true; }
+            if (keyData == (Keys.F2 | Keys.Alt)) { _owner.RecStop(); UpdateRec(); return true; }
+
+            return base.ProcessCmdKey(ref msg, keyData);
         }
 
         protected override void OnFormClosed(FormClosedEventArgs e)

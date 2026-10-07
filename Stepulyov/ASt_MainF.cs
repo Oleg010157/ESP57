@@ -382,35 +382,63 @@ namespace ICDIBasic
 
         #endregion
 
+        #region Запись по F2 / Alt+F2
+
+        /*
+         * Вынесены из BControl, потому что клавиши ГЛОБАЛЬНЫЕ: те же F2 и Alt+F2
+         * работают и из окна осциллографа (ScopeForm.ProcessCmdKey). Смотрят на
+         * форму тока именно там, и тянуться за фокусом в главное окно, чтобы
+         * начать запись, - лишнее движение в самый неподходящий момент.
+         */
+
+        /// <summary>F2: пуск записи в файл. Лента пускается, если её ещё нет.</summary>
+        public void RecStart()
+        {
+            if (!_rden || spl_running) return;
+
+            probel_markerCnt = 0;
+            pbMainKadr.Visible = pbMainKadr.Enabled = true;
+
+            // F2 - ТОЛЬКО ЗАПИСЬ. Лента нужна ей как источник, поэтому просим её
+            // здесь; если её уже пустило окно осциллографа, команда прибору
+            // второй раз не уйдёт.
+            TapeStart();
+
+            F60GetData();
+            spl_Start();
+        }
+
+        /// <summary>Alt+F2: останов записи. Лента остаётся, если её просит осциллограф.</summary>
+        public void RecStop()
+        {
+            // Гасить картинку за компанию незачем.
+            spl_Stop();
+            TapeRelease();
+        }
+
+        /// <summary>
+        /// Идёт ли запись в файл. Нужно окну осциллографа: признак записи в
+        /// главном окне - крутящийся значок, а его как раз закрывает Scope.
+        /// </summary>
+        public bool Recording { get { return spl_running; } }
+
+        /// <summary>Когда запись началась. Смысл имеет, только пока Recording.</summary>
+        public DateTime RecordingSince { get; private set; }
+
+        #endregion
+
         private void BControl(object sender, KeyEventArgs e)
         {
 
             if (e.KeyCode == Keys.F2 && !e.Alt && _rden)
             {
                 e.SuppressKeyPress = true;
-
-                if (!spl_running)
-                {
-                    probel_markerCnt = 0;
-                    pbMainKadr.Visible = pbMainKadr.Enabled = true;
-
-                    // F2 - ТОЛЬКО ЗАПИСЬ. Лента нужна ей как источник, поэтому
-                    // просим её здесь; если её уже пустило окно осциллографа,
-                    // команда прибору второй раз не уйдёт.
-                    TapeStart();
-
-                    F60GetData();
-                    spl_Start();
-                }
+                RecStart();
             }
             if (e.KeyCode == Keys.F2 && e.Alt)
             {
                 e.SuppressKeyPress = true;
-
-                // Alt+F2 - ТОЛЬКО ЗАПИСЬ. Лента остаётся, если на неё смотрит
-                // осциллограф: гасить картинку за компанию незачем.
-                spl_Stop();
-                TapeRelease();
+                RecStop();
             }
 
             //  Запуск быстрого  кадра F3 по CANB
@@ -610,7 +638,8 @@ namespace ICDIBasic
                 // день: "26.10.04" выглядело как 26 октября вместо 4 октября
                 // 2026. Год четырьмя цифрами, чтобы спутать его с днём было
                 // нельзя даже в принципе.
-                spl_StartTime = DateTime.Now.ToString("dd.MM.yyyy_HH.mm.ss");
+                RecordingSince = DateTime.Now;
+                spl_StartTime = RecordingSince.ToString("dd.MM.yyyy_HH.mm.ss");
                 spl_tmp = spl_Dir + spl_StartTime + ".tmpm";
                 Spl_Hdr(FrlM, GetSplInfo(), F2Kadr_IniFileName, spl_tmp);
 
