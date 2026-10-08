@@ -183,8 +183,8 @@ void MCAN_initTxBuffer(uint16_t bufNum, uint16_t msgId, uint16_t dlc, uint16_t b
 // (ACK, 131, 132, fast) по-прежнему шлются с DLC=8, просто занимают 64-байтные слоты.
 //
 // Медленная телеметрия консолидирована в компактный кадр ID 140:
-// 24 слова = 48 байт -> DLC=14 (FD+BRS), буфер 2. Было 32 байта (DLC=13),
-// расширен 21.09.2026 под измеренную частоту сети - слова 17..23 в резерве.
+// 32 слова = 64 байта -> DLC=15 (FD+BRS), буфер 2. Было 32 байта (DLC=13),
+// 21.09.2026 стало 48 (DLC=14) под частоту сети, 08.10.2026 - 64 под запас по m.
 // Заполняется в send_REF_kadr() (REF_Kadr.c) и разбирается в UI (Parse140).
 //
 // Приоритет M_CAN = по наименьшему Message ID. ACK=1 (высший), fast=103/104/110, ошибки=131/132,
@@ -198,7 +198,7 @@ void MCAN_initAllTxBuffers(void)
                                                   // F3_invertor=24б(DLC12),
                                                   // F3_convertor=32б(DLC13).
                                                   // DLC переключается в MBOX28 (MCAN_setFastDLC).
-    MCAN_initTxBuffer(  2, 140,    14,   1,   1);  //  REF кадр (48 байт)
+    MCAN_initTxBuffer(  2, 140,    15,   1,   1);  //  REF кадр (64 байта)
     MCAN_initTxBuffer(  3, 131,     8,   1,   1);  // Kadr60: K60cnt
     MCAN_initTxBuffer(  4, 132,     8,   1,   1);  // Errors/main
 }

@@ -3004,7 +3004,7 @@
             this.Vd1_name.Name = "Vd1_name";
             this.Vd1_name.Size = new System.Drawing.Size(52, 28);
             this.Vd1_name.TabIndex = 220;
-            this.Vd1_name.Text = "Udc";
+            this.Vd1_name.Text = "m";
             this.Vd1_name.DoubleClick += new System.EventHandler(this.Vd1_name_DoubleClick);
             // 
             // panel13

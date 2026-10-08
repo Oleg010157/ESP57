@@ -210,6 +210,8 @@ void grid_tie_init(void)
     gt.satCount  = 0;
     gt.satLimit  = 10; // из 100 тактов периода
     gt.satLast   = 0;
+    gt.mPeakCur  = 0.0f;
+    gt.mPeak     = 0.0f;
     gt.gainSat   = 0;
     gt.syncBad   = 0;
     gt.noGrid    = 0;
@@ -683,6 +685,10 @@ void grid_tie_step(void)
         float denom = gt.n * gt.Udc;
         gt.m        = (denom > 1.0f) ? (gt.uSec / denom + mDC) : 0.0f;
 
+        // Пик запроса за период - до клампа, см. mPeak в grid_tie.h
+        if (fabsf(gt.m) > gt.mPeakCur)
+            gt.mPeakCur = fabsf(gt.m);
+
         if ((gt.m > gt.mMax) || (gt.m < -gt.mMax))
         {
             gt.m = (gt.m > 0.0f) ? gt.mMax : -gt.mMax;
@@ -872,6 +878,9 @@ void grid_tie_onGridZero(void)
     //-----------------------------------------------------------------
     gt.satLast  = gt.satCount;
     gt.satCount = 0;
+
+    gt.mPeak    = gt.mPeakCur;
+    gt.mPeakCur = 0.0f;
 
     //-----------------------------------------------------------------
     // Уход из сети обратно в слежение.
