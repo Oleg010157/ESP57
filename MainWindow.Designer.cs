@@ -3002,7 +3002,7 @@
             this.Vd1_name.ForeColor = System.Drawing.Color.Brown;
             this.Vd1_name.Location = new System.Drawing.Point(183, 465);
             this.Vd1_name.Name = "Vd1_name";
-            this.Vd1_name.Size = new System.Drawing.Size(52, 28);
+            this.Vd1_name.Size = new System.Drawing.Size(32, 28);
             this.Vd1_name.TabIndex = 220;
             this.Vd1_name.Text = "m";
             // 
