@@ -836,9 +836,8 @@ namespace ICDIBasic
             toolTip1.SetToolTip(Ucor_Text, hintUcor);
             toolTip1.SetToolTip(Ucor_value, hintUcor);
 
-            // Подсказка к "m" висит на слоте всегда, хотя двойной щелчок
-            // перебирает в нём Vd/uVd: у однофазного моста их не бывает, и
-            // подпись почти всегда "m".
+            // Слот Vd у M1 насовсем отдан "m" - двойной щелчок по подписи его
+            // не перебирает, так что подсказка одна и ставится один раз.
             string hintM =
                 "Запас по индексу модуляции, кадр 140, слова 24-25.\n\n" +
                 "Число - пик |m| за период сети: сколько контур ПРОСИЛ,\n" +
@@ -4188,25 +4187,19 @@ namespace ICDIBasic
             Iq_Name_switch(M2);
         }
         //------------------------------------------------------------------------------------------------------
-        private void Vd1_name_DoubleClick(object sender, EventArgs e)
-        {
-            Vd_name_Change(M1);
-        }
-
         private void Vd2_name_DoubleClick(object sender, EventArgs e)
         {
             Vd_name_Change(M2);
         }
 
+        // Только для M2, как и Vq_name_Change: у M1 этот слот насовсем отдан
+        // запасу по индексу модуляции и всегда показывает m, см. Vd_view.
         private void Vd_name_Change(Motor m)
         {
             switch (m.Vd_Name.Text)
             {
                 case @"Vd":
                     m.Vd_Name.Text = @"uVd";
-                    break;
-                case @"uVd":
-                    m.Vd_Name.Text = m == M1 ? @"m" : @"Vd";
                     break;
                 default:
                     m.Vd_Name.Text = @"Vd";
