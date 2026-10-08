@@ -289,8 +289,8 @@ namespace ICDIBasic
         public static double iPriAv = 0;    // средний ток первички за период, А
         public static double uDCcomp = 0;   // поправка постоянки, приведённая к Вольтам
 
-        public static double gtIset = 0;    // сетевой режим: что реально отдаём, Ампер
-        public static double gtIsetRef = 0; // туда идёт рампа: уставка тока в сеть, Ампер
+        public static double gtIset = 0;    // сетевой режим: что реально отдаём (поле Iset), А rms
+        public static double gtIsetRef = 0; // туда идёт рампа: уставка (движок Iref), А rms
         public static ushort gtState = 0;   // автомат подключения: 0 OFF, 1 SYNC, 2 RAMP, 3 RUN, 4 FAULT
         public static ushort gtFault = 0;   // код последней аварии сетевого режима
         public static ushort sineGain = 0;  // sineB.gain - амплитуда синуса в кодах

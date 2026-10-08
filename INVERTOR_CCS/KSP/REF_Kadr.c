@@ -115,7 +115,7 @@ void send_REF_kadr()
     // Состояние автомата и код аварии - в одном слове: оба помещаются в байт,
     // а свободных слов в кадре нет.
     tele[10] = (uint16_t)(gt.State | (gt.fault << 8));
-    tele[11] = rounding(gt.Iset * 100.0f); // что реально отдаём, 0.01 А
+    tele[11] = rounding(gt.Iset * 100.0f); // что реально отдаём, 0.01 А rms
     tele[12] = rounding(sineB.gain);
     tele[13] = teleSel;
     tele[14] = motors[0]->flag.all;

@@ -111,7 +111,7 @@ void grid_tie_init(void)
 
     gt.IsetRef  = 0.0f;
     gt.Iset     = 0.0f;
-    gt.IsetSlew = 0.1f; // А за период сети: с нуля до 5 А за секунду
+    gt.IsetSlew = 0.1f; // А rms за период сети: с нуля до 5 А rms за секунду
     gt.Iq       = 0.0f;
 
     gt.u220Zero = 2048.0f; // до первого захвата; дальше - середина вилки
@@ -660,9 +660,12 @@ void grid_tie_step(void)
             // Берём ДО приращения, как это делает sine_invertor1().
             float theta = sineB.angle + sineB.offset;
 
+            // Уставки в действующих (см. IsetRef в grid_tie.h), а iref -
+            // мгновенный ток, поэтому sqrt2 ровно здесь и больше нигде.
             gt.iref = gt.Iset * sinf(theta);
             if (gt.Iq != 0.0f)
                 gt.iref += gt.Iq * cosf(theta);
+            gt.iref *= 1.41421356f;
 
             gt.ierr = gt.iref - iSec_amp;
             gt.uerr = 0.0f;

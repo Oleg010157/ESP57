@@ -1053,7 +1053,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             SendAck(gt.gridEn, data2, gt.State, cmd);
             break;
 
-        case 632: // IsetRef, 0.01 А (амплитуда тока в сеть)
+        case 632: // IsetRef, 0.01 А rms (ток в сеть; до 08.10.2026 - амплитуда)
             if (data2 == 3333)
                 gt.IsetRef = (float)data1 * 0.01f;
             SendAck((uint16_t)(gt.IsetRef * 100.0f + 0.5f), data2, data3, cmd);
