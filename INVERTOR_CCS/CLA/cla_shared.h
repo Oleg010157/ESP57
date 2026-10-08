@@ -239,6 +239,7 @@ extern uint16_t       u220_kod;  // сырой код, 0..4095
 extern float          u220amp;   // амплитуда сети в кодах (полураствор вилки)
 extern float          u220_volt; // В, мгновенное; ноль - середина вилки
 extern volatile float u220_rms;  // В rms за период сети
+extern volatile float u220_av;   // коды, среднее за окно - ноль канала
 
 // 5. uBat - напряжение АКБ, оно же напряжение звена на входе моста.
 //    A4, ADCA SOC1/PPB2, масштаб kadcf.uBat. Пишет CLA.
