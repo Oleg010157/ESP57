@@ -250,8 +250,9 @@ static void tele_freeze_on_fault(uint16_t tele[32])
     static uint16_t valid = 0;
 
     // Измеренные слова, которые в аварии показываются на её момент
+    // (24..25 сюда не входят - их защёлкивает сама авария, см. ниже)
     static const uint16_t frozen[] = {4, 5, 6, 7, 8, 11, 12, 13, 16,
-                                      17, 18, 19, 20, 21, 22, 24, 25};
+                                      17, 18, 19, 20, 21, 22};
     uint16_t i;
 
     if (gt.State != GT_FAULT)
@@ -263,11 +264,17 @@ static void tele_freeze_on_fault(uint16_t tele[32])
     }
 
     // Авария с первого же кадра после старта - показывать нечего, идёт как есть
-    if (!valid)
-        return;
+    if (valid)
+    {
+        for (i = 0; i < sizeof(frozen) / sizeof(frozen[0]); i++)
+            tele[frozen[i]] = last[frozen[i]];
+    }
 
-    for (i = 0; i < sizeof(frozen) / sizeof(frozen[0]); i++)
-        tele[frozen[i]] = last[frozen[i]];
+    // Запас по m - не из последнего кадра, а защёлкнутый самой аварией:
+    // кадр идёт раз в 50 мс, упор раскручивается быстрее. См. faultMPeak
+    // в grid_tie.h.
+    tele[24] = rounding(gt.faultMPeak * 10000.0f);
+    tele[25] = gt.faultSat;
 }
 
 

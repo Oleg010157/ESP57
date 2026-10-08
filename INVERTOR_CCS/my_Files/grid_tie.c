@@ -212,6 +212,8 @@ void grid_tie_init(void)
     gt.satLast   = 0;
     gt.mPeakCur  = 0.0f;
     gt.mPeak     = 0.0f;
+    gt.faultMPeak = 0.0f;
+    gt.faultSat   = 0;
     gt.gainSat   = 0;
     gt.syncBad   = 0;
     gt.noGrid    = 0;
@@ -288,6 +290,14 @@ void grid_tie_fault(uint16_t code)
     {
         gt.fault    = code;
         gt.faultNew = 1;
+
+        // Запас по m на момент аварии - см. faultMPeak в grid_tie.h. Авария
+        // 64 приходит из grid_tie_onGridZero() сразу после публикации
+        // mPeak/satLast, то есть это ровно тот период, что её вызвал. Прочие
+        // аварии бывают посреди периода - тогда берём худшее из прошлого
+        // периода и уже набранной части текущего.
+        gt.faultMPeak = (gt.mPeakCur > gt.mPeak) ? gt.mPeakCur : gt.mPeak;
+        gt.faultSat   = (gt.satCount > gt.satLast) ? gt.satCount : gt.satLast;
     }
     gt.State       = GT_FAULT;
     gt.Iset        = 0.0f;
