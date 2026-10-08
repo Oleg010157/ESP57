@@ -609,9 +609,20 @@ void grid_tie_step(void)
             grid_tie_fault(gt_noGrid);
     }
 
+    // Ключи открыты? Нужно и защитам ниже, и контуру в разделе 2.
+    uint16_t keysOn = motors[0]->flag.bit.pwm_On;
+
     if (gt.State == GT_RAMP || gt.State == GT_RUN)
     {
-        if (fabsf(iPri_amp) > gt.ImaxPri)
+        // Ключи закрыли при замкнутом контакторе - оператор кнопкой питания
+        // или компараторная защита (у неё своя индикация, здесь только
+        // следствие). Отдельный код, а не молчаливый уход в слежение, -
+        // решение пользователя 08.10.2026. До того контур тока при закрытых
+        // ключах за период упирался в m и приходила авария 64, сбивавшая с
+        // толку: про запас по напряжению она тут ничего не говорит.
+        if (!keysOn)
+            grid_tie_fault(gt_keysOff);
+        else if (fabsf(iPri_amp) > gt.ImaxPri)
             grid_tie_fault(gt_overIpri);
         else if (fabsf(iSec_amp) > gt.ImaxSec)
             grid_tie_fault(gt_overIsec);
@@ -645,9 +656,8 @@ void grid_tie_step(void)
     // контур тока получал в наследство эти 100 В: m = 1.2 с первого периода
     // и авария 64. Теперь при закрытых ключах слежение стоит: контур не
     // считается, интегратор держится в нуле, синхронизм не набирается (см.
-    // GT_SYNC в grid_tie_onGridZero()).
-    uint16_t keysOn = motors[0]->flag.bit.pwm_On;
-
+    // GT_SYNC в grid_tie_onGridZero()). В сети закрытые ключи - авария
+    // gt_keysOff, см. защиты выше.
     if ((gt.State == GT_SYNC && keysOn) || gt.State == GT_RAMP || gt.State == GT_RUN)
     {
         struct PRreg *p;
