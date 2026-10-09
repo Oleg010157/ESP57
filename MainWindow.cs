@@ -59,9 +59,9 @@ namespace ICDIBasic
             //       KVU_switch.BackColor = Color.Yellow;
 
 
+            // Load1 здесь не трогаем: у него один режим, Iзад (см. инициализацию).
             if (Separate_cbox.Checked)
             {
-                Load1_ModeH.Text = @"RPM";
                 Load2_ModeH.Text = @"RPM";
                 Tbar_speed.Enabled = false;
                 NUD_RPM.Enabled = false;
@@ -69,7 +69,6 @@ namespace ICDIBasic
             }
             else
             {
-                Load1_ModeH.Text = @"S abs";
                 Load2_ModeH.Text = @"S abs";
                 Tbar_speed.Enabled = true;
                 NUD_RPM.Enabled = true;
@@ -775,7 +774,26 @@ namespace ICDIBasic
 
             M1.load.Adjust = _tblLoad1;
             M1.load.modeL.Text = Settings.Default.load1_Ltext;
-            M1.load.modeH.Text = Settings.Default.load1_Htext;
+
+            // Load1 у однофазного моста - ТОЛЬКО уставка тока в сеть (09.10.2026).
+            // Моторные режимы (скольжение, Iq, gain, RPM) и нижняя кнопка
+            // RPM/Поле слали команду 73, а та писала motors[0]->ref.sAbs, которого
+            // в прошивке инвертора никто не читает. Подпись из настроек больше не
+            // берётся: там может лежать "S abs" или прежнее "IsetRef".
+            //
+            // Симметрия Load1 -> Load2 снята с тем же основанием: копировать
+            // уставку тока во второй движок незачем, а Copy_NT заодно перенёс бы
+            // туда и команду 632. Галка скрыта и выключена - этим глохнут сразу
+            // все места, где она копирует.
+            Load1_ModeL.Visible = false;
+            Load_Sym.Checked = false;
+            Load_Sym.Visible = false;
+            toolTip1.SetToolTip(Load1_ModeH,
+                "IsetRef - уставка тока в сеть, А rms (gt.IsetRef, команда 632).\n" +
+                "Куда идёт рампа: поле Iset на панели догоняет это число\n" +
+                "шагами IsetSlew раз за период сети.\n" +
+                "Задать можно и в АИН - применится, когда мост выйдет в сеть.");
+            M1.load.modeH.Text = LoadIsetRef;
             //--------------------------------------------------------------
             M1.AIN = groupBox_AIN1;
 
@@ -2883,7 +2901,7 @@ namespace ICDIBasic
                     GridEn_Ack(d1);
                     break;
 
-                case 632: // уставка тока в сеть, А rms - движок Load1 в режиме IsetRef
+                case 632: // уставка тока в сеть, А rms - движок Load1 (Iзад)
                     NUD_Load1.ValueChanged -= NUD_Load1_ValueChanged;
                     Tbar_Load1.ValueChanged -= Tbar_Load1_ValueChanged;
                     ccs_To_NUD(M1.load, d1, d2, d3);
@@ -4075,12 +4093,12 @@ namespace ICDIBasic
                         "Действующее значение - сравнивается с Isec напрямую.\n" +
                         "Двойной щелчок переключает слот.\n" +
                         "\n" +
-                        "10.00     - одно число: доехали, Iset = IsetRef.\n" +
-                        "2.4→10.0  - пара: слева Iset, справа уставка IsetRef.\n" +
+                        "10.00     - одно число: доехали, Iset = Iзад.\n" +
+                        "2.4→10.0  - пара: слева Iset, справа уставка Iзад.\n" +
                         "            Идёт рампа, числа ещё не сошлись.\n" +
                         "\n" +
                         "Ни то, ни другое НЕ измерение - это уставки. Правое\n" +
-                        "число ставите вы движком Load1 с подписью IsetRef\n" +
+                        "число ставите вы движком Load1 с подписью Iзад\n" +
                         "(команда 632, gt.IsetRef), левое - сколько из него\n" +
                         "разрешила рампа прямо сейчас (gt.Iset). Измеренный\n" +
                         "ток в сеть - в поле Isec, и в работе он равен Iset.\n" +
@@ -4372,11 +4390,11 @@ namespace ICDIBasic
                 // Предел 17.7 А rms - прежние 25 А амплитуды через sqrt2, то
                 // есть ровно тот же физический ток. Согласовать его с защитами
                 // решено позже, на железе.
-                // Подпись IsetRef - имя поля в прошивке (gt.IsetRef) и канала в
-                // ленте F3_grid. До 09.10.2026 была Iref, и в ленте это имя
-                // столкнулось бы с мгновенным заданием iRef: Wscope и
-                // осциллограф регистр в именах не различают.
-                case @"IsetRef":
+                // Подпись "Iзад", полное имя IsetRef - в подсказке: так зовутся
+                // поле в прошивке (gt.IsetRef) и канал в ленте F3_grid. Прежняя
+                // подпись Iref столкнулась бы в ленте с мгновенным заданием iRef:
+                // Wscope и осциллограф регистр в именах не различают.
+                case LoadIsetRef:
                     x.cmd = CmdIsetRef;
                     x.modeH_kod = 0;
                     x.kNT = 100;
@@ -4400,7 +4418,7 @@ namespace ICDIBasic
 
             // См. такой же хвост в Gain_Mode_Refresh: команда - поле NT,
             // и уход из инверторного режима должен её вернуть.
-            if (up.Text != @"IsetRef")
+            if (up.Text != LoadIsetRef)
                 x.cmd = m == M1 ? (ushort)73 : (ushort)77;
         }
 
@@ -4614,7 +4632,7 @@ else
 
         private void Load1_ModeH_Click(object sender, EventArgs e)
         {
-            Load_ModeH_Switch(M1); // меняет текст верхней кнопки
+            // Режим у Load1 один - Iзад, перебирать нечего. См. инициализацию.
         }
 
 

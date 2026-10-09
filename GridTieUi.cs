@@ -15,6 +15,10 @@ namespace ICDIBasic
         public const ushort CmdGridMode = 630;  // режим моста: АИН / слежение / сеть
         public const ushort CmdIsetRef = 632;
         public const ushort CmdUrefRms = 633;
+
+        // Подпись единственного режима движка Load1 - уставка тока в сеть. Она
+        // же ключ режима в Load_Mode_Refresh, поэтому строка в одном месте.
+        private const string LoadIsetRef = "Iзад";
         public const ushort CmdTeleSel = 634;
         public const ushort CmdGridEn = 635;    // разрешение выхода в сеть
         public const ushort CmdGridFreq = 624;
@@ -31,7 +35,7 @@ namespace ICDIBasic
         private static readonly string[] GtStateName = { "OFF", "SYNC", "RAMP", "RUN", "FAULT" };
 
         // Последние посланные уставки: движок Gain1 в режиме Uref и Load1
-        // в режиме IsetRef. Обратно из прибора они не приходят - в кадре 140 под
+        // (Iзад). Обратно из прибора они не приходят - в кадре 140 под
         // них нет слова, а ответ на команду 632/633 разбирают только окна
         // таблиц. Пишет Tbar_Send, читает *_Mode_Refresh.
         private decimal _urefSet = 220m;
@@ -200,7 +204,7 @@ namespace ICDIBasic
                 "на одну уставку, они ведут друг друга.\n" +
                 "\n" +
                 "Действует только в АИН: в слежении и в сети амплитуду ведёт\n" +
-                "сеть, а мост отдаёт ток (уставка IsetRef на движке Load1).\n" +
+                "сеть, а мост отдаёт ток (уставка Iзад на движке Load1).\n" +
                 "\n" +
                 "Шаг 0.1 В - ровно единица команды прибора, мельче он не умеет.";
 
@@ -279,7 +283,7 @@ namespace ICDIBasic
         private void GridSetpoint_Zero()
         {
             if (M1.gain.modeH.Text == @"Uref") M1.gain.tbar.Value = 0;
-            if (M1.load.modeH.Text == @"IsetRef") M1.load.tbar.Value = 0;
+            M1.load.tbar.Value = 0; // Load1 всегда Iзад
         }
 
         //-------------------------------------------------------------------
@@ -312,9 +316,10 @@ namespace ICDIBasic
             // частоту, в остальных режимах возвращается к оборотам.
             SpeedSlider_ToFreq(_mode == GridModeOff);
 
-            // Движок под уставку этого режима: Uref на Gain1, IsetRef на Load1.
-            // Иначе на панели остался бы движок от прошлого режима, шлющий
-            // не ту команду.
+            // Движок под уставку этого режима: Uref на Gain1. Иначе на панели
+            // остался бы движок от прошлого режима, шлющий не ту команду.
+            // Load1 подменять не нужно - он всегда Iзад; обновляем его, чтобы
+            // уставка ушла в прибор заново при выходе в сеть.
             if (_mode == GridModeOff)
             {
                 M1.gain.modeL.Text = @"U";
@@ -323,7 +328,6 @@ namespace ICDIBasic
             }
             else
             {
-                M1.load.modeH.Text = @"IsetRef";
                 Load_Mode_Refresh(M1);
             }
         }
@@ -557,8 +561,8 @@ namespace ICDIBasic
         // через ccs_To_NUD. Городить рядом вторую такую пару ради частоты
         // незачем - у моста оборотов нет, и в АИН движок всё равно простаивает.
         //
-        // Подменяется он ТОЛЬКО в АИН, как Gain1 подменяется под Uref, а Load1
-        // под IsetRef в GridMode_Ack. В слежении и в сети частоту диктует сеть,
+        // Подменяется он ТОЛЬКО в АИН, как Gain1 подменяется под Uref в
+        // GridMode_Ack. В слежении и в сети частоту диктует сеть,
         // и движок возвращается к оборотам вместе с прежним диапазоном.
         //
         // Поле nudGridFreq на панели моста остаётся - это одно и то же число в
