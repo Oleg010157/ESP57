@@ -1339,6 +1339,7 @@ namespace ICDIBasic
             slipMax_send(SlipMax_Value2);
             SpeedRef_send();
             tKadr60_send();
+            TapeSync(); // лента, брошенная прошлым экземпляром программы
             DG_send(DG2, 61);
 
             Imax_Send();
