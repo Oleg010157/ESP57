@@ -768,7 +768,7 @@ __interrupt void INT_myADCB_1_ISR(void)
            f[7]  = tel_i16(10.0f * uSec_volt);      // 0.1 В   получено на выходе
            f[8]  = tel_i16(10000.0f * gt.m);        // 1e-4    после упора
            f[9]  = tel_i16(100000.0f * mDC);        // 1e-5
-           f[10] = tel_i16(10.0f * gt.Udc);         // 0.1 В   НА ЧТО ДЕЛИТ контур
+           f[10] = tel_i16(100.0f * gt.IsetRef);    // 0.01 А  rms, уставка: движок IsetRef
            f[11] = tel_i16(100.0f * gt.Iset);       // 0.01 А  rms, где сейчас рампа
            f[12] = tel_i16(100.0f * iPri_amp);      // 0.01 А
            f[13] = tel_i16(10000.0f * phaseErr);    // 1e-4
