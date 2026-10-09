@@ -316,9 +316,17 @@ extern volatile uint16_t gtCmd;
 // Как смотреть - grid_tie.txt, раздел 6.1.
 //---------------------------------------------------------------------------
 #define GT_TRC_LEN 200 // два периода сети при sineB.resolution = 100
+#define GT_TRC_PRE 50  // снимок: тактов до события, 10 мс; после - остальные 150
 
-extern uint16_t gtTrcRun; // 0 = стоп, 1 = по кругу, 2 = однократный снимок
-extern uint16_t gtTrcIdx;
+extern uint16_t          gtTrcRun;  // 0 = стоп, 1 = по кругу, 2 = снимок по событию
+extern uint16_t          gtTrcIdx;  // куда пишется следующий отсчёт
+extern uint16_t          gtTrcLeft; // снимок: сколько дописать после события, 0 = ждём
+extern volatile uint16_t gtTrcDone; // снимок записан, фон его переставляет
+extern uint16_t          gtTrcWhy;  // чем запущен последний снимок, биты ниже
+
+#define GT_TRC_WHY_STATE 1 // смена gt.State, авария тоже
+#define GT_TRC_WHY_ISET  2 // смена gt.Iset - ток пошёл к новой уставке
+#define GT_TRC_WHY_IQ    4 // смена gt.Iq
 extern float    gtTrcIref[GT_TRC_LEN]; // заданный мгновенный ток, А
 extern float    gtTrcIb[GT_TRC_LEN];   // измеренный ток вторички, А
 extern float    gtTrcIa[GT_TRC_LEN];   // измеренный ток первички, А
