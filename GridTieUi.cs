@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Globalization;
 using System.Windows.Forms;
 using FlagMask; // mflag.pwm_On - бит ключей в слове 14 кадра 140
 
@@ -550,6 +551,101 @@ namespace ICDIBasic
                 nudGridUref.BackColor = Color.Empty;
                 nudGridUref.ForeColor = Color.Green;
             }
+        }
+
+        //-------------------------------------------------------------------
+        // Поле "Рампа" под движком Iзад - gt.IsetSlew, скорость, с которой Iset
+        // догоняет уставку. Бывшее S_max (предел скольжения, команда 50): то же
+        // поле SlipMax_Value, обработчики переподключены в Slew_Init, а второе,
+        // SlipMax_Value2 под Load2, осталось при своих.
+        //
+        // Прибор держит шаг за период сети в 0.01 А rms (команда 644, строка
+        // IsetSlew_x100 в GridTie.ini), оператору понятнее А/с. Пересчёт по
+        // 50 Гц: единица прибора - 0.5 А/с, отсюда и шаг поля. При 49..51 Гц
+        // настоящая скорость отличается на 2 % - для рампы это ничего.
+        //
+        // В программе значение не хранится: при подключении поле ЧИТАЕТ прибор
+        // и до ответа пустое. Прибор после сброса ставит 0.10 А за период, то
+        // есть 5 А/с, и поле обязано показать именно это, а не прошлую сессию.
+        //-------------------------------------------------------------------
+        public const ushort CmdIsetSlew = 644;
+        private const decimal SlewPerUnit = 0.5m; // А/с на единицу команды, 50 Гц
+        private const ushort SlewUnitsMax = 5000; // предел строки IsetSlew_x100
+
+        private ushort _slewSent; // что ушло последней записью, единицы прибора
+
+        private void Slew_Init()
+        {
+            const string hint =
+                "Рампа уставки тока, А rms в секунду (gt.IsetSlew, команда 644).\n" +
+                "С этой скоростью Iset догоняет Iзад - в обе стороны.\n" +
+                "\n" +
+                "Прибор шагает раз за период сети, по 0.01 А: шаг поля 0.5 А/с.\n" +
+                "5 - плавно, как после сброса прибора. 2500 - скачок за период,\n" +
+                "для снятия отклика контура на ступеньку.\n" +
+                "\n" +
+                "Enter - записать в прибор, уход из поля - перечитать.";
+
+            Sabs_max1.Text = @"Рампа";
+            toolTip1.SetToolTip(Sabs_max1, hint);
+            toolTip1.SetToolTip(SlipMax_Value, hint);
+
+            SlipMax_Value.Leave -= SlipMax_Value_Leave;
+            SlipMax_Value.KeyUp -= SlipMax_Value_KeyUp;
+            SlipMax_Value.Leave += Slew_Leave;
+            SlipMax_Value.KeyUp += Slew_KeyUp;
+
+            SlipMax_Value.Text = string.Empty;
+        }
+
+        /// <summary>Прочитать рампу из прибора. Зовётся при подключении.</summary>
+        private void Slew_Read()
+        {
+            SlipMax_Value.BackColor = Color.Yellow;
+            uint_128(0, 0, 0, CmdIsetSlew);
+        }
+
+        // Ушли из поля, не нажав Enter, - правка отменяется: поле встанет на
+        // то, что в приборе.
+        private void Slew_Leave(object sender, EventArgs e)
+        {
+            Slew_Read();
+        }
+
+        private void Slew_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter) return;
+
+            decimal v;
+            string s = SlipMax_Value.Text.Trim().Replace(',', '.');
+            if (!decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out v) || v <= 0)
+            {
+                SlipMax_Value.Text = @"Число?";
+                return;
+            }
+
+            decimal units = Math.Round(v / SlewPerUnit);
+            _slewSent = (ushort)Math.Max(1m, Math.Min(SlewUnitsMax, units));
+
+            SlipMax_Value.BackColor = Color.Yellow;
+            uint_128(_slewSent, 3333, 0, CmdIsetSlew);
+        }
+
+        //-------------------------------------------------------------------
+        // ACK 644. Закон тот же, что у Uref: на чтение присваиваем, на запись
+        // гасим жёлтый только при совпадении с посланным.
+        //-------------------------------------------------------------------
+        private void Slew_Ack(ushort d1, ushort d2)
+        {
+            if (d2 == 3333 && d1 != _slewSent) return;
+
+            SlipMax_Value.Text = (d1 * SlewPerUnit).ToString("0.#", CultureInfo.InvariantCulture);
+            SlipMax_Value.BackColor = Color.Empty;
+            SlipMax_Value.ForeColor = Color.Green;
+
+            // Фокус уводим только после своей записи. Ответ на чтение приходит
+            // и при подключении, когда оператор может стоять в любом поле.
+            if (d2 == 3333) _ = zero.Focus();
         }
 
         //-------------------------------------------------------------------

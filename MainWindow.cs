@@ -628,7 +628,8 @@ namespace ICDIBasic
             textBox_температура.Text = Settings.Default.IGBT_temp_max;
             Gain_Sym.Checked = Settings.Default.Symmetry;
             Load_Sym.Checked = Settings.Default.LSymmetry;
-            SlipMax_Value.Text = Settings.Default.S_max;
+            // SlipMax_Value - теперь поле "Рампа" (Slew_Init): значение не из
+            // настроек, а из прибора.
             SlipMax_Value2.Text = Settings.Default.S_max2;
             DG2.Text = Settings.Default.ДГ2;
 
@@ -794,6 +795,7 @@ namespace ICDIBasic
                 "шагами IsetSlew раз за период сети.\n" +
                 "Задать можно и в АИН - применится, когда мост выйдет в сеть.");
             M1.load.modeH.Text = LoadIsetRef;
+            Slew_Init(); // поле под движком: было S_max, стало "Рампа"
             //--------------------------------------------------------------
             M1.AIN = groupBox_AIN1;
 
@@ -1333,7 +1335,7 @@ namespace ICDIBasic
             readHiTemp();
             //-----------------------------------------------------
             rpm_ramp_send();
-            slipMax_send(SlipMax_Value);
+            Slew_Read(); // поле "Рампа" - бывшее SlipMax_Value, читает прибор
             slipMax_send(SlipMax_Value2);
             SpeedRef_send();
             tKadr60_send();
@@ -2919,6 +2921,10 @@ namespace ICDIBasic
                     GridUref_Ack(d1, d2); // то же число в поле U rms на панели моста
                     break;
 
+                case CmdIsetSlew: // 644, рампа уставки тока - поле "Рампа"
+                    Slew_Ack(d1, d2);
+                    break;
+
                 case 634: // ACK ключа телеметрии
                     TeleSel_Ack(d1);
                     break;
@@ -4387,9 +4393,11 @@ namespace ICDIBasic
                 // амплитуда, и подпись была Iset, как у поля рампы на панели).
                 // kNT = 100 даёт шаг движка 0.01 А - единицу команды 632.
                 //
-                // Предел 17.7 А rms - прежние 25 А амплитуды через sqrt2, то
-                // есть ровно тот же физический ток. Согласовать его с защитами
-                // решено позже, на железе.
+                // Предел движка - из таблицы под "*" (строка TblLoad1IsetMax),
+                // по умолчанию 17 А rms. До 09.10.2026 был зашит 17.7 - прежние
+                // 25 А амплитуды через sqrt2; таблица у Dgt целочисленная.
+                // Согласовать предел с защитами решено позже, на железе.
+                //
                 // Подпись "Iзад", полное имя IsetRef - в подсказке: так зовутся
                 // поле в прошивке (gt.IsetRef) и канал в ленте F3_grid. Прежняя
                 // подпись Iref столкнулась бы в ленте с мгновенным заданием iRef:
@@ -4400,7 +4408,7 @@ namespace ICDIBasic
                     x.kNT = 100;
                     x.nud.DecimalPlaces = 2;
                     x.nud.Increment = 0.01M;
-                    x.nud.Maximum = 17.7M;
+                    x.nud.Maximum = x.Adjust.Pars[0].Value;
                     NT_Mode_Change(x, (int)Math.Round(_isetSet * 100m), 100m, false);
                     break;
 
@@ -4887,6 +4895,10 @@ else
         #region Таблицы под кнопками параметров движков
         private Dgt _tblGain1, _tblGain2, _tblLoad1, _tblLoad2;
 
+        // Имя строки таблицы Load1. По нему же TblLoad1LoadFx узнаёт, что
+        // сохранённая таблица - нынешняя, а не прежняя моторная.
+        private const string TblLoad1IsetMax = "Iзад max, А rms";
+
         private void TbInit()
         {
             _tblGain1 = new Dgt(btnTblGain1, this, TblGain1SaveFx, TblGain1LoadFx);
@@ -4910,10 +4922,11 @@ else
             _tblGain2.Pars.Add(new Dgt.Params { Name = "Im Max", Value = 1000 });
             #endregion
             #region Таблица Load1
-            _tblLoad1.Pars.Add(new Dgt.Params { Name = "S abs Max", Value = 50 });
-            _tblLoad1.Pars.Add(new Dgt.Params { Name = "S % Max", Value = 10 });
-            _tblLoad1.Pars.Add(new Dgt.Params { Name = "S rpm Max", Value = 50 });
-            _tblLoad1.Pars.Add(new Dgt.Params { Name = "Iq Max", Value = 500 });
+            // Одна строка - предел движка Iзад. Моторные строки (S abs, S %,
+            // S rpm, Iq) ушли вместе с режимами 09.10.2026. Значение у Dgt
+            // целое, поэтому в амперах без дробей: прежний зашитый предел
+            // 17.7 А rms стал 17. Это предел движка, а не защита прибора.
+            _tblLoad1.Pars.Add(new Dgt.Params { Name = TblLoad1IsetMax, Value = 17 });
             #endregion
             #region Таблица Load2
             _tblLoad2.Pars.Add(new Dgt.Params { Name = "S abs Max", Value = 50 });
@@ -4961,7 +4974,25 @@ else
 
         private static string TblLoad1LoadFx()
         {
-            return Settings.Default.TblLoad1;
+            // Таблица Load1 с 09.10.2026 из одной строки (TblLoad1IsetMax), а
+            // в настройках может лежать прежняя моторная из четырёх. Dgt.Init()
+            // на сохранённом списке длиннее своего падает выходом индекса за
+            // границу - проверено на самой ButtonTable.dll, - и вместе с ним
+            // падал бы запуск программы. Чужой состав - берём умолчания.
+            string s = Settings.Default.TblLoad1;
+            if (string.IsNullOrEmpty(s)) return s;
+
+            try
+            {
+                var p = Dgt.LoadFromXmlString(s);
+                if (p.Count == 1 && p[0].Name == TblLoad1IsetMax) return s;
+            }
+            catch (Exception)
+            {
+                // Не разобрался - тоже чужой состав.
+            }
+
+            return null;
         }
 
         private static string TblLoad2LoadFx()
@@ -5199,7 +5230,7 @@ else
                 Settings.Default.IGBT_temp_max = textBox_температура.Text;
                 Settings.Default.Symmetry = Gain_Sym.Checked;
                 Settings.Default.LSymmetry = Load_Sym.Checked;
-                Settings.Default.S_max = SlipMax_Value.Text;
+                // S_max больше не сохраняем: поле стало "Рампой" и живёт прибором.
                 Settings.Default.S_max2 = SlipMax_Value2.Text;
                 Settings.Default.ДГ2 = DG2.Text;
 
