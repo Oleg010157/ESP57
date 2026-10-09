@@ -24,6 +24,7 @@ namespace ICDIBasic
                     F3_invertor();
                     break;
                 case "F3_convertor":
+                case "F3_grid": // та же лента в 16 слов, другая карта каналов
                     F3_convertor();
                     break;
                 case "F1_convertor":

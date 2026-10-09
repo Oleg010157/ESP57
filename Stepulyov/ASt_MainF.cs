@@ -317,8 +317,9 @@ namespace ICDIBasic
         private ushort _tapeOn;
 
         /// <summary>
-        /// Код набора для команды 1001. Имя не из четырёх - медленный кадр: так
-        /// было и до разделения.
+        /// Код набора для команды 1001. Имя не из пяти - медленный кадр: так
+        /// было и до разделения. F3_grid получил 6, потому что 5 - это и есть
+        /// медленный кадр.
         /// </summary>
         private static ushort TapeCode(string frame)
         {
@@ -328,6 +329,7 @@ namespace ICDIBasic
                 case "F1_invertor":  return 2;
                 case "F3_invertor":  return 3;
                 case "F3_convertor": return 4;
+                case "F3_grid":      return 6;
                 default:             return 5;
             }
         }

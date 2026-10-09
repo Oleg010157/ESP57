@@ -2451,7 +2451,8 @@
             "F1_invertor",
             "F3_invertor",
             "F3_convertor",
-            "Kadr60"});
+            "Kadr60",
+            "F3_grid"});
             this.F2_Kadr_Name.Location = new System.Drawing.Point(612, 31);
             this.F2_Kadr_Name.Name = "F2_Kadr_Name";
             this.F2_Kadr_Name.Size = new System.Drawing.Size(105, 24);
