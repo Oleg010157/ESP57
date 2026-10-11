@@ -355,6 +355,7 @@ void grid_tie_background(void); // из фонового цикла main(): вс
 void grid_tie_fault(uint16_t code);
 void grid_tie_start(void);      // запрос пуска: GT_OFF -> GT_SYNC
 void grid_tie_stop(void);       // остановка в GT_OFF, сброс аварии
+void grid_tie_leave_grid(void); // из сети в слежение: контактор разомкнуть, не авария
 
 // Быстрая половина контура выходного напряжения острова: уставка и поправка
 // в sineB.gain, с делением на МГНОВЕННОЕ напряжение звена.

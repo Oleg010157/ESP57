@@ -463,6 +463,38 @@ static uint16_t gt_par_cmd(uint16_t data1, uint16_t data2, uint16_t data3, uint1
     return 0;
 }
 
+//---------------------------------------------------------------------------
+// Закрыть ключи по команде СЕАНСА: "Подключить", "Отключить", закрытие окна
+// Motor_Control (команды 2, 3, 7).
+//
+// Эти три команды закрывают ключи безусловно - наследство моторного
+// приложения: программа пришла или ушла, прибор в безопасном состоянии. Но
+// автомат сети про сеанс не знает. Застав мост в GT_RAMP или GT_RUN, голый
+// IGBT1_Disable() оставлял контактор замкнутым при закрытых ключах, и
+// следующий же такт ставил аварию 68 (gt_keysOff). Оператор видел её при
+// запуске программы и искал причину в приборе, а причиной было само
+// подключение или отключение накануне.
+//
+// Поэтому сначала штатный выход из сети: запрос снят, контактор разомкнут,
+// автомат в GT_SYNC. Ключи закрываются уже в слежении, где это законно, -
+// оно просто стоит, пока их не откроют. Запрос connReq снимаем обязательно:
+// иначе мост ушёл бы в сеть сам, как только ключи откроют снова.
+//
+// АВАРИЯ 68 ОСТАЁТСЯ там, где она по делу: кнопка питания моста (команда 10)
+// и компараторная защита закрывают ключи под током, и это событие на мосту, а
+// не в сеансе связи (решение 08.10.2026, см. grid_tie_step).
+//
+// Уже стоящую аварию не трогаем: оператор, подключившись, обязан её увидеть.
+//---------------------------------------------------------------------------
+static void session_keys_off(void)
+{
+    gt.connReq = 0;
+    grid_tie_leave_grid();
+
+    IGBT1_Disable();
+    IGBT2_Disable();
+}
+
 void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 {
     if (gt_par_cmd(data1, data2, data3, cmd))
@@ -527,8 +559,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
             sbit.bit.connect = 1;
 
-            IGBT1_Disable();
-            IGBT2_Disable();
+            session_keys_off();
             // sharp2.all = 0;
             motor_init(motors[0]);
             motor_init(motors[1]);
@@ -547,9 +578,8 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             REF_init(&REF);
             sharp.all = 0;
 
-            IGBT1_Disable();
-            IGBT2_Disable();
-        
+            session_keys_off();
+
             SplMode = 0;
 
             SendAck(data1, data2, data3, cmd);
@@ -579,8 +609,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
             //      RealMOD = RealMOD_def;
 
-            IGBT1_Disable();
-            IGBT2_Disable();
+            session_keys_off();
 
             break;
 
