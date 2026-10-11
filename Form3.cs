@@ -1,5 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
+using System.IO;
+using System.Text;
 using System.Windows.Forms;
 using ZedGraph;
 
@@ -80,30 +84,38 @@ namespace ICDIBasic
          * здесь её платить не за что. Порядок на работу не влияет: наборы по
          * кнопкам выбираются по имени (Choose).
          *
-         * Четвёртое число - наименьший размах оси. Подобран так, чтобы шаг
-         * квантования слова в кадре (0.1 А, 0.1 В, 1 Вт) занимал на поле
-         * проценты высоты, а не всю её; менять можно свободно, на данные он
-         * не действует.
+         * Четвёртое число - наименьший размах оси; менять можно свободно, на
+         * данные он не действует.
+         *
+         * ПРАВИЛО ПОДБОРА: ШАГ КВАНТОВАНИЯ - НЕ БОЛЬШЕ ПРОЦЕНТА ВЫСОТЫ, то
+         * есть размах не меньше ста шагов слова в кадре. Слово в 0.01 А
+         * требует 1 А, в 0.1 В - 10 В, в 1 Вт - 100 Вт. У счётных величин
+         * (satLast, state) правило не действует: там единица и есть событие.
+         *
+         * Токи iPri и iSec до прошивки от 11.10.2026 ехали по 0.1 А, и на оси
+         * в 2 А ток, дрожащий между 5.2 и 5.3, рисовался полосой в двадцатую
+         * часть поля. Лечилось это не размахом, а ценой слова: теперь она
+         * 0.01 А, и прежние 2 А правилу удовлетворяют с запасом.
          */
         private static readonly Chan[] Channels =
         {
-            new Chan("iPri",    "А",   1, 5,   () => ccs.iPri, true), // ток первички
-            new Chan("iSec",    "А",   1, 2,   () => ccs.iSec, true), // ток вторички = ток в сеть
+            new Chan("iPri",    "А",   2, 5,   () => ccs.iPri, true), // ток первички
+            new Chan("iSec",    "А",   2, 2,   () => ccs.iSec, true), // ток вторички = ток в сеть
             new Chan("u220",    "В",   1, 20,  () => ccs.u220, true), // сеть после контактора
             new Chan("uSec",    "В",   1, 20,  () => ccs.uSec, true), // выход моста, до контактора
-            new Chan("uBat",    "В",   1, 5,   () => ccs.UdcBat),     // вход моста, АКБ
-            new Chan("Iset",    "А",   2, 2,   () => ccs.gtIset),     // уставка после рампы
-            new Chan("IsetRef", "А",   2, 2,   () => ccs.gtIsetRef),  // уставка с движка Iзад
+            new Chan("uBat",    "В",   1, 10,  () => ccs.UdcBat),     // вход моста, АКБ
+            new Chan("Iset",    "А",   2, 2,   () => ccs.gtIset),     // уставка после рампы; размах как у
+            new Chan("IsetRef", "А",   2, 2,   () => ccs.gtIsetRef),  // iSec, чтобы ампер выглядел одинаково
             new Chan("freq",    "Гц",  2, 1,   () => ccs.u220freq),   // частота сети
             new Chan("P",       "Вт",  0, 200, () => ccs.gtP, signed: true),
             new Chan("Q",       "вар", 0, 200, () => ccs.gtQ, signed: true),
             new Chan("S",       "В·А", 0, 200, () => ccs.gtS),
             new Chan("PF",      "",    4, 0.2, () => ccs.gtPF, signed: true),     // коэффициент мощности P/S
-            new Chan("iPri_av", "А",   2, 0.5, () => ccs.iPriAv, signed: true),   // постоянка в первичке
+            new Chan("iPri_av", "А",   2, 1,   () => ccs.iPriAv, signed: true),   // постоянка в первичке
             new Chan("uDCcomp", "В",   3, 0.5, () => ccs.uDCcomp, signed: true),  // чем её давит мост
             new Chan("mPeak",   "",    3, 0.2, () => ccs.gtMPeak),    // пик |m| за период сети
-            new Chan("satLast", "",    0, 20,  () => ccs.gtSatLast),  // тактов в упоре по m
-            new Chan("coreT",   "°C",  0, 10,  () => ccs.core_temp, signed: true), // температура кристалла
+            new Chan("satLast", "",    0, 100, () => ccs.gtSatLast),  // тактов в упоре по m, из ста
+            new Chan("coreT",   "°C",  0, 100, () => ccs.core_temp, signed: true), // температура кристалла
             new Chan("state",   "",    0, 5,   () => ccs.gtState),    // автомат: 0 OFF .. 4 FAULT
         };
 
@@ -164,6 +176,10 @@ namespace ICDIBasic
          * ни на что не влияли. */
         private readonly TextBox[] _val;
 
+        /// <summary>Поля границ оси, см. регион «Границы осей».</summary>
+        private readonly TextBox[] _min;
+        private readonly TextBox[] _max;
+
         private readonly Axis[] _axis = new Axis[Curves];
 
         /// <summary>Набор слов 4..7, под который подписаны оси. Сменился - переподписать.</summary>
@@ -186,14 +202,20 @@ namespace ICDIBasic
             _box = new[] { checkBox1, checkBox2, checkBox3 };
             _combo = new[] { comboBox1, comboBox2, comboBox3 };
             _val = new[] { value1, value2, value3 };
+            _min = new[] { min1, min2, min3 };
+            _max = new[] { max1, max2, max3 };
 
             // Поле только для чтения по умолчанию серое и на сером окне
             // теряется; показание должно читаться так же, как в главном окне.
             foreach (TextBox b in _val) b.BackColor = SystemColors.Window;
 
+            LoadBounds();
             PrepareGraph();
 
             zedGraph2.ZoomEvent += OnZoom;
+
+            // Всплывающие подсказки
+            ToolTip t = new ToolTip();
 
             for (int i = 0; i < Curves; i++)
             {
@@ -205,13 +227,30 @@ namespace ICDIBasic
                 foreach (Chan c in Channels) _combo[i].Items.Add(c.Name);
 
                 _combo[i].SelectedIndexChanged += (s, e) => ChannelChanged(k);
+
+                foreach (TextBox b in new[] { _min[i], _max[i] })
+                {
+                    b.Leave += (s, e) => BoundEdited(k);
+                    b.KeyDown += (s, e) =>
+                    {
+                        if (e.KeyCode != Keys.Enter) return;
+
+                        e.SuppressKeyPress = true; // без системного «динь»
+                        BoundEdited(k);
+                    };
+                }
+
+                t.SetToolTip(_min[i],
+                    "Нижняя граница оси этой величины.\n" +
+                    "Пусто - подбирается сама. Ввод - Enter.");
+                t.SetToolTip(_max[i],
+                    "Верхняя граница оси этой величины.\n" +
+                    "Пусто - подбирается сама. Ввод - Enter.");
             }
 
             numericUpDown4.Value = timer1.Interval;
             PeriodChanged();
 
-            // Всплывающие подсказки
-            ToolTip t = new ToolTip();
             t.SetToolTip(numericUpDown4,
                 "Как часто на график ложится новая точка, мс.\n" +
                 "На графике " + _capacity + " точек, поэтому период задаёт и ширину окна:\n" +
@@ -357,6 +396,7 @@ namespace ICDIBasic
         {
             _data[i].Clear();
             SetTitle(i);
+            ShowBounds(i);
         }
 
         private void SetTitle(int i)
@@ -511,6 +551,28 @@ namespace ICDIBasic
             min = Math.Floor(min / q) * q;
             max = Math.Ceiling(max / q) * q;
 
+            // Границы, заданные оператором, старше подобранных. Каждая сама
+            // по себе: заданная одна - вторая остаётся автоматической.
+            double[] b;
+
+            if (_bounds.TryGetValue(c.Name, out b))
+            {
+                bool hasLo = !double.IsNaN(b[0]);
+                bool hasHi = !double.IsNaN(b[1]);
+
+                if (hasLo) min = b[0];
+                if (hasHi) max = b[1];
+
+                // Задана одна граница, и сигнал целиком по ту сторону от неё:
+                // автоматическая вторая оказалась бы «внутри». Отступаем от
+                // заданной на наименьший размах - ось обязана быть осью.
+                if (max <= min)
+                {
+                    if (hasLo) max = min + need;
+                    else       min = max - need;
+                }
+            }
+
             Scale s = _axis[i].Scale;
 
             if (s.Min != min) s.Min = min;
@@ -546,6 +608,186 @@ namespace ICDIBasic
 
             _userZoom = !(s.MinAuto && s.MaxAuto);
         }
+        #endregion
+
+        #region Границы осей
+
+        /*
+         * ГРАНИЦЫ ОСИ РУКАМИ - поля «Мин» и «Макс» в строке кривой, по образцу
+         * окна настройки осциллографа (Scope/ScopeConfigForm.cs).
+         *
+         * Пустое поле - граница подбирается сама (FitAxis). Отдельной галочки
+         * «авто» нет по той же причине, что и там: пустая клетка и так
+         * читается как «не задано».
+         *
+         * ЗАЧЕМ, если есть мышь. Рамка мышью растягивает ВСЕ ТРИ ОСИ РАЗОМ:
+         * она задаёт прямоугольник на экране, а каждая ось пересчитывает его
+         * в свои единицы. Растянуть одну кривую, не тронув две другие, ею
+         * нельзя. Поля дают каждой величине свою шкалу.
+         *
+         * ГРАНИЦЫ ПРИНАДЛЕЖАТ ВЕЛИЧИНЕ, А НЕ СТРОКЕ. Набранные для тока 0...10
+         * не должны достаться мощности, когда в той же строке сменят величину,
+         * и должны вернуться, когда ток выберут снова - в любой строке.
+         *
+         * Хранятся между запусками рядом с настройками вида осциллографа, в
+         * bin/Debug/Scope/Graphs.view.ini. Файл пользовательский и в git не
+         * ездит, как и те.
+         */
+
+        /// <summary>Границы по имени величины: [0] - мин, [1] - макс, NaN - не задана.</summary>
+        private readonly Dictionary<string, double[]> _bounds = new Dictionary<string, double[]>();
+
+        private static string BoundsFile
+        {
+            get { return Path.Combine(ScopeView.Dir, "Graphs.view.ini"); }
+        }
+
+        private static string BoundText(double v)
+        {
+            return double.IsNaN(v) ? "" : v.ToString("0.####", CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// Разобрать поле. Пустое - «не задано», и это не ошибка. Запятая и
+        /// точка годятся обе: набирают как привычнее.
+        /// </summary>
+        private static bool TryBound(string text, out double v)
+        {
+            v = double.NaN;
+
+            string s = text.Trim().Replace(',', '.');
+            if (s.Length == 0) return true;
+
+            if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v)
+                && !double.IsInfinity(v)) return true;
+
+            v = double.NaN;
+            return false;
+        }
+
+        /// <summary>Показать в строке границы выбранной в ней величины.</summary>
+        private void ShowBounds(int i)
+        {
+            int sel = _combo[i].SelectedIndex;
+            double[] b = null;
+
+            if (sel >= 0) _bounds.TryGetValue(Channels[sel].Name, out b);
+
+            _min[i].Text = b == null ? "" : BoundText(b[0]);
+            _max[i].Text = b == null ? "" : BoundText(b[1]);
+
+            _min[i].BackColor = _max[i].BackColor = SystemColors.Window;
+        }
+
+        /// <summary>
+        /// Оператор закончил ввод в одном из двух полей строки (Enter или уход
+        /// из поля). Негодное не принимаем и не стираем: поле краснеет, ось
+        /// остаётся прежней, исправить можно на месте.
+        /// </summary>
+        private void BoundEdited(int i)
+        {
+            int sel = _combo[i].SelectedIndex;
+            if (sel < 0) return;
+
+            double lo, hi;
+
+            bool okLo = TryBound(_min[i].Text, out lo);
+            bool okHi = TryBound(_max[i].Text, out hi);
+
+            // Обе заданы - низ обязан быть ниже верха. С NaN сравнение ложно,
+            // то есть одна заданная граница порядок не нарушает.
+            bool order = !(lo >= hi);
+
+            _min[i].BackColor = okLo && order ? SystemColors.Window : Color.Salmon;
+            _max[i].BackColor = okHi && order ? SystemColors.Window : Color.Salmon;
+
+            if (!okLo || !okHi || !order) return;
+
+            string name = Channels[sel].Name;
+            double[] was;
+
+            // Ничего не изменилось - это просто уход из поля, файл не трогаем.
+            // Сравниваем текстом: NaN самому себе не равен.
+            if (_bounds.TryGetValue(name, out was)
+                    ? BoundText(was[0]) == BoundText(lo) && BoundText(was[1]) == BoundText(hi)
+                    : double.IsNaN(lo) && double.IsNaN(hi))
+                return;
+
+            if (double.IsNaN(lo) && double.IsNaN(hi)) _bounds.Remove(name);
+            else _bounds[name] = new[] { lo, hi };
+
+            SaveBounds();
+
+            // Набранное в поле старше масштаба, оставленного мышью
+            _userZoom = false;
+
+            // Та же величина может стоять и в другой строке
+            for (int j = 0; j < Curves; j++)
+                if (j != i && _combo[j].SelectedIndex == sel) ShowBounds(j);
+        }
+
+        private void LoadBounds()
+        {
+            try
+            {
+                if (!File.Exists(BoundsFile)) return;
+
+                foreach (string raw in File.ReadAllLines(BoundsFile, Encoding.UTF8))
+                {
+                    string s = raw.Trim();
+                    if (s.Length == 0 || s[0] == ';') continue;
+
+                    int eq = s.IndexOf('=');
+                    if (eq <= 0) continue;
+
+                    string name = s.Substring(0, eq).Trim();
+                    string[] p = s.Substring(eq + 1).Split(',');
+
+                    // Имя, которого в таблице уже нет, - от прошлой версии
+                    if (p.Length != 2 || Array.FindIndex(Channels, c => c.Name == name) < 0) continue;
+
+                    double lo, hi;
+                    if (!TryBound(p[0], out lo) || !TryBound(p[1], out hi) || lo >= hi) continue;
+                    if (double.IsNaN(lo) && double.IsNaN(hi)) continue;
+
+                    _bounds[name] = new[] { lo, hi };
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
+        private void SaveBounds()
+        {
+            try
+            {
+                var sb = new StringBuilder();
+
+                sb.AppendLine("; Границы осей окна «Графики»: <величина>=<мин>,<макс>.");
+                sb.AppendLine("; Пустая граница подбирается сама. Пишет программа.");
+
+                foreach (Chan c in Channels)
+                {
+                    double[] b;
+                    if (_bounds.TryGetValue(c.Name, out b))
+                        sb.AppendLine(c.Name + "=" + BoundText(b[0]) + "," + BoundText(b[1]));
+                }
+
+                Directory.CreateDirectory(ScopeView.Dir);
+                File.WriteAllText(BoundsFile, sb.ToString(), new UTF8Encoding(false));
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
         #endregion
 
         #region Кнопка фиксации
