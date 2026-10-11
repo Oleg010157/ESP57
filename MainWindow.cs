@@ -1783,8 +1783,12 @@ namespace ICDIBasic
         {
             if (!FlagGrphOpen)
             {
-                _f3Win.Show();
+                // С владельцем: окно держится поверх главного. Иначе стоило
+                // тронуть движок Iзад - главное окно выходило вперёд и
+                // закрывало график ровно тогда, когда на нём нужна реакция.
+                // Так же открывается осциллограф (ScopeForm.Open).
                 _f3Win.Frm3Form1 = this;
+                _f3Win.Show(this);
                 _f3Win.timer1.Enabled = true;
                 _f3Win.checkBox1.Checked = true;
                 _f3Win.checkBox2.Checked = true;
@@ -1799,8 +1803,8 @@ namespace ICDIBasic
         {
             if (!FlagGrphOpen)
             {
-                _f3Win.Show();
                 _f3Win.Frm3Form1 = this;
+                _f3Win.Show(this); // поверх главного окна, см. выше
                 _f3Win.timer1.Enabled = true;
                 _f3Win.checkBox1.Checked = true;
                 _f3Win.checkBox2.Checked = true;

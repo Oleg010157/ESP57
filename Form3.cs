@@ -804,6 +804,13 @@ namespace ICDIBasic
         #region closingoptions
         private void Form3_FormClosing(object sender, FormClosingEventArgs e)
         {
+            // Крестик прячет окно, а не закрывает: оно одно на всю программу.
+            // Но отменять можно ТОЛЬКО крестик. У окна теперь есть владелец -
+            // главное окно, - и при его закрытии сюда приходит тот же вопрос
+            // с причиной FormOwnerClosing; отмена на него отменила бы закрытие
+            // самой программы, и выйти из неё было бы нельзя.
+            if (e.CloseReason != CloseReason.UserClosing) return;
+
             this.Hide();
             Frm3Form1.inv1.U = 10; // dbg
             Frm3Form1.FlagGrphOpen = false;
