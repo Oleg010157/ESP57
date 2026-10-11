@@ -433,14 +433,21 @@ namespace ICDIBasic
             // Подпись ключа ставит ACK 634, а не этот таймер: иначе жёлтая
             // метка "жду ответа" гасла бы сама собой на первом же кадре.
             // Отсюда берётся только формат - в кодах дробная часть не нужна.
-            var f = ccs.teleSel == TeleKod ? "0" : "0.00";
+            //
+            // Знаков после запятой столько, сколько несёт слово кадра: токи
+            // едут по 0.01 А, напряжения по 0.1 В. Напряжениям раньше тоже
+            // рисовали два знака, и второй был всегда нулём: 219.40, 219.50 -
+            // поле обещало точность, которой в слове нет.
+            bool kod = ccs.teleSel == TeleKod;
+            var fi = kod ? "0" : "0.00";
+            var fu = kod ? "0" : "0.0";
 
             Vin_value.Text   = $@"{ccs.UdcBat:##0.0}"; // Vin, вход моста
-            I1a_value.Text   = ccs.uSec.ToString(f);
-            I1b_value.Text   = ccs.iPri.ToString(f);
-            I1c_value.Text   = ccs.iSec.ToString(f);
+            I1a_value.Text   = ccs.uSec.ToString(fu);
+            I1b_value.Text   = ccs.iPri.ToString(fi);
+            I1c_value.Text   = ccs.iSec.ToString(fi);
 
-            Urms1_value.Text = ccs.u220.ToString(f);
+            Urms1_value.Text = ccs.u220.ToString(fu);
 
             // Частота сети мерится по захвату нуля U220 и в набор teleSel не
             // входит: она всегда в герцах, что бы ни стояло в ключе.
