@@ -307,11 +307,8 @@ namespace ICDIBasic
             }
             #endregion
 
-            // Передаем данные в форму 3, если необходимо хотя бы 1 график отобразить
-            if (_f3Win.checkBox1.Checked || _f3Win.checkBox2.Checked || _f3Win.checkBox3.Checked)
-            {
-                define_params_form3();
-            }
+            // Окно «Графики» отсюда больше не кормится: оно само читает нужные
+            // величины из ccs на своём таймере, таблица - в Form3.cs.
             #region Основной таймер.
             _ = Convert.ToString(SharpFlags, 2);
             #endregion Анализ флагов CCS.
@@ -1172,8 +1169,7 @@ namespace ICDIBasic
 
         #endregion
         private bool _adcTransmit;
-        private readonly int _graphMax = 1500; // максимум для параметров отображаемых на графиках
-                                               // -------------------------------   Основные переменные  ----------------------------------
+        // -------------------------------   Основные переменные  ----------------------------------
                                                //     public ushort PolePairs = 3;
         public float V2Angl = 0, I2Angl = 0, Em2Angl = 0, No2Angl = 0;
         public int VqRef = 0, VdRef = 0;
@@ -1623,92 +1619,6 @@ namespace ICDIBasic
 
         }
         #endregion
-        #region параметры для вывода графиков третьего окна
-        public void define_params_form3()
-        {
-            if (_f3Win.comboBox1.SelectedIndex >= 0)
-            {
-                _f3Win.PassIn1 = define_for_grph(_f3Win.comboBox1.SelectedIndex);
-            }
-
-            if (_f3Win.comboBox2.SelectedIndex >= 0)
-            {
-                _f3Win.PassIn2 = define_for_grph(_f3Win.comboBox2.SelectedIndex);
-            }
-
-            if (_f3Win.comboBox3.SelectedIndex >= 0)
-            {
-                _f3Win.PassIn3 = define_for_grph(_f3Win.comboBox3.SelectedIndex);
-            }
-        }
-
-        private float define_for_grph(int grphIn)
-        {
-            float grphVal = 0;
-            switch (grphIn)
-            {
-                case 0:
-                    grphVal = M1.ccs.Ia_rms;
-                    break;
-                case 1:
-                    grphVal = M1.ccs.Ic_rms;
-                    break;
-                case 2:
-                    grphVal = M1.ccs.Ib_rms;
-                    break;
-                case 3:
-                    grphVal = ccs.Udc;
-                    break;
-                case 4:
-                    grphVal = M2.ccs.Ia_rms;
-                    break;
-                case 5:
-                    grphVal = M2.ccs.Ic_rms;
-                    break;
-                case 6:
-                    grphVal = M2.ccs.Ib_rms;
-                    break;
-                case 7:
-                    grphVal = M1.ccs.c_pa;
-                    break;
-                case 8:
-                    grphVal = ccs.Px1_cl;
-                    break;
-                case 9:
-                    grphVal = ccs.Pz1_cl;
-                    break;
-                case 10:
-                    grphVal = ccs.Pa2_cl;
-                    break;
-                case 11:
-                    grphVal = ccs.Px2_cl;
-                    break;
-                case 12:
-                    grphVal = ccs.Pz2_cl;
-                    break;
-                case 13:
-                    grphVal = M1.ccs.slip_absF * 0.01f;
-                    break;
-                case 14:
-                    grphVal = M2.ccs.slip_absF * 0.01f;
-                    break;
-                default:
-                    grphVal = 0;
-                    break;
-            }
-            if (grphVal >= _graphMax)
-            {
-                grphVal = _graphMax;
-            }
-
-            if (grphVal <= -1 * _graphMax)
-            {
-                grphVal = -1 * _graphMax;
-            }
-
-            return grphVal;
-        }
-        #endregion
         #region Окно отображаемых параметров при режиме индикации
         // button_AIN1_param_Click убран вместе с кнопкой AIN1_motorName и
         // командами 810..813: на канале 1 стоит однофазный мост, паспорт
@@ -1872,9 +1782,8 @@ namespace ICDIBasic
                 _f3Win.checkBox1.Checked = true;
                 _f3Win.checkBox2.Checked = true;
                 _f3Win.checkBox3.Checked = true;
-                _f3Win.comboBox1.SelectedIndex = 0;
-                _f3Win.comboBox2.SelectedIndex = 1;
-                _f3Win.comboBox3.SelectedIndex = 2;
+                // Выход моста: ток в сеть, напряжение и активная мощность
+                _f3Win.Choose("iSec", "uSec", "P");
                 FlagGrphOpen = true;
             }
         }
@@ -1889,9 +1798,9 @@ namespace ICDIBasic
                 _f3Win.checkBox1.Checked = true;
                 _f3Win.checkBox2.Checked = true;
                 _f3Win.checkBox3.Checked = true;
-                _f3Win.comboBox1.SelectedIndex = 4;
-                _f3Win.comboBox2.SelectedIndex = 5;
-                _f3Win.comboBox3.SelectedIndex = 6;
+                // Трансформатор: постоянка в первичке, чем её давит мост, и
+                // запас по индексу модуляции
+                _f3Win.Choose("iPri_av", "uDCcomp", "mPeak");
                 FlagGrphOpen = true;
             }
         }

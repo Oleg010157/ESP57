@@ -106,22 +106,6 @@
             // comboBox1
             // 
             this.comboBox1.FormattingEnabled = true;
-            this.comboBox1.Items.AddRange(new object[] {
-            "Iu1",
-            "Iw1",
-            "Iv1",
-            "Udc",
-            "Iu2",
-            "Iw2",
-            "Iv2",
-            "P1",
-            "Px1",
-            "S1",
-            "P2",
-            "Px2",
-            "S2",
-            "Sa1",
-            "Sa2"});
             this.comboBox1.Location = new System.Drawing.Point(136, 336);
             this.comboBox1.Name = "comboBox1";
             this.comboBox1.Size = new System.Drawing.Size(84, 21);
@@ -163,22 +147,6 @@
             // comboBox2
             // 
             this.comboBox2.FormattingEnabled = true;
-            this.comboBox2.Items.AddRange(new object[] {
-            "Iu1",
-            "Iw1",
-            "Iv1",
-            "Udc",
-            "Iu2",
-            "Iw2",
-            "Iv2",
-            "P1",
-            "Px1",
-            "S1",
-            "P2",
-            "Px2",
-            "S2",
-            "Sa1",
-            "Sa2"});
             this.comboBox2.Location = new System.Drawing.Point(136, 366);
             this.comboBox2.Name = "comboBox2";
             this.comboBox2.Size = new System.Drawing.Size(84, 21);
@@ -187,22 +155,6 @@
             // comboBox3
             // 
             this.comboBox3.FormattingEnabled = true;
-            this.comboBox3.Items.AddRange(new object[] {
-            "Iu1",
-            "Iw1",
-            "Iv1",
-            "Udc",
-            "Iu2",
-            "Iw2",
-            "Iv2",
-            "P1",
-            "Px1",
-            "S1",
-            "P2",
-            "Px2",
-            "S2",
-            "Sa1",
-            "Sa2"});
             this.comboBox3.Location = new System.Drawing.Point(136, 396);
             this.comboBox3.Name = "comboBox3";
             this.comboBox3.Size = new System.Drawing.Size(84, 21);
