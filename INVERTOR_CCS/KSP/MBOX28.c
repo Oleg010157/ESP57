@@ -40,7 +40,9 @@ motor *motStrob = &motor1;
 
 volatile struct EQEP_REGS *qepRegs = &EQep1Regs;
 
-uint16_t     K60per = 60 * 2; //период вывода медленного кадра
+uint16_t     K60per = 60 * 2; // период упразднённого кадра 131. Команда 1 его по-прежнему
+                              // пишет и возвращает (поле в окне ждёт ответа), но читать
+                              // его больше некому: запись идёт кадром 140, раз в 50 мс
 union PCflag sharp;
 
 #if Strob_QEP         //------------------------------
@@ -476,8 +478,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
         case 1001: // команда включения/ выключения и выбора типа   кадра   по CANA
 
-            canaKadr.all              = 0; // выключаем передачу любого кадра
-            CpuTimer1Regs.TCR.bit.TSS = 1; // останавливаем таймер Т1 для вывода k60 кадра
+            canaKadr.all = 0; // выключаем передачу любого кадра
 
             switch (data3)
             {
@@ -497,19 +498,17 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
                     canaKadr.bit.F3_convertor = 1;
                     MCAN_setFastDLC(13); // 32 байта (16 слов), расширен 23.09.2026
                     break;
-                case 6: // код 5 занят медленным кадром ниже
+                case 6: // код 5 занят медленной записью ниже
                     canaKadr.bit.F3_grid = 1;
                     MCAN_setFastDLC(13); // 32 байта (16 слов), контур тока в сети
                     break;
 
-                case 5: // включить передачу медленного кадра по CANA
-                {
-                    CpuTimer1Regs.PRD.all     = mSecond(K60per); // период таймера Т1 в миллисекундах
-                    CpuTimer1Regs.TCR.bit.TRB = 1;               // устанавливаем счётчик на начало периода
-                    CpuTimer1Regs.TCR.bit.TSS = 0;               // запускаем таймер Т1 для вывода кадра
-                    canaKadr.bit.k60_run      = 1;               // команда запуска  кадра k60 по CANA
-                }
-                break;
+                // Код 5 - медленная запись, набор "Kadr60". Включать под неё
+                // нечего: она пишется из кадра 140, а тот идёт и так. До
+                // 11.10.2026 здесь пускался таймер T1 под отдельный кадр 131.
+                // Сам код остаётся: он гасит быструю ленту, как и ноль.
+                case 5:
+                    break;
             }
 
             SendAck(K60per, data2, canaKadr.all, cmd);

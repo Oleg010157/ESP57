@@ -180,7 +180,10 @@ void MCAN_initTxBuffer(uint16_t bufNum, uint16_t msgId, uint16_t dlc, uint16_t b
 //
 // TX-секция Message RAM переведена на 64-байтные элементы (SysConfig txBufElemSize=64,
 // myMCAN.h MCAN_TX_BUFF_ELEM_SIZE). Размер хранения элемента != длина кадра: мелкие кадры
-// (ACK, 131, 132, fast) по-прежнему шлются с DLC=8, просто занимают 64-байтные слоты.
+// (ACK, 132, fast) по-прежнему шлются с DLC=8, просто занимают 64-байтные слоты.
+//
+// Буфер 3 свободен: кадр 131 (Kadr60) упразднён 11.10.2026, медленная запись идёт
+// кадром 140 - в его последнем слове теперь счётчик K60cnt.
 //
 // Медленная телеметрия консолидирована в компактный кадр ID 140:
 // 32 слова = 64 байта -> DLC=15 (FD+BRS), буфер 2. Было 32 байта (DLC=13),
@@ -199,7 +202,6 @@ void MCAN_initAllTxBuffers(void)
                                                   // F3_convertor=32б(DLC13).
                                                   // DLC переключается в MBOX28 (MCAN_setFastDLC).
     MCAN_initTxBuffer(  2, 140,    15,   1,   1);  //  REF кадр (64 байта)
-    MCAN_initTxBuffer(  3, 131,     8,   1,   1);  // Kadr60: K60cnt
     MCAN_initTxBuffer(  4, 132,     8,   1,   1);  // Errors/main
 }
 

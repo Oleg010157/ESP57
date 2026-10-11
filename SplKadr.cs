@@ -33,6 +33,9 @@ namespace ICDIBasic
                 case "F1_invertor":
                     F1_invertor();
                     break;
+                case "Kadr60":
+                    Kadr60();
+                    break;
                 case "SPL_ABB":
                     SPL_ABB();
                     break;
@@ -72,6 +75,18 @@ namespace ICDIBasic
                 spL[i] = (ushort)ccs.f3[i];
 
             FrlM = (ushort)ccs.f3.Length;
+        }
+
+        // Медленная запись: 32 слова кадра 140 как пришли (их кладёт
+        // Parse140), разбор именами - в bin/Wscope/Kadr60.ini.
+        // До 11.10.2026 набор "Kadr60" падал в default и писал SPL_Power -
+        // 29 моторных величин, которых в этом приборе нет.
+        private void Kadr60()
+        {
+            for (int i = 0; i < ccs.k60.Length; i++)
+                spL[i] = ccs.k60[i];
+
+            FrlM = (ushort)ccs.k60.Length;
         }
 
         private void F1_convertor()

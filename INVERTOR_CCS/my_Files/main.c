@@ -329,7 +329,7 @@ extern volatile uint16_t epwm3time;// dbg
      
  
         //===========================================================
-        // send_REF_kadr() use Timer0 and Send_kadr60() use Timer1;
+        // send_REF_kadr() use Timer0
 
         
         // Автономный ПУСК/СТОП по дискретному входу. ЗАБЛОКИРОВАН.
@@ -411,31 +411,8 @@ extern volatile uint16_t epwm3time;// dbg
             }
         }
 
-        // Timer 1  ------------------------------------------------------
-        if (canaKadr.bit.k60_run) // запрос на отправку данных активен
-        {
-            if (CpuTimer1Regs.TCR.bit.TIF == 1) // таймер1 отработал заданный период
-            {
-                CpuTimer1Regs.TCR.bit.TIF = 1; // clear flag
-#if MCANA
-                // MCAN: читаем TX Buffer Request Pending регистр
-                uint32_t txbrp = HWREG(MCANA_DRIVER_BASE + MCAN_TXBRP);
-                if ((txbrp & kmask60) == 0) // буферы свободны
-                {
-                    Send_kadr60();
-                }
-#else
-                // DCAN: классический CAN TX Request Register
-                if (!canaKadr.bit.can_stopTX)
-                {
-                    if ((CanaRegs.CAN_TXRQ_21 & kmask60) == 0)
-                    {
-                        Send_kadr60();
-                    }
-                }
-#endif
-            }
-        }
+        // Таймер T1 слал отсюда медленный кадр 131 (Send_kadr60). Кадр
+        // упразднён 11.10.2026: медленная запись идёт кадром 140, выше.
 
 #include "SPI_EEPROM_PHONE.h"
 
@@ -448,7 +425,7 @@ extern volatile uint16_t epwm3time;// dbg
 
         //=======================================================================
         // CAND вывод по 32-му MBOX
-        // то есть не по таймеру не в REF и не в Kadr60
+        // то есть не по таймеру и не в REF
 
 #if MCANA
         {

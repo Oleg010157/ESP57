@@ -39,8 +39,6 @@
 // Быстрый кадр консолидирован на буфер 1 (F1=8б / F3=24б). Маска занятости = бит буфера 1.
 #define MCAN_f3_mask (1UL << 1U)
 #define MCAN_f1_mask (1UL << 1U)
-//#define kmask60 (BIT14|BIT17|BIT18|BIT19|BIT20|BIT21|BIT22|BIT23|BIT24|BIT25|BIT26|BIT27|BIT30)
-#define kmask60 BIT30
 
 
 
