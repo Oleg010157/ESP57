@@ -3,9 +3,10 @@
     Настройка проекта K57 на новой машине: восстанавливает всё, что не едет с git.
 
 .DESCRIPTION
-    Патчи в установленном C2000Ware, пользовательский конфиг clangd и ссылки в
-    CLAUDE.md живут вне репозитория, поэтому после переезда или переустановки
-    C2000Ware/CCS их приходится накатывать заново. Скрипт делает это сам и
+    Патчи в установленном C2000Ware, пользовательский конфиг clangd, ссылки в
+    CLAUDE.md и версия Claude Code внутри CCStudio живут вне репозитория,
+    поэтому после переезда или переустановки C2000Ware/CCS их приходится
+    накатывать заново. Скрипт делает это сам и
     безопасен для повторного запуска: каждый шаг сначала проверяет, нужен ли он.
 
     Подробности и история по каждому патчу:
@@ -296,6 +297,95 @@ if (Test-Path $cred) {
 } else {
     Say "Claude Code: вход" "НУЖЕН" "окно будет пустым, выполните 'claude' в терминале"
     $script:Manual++
+}
+
+# --------------------------------------------------------------------------
+# Claude Code в CCStudio: версия бинарника.
+#
+# Расширение в CCStudio запускает не 'claude' из PATH, а свою копию, вшитую
+# в плагин:
+#   %LOCALAPPDATA%\Texas Instruments\CCS\ccs*\0\theia\deployedPlugins\
+#     anthropic.claude-code-<версия>\extension\resources\native-binary\claude.exe
+# Реестр плагинов CCStudio держит версию TI, кнопки обновления там нет, а
+# 'claude update' обновляет только npm-установку и эту копию не трогает.
+# Новые модели при этом закрыты по версии CLI (Opus 5.5 требует 2.1.280+),
+# поэтому копию в плагине ведём за npm-установкой сами.
+#
+# Порядок обновления: 'claude update', затем этот скрипт.
+#
+# Запущенный exe Windows перезаписать не даёт, но переименовать даёт. Поэтому
+# старый файл сначала отодвигается в сторону, и шаг работает при открытом
+# CCStudio - новая версия подхватится со следующей сессии Claude. Оригинал TI
+# сохраняется один раз как claude-<версия>.exe.bak; наши прежние копии уходят
+# в claude.exe.old-*, и те из них, что уже никем не заняты, удаляются.
+#
+# Когда TI выпустит плагин новее, рядом появится новая папка со своей копией.
+# Если она окажется не старше npm-установки, шаг её не тронет.
+# --------------------------------------------------------------------------
+function Get-ClaudeVersion([string]$Exe) {
+    try {
+        $out = & $Exe --version 2>$null | Select-Object -First 1
+        if ($out -match '^(\d+\.\d+\.\d+)') { return [version]$Matches[1] }
+    } catch { }
+    return $null
+}
+
+$npmExe = Join-Path $env:APPDATA 'npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe'
+$npmVer = $null
+if (Test-Path $npmExe) { $npmVer = Get-ClaudeVersion $npmExe }
+
+$plugins = @()
+$ccsData = Join-Path $env:LOCALAPPDATA 'Texas Instruments\CCS'
+if (Test-Path $ccsData) {
+    foreach ($ccs in Get-ChildItem $ccsData -Directory -Filter 'ccs*' -ErrorAction SilentlyContinue) {
+        $dp = Join-Path $ccs.FullName '0\theia\deployedPlugins'
+        $plugins += @(Get-ChildItem $dp -Directory -Filter 'anthropic.claude-code-*' -ErrorAction SilentlyContinue |
+                      ForEach-Object { Join-Path $_.FullName 'extension\resources\native-binary\claude.exe' } |
+                      Where-Object { Test-Path $_ })
+    }
+}
+
+if ($plugins.Count -eq 0) {
+    Say "Claude Code в CCStudio" "ПРОПУСК" "плагин не найден - CCStudio ещё не запускали?"
+} elseif (-not $npmVer) {
+    Say "Claude Code в CCStudio" "ПРОПУСК" "нет npm-установки, обновлять не из чего"
+} else {
+    foreach ($exe in $plugins) {
+        $dir    = Split-Path -Parent $exe
+        $plugin = ($exe -split '\\deployedPlugins\\')[1].Split('\')[0]
+        $ver    = Get-ClaudeVersion $exe
+        if ($ver -and $ver -ge $npmVer) {
+            Say "Claude Code в CCStudio" "OK" "$ver ($plugin)"
+            continue
+        }
+        if (-not (Need-Action)) {
+            Say "Claude Code в CCStudio" "НУЖЕН" "$ver -> $npmVer ($plugin)"
+            continue
+        }
+        try {
+            # Оригинал TI сохраняем один раз. Если он уже сохранён, в claude.exe
+            # лежит наша прежняя копия - её не жалко, но она может быть запущена.
+            if (@(Get-ChildItem $dir -Filter '*.exe.bak').Count -eq 0) {
+                Rename-Item -LiteralPath $exe -NewName "claude-$ver.exe.bak"
+            } else {
+                Rename-Item -LiteralPath $exe -NewName ("claude.exe.old-{0:yyyyMMdd-HHmmss}" -f (Get-Date))
+            }
+            Copy-Item -LiteralPath $npmExe -Destination $exe
+
+            # Прежние копии, которые уже никто не держит. Занятые останутся
+            # до следующего запуска - это не ошибка.
+            Get-ChildItem $dir -Filter 'claude.exe.old-*' |
+                ForEach-Object { Remove-Item -LiteralPath $_.FullName -ErrorAction SilentlyContinue }
+
+            $now = Get-ClaudeVersion $exe
+            if ($now -ne $npmVer) { throw "после копирования версия $now, ждали $npmVer" }
+            Say "Claude Code в CCStudio" "ПРИМЕНЁН" "$ver -> $now, новая сессия Claude подхватит"
+            $script:Changed++
+        } catch {
+            Say "Claude Code в CCStudio" "ОШИБКА" $_.Exception.Message
+            $script:Failed++
+        }
+    }
 }
 
 # --------------------------------------------------------------------------
