@@ -186,6 +186,12 @@ clb1.initTile            = true;
 const divider4       = system.clockTree["MCANACLKDIV"];
 divider4.divideValue = 1;
 
+const divider8       = system.clockTree["PLL_REFDIV"];
+divider8.divideValue = 2;
+
+const mux3       = system.clockTree["OSCCLKSRCSEL"];
+mux3.inputSelect = "X1_XTAL";
+
 cmpss1.$name               = "myCMPSS3";
 cmpss1.cmpssBase           = "CMPSS3_BASE";
 cmpss1.enableModule        = true;
