@@ -85,6 +85,7 @@ void     ErrHistory_Reset(void);
 bool     ErrHistory_HasPending(void);
 bool     ErrHistory_GetNextPendingCode(uint16_t *code);
 void     ErrHistory_ClearPending(void);
+void     ErrHistory_MarkPending(uint16_t code);
 void     SendL(void);
 
 void Errors_CurrentErrorWindowTick(void);

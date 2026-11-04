@@ -49,6 +49,7 @@
 #include "cla_shared.h"
 #include "SPI_EEPROM.h"
 #include "calib_store.h"
+#include "nv_store.h"
 
 
 
@@ -209,20 +210,12 @@ void main(void)
 
  //   EEprom_read_words(SPIB_BASE, READ0, offsets_addr, &offsets.iPri, (uint16_t)(sizeof(offsets)));
  //   EEprom_read_words(SPIB_BASE, READ0, kadc_addr, &kadc.iPri, (uint16_t)(sizeof(kadc)));
- //   EEprom_read_words(SPIB_BASE, READ0, errors_history_addr, (uint16_t *)&ErrHistory[0], (uint16_t)(sizeof(ErrHistory) / sizeof(uint16_t)));
     ErrHistory_ClearPending();
 
-    {
-        uint16_t sessionId = 0U;
-
-  //      EEprom_read_words(SPIB_BASE, READ0, session_id_addr, &sessionId, 1U);
-
-        sessionId++;
-
-        EEprom_write_words(SPIB_BASE, WRITE0, session_id_addr, &sessionId, 1U);
-
-        CurrentSessionId = sessionId;
-    }
+    // История аварий и номер сессии - из памяти на шине I2C, см. nv_store.c.
+    // Стоит до checkEE(): та может поднять аварии, и они должны лечь уже в
+    // прочитанную таблицу.
+    NvStore_init();
 
     checkEE();
 
@@ -290,6 +283,9 @@ extern volatile uint16_t epwm3time;// dbg
         // dbg Сохранение калибровок во флеш по команде из отладчика
         // (calibCmd = 1). Пока команды нет - ничего не делает.
         calib_store_background();
+
+        // История аварий: записать в память то, что накопилось.
+        NvStore_background();
 
         // dbg Правка паспорта силовой части из отладчика (pwrCmd = 1): на
         // стенде пульта с CAN может и не быть, а настроить прибор надо.
@@ -430,7 +426,9 @@ extern volatile uint16_t epwm3time;// dbg
 #if MCANA
         {
             uint32_t txbrp = HWREG(MCANA_DRIVER_BASE + MCAN_TXBRP);
-            if ((txbrp & BIT31) == 0)
+            // Буфер 4: через него Send_mbox(4, ...) шлёт и ошибки, и лампу. Занят -
+            // ждём: новая запись затёрла бы кадр, который ещё не ушёл на шину.
+            if ((txbrp & MCAN_TXBRP_TRP4) == 0)
 #else
         if ((CanaRegs.CAN_TXRQ_21 & BIT31) == 0) // проверяем свободен ли 32-oй бох msgID = 131
 #endif

@@ -24,6 +24,7 @@
 #include "MBOX.h"
 #include "myADC.h"
 #include "calib_store.h"
+#include "nv_store.h"
 #include "cla_shared.h"
 #include FAST_FRAME_STRING
 
@@ -1524,7 +1525,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
         case 110: // команда обнуление всего массива ошибок
 
             ClearErrorTable();
-            eeprom.bit.SaveErrors = 1; // сохранить очистку ошибок и истории в EEPROM
+            NvStore_requestClear();    // записать очищенную историю в память
             Req_336               = 1; //устанавливаем флаг для сканирования  в фоне текущих ошибок и при их отсутствии сброса лампы pb_ErrView
             break;
 

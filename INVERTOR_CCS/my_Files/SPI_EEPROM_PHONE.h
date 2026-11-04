@@ -22,7 +22,7 @@ if (spirun.reading)
 if (SPI_getTxFIFOStatus(mySPIB_BASE) != SPI_FIFO_TXEMPTY)
     goto endSPI;
 
-if ((eeprom.all == 0) && (ErrHistory_HasPending() == false))
+if (eeprom.all == 0)
     goto endSPI; // если нет запросов на приём или передачу то обходим секцию EEPROM.
 
 if (eeprom.bit.Store)
@@ -79,32 +79,7 @@ if (eeprom.bit.SaveCoef)
     goto endSPI;
 }
 
-if (eeprom.bit.ReadErrors) //
-{
-    spi_readEEPROM(mySPIB_BASE, READ0, errors_history_addr, (uint16_t *)&ErrHistory[0], (uint16_t)(sizeof(ErrHistory) / sizeof(uint16_t)));
-    ErrHistory_ClearPending();
-    eeprom.bit.ReadErrors = 0;
-    goto endSPI;
-}
-
-if (!eeprom.bit.SaveErrors)
-{
-    uint16_t pendingCode;
-    if (ErrHistory_GetNextPendingCode(&pendingCode))
-    {
-        uint16_t historyAddr = (uint16_t)(errors_history_addr + (uint16_t)(pendingCode * (uint16_t)(sizeof(ErrHistoryData) * 2U)));
-        spi_saveToEEPROM(mySPIB_BASE, WRITE0, historyAddr, (uint16_t *)&ErrHistory[pendingCode], (uint16_t)(sizeof(ErrHistoryData) / sizeof(uint16_t)));
-        goto endSPI;
-    }
-}
-
-if (eeprom.bit.SaveErrors)
-{
-    spi_saveToEEPROM(mySPIB_BASE, WRITE0, errors_history_addr, (uint16_t *)&ErrHistory[0], (uint16_t)(sizeof(ErrHistory) / sizeof(uint16_t)));
-    ErrHistory_ClearPending();
-    eeprom.bit.SaveErrors = 0;
-    goto endSPI;
-}
+// История аварий хранится не здесь, а в памяти на шине I2C: см. nv_store.c.
 
 
 

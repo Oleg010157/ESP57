@@ -31,7 +31,7 @@ uint16_t CheckLamp0 = 0;  // постоянное включение лампы 
 CtrlP CTL;
 static uint16_t ErrHistoryPending[(ERR_BUFF_SIZE + 15U) / 16U];
 
-static void ErrHistory_SetPending(uint16_t code)
+void ErrHistory_MarkPending(uint16_t code)
 {
     ErrHistoryPending[code >> 4] |= (uint16_t)(1U << (code & 0x0FU));
 }
@@ -130,7 +130,7 @@ void ErrHistory_OnError(uint16_t code)
             ErrHistory[code].HistoryCount++;
         }
         ErrHistory[code].LastSessionId = CurrentSessionId;
-        ErrHistory_SetPending(code);
+        ErrHistory_MarkPending(code);
     }
 }
 
@@ -145,7 +145,6 @@ void ClearErrorTable(void)
         memset(&CurrentErrFlags, 0, sizeof(CurrentErrFlags));
         memset(&CurrentErrTxFlags, 0, sizeof(CurrentErrTxFlags));
         memset(&ErrSessionEdgeLatch, 0, sizeof(ErrSessionEdgeLatch));
-        CurrentSessionId = 0U;
         CTL.ERI = CTL.EER = 0;
 
         CheckLamp  = 0;

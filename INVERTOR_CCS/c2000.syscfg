@@ -46,6 +46,8 @@ const epwm8          = epwm.addInstance();
 const gpio           = scripting.addModule("/driverlib/gpio.js", {}, false);
 const gpio1          = gpio.addInstance();
 const gpio2          = gpio.addInstance();
+const i2c            = scripting.addModule("/driverlib/i2c.js", {}, false);
+const i2c1           = i2c.addInstance();
 const mcan           = scripting.addModule("/driverlib/mcan.js", {}, false);
 const mcan1          = mcan.addInstance();
 const memcfg         = scripting.addModule("/driverlib/memcfg.js");
@@ -394,6 +396,11 @@ gpio1.gpioPin.$assign = "GPIO57";
 gpio2.$name           = "strob";
 gpio2.direction       = "GPIO_DIR_MODE_OUT";
 gpio2.gpioPin.$assign = "GPIO32";
+
+i2c1.$name                  = "myI2CB";
+i2c1.i2c.$assign            = "I2CB";
+i2c1.i2c.i2c_sdaPin.$assign = "A16, B16, C16, GPIO28";
+i2c1.i2c.i2c_sclPin.$assign = "GPIO29";
 
 mcan1.loopbackMode             = false;
 mcan1.enableInterrupt          = true;
