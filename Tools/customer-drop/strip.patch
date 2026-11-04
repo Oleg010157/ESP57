@@ -1,0 +1,2371 @@
+diff --git a/CAN/CANA.cs b/CAN/CANA.cs
+index 2715067..71d94bf 100644
+--- a/CAN/CANA.cs
++++ b/CAN/CANA.cs
+@@ -229,7 +229,7 @@ namespace ICDIBasic
+             NUD_RPM.BackColor = Color.Empty;
+             tKadr60.ForeColor = Color.Black;
+             tKadr60.BackColor = Color.Empty;
+-            Spl_Writers_Stop();   //Останавливаем запись .spl .spf  файлов
++            CloseChildForms();
+             _firstFlags = false;
+             AIN2_motorName.Enabled = false;
+         }
+diff --git a/Form3.cs b/Form3.cs
+index d518174..7da5fc2 100644
+--- a/Form3.cs
++++ b/Form3.cs
+@@ -79,9 +79,7 @@ namespace ICDIBasic
+ 
+         /*
+          * Имена короткие, какими эти величины зовут в прошивке и в главном
+-         * окне. В записи (bin/Wscope/Kadr60.ini) часть из них названа длиннее -
+-         * pSec, iSecTel, - там это плата за общий на все шаблоны размах Wscope,
+-         * здесь её платить не за что. Порядок на работу не влияет: наборы по
++         * окне. Порядок на работу не влияет: величины в выпадающих списках и по
+          * кнопкам выбираются по имени (Choose).
+          *
+          * Четвёртое число - наименьший размах оси; менять можно свободно, на
+@@ -613,11 +611,10 @@ namespace ICDIBasic
+         #region Границы осей
+ 
+         /*
+-         * ГРАНИЦЫ ОСИ РУКАМИ - поля «Мин» и «Макс» в строке кривой, по образцу
+-         * окна настройки осциллографа (Scope/ScopeConfigForm.cs).
++         * ГРАНИЦЫ ОСИ РУКАМИ - поля «Мин» и «Макс» в строке кривой.
+          *
+          * Пустое поле - граница подбирается сама (FitAxis). Отдельной галочки
+-         * «авто» нет по той же причине, что и там: пустая клетка и так
++         * «авто» нет: пустая клетка и так
+          * читается как «не задано».
+          *
+          * ЗАЧЕМ, если есть мышь. Рамка мышью растягивает ВСЕ ТРИ ОСИ РАЗОМ:
+@@ -629,9 +626,7 @@ namespace ICDIBasic
+          * не должны достаться мощности, когда в той же строке сменят величину,
+          * и должны вернуться, когда ток выберут снова - в любой строке.
+          *
+-         * Хранятся между запусками рядом с настройками вида осциллографа, в
+-         * bin/Debug/Scope/Graphs.view.ini. Файл пользовательский и в git не
+-         * ездит, как и те.
++         * Хранятся между запусками рядом с программой, в Graphs.view.ini.
+          */
+ 
+         /// <summary>Границы по имени величины: [0] - мин, [1] - макс, NaN - не задана.</summary>
+@@ -639,7 +634,7 @@ namespace ICDIBasic
+ 
+         private static string BoundsFile
+         {
+-            get { return Path.Combine(ScopeView.Dir, "Graphs.view.ini"); }
++            get { return Path.Combine(Application.StartupPath, "Graphs.view.ini"); }
+         }
+ 
+         private static string BoundText(double v)
+@@ -777,7 +772,6 @@ namespace ICDIBasic
+                         sb.AppendLine(c.Name + "=" + BoundText(b[0]) + "," + BoundText(b[1]));
+                 }
+ 
+-                Directory.CreateDirectory(ScopeView.Dir);
+                 File.WriteAllText(BoundsFile, sb.ToString(), new UTF8Encoding(false));
+             }
+             catch (IOException)
+diff --git a/GridTieUi.cs b/GridTieUi.cs
+index 8c2dd2c..0b7ea34 100644
+--- a/GridTieUi.cs
++++ b/GridTieUi.cs
+@@ -217,7 +217,7 @@ namespace ICDIBasic
+                 "Действует только в АИН: в двух верхних режимах частоту диктует\n" +
+                 "сеть, и поле там погашено.\n" +
+                 "\n" +
+-                "Частота умножается на число точек синусоиды (sineB.ini) и даёт\n" +
++                "Частота умножается на число точек синусоиды и даёт\n" +
+                 "частоту ШИМ: 50 Гц при 100 точках - это 5 кГц на ключах.";
+ 
+             const string send =
+diff --git a/INVERTOR_CCS/KSP/REF_Kadr.c b/INVERTOR_CCS/KSP/REF_Kadr.c
+index 6bc93ae..7fa0e1e 100644
+--- a/INVERTOR_CCS/KSP/REF_Kadr.c
++++ b/INVERTOR_CCS/KSP/REF_Kadr.c
+@@ -74,11 +74,6 @@ void send_REF_kadr()
+     // 26..30 - резерв, 31 - счётчик кадров K60cnt (11.10.2026).
+     // UI (Parse140) читает по индексу, так что дописывать в них можно, не
+     // трогая разбор остальных.
+-    //
+-    // ЭТОТ ЖЕ КАДР - МЕДЛЕННАЯ ЗАПИСЬ В ФАЙЛ (F2, набор "Kadr60" в поле
+-    // "F2 Кадр"), с 11.10.2026. Отдельный кадр 131 под неё упразднён: он вёз
+-    // бы те же слова вторым экземпляром. Имена каналам в записи даёт
+-    // bin/Wscope/Kadr60.ini - новое слово кадра требует там строки.
+     uint16_t tele[32] = {0};
+ 
+ 
+@@ -242,10 +237,7 @@ void send_REF_kadr()
+     tele_freeze_on_fault(tele);
+ 
+     //-----------------------------------------------------------------
+-    // Счётчик кадров - ПОСЛЕДНЕЕ слово, и место это не случайное: по его
+-    // изменению Motor_Control считает запись готовой и кладёт кадр в файл
+-    // (набор "Kadr60"). Величина, способная повториться у соседних кадров,
+-    // на этом месте остановила бы запись.
++    // Счётчик кадров - ПОСЛЕДНЕЕ слово.
+     //
+     // Растёт на каждый ОТПРАВЛЕННЫЙ кадр: фон зовёт нас, только когда
+     // буфер 2 свободен. Скачок счётчика больше чем на единицу в записи -
+diff --git a/INVERTOR_CCS/my_Files/1ph_Sin.c b/INVERTOR_CCS/my_Files/1ph_Sin.c
+index 7501b2a..6eb587c 100644
+--- a/INVERTOR_CCS/my_Files/1ph_Sin.c
++++ b/INVERTOR_CCS/my_Files/1ph_Sin.c
+@@ -26,6 +26,7 @@
+ #include "1ph_Sin.h"
+ #include "grid_tie.h"  // сетевой режим: отдача мощности в сеть
+ #include "plant_sim.h" // модель силовой части вместо железа
++#include "myLED.h"     // огонёк: GPIO57 у него в работе
+ 
+ //---------------------------------------------------------------------
+ // Пользовательские настройки (измените значения по необходимости)
+@@ -319,9 +320,9 @@ void dacDbg_scale_default(void)
+ }
+ 
+ //--------------------------------------------------------------------------------------
+-//  Телеметрия быстрого кадра (ID 103, буфер 1) для Wscope(запись в файл ) или Oscilloscope(реальный осциллограф).
++//  Телеметрия быстрого кадра (ID 103, буфер 1).
+ //
+-// Кадров три, и выбирает их команда CAN 1001 (кнопка F2 в окне, поле "F2 Кадр"):
++// Кадров три, и выбирает их команда CAN 1001:
+ //
+ //   data3 = 1   F1_convertor   4 слова, 8 байт.  Три величины на выбор telSrc
+ //                              плюс счётчик тактов. Таблица наборов - в
+@@ -334,19 +335,12 @@ void dacDbg_scale_default(void)
+ //                              полученное напряжение, флаги автомата. Код 5
+ //                              занят медленным кадром.
+ //
+-// Формат любого менять можно только тремя местами разом: прошивка, разбор в
+-// Motor_Control (Oleg/Kadr60.cs, ProcessFrame103) и настройки каналов Wscope
+-// (bin/Wscope/<имя набора>.ini). Приёмная сторона читает по НОМЕРУ СЛОВА,
+-// имён в кадре нет.
+-//
+-// Живой осциллограф в Motor_Control четвёртым местом НЕ является: он читает
+-// тот же самый .ini (Scope/IniChannelMap.cs), поэтому разойтись с Wscope не
+-// может в принципе.
++// Приёмная сторона читает кадр по НОМЕРУ СЛОВА, имён в кадре нет.
+ //
+ // ЧЕТВЁРТОЕ СЛОВО - sineTick, и это не украшение. Send_mbox_FD молча пропускает
+ // кадр, если буфер занят передачей предыдущего, а пропуск в ленте неотличим
+-// от настоящей паузы в сигнале: Wscope нарисует сжатый по времени участок и
+-// это будет выглядеть как реальная динамика. По разрывам sineTick пропуск
++// от настоящей паузы в сигнале: на графике это выглядело бы сжатым по времени
++// участком, как реальная динамика. По разрывам sineTick пропуск
+ // виден сразу. Сколько их и откуда - grid_tie.txt, раздел 6.2.
+ //
+ // Масштабы каналов ЖЁСТКО ЗАШИТЫ, а не вынесены в переменные, и намеренно:
+@@ -649,11 +643,8 @@ __interrupt void INT_myADCB_1_ISR(void)
+    {
+        if (canaKadr.bit.F3_convertor == 1)
+        {
+-           // Раскладка и масштабы - в таблице выше. Порядок менять нельзя,
+-           // приёмная сторона читает по номеру слова: прошивка, разбор в
+-           // Kadr60.cs (ProcessFrame103) и настройки каналов Wscope
+-           // (bin/Wscope/F3_convertor.ini) должны совпадать все трое. Живой
+-           // осциллограф читает тот же .ini и своей таблицы не держит.
++           // Раскладка и масштабы - в таблице выше. Порядок менять нельзя:
++           // приёмная сторона читает по номеру слова.
+            uint16_t f[16];
+            uint16_t tbprd = EPwm1Regs.TBPRD;
+ 
+@@ -742,9 +733,8 @@ __interrupt void INT_myADCB_1_ISR(void)
+        }
+        else if (canaKadr.bit.F3_grid == 1)
+        {
+-           // Контур тока изнутри. Карта каналов - bin/Wscope/F3_grid.ini,
+-           // разбор - grid_tie.txt, раздел 6.2. Порядок слов менять только
+-           // вместе с ini: имён в кадре нет.
++           // Контур тока изнутри. Разбор - grid_tie.txt, раздел 6.2. Порядок слов
++           // менять нельзя: имён в кадре нет.
+            //
+            // Регулятор - тот, что считается СЕЙЧАС: в слежении это контур
+            // напряжения prv, в RAMP/RUN - контур тока pr. Оба выдают вольты
+@@ -772,7 +762,7 @@ __interrupt void INT_myADCB_1_ISR(void)
+            f[12] = TEL_I16(100.0f * iPri_amp);      // 0.01 А
+            f[13] = TEL_I16(10000.0f * phaseErr);    // 1e-4
+ 
+-           // Флаги. Wscope и осциллограф достают их масками [flags] and N.
++           // Флаги, маски [flags] and N.
+            //   биты 0..2  gt.State: 0 OFF, 1 SYNC, 2 RAMP, 3 RUN, 4 FAULT
+            //   бит  3     m в этом такте стоит на потолке mMax
+            //   бит  4     ключи открыты
+@@ -794,7 +784,7 @@ __interrupt void INT_myADCB_1_ISR(void)
+ 
+            switch (telSrc)
+            {
+-               case 1:                                   // контур тока: ierr считается в Wscope как f0 - f1
++               case 1:                                   // контур тока: ierr = f0 - f1
+                    f[0] = (int16_t)(100.0f * gt.iref);   // 0.01 А
+                    f[1] = (int16_t)(100.0f * iSec_amp); // 0.01 А
+                    f[2] = (int16_t)(10000.0f * gt.m);    // 1e-4
+@@ -1036,7 +1026,8 @@ void adjustPhaze(void)
+ 
+ __interrupt void INT_myEPWM6_ISR(void)
+ {
+-      GpioDataRegs.GPBTOGGLE.bit.GPIO57 = 1; // scope dbg
++    if (dbgLedWave == 0) // GPIO57 - он же COL2, пока бежит огонёк, он у myLED.c
++        GpioDataRegs.GPBTOGGLE.bit.GPIO57 = 1; // отладочная ножка
+     sineA.angle = PI2sut(sineA.angle + sineA.step);
+     float a     = sinf(sineA.angle + sineA.offset) * sineA.gain + 2048; // u220
+     a           = (a < 0) ? 0 : a;
+diff --git a/INVERTOR_CCS/my_Files/main.c b/INVERTOR_CCS/my_Files/main.c
+index 297be04..5ef7911 100644
+--- a/INVERTOR_CCS/my_Files/main.c
++++ b/INVERTOR_CCS/my_Files/main.c
+@@ -39,6 +39,7 @@
+ #include "myADC.h"
+ #include "myDCAN.h"
+ #include "myMCAN.h"
++#include "myLED.h"
+ 
+ #include "myEPWM.h"
+ #include "1ph_Sin.h"
+@@ -369,6 +370,9 @@ extern volatile uint16_t epwm3time;// dbg
+             epwmcount = 0;
+ 
+             Core_Temp_Update(); // температура ядра, раз в 50 мс, без прерывания
++
++            // Бегущий огонёк по светодиодам, разбор в myLED.c.
++            LED_waveBackground();
+  
+             if (cntT0 == OneSecond) // события обрабатываемые каждую секунду
+             {
+diff --git a/INVERTOR_CCS/my_Files/myLED.c b/INVERTOR_CCS/my_Files/myLED.c
+new file mode 100644
+index 0000000..8f7f285
+--- /dev/null
++++ b/INVERTOR_CCS/my_Files/myLED.c
+@@ -0,0 +1,103 @@
++/*
++ * myLED.c
++ *
++ *  Created on: 30.10.2026
++ *      Author: Oleg Pavlovsky
++ */
++
++#include "driverlib.h"
++#include "device.h"
++#include "f28p55x_device.h"
++#include "myLED.h"
++
++//
++// Бегущий огонёк по светодиодам платы PCB_MCU-F2803: видно, что плата ожила и
++// фоновый цикл крутится. Команда - из окна Watch:
++//
++//   dbgLedWave = 0 - выключено, выводы не трогаются;
++//   dbgLedWave = 1 - бежит огонёк, по dbgLedStep тиков на светодиод
++//                    (по умолчанию: огонёк бежит сразу после сброса).
++//
++// Светодиоды висят анодом на 3-5V_MCU через 330 Ом, катодом на LD1..LD6 и
++// COL1..COL6, а те - на выходах инверторов 74HC04. Поэтому светодиод горит при
++// ЕДИНИЦЕ на GPIO. Питание 3-5V_MCU выбирается перемычкой: без него не горит
++// ничего.
++//
++// COL4 и COL5 приходят через перемычки H8-H9 (GPIO59, GPIO44). Нет перемычек -
++// эти два не горят.
++//
++// LED12 (COL6) НЕ УЧАСТВУЕТ: он на GPIO7, а это EPWM4B, затвор ключа на силовой
++// плате. Этот вывод здесь не трогается.
++//
++// GPIO57 (COL2) - он же отладочная ножка, её дёргает INT_myEPWM6_ISR на каждом
++// такте. Пока бежит огонёк, прерывание её не трогает, иначе COL2 горел бы
++// вполнакала всё время.
++//
++// Шаг - тики фона по 50 мс (блок CpuTimer0 в main.c), по умолчанию 20 = 1 с.
++//
++volatile uint16_t dbgLedWave = 1;
++volatile uint16_t dbgLedStep = 20; // тиков по 50 мс на один светодиод
++volatile uint16_t dbgLedNow  = 0;  // какой горит сейчас, 1..11; 0 - никакой
++
++#define LED_COUNT 11U
++
++// Порядок - как на схеме: LED1..LED6 на LD1..LD6, LED7..LED11 на COL1..COL5.
++static const uint16_t ledPin[LED_COUNT] =
++{
++    48U, 47U, 49U, 50U, 51U, 52U, // LD1..LD6
++    56U, 57U, 58U,                // COL1..COL3
++    59U, 44U                      // COL4..COL5, через перемычки H8-H9
++};
++
++static const uint32_t ledPinConfig[LED_COUNT] =
++{
++    GPIO_48_GPIO48, GPIO_47_GPIO47, GPIO_49_GPIO49,
++    GPIO_50_GPIO50, GPIO_51_GPIO51, GPIO_52_GPIO52,
++    GPIO_56_GPIO56, GPIO_57_GPIO57, GPIO_58_GPIO58,
++    GPIO_59_GPIO59, GPIO_44_GPIO44
++};
++
++void LED_waveBackground(void)
++{
++    static uint16_t mode = 0; // в каком режиме выводы сейчас
++    static uint16_t tick = 0;
++    uint16_t i;
++
++    if (dbgLedWave != mode)
++    {
++        mode = dbgLedWave;
++        tick = 0;
++        dbgLedNow = 0;
++
++        if (mode == 0)
++        {
++            for (i = 0; i < LED_COUNT; i++)
++                GPIO_writePin(ledPin[i], 0);
++            return;
++        }
++
++        // Сначала уровень, потом направление: вывод выходит сразу в нуле,
++        // то есть светодиод погашен.
++        for (i = 0; i < LED_COUNT; i++)
++        {
++            GPIO_writePin(ledPin[i], 0);
++            GPIO_setPinConfig(ledPinConfig[i]);
++            GPIO_setDirectionMode(ledPin[i], GPIO_DIR_MODE_OUT);
++        }
++    }
++
++    if (mode == 0)
++        return;
++
++    if (tick != 0U)
++    {
++        tick--;
++        return;
++    }
++    tick = (dbgLedStep != 0U) ? dbgLedStep - 1U : 0U;
++
++    if (dbgLedNow != 0U)
++        GPIO_writePin(ledPin[dbgLedNow - 1U], 0);
++    dbgLedNow = (dbgLedNow >= LED_COUNT) ? 1U : dbgLedNow + 1U;
++    GPIO_writePin(ledPin[dbgLedNow - 1U], 1);
++}
+diff --git a/INVERTOR_CCS/my_Files/myLED.h b/INVERTOR_CCS/my_Files/myLED.h
+new file mode 100644
+index 0000000..bb4249e
+--- /dev/null
++++ b/INVERTOR_CCS/my_Files/myLED.h
+@@ -0,0 +1,19 @@
++/*
++ * myLED.h
++ *
++ *  Created on: 30.10.2026
++ *      Author: Oleg Pavlovsky
++ */
++
++#ifndef MYLED_H_
++#define MYLED_H_
++
++#include <stdint.h>
++
++// Бегущий огонёк по LED1..LED11 платы PCB_MCU-F2803. Зовётся из фона раз в
++// 50 мс. Разбор - в myLED.c.
++extern volatile uint16_t dbgLedWave;
++
++void LED_waveBackground(void);
++
++#endif /* MYLED_H_ */
+diff --git a/MainWindow.Designer.cs b/MainWindow.Designer.cs
+index 8c83310..c07d274 100644
+--- a/MainWindow.Designer.cs
++++ b/MainWindow.Designer.cs
+@@ -137,7 +137,6 @@
+             this.m2ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+             this.motK60ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
+-            this.tsmScope = new System.Windows.Forms.ToolStripMenuItem();
+             this.МенюУправленияToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+             this.управлениеToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+             this.yokogawaWTToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+@@ -206,10 +205,8 @@
+             this.rpm_ramp = new System.Windows.Forms.TextBox();
+             this.Gain1_ModeL = new System.Windows.Forms.Button();
+             this.Gain2_ModeL = new System.Windows.Forms.Button();
+-            this.pbMainKadr = new System.Windows.Forms.PictureBox();
+             this.pb_RT2 = new System.Windows.Forms.PictureBox();
+             this.pb_RT1 = new System.Windows.Forms.PictureBox();
+-            this.pb_FastKadr = new System.Windows.Forms.PictureBox();
+             this.pb_CANa_Rx = new System.Windows.Forms.PictureBox();
+             this.pb_CANa_Tx = new System.Windows.Forms.PictureBox();
+             this.pb_ErrView = new System.Windows.Forms.PictureBox();
+@@ -230,8 +227,6 @@
+             this.btnTblLoad1 = new System.Windows.Forms.Button();
+             this.btnTblLoad2 = new System.Windows.Forms.Button();
+             this.tKadr60 = new System.Windows.Forms.TextBox();
+-            this.F2kadr_text = new System.Windows.Forms.Label();
+-            this.F2_Kadr_Name = new System.Windows.Forms.ComboBox();
+             this.F2_motK60 = new System.Windows.Forms.Button();
+             this.F3_label = new System.Windows.Forms.Label();
+             this.mFast_Motor = new System.Windows.Forms.Button();
+@@ -349,10 +344,8 @@
+             this.contextMenuStrip1.SuspendLayout();
+             ((System.ComponentModel.ISupportInitialize)(this.NUD_RPM)).BeginInit();
+             ((System.ComponentModel.ISupportInitialize)(this.NUD_Load1)).BeginInit();
+-            ((System.ComponentModel.ISupportInitialize)(this.pbMainKadr)).BeginInit();
+             ((System.ComponentModel.ISupportInitialize)(this.pb_RT2)).BeginInit();
+             ((System.ComponentModel.ISupportInitialize)(this.pb_RT1)).BeginInit();
+-            ((System.ComponentModel.ISupportInitialize)(this.pb_FastKadr)).BeginInit();
+             ((System.ComponentModel.ISupportInitialize)(this.pb_CANa_Rx)).BeginInit();
+             ((System.ComponentModel.ISupportInitialize)(this.pb_CANa_Tx)).BeginInit();
+             ((System.ComponentModel.ISupportInitialize)(this.pb_ErrView)).BeginInit();
+@@ -1498,7 +1491,6 @@
+             this.menuStrip1.ImageScalingSize = new System.Drawing.Size(20, 20);
+             this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+             this.tsmConnect,
+-            this.tsmScope,
+             this.параметрыToolStripMenuItem,
+             this.МенюУправленияToolStripMenuItem,
+             this.управлениеToolStripMenuItem,
+@@ -1511,14 +1503,6 @@
+             this.menuStrip1.TabIndex = 54;
+             this.menuStrip1.Text = "menuStrip1";
+             // 
+-            // tsmScope
+-            // 
+-            this.tsmScope.Name = "tsmScope";
+-            this.tsmScope.Size = new System.Drawing.Size(64, 24);
+-            this.tsmScope.Text = "Scope";
+-            this.tsmScope.ToolTipText = "Живая лента быстрого кадра. Набор берётся из поля «F2 Кадр»";
+-            this.tsmScope.Click += new System.EventHandler(this.tsmScope_Click);
+-            // 
+             // МенюУправленияToolStripMenuItem
+             // 
+             this.МенюУправленияToolStripMenuItem.Name = "МенюУправленияToolStripMenuItem";
+@@ -2165,17 +2149,6 @@
+             this.Gain2_ModeL.UseVisualStyleBackColor = true;
+             this.Gain2_ModeL.Click += new System.EventHandler(this.Gain2_ModeL_Click);
+             // 
+-            // pbMainKadr
+-            // 
+-            this.pbMainKadr.Image = global::ICDIBasic.Properties.Resources.arrow_green1;
+-            this.pbMainKadr.Location = new System.Drawing.Point(51, 646);
+-            this.pbMainKadr.Name = "pbMainKadr";
+-            this.pbMainKadr.Size = new System.Drawing.Size(32, 32);
+-            this.pbMainKadr.SizeMode = System.Windows.Forms.PictureBoxSizeMode.AutoSize;
+-            this.pbMainKadr.TabIndex = 325;
+-            this.pbMainKadr.TabStop = false;
+-            this.pbMainKadr.Visible = false;
+-            // 
+             // pb_RT2
+             // 
+             this.pb_RT2.Image = global::ICDIBasic.Properties.Resources.resistor2j;
+@@ -2194,17 +2167,6 @@
+             this.pb_RT1.TabIndex = 323;
+             this.pb_RT1.TabStop = false;
+             // 
+-            // pb_FastKadr
+-            // 
+-            this.pb_FastKadr.Image = global::ICDIBasic.Properties.Resources.arrow_blue1;
+-            this.pb_FastKadr.Location = new System.Drawing.Point(13, 646);
+-            this.pb_FastKadr.Name = "pb_FastKadr";
+-            this.pb_FastKadr.Size = new System.Drawing.Size(32, 32);
+-            this.pb_FastKadr.SizeMode = System.Windows.Forms.PictureBoxSizeMode.AutoSize;
+-            this.pb_FastKadr.TabIndex = 278;
+-            this.pb_FastKadr.TabStop = false;
+-            this.pb_FastKadr.Visible = false;
+-            // 
+             // pb_CANa_Rx
+             // 
+             this.pb_CANa_Rx.Image = ((System.Drawing.Image)(resources.GetObject("pb_CANa_Rx.Image")));
+@@ -2431,33 +2393,6 @@
+             this.tKadr60.KeyUp += new System.Windows.Forms.KeyEventHandler(this.tKadr60_KeyUp);
+             this.tKadr60.Leave += new System.EventHandler(this.tKadr60_Leave);
+             // 
+-            // F2kadr_text
+-            // 
+-            this.F2kadr_text.AutoSize = true;
+-            this.F2kadr_text.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+-            this.F2kadr_text.Location = new System.Drawing.Point(494, 37);
+-            this.F2kadr_text.Name = "F2kadr_text";
+-            this.F2kadr_text.Size = new System.Drawing.Size(64, 18);
+-            this.F2kadr_text.TabIndex = 318;
+-            this.F2kadr_text.Text = "F2 Кадр";
+-            this.F2kadr_text.Click += new System.EventHandler(this.F2kadr_text_Click);
+-            // 
+-            // F2_Kadr_Name
+-            // 
+-            this.F2_Kadr_Name.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+-            this.F2_Kadr_Name.FormattingEnabled = true;
+-            this.F2_Kadr_Name.Items.AddRange(new object[] {
+-            "F1_convertor",
+-            "F1_invertor",
+-            "F3_invertor",
+-            "F3_convertor",
+-            "Kadr60",
+-            "F3_grid"});
+-            this.F2_Kadr_Name.Location = new System.Drawing.Point(612, 31);
+-            this.F2_Kadr_Name.Name = "F2_Kadr_Name";
+-            this.F2_Kadr_Name.Size = new System.Drawing.Size(105, 24);
+-            this.F2_Kadr_Name.TabIndex = 322;
+-            // 
+             // F2_motK60
+             // 
+             this.F2_motK60.AutoSize = true;
+@@ -3437,17 +3372,14 @@
+             this.Controls.Add(this.lbVT1_R);
+             this.Controls.Add(this.SlipMax_Value);
+             this.Controls.Add(this.T5sixpack);
+-            this.Controls.Add(this.pbMainKadr);
+             this.Controls.Add(this.pb_RT2);
+             this.Controls.Add(this.DCDC_T2);
+             this.Controls.Add(this.pb_RT1);
+-            this.Controls.Add(this.F2_Kadr_Name);
+             this.Controls.Add(this.lbVT1_6);
+             this.Controls.Add(this.Gain2_ModeL);
+             this.Controls.Add(this.DCDC_T4);
+             this.Controls.Add(this.Gain1_ModeL);
+             this.Controls.Add(this.lbVT1_5);
+-            this.Controls.Add(this.F2kadr_text);
+             this.Controls.Add(this.tKadr60);
+             this.Controls.Add(this.rpm_ramp);
+             this.Controls.Add(this.label_rpm_ramp);
+@@ -3467,7 +3399,6 @@
+             this.Controls.Add(this.NUD_Gain1);
+             this.Controls.Add(this.NUD_Gain2);
+             this.Controls.Add(this.Separate_cbox);
+-            this.Controls.Add(this.pb_FastKadr);
+             this.Controls.Add(this.label_GainBar2_unit);
+             this.Controls.Add(this.label_GainBar1_unit);
+             this.Controls.Add(this.Gain_Sym);
+@@ -3557,10 +3488,8 @@
+             this.contextMenuStrip1.ResumeLayout(false);
+             ((System.ComponentModel.ISupportInitialize)(this.NUD_RPM)).EndInit();
+             ((System.ComponentModel.ISupportInitialize)(this.NUD_Load1)).EndInit();
+-            ((System.ComponentModel.ISupportInitialize)(this.pbMainKadr)).EndInit();
+             ((System.ComponentModel.ISupportInitialize)(this.pb_RT2)).EndInit();
+             ((System.ComponentModel.ISupportInitialize)(this.pb_RT1)).EndInit();
+-            ((System.ComponentModel.ISupportInitialize)(this.pb_FastKadr)).EndInit();
+             ((System.ComponentModel.ISupportInitialize)(this.pb_CANa_Rx)).EndInit();
+             ((System.ComponentModel.ISupportInitialize)(this.pb_CANa_Tx)).EndInit();
+             ((System.ComponentModel.ISupportInitialize)(this.pb_ErrView)).EndInit();
+@@ -3650,7 +3579,6 @@
+         private System.Windows.Forms.Label label_GainBar2_unit;
+         private System.Windows.Forms.ToolStripMenuItem tsmBootLoader;
+         private System.Windows.Forms.PictureBox pb_CANa_Tx;
+-        private System.Windows.Forms.PictureBox pb_FastKadr;
+         public System.Windows.Forms.CheckBox Gain_Sym;
+         private System.Windows.Forms.CheckBox Separate_cbox;
+         public System.Windows.Forms.TrackBar Tbar_speed;
+@@ -3771,7 +3699,6 @@
+         private System.Windows.Forms.Label T5sixpack;
+         private System.Windows.Forms.PictureBox pb_RT2;
+         private System.Windows.Forms.PictureBox pb_RT1;
+-        private System.Windows.Forms.PictureBox pbMainKadr;
+         private System.Windows.Forms.Label Sabs_max1;
+         private System.Windows.Forms.TextBox SlipMax_Value;
+         private System.Windows.Forms.Button Load1_ModeL;
+@@ -3793,7 +3720,6 @@
+         private System.Windows.Forms.DataGridView dgvAIN2;
+         private System.Windows.Forms.DataGridView dgvAIN1;
+         public System.Windows.Forms.CheckBox Load_Sym;
+-        private System.Windows.Forms.ToolStripMenuItem tsmScope;
+         public System.Windows.Forms.Button btnTblLoad2;
+         public System.Windows.Forms.Button btnTblLoad1;
+         private System.Windows.Forms.TextBox AIN2_flag;
+@@ -3804,8 +3730,6 @@
+         public System.Windows.Forms.Button mFast_Motor;
+         private System.Windows.Forms.Label F3_label;
+         public System.Windows.Forms.Button F2_motK60;
+-        private System.Windows.Forms.ComboBox F2_Kadr_Name;
+-        private System.Windows.Forms.Label F2kadr_text;
+         private System.Windows.Forms.TextBox tKadr60;
+         private System.Windows.Forms.ToolStripTextBox toolStripTextBox1;
+         public System.Windows.Forms.GroupBox groupBox_AIN1;
+diff --git a/MainWindow.cs b/MainWindow.cs
+index 7cce73a..9dc922d 100644
+--- a/MainWindow.cs
++++ b/MainWindow.cs
+@@ -1024,7 +1024,6 @@ namespace ICDIBasic
+         #endregion class NUD+Tbar
+         #region Основные Параметры и переменные
+         public byte CanAId = 0xA; // ID CAN адаптера A - основная коммуникация
+-        public byte CanBId = 0xB; // ID CAN адаптера B - быстрый кадр
+         public byte CanCId = 0xC; // ID CAN адаптера C - управление платой СВТГ
+         public byte CanDId = 0xD; // ID CAN адаптера D - Имитатор дизеля, связь с КВУ J1939
+         public bool CanA_Ok;
+@@ -1342,7 +1341,7 @@ namespace ICDIBasic
+             slipMax_send(SlipMax_Value2);
+             SpeedRef_send();
+             tKadr60_send();
+-            TapeSync(); // лента, брошенная прошлым экземпляром программы
++            uint_128(0, 0, 0, 1001); // быстрая телеметрия прибора выключена
+             DG_send(DG2, 61);
+ 
+             Imax_Send();
+@@ -1764,19 +1763,6 @@ namespace ICDIBasic
+             return m;
+         }
+ 
+-       #endregion
+-        #region Открытие окна осциллографа быстрой ленты
+-        private void tsmScope_Click(object sender, EventArgs e)
+-        {
+-            // Одно окно на всю программу: второе смотрело бы на то же кольцо и
+-            // делило бы с первым курсор и заморозку. Открытое поднимается.
+-            //
+-            // Подключение к данным живёт в самом окне (ScopeForm.Feed вызывается
+-            // из Kadr60Rx), поэтому здесь ничего передавать не надо. Ленту окно
+-            // просит себе само - TapeStart внутри Open.
+-            ScopeForm.Open(this);
+-        }
+-
+        #endregion
+         #region Открытие окна графиков в окне индикации
+         private void button_ain1_plot_Click(object sender, EventArgs e)
+@@ -1786,7 +1772,6 @@ namespace ICDIBasic
+                 // С владельцем: окно держится поверх главного. Иначе стоило
+                 // тронуть движок Iзад - главное окно выходило вперёд и
+                 // закрывало график ровно тогда, когда на нём нужна реакция.
+-                // Так же открывается осциллограф (ScopeForm.Open).
+                 _f3Win.Frm3Form1 = this;
+                 _f3Win.Show(this);
+                 _f3Win.timer1.Enabled = true;
+@@ -2850,27 +2835,6 @@ namespace ICDIBasic
+                     TeleSel_Ack(d1);
+                     break;
+ 
+-                case 100: // подтверждение команды для запуска записи фаст spf кадра по нажатию F3
+-
+-                    spf_Tooth_F9 = true;
+-                    spf_Start(ref spf);
+-                    toolTip1.SetToolTip(pb_FastKadr, "F3");
+-                  
+-                    break;
+-
+-                case 101:  // подтверждение команды для запуска записи sp2 кадра по нажатию F9
+-
+-                    sp2_Tooth_F9 = true;
+-                    spf_Start(ref sp2);
+-                    toolTip1.SetToolTip(pb_FastKadr, "F9");
+-                  
+-                    break;
+-
+-                case 103:  // подтверждение команды останова потока данных по СANB
+-                    spf_running = false;
+-
+-                    break;
+-
+                 case 338: // тест IGBT: d3 - открытые ключи и флаги теста
+                     igbt?.FeedBack(d1, d2, d3);
+                     break;
+@@ -2912,15 +2876,11 @@ namespace ICDIBasic
+                     break;
+ 
+                 case 32001:
+-                    spf.mboxCnt = MboxCnt(d1, d2);
+-                    sp2.mboxCnt = MboxCnt(d3, 0);
+                     IdRcvd = _srx = false;
+ 
+                     var infoText = NormalizeKspInfoString(_s0.ToString());
+                     var s = SplitFirmwareInfoFields(infoText);
+                     KspIdString = s.Length > 0 ? NormalizeKspVersion(s[0]) : string.Empty;
+-                    spf.FrameString = s.Length > 1 ? s[1].Replace(".h", ".ini") : string.Empty;
+-                    sp2.FrameString = s.Length > 2 ? s[2].Replace(".h", ".ini") : string.Empty;
+                     BuildDate = s.Length > 3 ? SanitizeFirmwareVersionText(s[3]) : string.Empty;
+                     BuildTime = s.Length > 4 ? SanitizeFirmwareVersionText(s[4]) : string.Empty;
+ 
+@@ -4089,8 +4049,7 @@ namespace ICDIBasic
+             {
+                 case @"GT":
+                     hint =
+-                        "Состояние автомата подключения к сети (enum GridState,\n" +
+-                        "my_Files/grid_tie.h).\n" +
++                        "Состояние автомата подключения к сети.\n" +
+                         "\n" +
+                         "OFF   - автомат стоит. Это режим АИН либо мост выключен:\n" +
+                         "        за сетью не следим, контактор разомкнут.\n" +
+@@ -4165,7 +4124,7 @@ namespace ICDIBasic
+         // Подсказка слота Vq/uVq/Err, устроена как Iq_Name_Hint.
+         //
+         // Err расписан по кодам: в поле стоит голое число, и расшифровать его
+-        // иначе как заглянув в bin/ErrorCodes.h неоткуда. Слот этот у M1
++        // иначе как заглянув в ErrorCodes.h неоткуда. Слот этот у M1
+         // теперь постоянный, так что подсказка - единственная легенда к нему.
+         //-------------------------------------------------------------------
+         private void Vq_Name_Hint(Motor m)
+@@ -4180,8 +4139,7 @@ namespace ICDIBasic
+                 case @"Err":
+                     hint =
+                         "Код последней аварии сетевого режима, gt.fault.\n" +
+-                        "Таблица - bin/ErrorCodes.h, аварии ставит\n" +
+-                        "grid_tie_fault() в my_Files/grid_tie.c.\n" +
++                        "Таблица кодов - файл ErrorCodes.h рядом с папкой программы.\n" +
+                         "\n" +
+                         "0  - аварий не было.\n" +
+                         "60 - пропала сеть: нет захватов нуля U220 дольше\n" +
+@@ -4198,7 +4156,7 @@ namespace ICDIBasic
+                         "     в своём индикаторе).\n" +
+                         "\n" +
+                         "Код защёлкивается и живёт до пуска автомата заново:\n" +
+-                        "сбрасывает его только grid_tie_stop(), то есть\n" +
++                        "сбрасывает его только останов сетевого режима, то есть\n" +
+                         "переключение режима моста в АИН. Поэтому ненулевое\n" +
+                         "число здесь при зелёной кнопке - это память о прошлой\n" +
+                         "аварии, а не текущая. Что сейчас - в слоте GT.";
+@@ -4319,10 +4277,7 @@ namespace ICDIBasic
+                 // 25 А амплитуды через sqrt2; таблица у Dgt целочисленная.
+                 // Согласовать предел с защитами решено позже, на железе.
+                 //
+-                // Подпись "Iзад", полное имя IsetRef - в подсказке: так зовутся
+-                // поле в прошивке (gt.IsetRef) и канал в ленте F3_grid. Прежняя
+-                // подпись Iref столкнулась бы в ленте с мгновенным заданием iRef:
+-                // Wscope и осциллограф регистр в именах не различают.
++                // Подпись "Iзад", полное имя IsetRef - в подсказке: так зовётся поле в прошивке (gt.IsetRef).
+                 case LoadIsetRef:
+                     x.cmd = CmdIsetRef;
+                     x.modeH_kod = 0;
+@@ -4351,11 +4306,6 @@ namespace ICDIBasic
+                 x.cmd = m == M1 ? (ushort)73 : (ushort)77;
+         }
+ 
+-        private void F2kadr_text_Click(object sender, EventArgs e)
+-        {
+-
+-        }
+-
+ 
+         private void mFast_Click(object sender, EventArgs e)
+         {
+@@ -5030,19 +4980,6 @@ else
+                 adcOffsets = _adcInfoKsp._adcOffsets;
+             }
+ 
+-            /* Лента быстрого кадра - снять, если её больше никто не просит.
+-             * Разбор того, почему это стоит здесь, а не в spl_Stop, - в
+-             * ASt_MainF.cs, регион «Лента быстрого кадра: кто её просит».
+-             * Коротко: spl_Stop зовут из потока CAN, а команду CAN посылать
+-             * можно только из UI-потока. */
+-            TapeRelease();
+-
+-            /* Набор кадра заперт на время записи: сменить его на ходу значит
+-             * дописать в тот же .spl другую раскладку. Стоит тоже здесь и по той
+-             * же причине - запись останавливают и из потока CAN по ошибке, и
+-             * Spl_Writers_Stop при закрытии программы. */
+-            if (F2_Kadr_Name.Enabled == spl_running) F2_Kadr_Name.Enabled = !spl_running;
+-
+             // Warning Message OverTemperature---------------------------------------------------------------------------------------------------------
+             // тело формирования предупреждения о перегреве IGBT
+ 
+@@ -5136,7 +5073,7 @@ else
+             if (tsmConnect.Text == @"Подключить" && !_startstop)
+             {
+ 
+-                Spl_Writers_Stop(); //Останавливаем запись .spl .spf  файлов
++                CloseChildForms();
+                 if (CanA_Ok)
+                 {
+                     cmd_128(7); // Действия CCS совершаемые при закрытии формы Form1
+diff --git a/Motor_Control.csproj b/Motor_Control.csproj
+index eea7262..ebf29ac 100644
+--- a/Motor_Control.csproj
++++ b/Motor_Control.csproj
+@@ -114,18 +114,6 @@
+       <SubType>Form</SubType>
+     </Compile>
+     <Compile Include="CAN\PcanFdMessageConverter.cs" />
+-    <Compile Include="Scope\IniChannelMap.cs" />
+-    <Compile Include="Scope\ScopeView.cs" />
+-    <Compile Include="Scope\ScopeRing.cs" />
+-    <Compile Include="Scope\ScopeConfigForm.cs">
+-      <SubType>Form</SubType>
+-    </Compile>
+-    <Compile Include="Scope\ScopeControl.cs">
+-      <SubType>Component</SubType>
+-    </Compile>
+-    <Compile Include="Scope\ScopeForm.cs">
+-      <SubType>Form</SubType>
+-    </Compile>
+     <Compile Include="Class1.cs" />
+     <Compile Include="Form_imitation1.Designer.cs">
+       <AutoGen>True</AutoGen>
+@@ -135,9 +123,6 @@
+     <Compile Include="CAN\CANA.cs">
+       <SubType>Form</SubType>
+     </Compile>
+-    <Compile Include="CAN\CANB.cs">
+-      <SubType>Form</SubType>
+-    </Compile>
+     <Compile Include="Oleg\Kadr60.cs">
+       <SubType>Form</SubType>
+     </Compile>
+@@ -153,13 +138,6 @@
+     <Compile Include="Stepulyov\TxDataFrm.cs">
+       <SubType>Form</SubType>
+     </Compile>
+-    <Compile Include="Tooth_F9.cs">
+-      <SubType>Form</SubType>
+-    </Compile>
+-    <Compile Include="Tooth_F9.Designer.cs">
+-      <DependentUpon>Tooth_F9.cs</DependentUpon>
+-    </Compile>
+-    <Compile Include="Tooth_f9_ini_config.cs" />
+     <Compile Include="WarningForm.cs">
+       <SubType>Form</SubType>
+     </Compile>
+@@ -175,9 +153,6 @@
+       <DesignTime>True</DesignTime>
+       <DependentUpon>Resources.resx</DependentUpon>
+     </Compile>
+-    <Compile Include="SplKadr.cs">
+-      <SubType>Form</SubType>
+-    </Compile>
+     <Compile Include="Stepulyov\AlSt_IGBTTest.cs">
+       <SubType>Form</SubType>
+     </Compile>
+@@ -236,9 +211,6 @@
+     <Compile Include="Program.cs" />
+     <Compile Include="Properties\AssemblyInfo.cs" />
+     <Compile Include="Oleg\Yokogawa.cs" />
+-    <EmbeddedResource Include="Tooth_F9.resx">
+-      <DependentUpon>Tooth_F9.cs</DependentUpon>
+-    </EmbeddedResource>
+     <EmbeddedResource Include="WarningForm.resx">
+       <DependentUpon>WarningForm.cs</DependentUpon>
+     </EmbeddedResource>
+@@ -289,13 +261,6 @@
+       <DependentUpon>ASt_TempView.cs</DependentUpon>
+     </EmbeddedResource>
+     <None Include=".github\copilot-instructions.md" />
+-    <None Include="3ph_Inverter\Bootloader\CAN_Bootloader_Protocol.md" />
+-    <None Include="3ph_Inverter\EEPROM_Protocol.md" />
+-    <None Include="3ph_Inverter\Error_Protocol.md" />
+-    <None Include="3ph_Inverter\Indicator_Error_Display_Protocol.md" />
+-    <None Include="bin\Debug\Bootloader_error.log" />
+-    <None Include="bin\Debug\Bootloader_perf.log" />
+-    <None Include="bin\Debug\Bootloader_trace.log" />
+     <None Include="bin\Debug\CanTxFiles\cmpss.ini" />
+     <None Include="bin\Debug\CanTxFiles\DeadTime.ini" />
+     <None Include="bin\Debug\CanTxFiles\kADC.ini" />
+@@ -305,22 +270,6 @@
+     <None Include="bin\Debug\CanTxFiles\TPWM.ini" />
+     <None Include="bin\Debug\CanTxFiles\U_Delay.ini" />
+     <None Include="bin\Debug\ICDIBasic.exe.config" />
+-    <None Include="bin\Wscope\F1_convertor.ini" />
+-    <None Include="bin\Wscope\F3_invertor.ini" />
+-    <None Include="bin\Wscope\WScope.ini" />
+-    <None Include="bin\Wscope\WScope2.ini" />
+-    <None Include="bin\Wscope\WScopeE.ini" />
+-    <None Include="bin\Wscope\WScopeF.ini" />
+-    <None Include="Bootloader\test_invalid_short.out" />
+-    <None Include="CanLogTools\IMPLEMENTATION.md" />
+-    <None Include="CanLogTools\IMPROVEMENTS_v2.md" />
+-    <None Include="CanLogTools\LOG_ACCURACY_GUIDE.md" />
+-    <None Include="CanLogTools\README.md" />
+-    <None Include="CanLogTools\SUMMARY.md" />
+-    <None Include="CanLogTool\CanLogTool.csproj" />
+-    <None Include="CanUiLogger.cs.backup" />
+-    <None Include="docs\Bootloader_Protocol_RU.md" />
+-    <None Include="Oleg\Kadr60.cs.bak" />
+     <None Include="Properties\Settings.settings">
+       <Generator>PublicSettingsSingleFileGenerator</Generator>
+       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+@@ -342,12 +291,6 @@
+     <Compile Include="Stepulyov\ASt_TempView.Designer.cs">
+       <DependentUpon>ASt_TempView.cs</DependentUpon>
+     </Compile>
+-    <None Include="Tools\canlog.bat" />
+-    <None Include="Tools\PcanRttAnalyzer.ps1" />
+-    <None Include="Tools\PcanViewCmdExtractor.ps1" />
+-    <None Include="Tools\rtt.bat" />
+-    <None Include="Tools\RunPcanViewCmdExtractor.cmd" />
+-    <None Include="Tools\tsv.bat" />
+   </ItemGroup>
+   <ItemGroup>
+     <None Include="app.config" />
+@@ -356,10 +299,6 @@
+     <None Include="Resources\img3.png" />
+     <None Include="Resources\img31.png" />
+     <Content Include=".gitignore" />
+-    <Content Include="3ph_Inverter\Bootloader\can_bootloader.c" />
+-    <Content Include="3ph_Inverter\core_temp_adcc.c" />
+-    <Content Include="3ph_Inverter\indecator.c" />
+-    <Content Include="3ph_Inverter\indecator.h" />
+     <Content Include="bin\Debug\AinTable.dll" />
+     <Content Include="bin\Debug\ButtonTable.dll" />
+     <Content Include="bin\Debug\CanTxFiles\Readme.txt" />
+@@ -375,18 +314,11 @@
+     <Content Include="bin\Debug\ZedGraph.dll" />
+     <Content Include="bin\ErrorCodes.h" />
+     <Content Include="bin\F3_ui.h" />
+-    <Content Include="bin\Wscope\WScope.exe" />
+-    <Content Include="B_Versija.txt" />
+-    <Content Include="CanLogTools\ACCURACY_SUMMARY.txt" />
+     <None Include="bin\config_switch.h">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </None>
+     <Content Include="docs\About_Firmware_Window_Protocol_RU.txt" />
+     <Content Include="docs\Rkf_Method_Protocol_RU.txt" />
+-    <Content Include="Git_Ежедневный_сценарий.txt" />
+-    <Content Include="Git_синхронизация_другой_ПК.txt" />
+-    <Content Include="Git_синхронизация_другой_ПК_коротко.txt" />
+-    <Content Include="Git_шпаргалка.txt" />
+     <Content Include="Resources\arrow.png" />
+     <None Include="Resources\resistor2.png" />
+     <EmbeddedResource Include="Resources\green_light.png" />
+@@ -404,7 +336,6 @@
+     <Content Include="Resources\ld.png" />
+     <None Include="Resources\resistor2j.png" />
+     <Content Include="Resources\sv.png" />
+-    <Content Include="Stepulyov\CANTxDataTable.pdb" />
+     <Content Include="tiicon.ico" />
+     <Content Include="ZedGraph.dll" />
+   </ItemGroup>
+diff --git a/Motor_Control.sln b/Motor_Control.sln
+index 17e0b58..256b3e7 100644
+--- a/Motor_Control.sln
++++ b/Motor_Control.sln
+@@ -3,14 +3,9 @@
+ VisualStudioVersion = 18.2.11430.68
+ MinimumVisualStudioVersion = 10.0.40219.1
+ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Motor_Control", "Motor_Control.csproj", "{0CBCC19A-D35C-493D-A04C-DE1AA7E31F0D}"
+-	ProjectSection(ProjectDependencies) = postProject
+-		{BF35B8F9-B6F7-F90A-5457-E974BC3C9A15} = {BF35B8F9-B6F7-F90A-5457-E974BC3C9A15}
+-	EndProjectSection
+ EndProject
+ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{3537401B-C0E4-41A1-9DE0-F6913D433285}"
+ EndProject
+-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CanLogTool", "CanLogTool\CanLogTool.csproj", "{BF35B8F9-B6F7-F90A-5457-E974BC3C9A15}"
+-EndProject
+ Global
+ 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+ 		Debug|Any CPU = Debug|Any CPU
+@@ -21,10 +16,6 @@ Global
+ 		{0CBCC19A-D35C-493D-A04C-DE1AA7E31F0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+ 		{0CBCC19A-D35C-493D-A04C-DE1AA7E31F0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+ 		{0CBCC19A-D35C-493D-A04C-DE1AA7E31F0D}.Release|Any CPU.Build.0 = Release|Any CPU
+-		{BF35B8F9-B6F7-F90A-5457-E974BC3C9A15}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+-		{BF35B8F9-B6F7-F90A-5457-E974BC3C9A15}.Debug|Any CPU.Build.0 = Debug|Any CPU
+-		{BF35B8F9-B6F7-F90A-5457-E974BC3C9A15}.Release|Any CPU.ActiveCfg = Debug|Any CPU
+-		{BF35B8F9-B6F7-F90A-5457-E974BC3C9A15}.Release|Any CPU.Build.0 = Debug|Any CPU
+ 	EndGlobalSection
+ 	GlobalSection(SolutionProperties) = preSolution
+ 		HideSolutionNode = FALSE
+diff --git a/Oleg/Global_Var.cs b/Oleg/Global_Var.cs
+index 6c3f9d9..fd1e788 100644
+--- a/Oleg/Global_Var.cs
++++ b/Oleg/Global_Var.cs
+@@ -302,30 +302,6 @@ namespace ICDIBasic
+         public static double gtMPeak = 0;   // пик |m| за период сети
+         public static ushort gtSatLast = 0; // тактов в упоре по m за период
+ 
+-        // Быстрый кадр F3_convertor (CAN ID 103, 16 слов) - сырая лента для
+-        // Wscope. Слова лежат массивом, а не разбираются по именованным полям,
+-        // и это сознательно: разбирать нечего. Кадр приходит 5000 раз в секунду
+-        // и целиком уходит в файл тем же порядком слов, каким пришёл, - имена
+-        // каналам даёт не программа, а bin/Wscope/F3_convertor.ini.
+-        //
+-        // Раньше слова раскладывались по полям M1.ccs/M2.ccs с моторными
+-        // именами (Ia, Vb, radian, gain...), выбранными наугад: величины в них
+-        // лежали совсем не те, что в названии, а поле gain при этом ещё и
+-        // показывается в окне. Массив убирает и путаницу, и наложение.
+-        //
+-        // Последнее слово - счётчик тактов, он же признак готовности записи,
+-        // см. ccs.k60Cnt и CanaAsync.cs. Раскладка - в прошивке, отправка
+-        // кадра в my_Files/1ph_Sin.c.
+-        public static short[] f3 = new short[16];
+-
+-        // Медленная запись "Kadr60" - кадр 140 целиком, все 32 слова, тоже
+-        // сырой лентой и по той же причине: он уходит в файл тем же порядком
+-        // слов, а имена каналам даёт bin/Wscope/Kadr60.ini. Кладёт его сюда
+-        // Parse140 - тот же, что разбирает кадр для окна, так что в файле
+-        // ровно то, что на экране. Последнее слово - счётчик K60cnt, он же
+-        // признак готовности записи.
+-        public static ushort[] k60 = new ushort[32];
+-
+         public static ushort P101Kadr = 0;  // номер группы параметров по 108 mbox
+ 
+         //103
+diff --git a/Oleg/Kadr60.cs b/Oleg/Kadr60.cs
+index 1863624..936532f 100644
+--- a/Oleg/Kadr60.cs
++++ b/Oleg/Kadr60.cs
+@@ -35,18 +35,6 @@ namespace ICDIBasic
+           
+             switch (msg.ID)
+             {
+-                case 103:
+-                    // Живой осциллограф. Окно закрыто - вызов стоит одну
+-                    // проверку ссылки на null.
+-                    //
+-                    // Стоит ЗДЕСЬ, а не внутри ProcessFrame103, намеренно: тот
+-                    // начинается с if (!spl_running) return, то есть молчит,
+-                    // пока не идёт запись ленты в файл. Осциллографу запись не
+-                    // нужна - смотреть на форму тока хочется и без неё.
+-                    ScopeForm.Feed(msg);
+-
+-                    ProcessFrame103(msg);
+-                    break;
+                 case 140:
+                     Parse140(msg);
+                     break;
+@@ -75,9 +63,6 @@ namespace ICDIBasic
+                 case 109:
+                     ProcessFrame109(u1, u2, u3, u4);
+                     break;
+-                case 110:
+-                    ProcessFrame110(s1, s2, s3, s4, u2, u3, u4);
+-                    break;
+                 case 111:
+                     ProcessFrame111(s1, s2, s3, s4);
+                     break;
+@@ -152,9 +137,6 @@ namespace ICDIBasic
+         /// 26..30 = резерв
+         /// 31     = K60cnt, счётчик отправленных кадров (прошивка от 11.10.2026)
+         ///
+-        /// Кадр целиком, все 32 слова, ещё и ложится в ccs.k60: это медленная
+-        /// запись в файл, набор «Kadr60» в поле «F2 Кадр».
+-        ///
+         /// Слова 4..7: токи в единицах 0.01 А (прошивка от 11.10.2026, до того
+         /// 0.1 А), напряжения в 0.1 В; в наборе кодов АЦП - целые коды.
+         /// Знаковые величины MCU кладёт как int16_t.
+@@ -249,25 +231,6 @@ namespace ICDIBasic
+                 ccs.gtMPeak   = W(24) * 0.0001; // пик |m| за период
+                 ccs.gtSatLast = W(25);          // тактов в упоре из ста
+ 
+-                // МЕДЛЕННАЯ ЗАПИСЬ (набор «Kadr60», прошивка от 11.10.2026).
+-                // Кадр уходит в файл сырым, тем же порядком слов: разбирать
+-                // по смыслу тут нечего, имена каналам даёт
+-                // bin/Wscope/Kadr60.ini. То есть в файле ровно то, что в окне.
+-                for (int i = 0; i < ccs.k60.Length; i++)
+-                    ccs.k60[i] = W(i);
+-
+-                // Счётчик - последнее слово кадра; по его изменению запись
+-                // считается готовой (CAN_RxData в ASt_MainF.cs).
+-                //
+-                // ТОЛЬКО ПОД СВОЙ НАБОР. ccs.k60Cnt один на все наборы, и
+-                // при быстрой ленте в нём такт из кадра 103. Тронь его здесь
+-                // безусловно - каждый кадр 140 вставлял бы в быструю запись
+-                // лишний отсчёт, раз в 50 мс.
+-                //
+-                // На прошивке постарше слово 31 - ноль: счётчик стоит, и
+-                // запись «Kadr60» не идёт вовсе.
+-                if (f2kadrName == "Kadr60")
+-                    ccs.k60Cnt = ccs.k60[ccs.k60.Length - 1];
+             }
+             else
+             {
+@@ -364,99 +327,10 @@ namespace ICDIBasic
+             }
+         }
+ 
+-        private void ProcessFrame103(TPCANMsgFD msg)
+-        {
+-            if (!spl_running) return;
+-
+-            byte[] d = msg.DATA;
+-
+-            // Чтение 16-битного слова по абсолютному индексу слова (0..31).
+-            ushort U(uint w) => (ushort)((d[w * 2 + 1] << 8) | d[w * 2]);
+-            short  S(uint w) =>  (short)((d[w * 2 + 1] << 8) | d[w * 2]);
+-
+-
+-            if (f2kadrName == "F3_invertor")
+-            {
+-                M2.ccs.Ia = S(0);
+-                M2.ccs.Ib = S(1);
+-                M2.ccs.Ic = S(2);
+-                M2.ccs.Va = S(3);
+-
+-                M1.ccs.Vb = S(4);
+-                M1.ccs.Vc = S(5);
+-                M1.ccs.radian = S(6);
+-                M1.ccs.rgOut = S(7);
+-
+-                M1.ccs.freq = S(8);
+-                M1.ccs.gain = U(9);
+-                ccs.IsrTicker = U(10);
+-                ccs.k60Cnt = U(11);
+-            }
+-            if (f2kadrName == "F3_convertor" || f2kadrName == "F3_grid")
+-            {
+-                // Шестнадцать слов лентой, без разбора по смыслу: кадр целиком
+-                // уходит в файл тем же порядком, а имена каналам даёт
+-                // bin/Wscope/<имя набора>.ini. Раскладка - в прошивке,
+-                // my_Files/1ph_Sin.c, у самой отправки.
+-                //
+-                // F3_grid (контур тока изнутри, 09.10.2026) той же длины и с
+-                // тем же счётчиком в последнем слове, поэтому разбор общий:
+-                // наборы различаются только картой каналов.
+-                //
+-                // Кадр расширен с 12 слов до 16 (23.09.2026): добавились
+-                // напряжение на выходе инвертора, напряжение и ток АКБ и
+-                // расчётный ток намагничивания. Читаем ровно столько слов,
+-                // сколько принёс кадр: со старой прошивкой их 12, и последние
+-                // четыре остаются нулями вместо мусора из хвоста буфера.
+-                int words = msg.DLC >= 13 ? 16 : 12;
+-
+-                for (int i = 0; i < words; i++)
+-                    ccs.f3[i] = S((uint)i);
+-
+-                for (int i = words; i < ccs.f3.Length; i++)
+-                    ccs.f3[i] = 0;
+-
+-                // Счётчик тактов - ВСЕГДА последнее слово кадра: по его
+-                // изменению запись считается готовой (CanaAsync.cs).
+-                ccs.k60Cnt = (ushort)ccs.f3[words - 1];
+-
+-                // Со старой прошивкой счётчик пришёл двенадцатым словом, а
+-                // запись всё равно идёт по шестнадцать. Кладём его и в
+-                // последнее слово: четыре новых канала останутся пустыми, но
+-                // лента будет писаться, а не стоять.
+-                if (words < ccs.f3.Length)
+-                    ccs.f3[ccs.f3.Length - 1] = ccs.f3[words - 1];
+-            }
+-            else if (f2kadrName == "F1_invertor")
+-            {
+-                ccs.Ia_kod = S(0);
+-                ccs.Ib_kod = S(1);
+-                ccs.Ic_kod = S(2);
+-                ccs.k60Cnt = U(3);
+-            }
+-            else if (f2kadrName == "F1_convertor")
+-            {
+-                ccs.Idc_kod = S(0); 
+-                ccs.Udc_kod = S(1);
+-                ccs.Vin_kod = S(2); 
+-                ccs.k60Cnt  = U(3);
+-            }
+-        }
+-
+         private void ProcessFrame104(short s1, short s2, short s3, short s4)
+         {
+-            if (spl_running && f2kadrName == "F3_invertor")
+-            {
+-                M1.ccs.Vb = s1;
+-                M1.ccs.Vc = s2;
+-                M1.ccs.radian = s3;
+-                M1.ccs.rgOut = s4;
+-            }
+-            else if (!spl_running)
+-            {
+-                M2.ccs.c_pa = s1;
+-                M2.ccs.c_px = s2;
+-            }
++            M2.ccs.c_pa = s1;
++            M2.ccs.c_px = s2;
+         }
+ 
+         private void ProcessFrame105(short s1, short s2, short s3, short s4, ushort u2, ushort u3, ushort u4, ushort grup4)
+@@ -550,18 +424,6 @@ namespace ICDIBasic
+             M2.ccs.flags = u4;
+         }
+ 
+-        private void ProcessFrame110(short s1, short s2, short s3, short s4, ushort u2, ushort u3, ushort u4)
+-        {
+-           
+-            if (spl_running && f2kadrName == "F3_invertor")
+-            {
+-                M1.ccs.freq = s1;
+-                M1.ccs.gain = u2;
+-                ccs.IsrTicker = u3;
+-                ccs.k60Cnt = u4;
+-            }
+-        }
+-
+         private void ProcessFrame111(short s1, short s2, short s3, short s4)
+         {
+             ccs.EPSv1 = s1;
+@@ -727,13 +589,6 @@ namespace ICDIBasic
+         {
+             M2.ccs.IpVd = s1;
+             M2.ccs.tooths = _tooths = u2;
+-            if (ccs.f9_tooths != u4)
+-            {
+-                if (frm9 != null)
+-                {
+-                    f9run = false;
+-                }
+-            }
+             ccs.f9_tooths = u4;
+         }
+ 
+diff --git a/Stepulyov/ASt_MainF.cs b/Stepulyov/ASt_MainF.cs
+index 0303fd6..346d583 100644
+--- a/Stepulyov/ASt_MainF.cs
++++ b/Stepulyov/ASt_MainF.cs
+@@ -34,11 +34,9 @@ namespace ICDIBasic
+         #region переменные инфы о версии прошивки КСП
+         public readonly StringBuilder _s0 = new StringBuilder();
+         public bool _srx;
+-        public ushort Bcnt; // количество Mbox-ов в spf кадре
+         public string Date;
+         public string BuildDate;
+         public string BuildTime;
+-        //      public string FastFrameString; // имя ini файла для spf кадра
+         public bool IdRcvd = false;
+         public string Kk1;
+         public string Kk2;
+@@ -47,49 +45,21 @@ namespace ICDIBasic
+         public string Kuk1;
+         public string Kuk2;
+         public string Kuk3;
+-        //       public string ToothFrameString;  // имя ini файла для tooth кадра
+-        //       public int boxesT; // количество  Mbox-ов в Tooth кадре
+-        //       public int boxesF; // количество  Mbox-ов in Fast кадре
+         #endregion
+ 
+         Queue<byte[]> mbox13FIFO = new();
+-
+-        public Tooth_F9 frm9;  // ссылка на объект формы Tooth_F9
+-
+-        #region Пути к директориям и файлам
+         private string _oNm;
+-        private string spl_Dir = Application.StartupPath + "\\SPL" + "\\spl_data\\";
+-        private string spf_Dir = Application.StartupPath + "\\SPF" + "\\spf_data\\";
+-        private string sp2_Dir = Application.StartupPath + "\\SPF" + "\\sp2_data\\";
+-        private string wscope_Dir = Path.GetFullPath(Path.Combine(Application.StartupPath, "..", "Wscope"));
+-        private string spl_tmp;
+-        private FileStream _splStream; // держим файл .tmpm открытым на весь сеанс записи, не открываем/закрываем на каждый кадр
+-        private string F2Kadr_IniFileName; // имя ini файла заданное из мотор control формы
+-        private string spl_StartTime;
+-        private string spl_FileName;
+-        #endregion
+ 
+-        #region Экземпляры делегатов для внешних форм
+-        public DRotateArrow MainFrmRotArr;
+-        public DDelFiles DelF;
+-        public DSplHdr CrHdr;
+-        public Fname SetFname;
+-        public DImitByCan ImitByCan;
+-        public DCreateSplDir CreateSplDir;
+-        public DCloseWscope CloseWscope;
+-        public DGetIniFnames GetIniFileNames;
+-        #endregion
++
+ 
+         //
+         private const string CanAText = @"[CAN A] =";
+-        private const string CanBText = @"[CAN B] =";
+ 
+         //
+         private readonly Image _brOn = (Image)Resources.ResourceManager.GetObject("resistor2");
+         private readonly Image _brOff = (Image)Resources.ResourceManager.GetObject("resistor2j");
+         private AlStInfoF _infof;
+         private AlStEthLog _ethLog;
+-        private short _ract;
+         //     private readonly RxStr kspID = new RxStr();
+         public AlStIgbtTest igbt; // ссылка на экземпляр формы AlStIgbtTest
+         private readonly List<string> _k1 = new List<string>();
+@@ -100,15 +70,10 @@ namespace ICDIBasic
+         private readonly List<RxDataFrm> _rxFl = new List<RxDataFrm>();
+         private readonly List<RxDataFrm> _rxFlT = new List<RxDataFrm>();
+         private readonly Timer _rqTmr = new Timer { Enabled = true, Interval = 1000 };
+-        private List<string> _splIniL = new List<string>();
+         private AStBreakRes _brResFRm;
+         private AdcInfo _adcInfoKsp;
+ 
+-        private bool F2kadr_markerSet;
+-        private bool fast_markerSet; // признак - нажата клавиша пробел для обработки в кадре spl 
+-        private bool spl_running;
+         private const byte Idbr = 112;
+-        private const string WscopeFile = @"Wscope.exe";
+         private ErrorsView _errFrm;
+         private readonly Bitmap _greenLed = new Bitmap(20, 20);
+         private readonly Bitmap _redLed = new Bitmap(20, 20);
+@@ -117,9 +82,6 @@ namespace ICDIBasic
+         private Font _checkCanAMenuDefaultFont;
+         private Font _checkCanAMenuPulseFont;
+         private Timer _checkCanAPulseTimer;
+-                                                  //      private static ushort[] splArr = new ushort[FrlM]; // массив Параметров передаваемыч в SPL кадр
+-        private ushort[] spL = new ushort[100]; // массив Параметров передаваемых в SPL кадр
+-                                                //       private  ushort[] spL;   // = new ushort[FrlM]; // массив Параметров передаваемых в SPL кадр
+ 
+ 
+     
+@@ -133,17 +95,9 @@ namespace ICDIBasic
+             MaxLength = CanAText.Length + 2
+         };
+ 
+-        public static ToolStripTextBox _canbM = new ToolStripTextBox
+-        {
+-            Name = "CanBm_",
+-            MaxLength = CanBText.Length + 2
+-        };
+-
+         private readonly ToolStripMenuItem _abmn = new ToolStripMenuItem { Name = "Abmn", Text = @"О программе" };
+         private readonly ToolStripMenuItem _adcInfoMenu =
+             new ToolStripMenuItem { Name = "adcInfoMenu", Text = @"Инфо АЦП" };
+-        private readonly ToolStripMenuItem _reInitCanBMenu =
+-            new ToolStripMenuItem { Name = "ReInitCanBMenu_", Text = @"Реинициализация CAN B" };
+         private readonly ToolStripMenuItem _reInitCanAMenu =
+             new ToolStripMenuItem { Name = "ReInitCanAMenu_", Text = @"Реинициализация CAN A" };
+         private readonly ToolStripMenuItem _pwmBrResMenu =
+@@ -172,28 +126,17 @@ namespace ICDIBasic
+         #endregion
+ 
+         private TPCANStatus _stsResult;
+-        private ushort _cntRef;
+ 
+-        private byte probel_markerCnt = 250; // циклический счётчик инкрементируеся при каждом нажатии клавиши пробел. Значение сохраняется в кадре.
+         private ushort _tooths = 80;
+ 
+         private FuncBuilderForm _approxLoadSabs1, _approxLoadSabs2;
+         public delegate int DGetToothNum();
+-        public delegate string DGetIniFnames(bool fasttooth);
+-        public delegate string DGetSplInfo();
+         public delegate void DChangeFrmTxt(bool st);
+-        public delegate void DCloseWscope();
+-        public delegate void DCreateSplDir(string dir);
+-        public delegate void DDelFiles(string type);
+-        public delegate void DImitByCan(ushort cmd);
+         public delegate void DLdt();
+-        public delegate void DRotateArrow(ushort md);
+         public delegate void DSaveSvtg(string p);
+         public delegate void DSend128(ushort d1, ushort d2, ushort d3, ushort c);
+         public delegate void DSendInts(int d1, int d2, int d3, ushort c);
+         public delegate void DSendMbox127(ushort d1, ushort d2, ushort d3, ushort d4);
+-        public delegate void DSplHdr(ushort frLen, string splInfo, string iniFile, string splFile);
+-        public delegate void Fname(string fname);
+         public delegate bool Grden();
+         public ushort CntData { get; set; }
+ 
+@@ -211,635 +154,26 @@ namespace ICDIBasic
+ 
+         #endregion
+ 
+-        #region Синхронизация Spl_Main, получение данных телеметрии с CANA 
++        #region Получение данных телеметрии с CANA
+         private void CAN_RxData(TPCANMsgFD msg) // эта функция работает во вторичном потоке
+         {
+             if (IsDisposed) return;
+-          
+-            {
+-                Kadr60Rx(msg); // читаем данные со всех msgId , кроме msgId =1
+-                if (!spl_running) return;
+-
+-                // если задан режим вывода кадра по CANA
+-                // 1. обязательно должно быть изменение счётчика кадров k60Cnt.
+-                // это условие необходимо для подтверждения что все переменные кадра были обновленны.
+-                if (_cntRef == ccs.k60Cnt) return;
+-
+-                if (_rden)
+-                    try
+-                    {
+-
+-                        F60GetData(); // вот здесь формируем кадр (массив данных) в соответствии с заданным именем 
+-
+-                        var t = new ushort[FrlM];
+-                        Array.Copy(spL, t, FrlM);
+-                //        foreach (var f in _rxFl) Invoke(new Action(() => { f.RxD(t); }));
+-                //        foreach (var f in _rxFlT) Invoke(new Action(() => { f.RxD(t); }));
+-
+-                        byte[] frame = new byte[FrlM * 2 + 1]; // Кадр
+-                        for (ushort index = 0; index < FrlM; index++) // инвертируем положение байт в ushort
+-                            t[index] =
+-                                (ushort)((ushort)((t[index] & 0x00FF) << 8) | (ushort)((t[index] & 0xFF00) >> 8));
+-                        Buffer.BlockCopy(t, 0, frame, 1, FrlM * 2);
+-
+-
+-                        if (F2kadr_markerSet)
+-                        {
+-                            frame[0] = probel_markerCnt;
+-                            F2kadr_markerSet = false;
+-                        }
+-                        else
+-                        {
+-                            frame[0] = 0x55;
+-                        }
+-
+-                        _splStream?.Write(frame, 0, frame.Length);
+-
+-                        // поворачиваем стрелку на 90 градусов через каждые 10 кадров.
+-                        // Счётчик считаем здесь, во вторичном потоке, и обращаемся к UI (BeginInvoke)
+-                        // только раз в 10 кадров — иначе при частой телеметрии BeginInvoke летит
+-                        // в очередь UI-потока на каждый кадр и забивает её, не давая вовремя
+-                        // выполниться другим UI-событиям (например, отправке команд с трек-бара).
+-                        _ract++;
+-                        if (_ract > 10)
+-                        {
+-                            _ract = 0;
+-                            BeginInvoke(new Action(() =>
+-                            {
+-                                pbMainKadr.Image.RotateFlip(RotateFlipType.Rotate90FlipNone);
+-                                pbMainKadr.Refresh();
+-                            }));
+-                        }
+-                    }
+-                    catch
+-                    {
+-                        spl_Stop();
+-                        Del_Files(spl_Dir, "*.tmpm");
+-                    }
+-                _cntRef = ccs.k60Cnt;
+-            }
+-        }
+-        #endregion
+-
+-
+-
+-        #region Управление от функциональных кнопок  F2 - F12
+-
+-        // переменные для работы в ассинхронном потоке
+-        public bool f9run = false;  // запрос на обход вычисления метода F9buff() формы F9 во вторичном потоке, сдесь форму не закрываем иначе будет Exception
+-        public bool f9del;    // запрос во вторичный поток на закрытие формы F9
+-
+-        public static string f2kadrName; // = F2_Kadr_Name.Text;
+-
+-        #region Лента быстрого кадра: кто её просит
+-
+-        /*
+-         * У кадра 103 ДВА НЕЗАВИСИМЫХ ЗАКАЗЧИКА - запись в файл (F2/Alt+F2) и
+-         * окно осциллографа (открытие/закрытие), - а ресурс один: команда CAN
+-         * 1001, которой прибор включает передачу. Поэтому счёт идёт не
+-         * «включено/выключено», а «кто просит»: лента идёт, пока её просит хоть
+-         * один, и снимается последним ушедшим.
+-         *
+-         * ЗАЧЕМ ТАК. Раньше это было одно: F2 включал и ленту, и запись, Alt+F2
+-         * выключал оба. Смотреть осциллографом без записи было поэтому нельзя, и
+-         * файл писался в холостую - его длина тому и цена. Теперь Alt+F2 не
+-         * гасит картинку, а закрытие окна не рвёт ленту живого опыта.
+-         *
+-         * ТОЛЬКО ИЗ UI-ПОТОКА. uint_128 читает tsmConnect.Text и показывает
+-         * MessageBox при ошибке - из потока CAN это обращение к контролу чужого
+-         * потока. Поэтому spl_Stop ленту НЕ снимает, хотя это и выглядело бы
+-         * естественно: его зовут в том числе из CAN_RxData по ошибке записи и из
+-         * Spl_Writers_Stop. Снимает её TapeRelease с секундного таймера -
+-         * разрешение в секунду здесь ни на что не влияет.
+-         */
+-
+-        /// <summary>Код набора, который прибор шлёт сейчас. 0 - лента снята.</summary>
+-        private ushort _tapeOn;
+-
+-        /// <summary>
+-        /// Код набора для команды 1001. Имя не из пяти - медленный кадр: так
+-        /// было и до разделения. F3_grid получил 6, потому что 5 - это и есть
+-        /// медленный кадр.
+-        /// </summary>
+-        private static ushort TapeCode(string frame)
+-        {
+-            switch (frame)
+-            {
+-                case "F1_convertor": return 1;
+-                case "F1_invertor":  return 2;
+-                case "F3_invertor":  return 3;
+-                case "F3_convertor": return 4;
+-                case "F3_grid":      return 6;
+-                default:             return 5;
+-            }
+-        }
+-
+-        /// <summary>
+-        /// Пустить ленту под набор, выбранный в поле «F2 Кадр». Повторный вызов
+-        /// под тот же набор команду прибору не посылает.
+-        ///
+-        /// НАБОР ЗАПЕРТ НА ВРЕМЯ ЗАПИСИ: сменить его на ходу значит дописать в
+-        /// тот же .spl данные другой раскладки, а имена каналам файл даёт по
+-        /// имени набора - вышли бы чужие числа под правильными именами.
+-        /// </summary>
+-        public void TapeStart()
+-        {
+-            if (!_rden || spl_running) return;
+-
+-            ushort code = TapeCode(F2_Kadr_Name.Text);
+-
+-            /* f2kadrName ставим ВСЕГДА, даже когда команда не нужна: по нему
+-             * осциллограф выбирает шаблон, а запись - раскладку кадра. */
+-            f2kadrName = F2_Kadr_Name.Text;
+-
+-            if (code == _tapeOn) return;
+-
+-            uint_128(0, 0, code, 1001);
+-            _tapeOn = code;
+-        }
+-
+-        /// <summary>Снять ленту, если её больше никто не просит.</summary>
+-        public void TapeRelease()
+-        {
+-            if (_tapeOn == 0) return;
+-
+-            /* Закрытие программы при открытом окне осциллографа: окно закрывается
+-             * вслед за главным и приходит сюда, когда главная форма уже
+-             * разбирается. uint_128 читает tsmConnect.Text, то есть обратился бы
+-             * к контролу, которого может уже не быть. Прибор в этом случае
+-             * останется с включённой лентой - так было и до разделения, F2 без
+-             * Alt+F2 оставлял её точно так же. Подбирает её TapeSync при
+-             * следующем подключении. */
+-            if (IsDisposed || Disposing) return;
+-
+-            /* Связи нет - состояние прибора неизвестно, и команду посылать
+-             * некуда. Забываем своё: после подключения TapeStart пошлёт её
+-             * заново и этим сам всё и выровняет. */
+-            if (!_rden) { _tapeOn = 0; return; }
+-
+-            if (spl_running || ScopeForm.IsOpen) return;
+-
+-            uint_128(0, 0, 0, 1001);
+-            _tapeOn = 0;
+-        }
+-
+-        /// <summary>
+-        /// При подключении: снять ленту в приборе, если её никто не просит.
+-        ///
+-        /// _tapeOn знает только о том, что включал ЭТОТ экземпляр программы.
+-        /// Прибор же мог остаться с лентой от прошлого: программу закрыли при
+-        /// открытом осциллографе (см. TapeRelease), она упала, её пересобрали.
+-        /// Новый экземпляр начинает с _tapeOn = 0, TapeRelease молчит, и лента
+-        /// идёт в никуда. Цена не только в шине: сборка кадра 103 - часть
+-        /// прерывания управления, F3_grid прибавлял к sine_Time 10 мкс из 23
+-        /// (замерено 09.10.2026 на модели, лента без единого заказчика).
+-        ///
+-        /// Если ленту кто-то просит, не трогаем: её пустит TapeStart.
+-        /// </summary>
+-        public void TapeSync()
+-        {
+-            if (spl_running || ScopeForm.IsOpen) return;
+ 
+-            uint_128(0, 0, 0, 1001);
+-            _tapeOn = 0;
++            Kadr60Rx(msg); // читаем данные со всех msgId , кроме msgId =1
+         }
+-
+         #endregion
+ 
+-        #region Запись по F2 / Alt+F2
+ 
+-        /*
+-         * Вынесены из BControl, потому что клавиши ГЛОБАЛЬНЫЕ: те же F2 и Alt+F2
+-         * работают и из окна осциллографа (ScopeForm.ProcessCmdKey). Смотрят на
+-         * форму тока именно там, и тянуться за фокусом в главное окно, чтобы
+-         * начать запись, - лишнее движение в самый неподходящий момент.
+-         */
+ 
+-        /// <summary>F2: пуск записи в файл. Лента пускается, если её ещё нет.</summary>
+-        public void RecStart()
+-        {
+-            if (!_rden || spl_running) return;
+-
+-            probel_markerCnt = 0;
+-            pbMainKadr.Visible = pbMainKadr.Enabled = true;
+-
+-            // F2 - ТОЛЬКО ЗАПИСЬ. Лента нужна ей как источник, поэтому просим её
+-            // здесь; если её уже пустило окно осциллографа, команда прибору
+-            // второй раз не уйдёт.
+-            TapeStart();
+-
+-            F60GetData();
+-            spl_Start();
+-        }
+ 
+-        /// <summary>Alt+F2: останов записи. Лента остаётся, если её просит осциллограф.</summary>
+-        public void RecStop()
+-        {
+-            // Гасить картинку за компанию незачем.
+-            spl_Stop();
+-            TapeRelease();
+-        }
+-
+-        /// <summary>
+-        /// Идёт ли запись в файл. Нужно окну осциллографа: признак записи в
+-        /// главном окне - крутящийся значок, а его как раз закрывает Scope.
+-        /// </summary>
+-        public bool Recording { get { return spl_running; } }
+-
+-        /// <summary>Когда запись началась. Смысл имеет, только пока Recording.</summary>
+-        public DateTime RecordingSince { get; private set; }
+-
+-        #endregion
+-
+-        private void BControl(object sender, KeyEventArgs e)
+-        {
+-
+-            if (e.KeyCode == Keys.F2 && !e.Alt && _rden)
+-            {
+-                e.SuppressKeyPress = true;
+-                RecStart();
+-            }
+-            if (e.KeyCode == Keys.F2 && e.Alt)
+-            {
+-                e.SuppressKeyPress = true;
+-                RecStop();
+-            }
+-
+-            //  Запуск быстрого  кадра F3 по CANB
+-            if (e.KeyCode == Keys.F3 && !e.Alt && _rden)
+-            {
+-                e.SuppressKeyPress = true;
+-                f9run = false;   // запрос на обход вычисления метода F9buff() формы F9 во вторичный поток, сдесь форму не закрываем иначе будет Exception
+-                sp2.running = false;
+-
+-                if (!spf_running)
+-                {
+-                    cmd_128(100);  // нажата F3 -> запустить фаст кадр ( команда на ШПСУ)
+-                }
+-                else // запись spf кадра уже идёт
+-                {
+-                    //  
+-                }
+-            }
+-
+-            //-------  Останов  быстрого  кадра F3 по CANB  ------------------------------------------------------
+-            if (e.KeyCode == Keys.F3 && e.Alt) // Остановка записи Fast  файла
+-            {
+-                e.SuppressKeyPress = true;
+-                if (!spf_running) return;
+-                spf_Stop(spf);
+-                if (frm9 != null)
+-                {
+-                    frm9.Tooth_F9_Form_NeededToStop();
+-                }
+-            }
+-
+-
+-            if (e.KeyCode == Keys.F4 && !e.Alt)  // запуск sp2 кадра 
+-            {
+-                e.SuppressKeyPress = true;
+-             
+-
+-                if (!sp2.running) // первое нажатие F4
+-                {
+-                    cmd_128(101); // команда в ксп SplMode = Spl_Tooth;
+-                }
+-            }
+-
+-            if (e.KeyCode == Keys.F4 && e.Alt) // останов записи sp2 кадра
+-            {
+-                e.SuppressKeyPress = true;
+-                spf_Stop(sp2);  //
+-                if (frm9 != null)
+-                {
+-                    frm9.Tooth_F9_Form_NeededToStop();
+-                }
+-
+-            }
+-
+-            /*
+-             * F5 И Alt+F5 - НАСЛЕДИЕ ДВУХКАНАЛЬНОЙ СХЕМЫ, в этом проекте не
+-             * работают.
+-             *
+-             * Они затевались там, где CAN было два: CANA под команды и медленные
+-             * кадры, CANB под быстрые. Отсюда и смысл F5 - пустить разом запись
+-             * медленного файла (spl) и быстрого (spf, он же F3/F4 по CANB).
+-             * Здесь канал один, CANB дремлет, и половина F5 никуда не ведёт.
+-             *
+-             * ПОЭТОМУ ЛЕНТУ F5 НЕ ПРОСИТ, хотя spl_Start без неё пишет файл в
+-             * пустоту, а F60GetData не зовётся и в шапку уходит FrlM от прошлого
+-             * сеанса. Чинить это, пока второго канала нет, значит оживлять
+-             * мёртвое: заработает оно только вместе с CANB, и тогда же станет
+-             * видно, что именно чинить. Alt+F5 ленту отпускать тоже не обязан -
+-             * её снимет TapeRelease с секундного таймера, см. регион «Лента
+-             * быстрого кадра» выше.
+-             */
+-            if (e.KeyCode == Keys.F5 && !e.Alt && _rden) // F5 -> одновременный старт записи Spl_main  и Fast-Tooth  файлов
+-            {
+-                e.SuppressKeyPress = true;
+-                probel_markerCnt = 0;
+-
+-                if (!spl_running) spl_Start();
+-                if (!spf.running) cmd_128(100);  // нажата F3 -> запустить фаст кадр ( команда на ШПСУ)
+-            }
+-
+-            if (e.KeyCode == Keys.F5 && e.Alt) //  Alt+F5
+-            {
+-                e.SuppressKeyPress = true;
+-                spl_Stop();  // Остановка записи spl файла
+-                spf_Stop(spf);       // Остановка записи fast  файла
+-            }
+-
+-            if (e.KeyCode == Keys.F6)  // вывод F2_Kadra на WScope
+-            {
+-                e.SuppressKeyPress = true;
+-                Open_WScope(spl_FileName);
+-            }
+-
+-            if (e.KeyCode == Keys.F7) // вывод fastKadra на WScope
+-            {
+-                e.SuppressKeyPress = true;
+-                Open_WScope(spf_FileName);
+-            }
+-
+-            if (e.KeyCode == Keys.Space)
+-            {
+-                e.SuppressKeyPress = true;
+-                ProbelCounter();
+-            }
+-
+-
+-
+-            // -------------- F9 ---------------------------------------------------
+-            if (e.KeyCode == Keys.F9 && !e.Alt)  // запуск   F9_form -> вывод графиков переменных в реальном времени
+-            {
+-                e.SuppressKeyPress = true;
+-             
+-
+-                if (spf_running)
+-                {
+-                    if (frm9 == null) // первое нажатие F9
+-                    {
+-                        if (sp2_Tooth_F9 == true)
+-                        {
+-                            ushort m = tooth = ccs.f9_tooths;
+-                            frm9 = new Tooth_F9(this, m) { KeyPreview = true };
+-                        }
+-                        else if (spf_Tooth_F9 == true)
+-                        {
+-                            ushort m = kadr;
+-                            frm9 = new Tooth_F9(this, m) { KeyPreview = true };
+-                        }
+-                        frm9.KeyDown += BControl;
+-                        frm9.Show();
+-                        f9run = true;
+-                        //                      f9del = false;
+-
+-                    }
+-                    else   // последующие  нажатия F9 
+-                    {
+-                        if (frm9.Visible)
+-                        {
+-                            f9run = false;   // запрос на обход вычисления метода F9buff() формы F9 во вторичном потоке, сдесь форму не закрываем иначе будет Exception
+-                            frm9.Hide();
+-                        }
+-                        else
+-                        {
+-                            f9run = true;
+-                            frm9.Show();
+-                        }
+-                    }
+-                }
+-
+-                else //  нажатие F9  при не запущенном  кадре по CANB  
+-                {
+-
+-                    // тело когда поток не включён
+-                }
+-            }
+-
+-            if (e.KeyCode == Keys.F9 && e.Alt) // останов осциллографа и закрытие формы F9 после полного прохода вторичного потока, f9del = true обеспечивает выход из бесконечного цикла while
+-            {
+-                e.SuppressKeyPress = true;
+-
+-                if (frm9 != null)
+-                {
+-                    frm9.Hide();
+-                    f9run = false;
+-                    //           f9del = true;
+-                }
+-            }
+-
+-          
+-
+-        }
+-        #endregion
+-
+-        #region Получение инфы из KSP_ID и версии этой проги
+-        private string GetSplInfo()
+-        {
+-            return $"{KspIdString};{Date}";
+-        }
+-        #endregion
+-
+-        #region Запуск записи Spl_Main
+-        private void spl_Start()
+-        {
+-            if (spl_running) return;
+-
+-            try
+-            {
+-
+-                Del_Files(spl_Dir, "*.tmpm");
+-                //              Thread.Sleep(500);
+-                ClWs();  // 
+-
+-                if (!Directory.Exists(spl_Dir)) Directory.CreateDirectory(spl_Dir);
+-
+-                // День.месяц.год, как везде в проекте: быстрые файлы в CANB.cs,
+-                // прошивка в Bootloader.cs, журнал в MainWindow.cs. Здесь стоял
+-                // "yy.MM.dd" - год первым и двумя цифрами, - и это читалось как
+-                // день: "26.10.04" выглядело как 26 октября вместо 4 октября
+-                // 2026. Год четырьмя цифрами, чтобы спутать его с днём было
+-                // нельзя даже в принципе.
+-                RecordingSince = DateTime.Now;
+-                spl_StartTime = RecordingSince.ToString("dd.MM.yyyy_HH.mm.ss");
+-                spl_tmp = spl_Dir + spl_StartTime + ".tmpm";
+-                Spl_Hdr(FrlM, GetSplInfo(), F2Kadr_IniFileName, spl_tmp);
+-
+-                _splStream = new FileStream(spl_tmp, FileMode.Append, FileAccess.Write, FileShare.Read);
+-
+-                //     pbMainKadr.Enabled = pbMainKadr.Visible = true;
+-                spl_running = true;
+-
+-            }
+-            catch
+-            {
+-                // ignored
+-            }
+-        }
+-        #endregion
+-
+-        #region Остановка записи Spl_main
+-        private void spl_Stop()
+-        {
+-            pbMainKadr.Enabled = pbMainKadr.Visible = false;
+-            _ract = 0;
+-
+-            if (!spl_running) return;
+-
+-            try
+-            {
+-                _splStream?.Flush();
+-                _splStream?.Dispose();
+-                _splStream = null;
+-
+-                // Тот же формат, что у .tmpm выше. ВРЕМЯ ЗДЕСЬ - МОМЕНТ
+-                // ОСТАНОВА (Alt+F2), а не старта: имя берётся свежим
+-                // DateTime.Now, и у длинной записи в имени стоит её конец.
+-                // Стартовое время лежит рядом, в spl_StartTime.
+-                spl_FileName = spl_Dir + DateTime.Now.ToString("dd.MM.yyyy_HH.mm.ss") + ".spl";
+-
+-                if (File.Exists(spl_tmp))
+-                {
+-                    File.Move(spl_tmp, spl_FileName);
+-                }
+-            }
+-            catch (IOException ex)
+-            {
+-                Debug.WriteLine($"spl_Stop: file move failed: {ex.Message}");
+-            }
+-            catch (UnauthorizedAccessException ex)
+-            {
+-                Debug.WriteLine($"spl_Stop: access denied during file move: {ex.Message}");
+-            }
+-            finally
+-            {
+-                spl_running = false;
+-                //       PCANBasic.Reset(Ch);
+-            }
+-        }
+-        #endregion
+-
+-        #region Остановка записи Main и Fast-Tooth файлов
+-        private void Spl_Writers_Stop()
++        #region Закрытие дочерних окон
++        private void CloseChildForms()
+         {
+             try
+             {
+                 _brResFRm?.Close();
+-         //       SVtgFrm?.Close();
+                 _errFrm?.Close();
+                 _tempsFrm?.Close();
+-                spl_Stop();
+-                spf_Stop(sp2);       // Остановка записи Fast-Tooth  файла
+-
+-                ClWs();
+-            }
+-            catch
+-            {
+-                // ignored
+-            }
+-        }
+-        #endregion
+-        #region Стрелки
+-        public void Rotate_Arrow(PictureBox pb, ushort md)
+-        {
+-            if (md == 0)
+-            {
+-                pb.Visible = false;
+-                return;
+-            }
+-            pb.Visible = true;
+-            pb.Image?.RotateFlip(RotateFlipType.Rotate90FlipNone);  // поворачивает стрелку на 90 градусов
+-            pb.Refresh();  // обновляет изображени и её положени стрелки (без этого не будут поворота 90 градусов у стрелки)
+-
+-
+-        }
+-        #endregion
+-
+-        #region Управление Wscope
+-        private void Open_WScope(string splfile)
+-        {
+-            /* этот метод передаёт программе WScope.exe записанный splfile файл .spl или .spf типа
+-             */
+-            try
+-            {
+-                if (spl_running || spf_running || string.IsNullOrWhiteSpace(splfile)) return;
+-
+-                var wscopePath = Path.Combine(wscope_Dir, WscopeFile);
+-                if (!File.Exists(wscopePath))
+-                {
+-                    var localWscopePath = Path.Combine(Application.StartupPath, WscopeFile);
+-                    wscopePath = File.Exists(localWscopePath) ? localWscopePath : string.Empty;
+-                }
+-
+-                if (string.IsNullOrWhiteSpace(wscopePath))
+-                {
+-                    MessageBox.Show(this,
+-                        @"Не найден Wscope.exe.\nПроверьте расположение файла в папке Wscope рядом с bin или в папке запуска приложения.",
+-                        @"WScope",
+-                        MessageBoxButtons.OK,
+-                        MessageBoxIcon.Warning);
+-                    return;
+-                }
+-
+-                ClWs();
+-                var wSc = new Process
+-                {
+-                    StartInfo =
+-                    {
+-                        FileName = wscopePath,
+-                        Arguments = splfile,
+-                        WindowStyle = ProcessWindowStyle.Maximized
+-                    }
+-                };
+-                wSc.Start();
+-            }
+-            catch (Exception ex)
+-            {
+-                MessageBox.Show(this, ex.Message, @"Ошибка запуска WScope", MessageBoxButtons.OK, MessageBoxIcon.Error);
+-            }
+-        }
+-
+-        private static void ClWs()
+-        {
+-            var pname = Process.GetProcessesByName(@"Wscope");
+-            if (pname.Length == 0) return;
+-            pname[0].Kill();
+-            Thread.Sleep(50);
+-        }
+-        #endregion
+-        #region Проверка значений параметров Spl_Main
+-        // ReSharper disable once UnusedMember.Local
+-        private static ushort ChkRn(float inpt, float mult, bool sgnd)
+-        {
+-            try
+-            {
+-                var r = inpt * mult;
+-                if (sgnd)
+-                {
+-                    if (r < short.MinValue) return (ushort)Convert.ToInt16(short.MinValue);
+-                    if (r > short.MaxValue) return (ushort)Convert.ToInt16(short.MaxValue);
+-                    return (ushort)Convert.ToInt16(r);
+-                }
+-                if (r < ushort.MinValue) return ushort.MinValue;
+-                return r > ushort.MaxValue ? ushort.MaxValue : Convert.ToUInt16(r);
+-            }
+-            catch
+-            {
+-                return 0;
+-            }
+-        }
+-        #endregion
+-        #region Основной блок Spl_Main
+-        #endregion
+-        #region удаление записанных файлов
+-        private void Del_Files(string dir, string type)
+-        {
+-            try
+-            {
+-                foreach (var newPath in Directory.GetFiles(dir, type, SearchOption.AllDirectories))
+-                    File.Delete(newPath);
+             }
+             catch
+             {
+@@ -847,23 +181,6 @@ namespace ICDIBasic
+             }
+         }
+         #endregion
+-
+-        #region Заголовок Spl
+-        private void Spl_Hdr(ushort frLen, string splInfo, string iniFile, string splFile)
+-        {
+-            try
+-            {
+-                SharedFx.Spl_Header_Create(frLen, splInfo, iniFile, splFile);
+-            }
+-            catch
+-            {
+-                Spl_Writers_Stop();  //Останавливаем запись .spl .spf  файлов и удаляем все *.tmp файлы
+-                if (splFile.Contains(".tmpm")) Del_Files(spl_Dir, "*.tmpm");
+-                if (splFile.Contains(".tmpf")) Del_Files(spf_Dir, "*.tmpf");
+-                if (splFile.Contains(".tmpt")) Del_Files(sp2_Dir, "*.tmpt");
+-            }
+-        }
+-        #endregion
+         #region Разное
+         #region Инит при старте
+         private void AddMenus()
+@@ -871,23 +188,9 @@ namespace ICDIBasic
+             var canASetting = string.IsNullOrWhiteSpace(Settings.Default.CanAId)
+                 ? "A"
+                 : Settings.Default.CanAId.Trim().ToUpper();
+-            var canBSetting = string.IsNullOrWhiteSpace(Settings.Default.CanBId)
+-                ? "B"
+-                : Settings.Default.CanBId.Trim().ToUpper();
+-
+-            if (canASetting == canBSetting)
+-            {
+-                canASetting = "A";
+-                canBSetting = "B";
+-                Settings.Default.CanAId = canASetting;
+-                Settings.Default.CanBId = canBSetting;
+-                Settings.Default.Save();
+-            }
+ 
+             _canaM.Text = CanAText + canASetting;
+-            _canbM.Text = CanBText + canBSetting;
+             _canaM.TextChanged += CanaM_TextChanged;
+-            _canbM.TextChanged += CanaM_TextChanged;
+ 
+             МенюУправленияToolStripMenuItem.DropDownItems.Add(_pwmBrResMenu);
+             МенюУправленияToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
+@@ -902,9 +205,6 @@ namespace ICDIBasic
+             управлениеToolStripMenuItem.DropDownItems.Add(_reInitCanAMenu);
+             управлениеToolStripMenuItem.DropDownItems.Add(_checkCanAMenu);
+             управлениеToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
+-            управлениеToolStripMenuItem.DropDownItems.Add(_canbM);
+-            управлениеToolStripMenuItem.DropDownItems.Add(_reInitCanBMenu);
+-            управлениеToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
+             управлениеToolStripMenuItem.DropDownItems.Add(yokogawaWTToolStripMenuItem);
+ 
+             debugToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
+@@ -928,7 +228,6 @@ namespace ICDIBasic
+             var gGreen = Graphics.FromImage(_greenLed);
+             var gRed = Graphics.FromImage(_redLed);
+             KeyPreview = true;
+-            KeyDown += BControl;
+ 
+             gGreen.FillEllipse(Brushes.PaleGreen, 0, 0, sc, sc);
+             gRed.FillEllipse(Brushes.Salmon, 0, 0, sc, sc);
+@@ -1040,7 +339,6 @@ namespace ICDIBasic
+             };
+             RefreshL();
+             _reInitCanAMenu.Click += ReInitCanAMenu_Click;
+-            _reInitCanBMenu.Click += (a, s) => uint_128(0, 0, 0, 102);
+             _pwmBrResMenu.Click += (a, s) =>
+             {
+                 if (_brResFRm == null)
+@@ -1049,7 +347,6 @@ namespace ICDIBasic
+                     _brResFRm = new AStBreakRes(Idbr) { KeyPreview = true };
+                     _brResFRm.Show();
+                     _pwmBrResMenu.Enabled = false;
+-                    _brResFRm.KeyDown += BControl;
+                     _brResFRm.FormClosed += (d, f) =>
+                     {
+                         uint_128(0, 0, 0, Idbr);
+@@ -1069,7 +366,6 @@ namespace ICDIBasic
+         
+             _rslvResMenu.Click += (a, s) => uint_128(0, 0, 0, 113);
+             Rkf();
+-            SlInit();
+             _rqTmr.Tick += (g, n) =>
+             {
+                 if (!_rden) return;
+@@ -1158,7 +454,6 @@ namespace ICDIBasic
+         private void CanaM_TextChanged(object sender, EventArgs e)
+         {
+             if (!_canaM.Text.StartsWith(CanAText)) _canaM.Text = CanAText;
+-            if (!_canbM.Text.StartsWith(CanBText)) _canbM.Text = CanBText;
+             var g = _canaM.Text.Split('=');
+             try
+             {
+@@ -1168,21 +463,9 @@ namespace ICDIBasic
+             {
+                 _canaM.Text = CanAText;
+             }
+-            //------------------------------------------------------------------------------------------------
+-            g = _canbM.Text.Split('=');
+-            try
+-            {
+-                CanBId = byte.Parse(g[1], NumberStyles.HexNumber);
+-            }
+-            catch
+-            {
+-                _canbM.Text = CanBText;
+-            }
+             //-----------------------------------------------------------------------------------------
+             _canaM.Text = _canaM.Text.ToUpper();
+-            _canbM.Text = _canbM.Text.ToUpper();
+             Settings.Default.CanAId = CanAId.ToString("x").ToUpper();
+-            Settings.Default.CanBId = CanBId.ToString("x").ToUpper();
+             Settings.Default.Save();
+         }
+         #endregion
+@@ -1198,7 +481,6 @@ namespace ICDIBasic
+                 };
+                 _errFrm.ClErr += cmd_128;
+                 _errFrm.Show();
+-                _errFrm.KeyDown += BControl;
+                 _errFrm.FormClosed += (tg, jh) =>
+                 {
+                     _errFrm.Dispose();
+@@ -1218,7 +500,6 @@ namespace ICDIBasic
+             if (_tempsFrm != null) return;
+             _tempsFrm = new TemperatureView { KeyPreview = true };
+             _tempsFrm.Show();
+-            _tempsFrm.KeyDown += BControl;
+             _tempsFrm.FormClosed += (h, k) => { _tempsFrm = null; };
+         }
+ 
+@@ -1226,7 +507,6 @@ namespace ICDIBasic
+         {
+             if (_ethLog != null) return;
+             _ethLog = new AlStEthLog(true) { KeyPreview = true };
+-            _ethLog.KeyDown += BControl;
+             _ethLog.MsgReceived += x => RxEthM(x.EthMsg);
+             _ethLog.Show();
+             _ethLog.Closed += (q, a) =>
+@@ -1321,7 +601,6 @@ namespace ICDIBasic
+             {
+                 _txFl.Add(txDFrm);
+                 txDFrm.Show();
+-                txDFrm.KeyDown += BControl;
+                 txDFrm.Closed += (o, a) => { _txFl.Remove((TxDataFrm)o); };
+             }
+             Settings.Default.LastCTxn = n;
+@@ -1344,7 +623,6 @@ namespace ICDIBasic
+             {
+                 _txFlT.Add(txDFrm);
+                 txDFrm.Show();
+-                txDFrm.KeyDown += BControl;
+                 txDFrm.Closed += (o, a) => { _txFlT.Remove((TxDataFrm)o); };
+             }
+             Settings.Default.LastCTxTn = n;
+@@ -1364,7 +642,6 @@ namespace ICDIBasic
+             {
+                 _rxFl.Add(rxDFrm);
+                 rxDFrm.Show();
+-                rxDFrm.KeyDown += BControl;
+                 rxDFrm.Closed += (o, a) => { _rxFl.Remove((RxDataFrm)o); };
+             }
+             Settings.Default.LastCRxn = n;
+@@ -1384,7 +661,6 @@ namespace ICDIBasic
+             {
+                 _rxFlT.Add(rxDFrm);
+                 rxDFrm.Show();
+-                rxDFrm.KeyDown += BControl;
+                 rxDFrm.Closed += (o, a) => { _rxFlT.Remove((RxDataFrm)o); };
+             }
+             Settings.Default.LastCRxTn = n;
+@@ -1440,48 +716,6 @@ namespace ICDIBasic
+             }
+         }
+ 
+-        private void SlInit()
+-        {
+-            try
+-            {
+-                _splIniL =
+-                    Directory.GetFiles($"{Application.StartupPath}\\Spl", @"*.ini")
+-                        .Where(t => !t.Contains("WScope"))
+-                        .Select(
+-                            rr =>
+-                                rr.Replace($"{Application.StartupPath}\\Spl\\", string.Empty)
+-                                    .Replace(".ini", string.Empty))
+-                        .ToList();
+-                foreach (var q in _splIniL.Where(t => !t.StartsWith(@"F"))) F2_Kadr_Name.Items.Add(q);
+-                F2_Kadr_Name.SelectedIndexChanged += (h, k) =>
+-                {
+-                    Settings.Default.LastSplMf = F2_Kadr_Name.SelectedIndex;
+-                    Settings.Default.Save();
+-                    F2Kadr_IniFileName = $"{F2_Kadr_Name.SelectedItem.ToString()}.ini";
+-
+-                    /* СМЕНА НАБОРА НА ХОДУ. Команда прибору раньше не уходила
+-                     * вовсе, и на шине оставался прежний кадр при новом имени;
+-                     * окно осциллографа ловило это по длине кадра и просило
+-                     * Alt+F2, затем F2. Пока лента идёт только для него, делать
+-                     * это руками незачем. На время записи TapeStart заперт, так
+-                     * что дописать в .spl чужую раскладку этим нельзя. */
+-                    if (_tapeOn != 0) TapeStart();
+-                };
+-                F2_Kadr_Name.SelectedIndex = Settings.Default.LastSplMf <= F2_Kadr_Name.Items.Count
+-                    ? Settings.Default.LastSplMf
+-                    : 0;
+-                F2Kadr_IniFileName = $"{F2_Kadr_Name.SelectedItem}.ini";
+-            }
+-            catch
+-            {
+-                F2Kadr_IniFileName = @"ERROR.ini";
+-                F2_Kadr_Name.BackColor = Color.Salmon;
+-                F2_Kadr_Name.Items.Clear();
+-                F2_Kadr_Name.Items.Add("Ошибка");
+-                F2_Kadr_Name.SelectedIndex = 0;
+-            }
+-        }
+-
+ 
+         private void InfoFrm()
+         {
+@@ -1527,22 +761,6 @@ namespace ICDIBasic
+             dr[1] = string.Empty;
+             dtt.Rows.Add(dr);
+             dr = dtt.NewRow();
+-            dr[0] = "Main кадр:";
+-            dr[1] = F2Kadr_IniFileName; // 
+-            dtt.Rows.Add(dr);
+-            dr = dtt.NewRow();
+-            dr[0] = "Fast кадр:";
+-            dr[1] = spf.FrameString;
+-            dtt.Rows.Add(dr);
+-            dr = dtt.NewRow();
+-            dr[0] = "Tooth кадр:";
+-            dr[1] = sp2.FrameString;
+-            dtt.Rows.Add(dr);
+-            dr = dtt.NewRow();
+-            dr[0] = string.Empty;
+-            dr[1] = string.Empty;
+-            dtt.Rows.Add(dr);
+-            dr = dtt.NewRow();
+             dr[0] = "KUK1:";
+             dr[1] = string.IsNullOrWhiteSpace(Kk1) ? "нет данных" : Kk1;
+             dtt.Rows.Add(dr);
+@@ -1571,7 +789,6 @@ namespace ICDIBasic
+             _infof = new AlStInfoF(dtt) { Text = _abmn.Text, KeyPreview = true };
+             _infof.Show();
+             _abmn.Enabled = false;
+-            _infof.KeyDown += BControl;
+             _infof.FormClosed += (l, x) =>
+             {
+                 _infof = null;
+@@ -1579,16 +796,6 @@ namespace ICDIBasic
+             };
+         }
+ 
+-        private void ProbelCounter()
+-        {
+-            probel_markerCnt++;
+-            if (probel_markerCnt == 0) probel_markerCnt = 1;
+-            if (probel_markerCnt == 0x54) probel_markerCnt = 0x56;
+-
+-            fast_markerSet = true;
+-            F2kadr_markerSet = true;
+-        }
+-
+         private bool Grd()
+         {
+             return _rden;
+diff --git a/Stepulyov/IRxD.cs b/Stepulyov/IRxD.cs
+index bdff293..58c6a26 100644
+--- a/Stepulyov/IRxD.cs
++++ b/Stepulyov/IRxD.cs
+@@ -1,19 +1,7 @@
+ namespace ICDIBasic
+ {
+     /// <summary>
+-    /// Приёмник собранной записи осциллографа.
+-    ///
+-    /// Заведён 06.09.2026 для K56. Раньше веер в CanaAsync.F2_RxData раздавал
+-    /// запись спискам List&lt;RxDataFrm&gt;, то есть одной конкретной форме с
+-    /// DataGridView внутри. Новой форме осциллографа наследоваться от неё
+-    /// незачем - ей нужен только сам метод, - поэтому списки переведены на
+-    /// этот интерфейс. RxDataFrm ему уже удовлетворяла: оба члена у неё были.
+-    ///
+-    /// ВАЖНО про массив в RxD. Он приходит по ссылке и ЖИВЁТ ТОЛЬКО ВНУТРИ
+-    /// ВЫЗОВА: сразу после веера CanaAsync переставляет в нём байты местами,
+-    /// готовя кадр к записи в файл. Invoke синхронный, поэтому до этого места
+-    /// дело доходит уже после возврата из RxD - но если сохранить ссылку,
+-    /// содержимое перевернётся под руками. Значения нужно КОПИРОВАТЬ.
++    /// Приёмник собранной записи для окон приёма данных.
+     /// </summary>
+     public interface IRxD
+     {
+@@ -21,10 +9,7 @@ namespace ICDIBasic
+         string Name { get; }
+ 
+         /// <summary>
+-        /// Очередная собранная запись, слова кадра в том же порядке, в каком
+-        /// их складывает SplKadr. Зовётся В ПОТОКЕ UI и на КАЖДУЮ запись - при
+-        /// такте 5 кГц это пять тысяч вызовов в секунду. Рисовать здесь
+-        /// нельзя: поток приёма ждёт возврата, и записи начнут теряться.
++        /// Очередная собранная запись, слова кадра. Зовётся в потоке UI.
+         /// Дело этого метода - положить значения в буфер и выйти.
+         /// </summary>
+         void RxD(ushort[] d);
+diff --git a/Stepulyov/RxDataFrm.cs b/Stepulyov/RxDataFrm.cs
+index 3227214..3255322 100644
+--- a/Stepulyov/RxDataFrm.cs
++++ b/Stepulyov/RxDataFrm.cs
+@@ -1,5 +1,4 @@
+ ﻿#region сборка CANRxDataTable, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
+-// C:\Users\User\Desktop\Work\920 — копия\SHARP\Stepulyov\CANRxDataTable.dll
+ // Decompiled with ICSharpCode.Decompiler 6.1.0.5902
+ #endregion
+ 
+diff --git a/Stepulyov/TxDataFrm.cs b/Stepulyov/TxDataFrm.cs
+index e28720e..8004929 100644
+--- a/Stepulyov/TxDataFrm.cs
++++ b/Stepulyov/TxDataFrm.cs
+@@ -2,7 +2,6 @@
+ // Type: CANTxDataTable.TxDataFrm
+ // Assembly: CANTxDataTable, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
+ // MVID: 910B6E21-7299-4613-9774-4ABC91FF4F8C
+-// Assembly location: C:\Users\olegp\Desktop\WORK\37\SHARP\Stepulyov\CANTxDataTable.dll
+ 
+ using System;
+ using System.Collections.Generic;
+diff --git a/bin/Debug/TEST_RX/Resolver.ini b/bin/Debug/TEST_RX/Resolver.ini
+index 8baccd8..d622cfe 100644
+--- a/bin/Debug/TEST_RX/Resolver.ini
++++ b/bin/Debug/TEST_RX/Resolver.ini
+@@ -1,4 +1,4 @@
+-﻿; Синтаксис: [X]= ^Xn,Mult ; Комментарий], где [X] - имя параметра в WScope [Xn] - Имя переменной в C# [^] - Признак знака для WScope, Mult - множитель
++﻿; Синтаксис: [X]= ^Xn,Mult ; Комментарий], где [X] - имя параметра [Xn] - Имя переменной в C# [^] - Признак знака, Mult - множитель
+ 
+ 
+ [ParLeft]
+diff --git a/bin/Debug/bin/config_switch.h b/bin/Debug/bin/config_switch.h
+index 8db0480..7756001 100644
+--- a/bin/Debug/bin/config_switch.h
++++ b/bin/Debug/bin/config_switch.h
+@@ -4,7 +4,7 @@
+ #include "f28p55x_device.h"
+ #include "inc/stw_types.h"
+ 
+-#define KSP_ID_STRING "K57  07.09.2026  debug fast Wscope"
++#define KSP_ID_STRING "K57  07.09.2026"
+ #define FAST_FRAME_STRING "F3_ui.h" // Строка ini файла быстрого кадра - имя.h
+ 
+ #define TOOTH_FRAME_STRING "Tooth_1234.h" // Строка ini файла зуб кадра - имя.ini
+diff --git a/bin/config_switch.h b/bin/config_switch.h
+index 8db0480..7756001 100644
+--- a/bin/config_switch.h
++++ b/bin/config_switch.h
+@@ -4,7 +4,7 @@
+ #include "f28p55x_device.h"
+ #include "inc/stw_types.h"
+ 
+-#define KSP_ID_STRING "K57  07.09.2026  debug fast Wscope"
++#define KSP_ID_STRING "K57  07.09.2026"
+ #define FAST_FRAME_STRING "F3_ui.h" // Строка ini файла быстрого кадра - имя.h
+ 
+ #define TOOTH_FRAME_STRING "Tooth_1234.h" // Строка ini файла зуб кадра - имя.ini
+diff --git a/docs/About_Firmware_Window_Protocol_RU.txt b/docs/About_Firmware_Window_Protocol_RU.txt
+index bd9bc4a..c27fd80 100644
+--- a/docs/About_Firmware_Window_Protocol_RU.txt
++++ b/docs/About_Firmware_Window_Protocol_RU.txt
+@@ -3,7 +3,6 @@
+ 1) Назначение
+ Окно «О прошивке» показывает:
+ - строку версии прошивки (из ответа прошивки по CAN);
+-- имена Main/Fast/Tooth кадров;
+ - состояния KUK1/KUK2/KUK3;
+ - список активных ключей KUK с человекочитаемыми описаниями.
+ 
+@@ -25,8 +24,6 @@
+   - case 32000: накопление текстового блока в _s0;
+   - case 32001: разбор блока на поля:
+ 	- KspIdString (версия прошивки),
+-	- spf.FrameString,
+-	- sp2.FrameString,
+ 	- служебные части даты/времени (в окно не выводятся);
+   - case 32002: получение KUK-битов и установка IdRcvd.
+ 
+@@ -34,15 +31,11 @@
+ InfoFrm() создаёт DataTable (колонки PName, PVal) и добавляет строки в порядке:
+ 1. «Версия прошивки:» -> KspIdString (или «нет данных»).
+ 2. Пустая строка-разделитель.
+-3. «Main кадр:» -> F2Kadr_IniFileName.
+-4. «Fast кадр:» -> spf.FrameString.
+-5. «Tooth кадр:» -> sp2.FrameString.
++3. «KUK1:» -> Kk1.
++4. «KUK2:» -> Kk2.
++5. «KUK3:» -> Kk3.
+ 6. Пустая строка-разделитель.
+-7. «KUK1:» -> Kk1.
+-8. «KUK2:» -> Kk2.
+-9. «KUK3:» -> Kk3.
+-10. Пустая строка-разделитель.
+-11. Список активных ключей KUK:
++7. Список активных ключей KUK:
+ 	- для каждого бита '1' в Kuk1/Kuk2/Kuk3 берётся строка из _k1/_k2/_k3;
+ 	- слева выводится имя ключа, справа комментарий-описание.
+ 

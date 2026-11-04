@@ -1,0 +1,45 @@
+# Что не уходит заказчику. Одна запись - один путь от корня репозитория.
+
+# Осциллограф, Wscope и запись в файл
+Scope
+bin/Wscope
+SplKadr.cs
+SplKadr.resx
+Tooth_F9.cs
+Tooth_F9.Designer.cs
+Tooth_F9.resx
+Tooth_f9_ini_config.cs
+CAN/CANB.cs
+CAN/CanaAsync.cs
+Stepulyov/ASt_SplFast.cs
+Stepulyov/ASt_SplFast.designer.cs
+Stepulyov/ASt_SplFast.resx
+
+# Инженерные записки
+INVERTOR_CCS/my_Files/grid_tie.txt
+INVERTOR_CCS/my_Files/plant_sim.txt
+INVERTOR_CCS/my_Files/power_par.txt
+INVERTOR_CCS/my_Files/calib_store.txt
+INVERTOR_CCS/my_Files/U220_sync.txt
+INVERTOR_CCS/my_Files/C2000Ware_local_patches.txt
+
+# Внутренние документы: разбор платы и цены, переговоры о датчиках, настройка рабочих мест
+docs/eeprom-fram-comparison-RU.md
+docs/Current_Sensors_Note_RU.txt
+docs/agents-ccs-path.md
+docs/setup-other-pc-RU.md
+INVERTOR_CCS/README.md
+README.md
+B_Versija.txt
+FormatTemplate.txt
+
+# Инструменты разработчика, логи шины, настройки ИИ-агента и git
+Tools
+CAN/CanLogTool
+CAN/CanLogTools
+CanLogTool
+.claude
+.gitignore
+.gitattributes
+INVERTOR_CCS/watch.json
+INVERTOR_CCS/K57.theia-workspace
