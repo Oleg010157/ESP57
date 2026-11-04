@@ -21,6 +21,7 @@ void u220_sample(void);
 // определения в myADC.c.
 void adc_late_sample(void);
 
+void ADC_useVddaReference(void); // временно, разбор в myADC.c
 void Core_Temp_Update(void);
 
 void myADC_PPB_Init(void);

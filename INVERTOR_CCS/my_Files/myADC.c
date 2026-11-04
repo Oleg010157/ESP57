@@ -205,6 +205,35 @@ void adc_late_sample(void)
 int16_t core_temp; // температура ядра F28P55x в ГРАДУСАХ ЦЕЛЬСИЯ
 
 //--------------------------------------------------------------------------------
+// ВРЕМЕННО: опора ADCA, ADCB и ADCC - от VDDA/VSSA.
+//
+// На плате PCB_MCU-F2803 между VREFHI и VREFLO стоят 0.2 мкФ вместо 2.2 мкФ, которые
+// требует даташит SPRSP85D. С внутренней опорой АЦП ошибается в старших разрядах:
+// вывод VREFLO читается как 22, 181, 437, датчик температуры даёт 1044..3045 и
+// CoreT от -58 до -71. С опорой от VDDA на той же плате VREFLO читается ровным нулём,
+// датчик даёт 1526..1528, CoreT 41. Цена: точность теперь зависит от питания 3.3 В.
+//
+// SysConfig здесь не годится: он перевёл бы на VDDA все пять АЦП, и VREFHI перестал
+// бы быть источником для DAC (опора стенда, DAC_REF_ADC_VREFHI). Поэтому неиспользуемые
+// ADCD и ADCE остаются на внутренней опоре 1.65 В и держат VREFHI: без нагрузки от
+// преобразований он ровный. Биты 1.65 В у ADCA..C обязаны быть сняты: с ними в режиме
+// VDDA диапазон вдвое шире, и все коды вдвое меньше.
+//
+// Когда на плате появится 2.2 мкФ, убрать вызов из main.c и вернуть в
+// Core_Temp_Update() режим ADC_REFERENCE_INTERNAL. Настройка в SysConfig не менялась.
+//--------------------------------------------------------------------------------
+void ADC_useVddaReference(void)
+{
+    EALLOW;
+    HWREGH(ANALOGSUBSYS_BASE + ASYSCTL_O_ANAREFPCTL) =
+        ASYSCTL_ANAREF_VDDA_ADCA | ASYSCTL_ANAREF_VDDA_ADCB | ASYSCTL_ANAREF_VDDA_ADCC |
+        ASYSCTL_ANAREFPCTL_ANAREFD1P65SEL | ASYSCTL_ANAREFPCTL_ANAREFE1P65SEL;
+    HWREGH(ANALOGSUBSYS_BASE + ASYSCTL_O_ANAREFNCTL) =
+        ASYSCTL_ANAREF_VDDA_ADCA | ASYSCTL_ANAREF_VDDA_ADCB | ASYSCTL_ANAREF_VDDA_ADCC;
+    EDIS;
+}
+
+//--------------------------------------------------------------------------------
 // Температура ядра. Вызывается из фона раз в 50 мс (main.c, блок CpuTimer0):
 // ADCC SOC0 запускается от EPWM1 непрерывно, здесь просто читаем последний
 // готовый результат.
@@ -212,7 +241,8 @@ int16_t core_temp; // температура ядра F28P55x в ГРАДУСА�
 // Датчик температуры на F28P55x подключён к ADCC, канал C12 - это внутреннее
 // соединение, а не внешний пин (см. C2000Ware, adc_ex2_epwm_tempsensor.c).
 //
-// Режим опоры обязан совпадать с тем, что реально настроено: сгенерированный
+// Режим опоры обязан совпадать с тем, что реально настроено: сейчас это VDDA, см.
+// ADC_useVddaReference(). До него сгенерированный
 // board.c делает ADC_setVREF(myADCA_BASE, ADC_REFERENCE_INTERNAL,
 // ADC_REFERENCE_3_3V), поэтому INTERNAL. От режима зависит, какая пара
 // slope/offset берётся из OTP, и с чужой парой температура уезжает.
@@ -237,7 +267,7 @@ int16_t core_temp; // температура ядра F28P55x в ГРАДУСА�
 void Core_Temp_Update(void)
 {
     uint16_t core_temp_kod = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER0);
-    core_temp = ADC_getTemperatureC(core_temp_kod, ADC_REFERENCE_INTERNAL, 3.3f);
+    core_temp = ADC_getTemperatureC(core_temp_kod, ADC_REFERENCE_VDDA, 3.3f);
 }
 
 //--------------------------------------------------------------------------------
