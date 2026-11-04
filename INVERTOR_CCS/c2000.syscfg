@@ -394,7 +394,6 @@ gpio1.direction       = "GPIO_DIR_MODE_OUT";
 gpio1.gpioPin.$assign = "GPIO57";
 
 gpio2.$name           = "strob";
-gpio2.direction       = "GPIO_DIR_MODE_OUT";
 gpio2.gpioPin.$assign = "GPIO32";
 
 i2c1.$name                  = "myI2CB";
