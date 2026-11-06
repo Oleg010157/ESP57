@@ -159,6 +159,25 @@ void Send_mbox_FD(uint16_t bufNum, const uint16_t *w, uint16_t numWords);
 // Смена DLC быстрого кадра (буфер 1) при выборе режима в MBOX28: F1 -> 8, F3 -> 12.
 void MCAN_setFastDLC(uint16_t dlc);
 void SendAck(int d1, int d2, int d3, int cmd);
+
+// Скорость фазы данных: старт на 2.5 Мбит/с, 5 Мбит/с - по пробе с ПК. Разбор в myMCAN.c.
+// Команда и ответ: d1 = действие. В ответе ещё d2 = скорость (1 = 5 Мбит/с), d3 = причина.
+#define CAN_RATE_CMD        7100U
+#define CAN_RATE_DOWN       0U  // на 2.5 Мбит/с
+#define CAN_RATE_UP         1U  // проба 5 Мбит/с: d2 = 1 - не откатываться на ошибки
+#define CAN_RATE_CONFIRM    2U  // проба прошла, остаёмся на 5 Мбит/с
+#define CAN_RATE_PROBE      3U  // проверочный кадр: d2 = номер, прибор отвечает кадром 133
+
+#define CAN_RATE_OK         0U
+#define CAN_RATE_ERRORS     1U  // откат: ошибки шины
+#define CAN_RATE_TIMEOUT    2U  // откат: ПК не подтвердил пробу
+#define CAN_RATE_BUSY       3U  // отказ: идёт телеметрия
+
+void MCAN_rateCmd(uint16_t action, uint16_t seq, uint16_t busy);
+void MCAN_rateBackground(void);
+void MCAN_rateTick50ms(void);
+uint16_t MCAN_rateFlags(void);
+
 void CAN_configureIF3ForMailbox1(void);
 
 

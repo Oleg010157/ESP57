@@ -901,6 +901,7 @@ namespace ICDIBasic
             управлениеToolStripMenuItem.DropDownItems.Add(_canaM);
             управлениеToolStripMenuItem.DropDownItems.Add(_reInitCanAMenu);
             управлениеToolStripMenuItem.DropDownItems.Add(_checkCanAMenu);
+            CanRate_InitMenu(управлениеToolStripMenuItem);
             управлениеToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
             управлениеToolStripMenuItem.DropDownItems.Add(_canbM);
             управлениеToolStripMenuItem.DropDownItems.Add(_reInitCanBMenu);

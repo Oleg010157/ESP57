@@ -68,6 +68,9 @@
     <Setting Name="LSymmetry" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
     </Setting>
+    <Setting Name="CanASpeedMode" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Auto</Value>
+    </Setting>
     <Setting Name="CanAId" Type="System.String" Scope="User">
       <Value Profile="(Default)">A</Value>
     </Setting>

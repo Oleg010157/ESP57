@@ -16,6 +16,7 @@
 #include "hw_mcan.h" // Обязательно должен быть подключен для макросов смещений
 #include "mcan.h"
 #include "myMCAN.h"
+#include "myDCAN.h"
 
 
 
@@ -182,8 +183,13 @@ void MCAN_initTxBuffer(uint16_t bufNum, uint16_t msgId, uint16_t dlc, uint16_t b
 // myMCAN.h MCAN_TX_BUFF_ELEM_SIZE). Размер хранения элемента != длина кадра: мелкие кадры
 // (ACK, 132, fast) по-прежнему шлются с DLC=8, просто занимают 64-байтные слоты.
 //
-// Буфер 3 свободен: кадр 131 (Kadr60) упразднён 11.10.2026, медленная запись идёт
-// кадром 140 - в его последнем слове теперь счётчик K60cnt.
+// Кадр 131 (Kadr60) упразднён 11.10.2026, медленная запись идёт кадром 140 - в его
+// последнем слове теперь счётчик K60cnt. Буфер 3 занят под ответ на пробу скорости.
+//
+// ACK и ответ о скорости идут БЕЗ BRS: такой кадр весь на 1 Мбит/с и проходит, даже
+// когда прибор и ПК разошлись по скорости данных. На этом держится весь откат.
+// Буфер 5 - тот же ID 1, но пишет в него только фон: SendAck зовут из прерывания,
+// и общий буфер они бы портили друг другу.
 //
 // Медленная телеметрия консолидирована в компактный кадр ID 140:
 // 32 слова = 64 байта -> DLC=15 (FD+BRS), буфер 2. Было 32 байта (DLC=13),
@@ -196,13 +202,15 @@ void MCAN_initTxBuffer(uint16_t bufNum, uint16_t msgId, uint16_t dlc, uint16_t b
 void MCAN_initAllTxBuffers(void)
 {
     //                 buf, msgId, dlc, brs, fdf
-    MCAN_initTxBuffer(  0,   1,     8,   1,   1);  // ACK
+    MCAN_initTxBuffer(  0,   1,     8,   0,   1);  // ACK
     MCAN_initTxBuffer(  1, 103,    13,   1,   1);  // быстрый кадр: F1=8б(DLC8),
                                                   // F3_invertor=24б(DLC12),
                                                   // F3_convertor=32б(DLC13).
                                                   // DLC переключается в MBOX28 (MCAN_setFastDLC).
     MCAN_initTxBuffer(  2, 140,    15,   1,   1);  //  REF кадр (64 байта)
+    MCAN_initTxBuffer(  3, 133,    15,   1,   1);  // ответ на пробу скорости (64 байта)
     MCAN_initTxBuffer(  4, 132,     8,   1,   1);  // Errors/main
+    MCAN_initTxBuffer(  5,   1,     8,   0,   1);  // ответ о скорости
 }
 
 //
@@ -345,6 +353,194 @@ void MCAN_keepOnBus(void)
     {
         MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_NORMAL);
     }
+}
+
+//
+// Скорость фазы данных на ходу: 2.5 или 5 Мбит/с.
+//
+// Прибор всегда стартует на 2.5 Мбит/с (SysConfig), так что старая программа с
+// ним работает как раньше. На 5 Мбит/с переводит ПК при "Подключить":
+//
+//   1. CAN_RATE_UP: прибор переходит и ждёт подтверждения 2 с.
+//   2. ПК переоткрывает PCAN на 5 Мбит/с и гоняет кадры в обе стороны.
+//   3. CAN_RATE_CONFIRM: остаёмся. Нет подтверждения - прибор откатывается сам.
+//
+// Команды идут без BRS, поэтому доходят при любой настройке быстрой фазы.
+//
+// ВВЕРХ - ТОЛЬКО ПРОБОЙ. Ошибок шины за секунду набралось CAN_RATE_ERR_LIMIT - прибор
+// уходит на 2.5 Мбит/с и сообщает ПК. Сам обратно не идёт, иначе на плохой шине
+// скорость прыгала бы туда-сюда. Проба при выключенных ключах не показывает, что
+// будет при их работе, поэтому без отката она не спасает.
+//
+// В меню программы три режима: "Авто" - всё как выше; "2.5" - проба не запускается;
+// "5" - проба есть, но откат на ошибки выключен (CAN_RATE_UP с d2 = 1), чтобы на
+// стенде видеть сбои, а не их маскировку. Таймаут пробы работает всегда.
+//
+// Ошибки считает CEL, поле ECR: число приращений TEC и REC, чтение его обнуляет.
+// Отладчик его не сбрасывает, а смотреть в Watch надо canErrTotal: в самом CEL
+// теперь остаётся только то, что набежало за последние 50 мс.
+//
+#define CAN_RATE_FAST_DBTP  ((1UL << 23) | (21UL << 8) | (6UL << 4) | 5UL) // TDC, делитель 1, 1+22+7 = 30 tq
+#define CAN_RATE_FAST_TDCR  ((16UL << 8) | 10UL) // tdco 16 - середина бита, tdcf 10
+#define CAN_RATE_TRIAL_TICKS 40U // 2 с в тиках по 50 мс
+#define CAN_RATE_ERR_LIMIT   8U  // ошибок за секунду; единичная безвредна
+#define CAN_RATE_WIN_TICKS   20U // секунда в тиках по 50 мс
+#define CAN_RATE_ACK_BUF     5U
+
+volatile uint16_t canRateFast = 0; // 1 = сейчас 5 Мбит/с
+volatile uint16_t canRateFalls = 0; // сколько раз откатывались сами
+volatile uint32_t canErrTotal = 0; // ошибок шины с запуска
+
+static volatile uint16_t rateReq = 0; // 0 - ничего, иначе CAN_RATE_DOWN + 1 или CAN_RATE_UP + 1
+static volatile uint16_t rateTrial = 0; // тиков до отката, 0 - проба не идёт
+static volatile uint16_t rateHold = 0; // режим "5 Мбит/с" в меню: на ошибки не откатываться
+static volatile uint16_t noteOn = 0; // ответ ждёт отправки
+static volatile uint16_t noteAction = 0;
+static volatile uint16_t noteReason = 0;
+static uint16_t rateErrWin = 0;
+static uint16_t rateWinTicks = 0;
+static uint32_t rateSlowDbtp = 0; // настройка SysConfig, снимается перед первым переходом
+static uint32_t rateSlowTdcr = 0;
+
+// Настройка быстрой фазы. Запись в CCE сбрасывает TXBRP, поэтому сначала даём
+// уйти ACK и прошлому ответу: иначе пропала бы, например, квитанция на "Отключить".
+static void MCAN_setDataPhase(uint32_t dbtp, uint32_t tdcr)
+{
+    uint32_t guard = 20000UL;
+    while ((HW_RD_REG32(myMCANA_BASE + MCAN_TXBRP) &
+            ((1UL << 0) | (1UL << CAN_RATE_ACK_BUF))) != 0UL && --guard != 0UL)
+    {
+    }
+
+    guard = 20000UL;
+    MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_SW_INIT);
+    while (MCAN_getOpMode(myMCANA_BASE) != MCAN_OPERATION_MODE_SW_INIT && --guard != 0UL)
+    {
+    }
+
+    HW_WR_FIELD32(myMCANA_BASE + MCAN_CCCR, MCAN_CCCR_CCE, 1U);
+    HW_WR_REG32(myMCANA_BASE + MCAN_DBTP, dbtp);
+    HW_WR_REG32(myMCANA_BASE + MCAN_TDCR, tdcr);
+    MCAN_setOpMode(myMCANA_BASE, MCAN_OPERATION_MODE_NORMAL);
+}
+
+// Зовётся из прерывания приёма, поэтому сама скорость меняется в фоне.
+void MCAN_rateCmd(uint16_t action, uint16_t seq, uint16_t busy)
+{
+    switch (action)
+    {
+        case CAN_RATE_DOWN:
+            noteAction = action;
+            noteReason = CAN_RATE_OK;
+            rateReq = CAN_RATE_DOWN + 1U;
+            break;
+
+        case CAN_RATE_UP:
+            noteAction = action;
+            if (busy != 0U)
+            {
+                noteReason = CAN_RATE_BUSY;
+                noteOn = 1U;
+            }
+            else
+            {
+                noteReason = CAN_RATE_OK;
+                rateHold = seq; // здесь d2 - не номер пробы, а признак режима "5 Мбит/с"
+                rateReq = CAN_RATE_UP + 1U;
+            }
+            break;
+
+        case CAN_RATE_CONFIRM:
+            rateTrial = 0U;
+            noteAction = action;
+            noteReason = CAN_RATE_OK;
+            noteOn = 1U;
+            break;
+
+        case CAN_RATE_PROBE:
+        {
+            uint16_t w[32];
+            uint16_t i;
+            for (i = 0U; i < 32U; i++)
+            {
+                w[i] = (uint16_t)(seq + i * 0x0101U);
+            }
+            Send_mbox_FD(3, w, 32);
+            break;
+        }
+
+        default:
+            break;
+    }
+}
+
+void MCAN_rateBackground(void)
+{
+    uint16_t req = rateReq;
+    if (req != 0U)
+    {
+        rateReq = 0U;
+        rateErrWin = 0U;
+        rateWinTicks = 0U;
+
+        if (req == CAN_RATE_UP + 1U && canRateFast == 0U)
+        {
+            rateSlowDbtp = HW_RD_REG32(myMCANA_BASE + MCAN_DBTP);
+            rateSlowTdcr = HW_RD_REG32(myMCANA_BASE + MCAN_TDCR);
+            MCAN_setDataPhase(CAN_RATE_FAST_DBTP, CAN_RATE_FAST_TDCR);
+            canRateFast = 1U;
+            rateTrial = CAN_RATE_TRIAL_TICKS;
+        }
+        else if (req == CAN_RATE_DOWN + 1U && canRateFast != 0U)
+        {
+            MCAN_setDataPhase(rateSlowDbtp, rateSlowTdcr);
+            canRateFast = 0U;
+            rateTrial = 0U;
+        }
+        noteOn = 1U;
+    }
+
+    if (noteOn != 0U && (HW_RD_REG32(myMCANA_BASE + MCAN_TXBRP) & (1UL << CAN_RATE_ACK_BUF)) == 0UL)
+    {
+        noteOn = 0U;
+        Send_mbox(CAN_RATE_ACK_BUF, CAN_RATE_CMD, noteAction, canRateFast, noteReason);
+    }
+}
+
+void MCAN_rateTick50ms(void)
+{
+    uint16_t errs = (uint16_t)((HW_RD_REG32(myMCANA_BASE + MCAN_ECR) & MCAN_ECR_CEL_MASK) >> MCAN_ECR_CEL_SHIFT);
+    canErrTotal += errs;
+
+    if (canRateFast == 0U)
+        return;
+
+    rateErrWin += errs;
+    if (++rateWinTicks >= CAN_RATE_WIN_TICKS)
+    {
+        rateWinTicks = 0U;
+        rateErrWin = 0U;
+    }
+
+    if (rateErrWin >= CAN_RATE_ERR_LIMIT && rateHold == 0U)
+    {
+        canRateFalls++;
+        noteAction = CAN_RATE_DOWN;
+        noteReason = CAN_RATE_ERRORS;
+        rateReq = CAN_RATE_DOWN + 1U;
+    }
+    else if (rateTrial != 0U && --rateTrial == 0U)
+    {
+        canRateFalls++;
+        noteAction = CAN_RATE_DOWN;
+        noteReason = CAN_RATE_TIMEOUT;
+        rateReq = CAN_RATE_DOWN + 1U;
+    }
+}
+
+uint16_t MCAN_rateFlags(void)
+{
+    return (uint16_t)(4U | (canRateFast != 0U ? 8U : 0U));
 }
 
 //

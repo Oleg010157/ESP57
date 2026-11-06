@@ -1461,7 +1461,9 @@ namespace ICDIBasic
                 DATA = new byte[64],
                 ID = 2,
                 DLC = 8,
-                MSGTYPE = TPCANMessageType.PCAN_MESSAGE_FD | TPCANMessageType.PCAN_MESSAGE_BRS
+                // Без BRS: команда целиком на 1 Мбит/с и доходит при любой скорости
+                // данных. Иначе при расхождении скоростей нельзя было бы даже откатиться.
+                MSGTYPE = TPCANMessageType.PCAN_MESSAGE_FD
             };
 
             // Упаковка данных (Little-Endian)
@@ -1532,6 +1534,7 @@ namespace ICDIBasic
         #region Шестеренка и стрелочки
         private void timer_tick_Tick_1(object sender, EventArgs e)
         {
+            CanRate_Watchdog();
 
             if (_refreshImage)  //вращает стрелку Tx
             {
@@ -2615,6 +2618,7 @@ namespace ICDIBasic
                         {
                             _mcuAlreadyConnected = (d3 & 0x01) == 1;
                             _mcuUsesFD           = (d3 & 0x02) != 0;
+                            CanRate_OnPing(d3);
                             _canaM.BackColor = Color.LightGreen;
                             CanA_Ok = tsmConnect.Enabled = true;
                         }
@@ -2638,6 +2642,9 @@ namespace ICDIBasic
                     }
 
                     _ = zero.Focus();
+                    break;
+                case CanRateCmd:
+                    CanRate_OnNote(d1, d2, d3);
                     break;
                 case 2: // кнопка "Подключить"
                     tsmConnect.Text = "Отключить";

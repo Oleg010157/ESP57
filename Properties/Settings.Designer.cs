@@ -289,6 +289,18 @@ namespace ICDIBasic.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Auto")]
+        public string CanASpeedMode {
+            get {
+                return ((string)(this["CanASpeedMode"]));
+            }
+            set {
+                this["CanASpeedMode"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("A")]
         public string CanAId {
             get {

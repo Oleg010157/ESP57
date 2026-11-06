@@ -505,8 +505,9 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
     {
         case 0: // команда посылается при открытии формы Мотор-Контрол
             // d1=55 d2=55
-            // d3: bit0 = sbit.bit.connect, bit1 = CANA_FD (0=classic IDs 100-132, 1=FD ID 140)
-            SendAck(55, 55, (uint16_t)(sbit.bit.connect | (CANA_FD << 1)), cmd);
+            // d3: bit0 = sbit.bit.connect, bit1 = CANA_FD (0=classic IDs 100-132, 1=FD ID 140),
+            //     bit2 = умеет 5 Мбит/с, bit3 = сейчас на 5 Мбит/с (myMCAN.c)
+            SendAck(55, 55, (uint16_t)(sbit.bit.connect | (CANA_FD << 1) | MCAN_rateFlags()), cmd);
             break;
 
         case 1001: // команда включения/ выключения и выбора типа   кадра   по CANA
@@ -584,6 +585,10 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             SplMode = 0;
 
             SendAck(data1, data2, data3, cmd);
+
+            // Сеанс окончен - назад на стартовые 2.5 Мбит/с. На 5 Мбит/с заново
+            // перейдём только пробой при следующем "Подключить".
+            MCAN_rateCmd(CAN_RATE_DOWN, 0, 0U);
             break;
 
         case 4: // нажата Кнопка ПУСК
@@ -2108,6 +2113,13 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
             break;
         }
+
+        case CAN_RATE_CMD: // скорость фазы данных: d1 = действие, d2 = номер пробы (myMCAN.c)
+            // Телеметрия идёт - прибавлять нельзя: пока ПК переоткрывает канал,
+            // каждый кадр на 5 Мбит/с уйдёт ему в ошибку.
+            MCAN_rateCmd(data1, data2, (uint16_t)(sbit.bit.connect || canaKadr.all != 0U));
+            break;
+
         default:
             break;
     }

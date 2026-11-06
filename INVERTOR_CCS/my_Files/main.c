@@ -276,6 +276,9 @@ extern volatile uint16_t epwm3time;// dbg
         // Измерено на плате, разбор в myMCAN.c.
         MCAN_keepOnBus();
 
+        // Смена скорости фазы данных и ответ о ней. Разбор в myMCAN.c.
+        MCAN_rateBackground();
+
         // Сетевой режим: закрытие IGBT и запись аварии в журнал. Из прерывания
         // это звать нельзя - IGBT*_Disable() делает EINT внутри себя (вложенное
         // прерывание посреди ISR), а RegisterSessionEvent() лезет в историю
@@ -369,6 +372,8 @@ extern volatile uint16_t epwm3time;// dbg
             epwmcount = 0;
 
             Core_Temp_Update(); // температура ядра, раз в 50 мс, без прерывания
+
+            MCAN_rateTick50ms(); // ошибки шины и таймаут пробы 5 Мбит/с
  
             if (cntT0 == OneSecond) // события обрабатываемые каждую секунду
             {

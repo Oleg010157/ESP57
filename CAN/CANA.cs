@@ -111,7 +111,7 @@ namespace ICDIBasic
                 MessageBoxIcon.Information);
         }
 
-        private void connectToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void connectToolStripMenuItem_Click(object sender, EventArgs e)
         {
             tsmConnect.BackColor = Color.Yellow;
             // If bootloader left the form title as the final "Готово!", replace it
@@ -120,7 +120,13 @@ namespace ICDIBasic
             {
                 Text = "Motor Control";
             }
-            cmd_128(tsmConnect.Text == @"Подключить" ? (ushort)2 : (ushort)3);
+
+            var connect = tsmConnect.Text == @"Подключить";
+            if (connect)
+            {
+                await CanRate_BeforeConnect();
+            }
+            cmd_128(connect ? (ushort)2 : (ushort)3);
         }
 
         private void ReInitCanAMenu_Click(object sender, EventArgs e)
@@ -273,10 +279,12 @@ namespace ICDIBasic
         //     var fdBitrate = "f_clock=80000000,nom_brp=1,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,data_brp=1,data_tseg1=15,data_tseg2=4,data_sjw=4";
 
             // 5 Мбит/с 1 Мбит/с арбитраж / 5 Мбит/с данные (Sample Point 75%) --
-            //    var fdBitrate = "f_clock=80000000,nom_brp=1,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,data_brp=1,data_tseg1=11,data_tseg2=4,data_sjw=4";
+            //    var fdBitrate = CanBitrateFast;
 
             // 2.5 Мбит/с: 1 Мбит/с арбитраж / 2.5 Мбит/с данные (SP 75%) -- 80/(1*32)=2.5 Мбит/с
-                  var fdBitrate = "f_clock=80000000,nom_brp=1,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,data_brp=1,data_tseg1=23,data_tseg2=8,data_sjw=4";
+            // Сеанс всегда начинается отсюда, на 5 Мбит/с переходим пробой (CanaRate.cs).
+            var fdBitrate = CanBitrateSlow;
+            _canFast = false;
             // f_clock=150 МГц (эквивалентный прескалер), nom (SP=52%): tseg1=12, tseg2=12, sjw=11 | data (SP=53.3%): tseg1=7, tseg2=7, sjw=6
             //     var fdBitrate = "f_clock=150000000,nom_brp=6,nom_tseg1=12,nom_tseg2=12,nom_sjw=11,data_brp=2,data_tseg1=7,data_tseg2=7,data_sjw=6";
             //  8 Мбит/с: 1 Мбит/с арбитраж / 8 Мбит/с данные (Sample Point 80%) --
@@ -377,6 +385,12 @@ namespace ICDIBasic
         {
             while (_rden)
             {
+                if (_canReopening)
+                {
+                    Thread.Sleep(1);
+                    continue;
+                }
+
                 if (!_re.WaitOne(10)) continue;
 
                 TPCANStatus stsResult;
@@ -412,11 +426,17 @@ namespace ICDIBasic
                             break;
 
 
+                        case CanRateProbeReplyId:
+                            CanRate_OnProbeReply(canMsg);
+                            break;
+
                         default:  // 103 (быстрый), 131 (Kadr60), 132 (Errors) и др.
+                            if (canMsg.ID == 140)
+                                Volatile.Write(ref _canLastTele, Environment.TickCount);
                             try { CAN_RxData(canMsg); } catch { }
                             break;
                     }
-                } while (_rden && (stsResult & TPCANStatus.PCAN_ERROR_QRCVEMPTY) == 0);
+                } while (_rden && !_canReopening && (stsResult & TPCANStatus.PCAN_ERROR_QRCVEMPTY) == 0);
             }
         }
 
