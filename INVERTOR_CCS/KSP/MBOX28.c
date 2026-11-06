@@ -135,6 +135,48 @@ volatile union word32 rxA, rxB;
 
 uint16_t Req_336 = 0; // логическая переменная для вывода массивов в фоне, передаётся по 336 команде от GUI
 
+//
+// Сторож связи с программой. Пока прибор подключён, программа шлёт команду 336
+// раз в секунду (таймер _rqTmr, ASt_MainF.cs). Нет её UI_LINK_LOST_SEC секунд -
+// программы больше нет: закрыта нештатно, снята задача, отвалился USB. Тогда
+// прибор сам выходит из сеанса связи: connect = 0, телеметрия выключена, CAN
+// назад на 2.5 Мбит/с. Без этого новый запуск программы застаёт прибор
+// подключённым, и проба 5 Мбит/с получает отказ "занято".
+//
+// КЛЮЧИ И РЕЖИМ МОСТА СТОРОЖ НЕ ТРОГАЕТ, в отличие от "Отключить" (решение
+// пользователя 06.11.2026): CAN может быть, а может и не быть, мостом управляют
+// и кнопками, и другими путями. Пропажа ПК - не повод снимать мост с сети.
+//
+// Порог 5 с, а не 2-3: таймер программы живёт в потоке окна и может опоздать,
+// а один потерянный кадр вместе с таким опозданием уже дают 3 тика без команды.
+//
+#define UI_LINK_LOST_SEC 5U
+
+static volatile uint16_t uiSilentSec = 0; // секунд без команды 336
+volatile uint16_t uiLinkLost = 0; // сколько раз сторож выводил из сеанса, смотреть в Watch
+
+void MBOX_uiLinkTick1s(void)
+{
+    // Команды приходят из прерывания приёма и пишут те же sbit и canaKadr.
+    uint16_t ints = __disable_interrupts();
+
+    if (!sbit.bit.connect)
+    {
+        uiSilentSec = 0;
+    }
+    else if (++uiSilentSec >= UI_LINK_LOST_SEC)
+    {
+        uiSilentSec = 0;
+        uiLinkLost++;
+        sbit.bit.connect = 0;
+        canaKadr.all = 0;
+        Req_336 = 0;
+        MCAN_rateCmd(CAN_RATE_DOWN, 0, 0U);
+    }
+
+    __restore_interrupts(ints);
+}
+
 extern uint16_t dbgTrip;
 extern uint16_t Imax;
 
@@ -560,6 +602,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             REF_init(&REF);
 
             sbit.bit.connect = 1;
+            uiSilentSec = 0; // первая 336 придёт в течение секунды
 
             session_keys_off();
             // sharp2.all = 0;
@@ -2073,6 +2116,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
         case 336:
         {
             Req_336 = data1;
+            uiSilentSec = 0; // программа на связи
         }
         break;
 

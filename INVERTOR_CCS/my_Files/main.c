@@ -383,6 +383,8 @@ extern volatile uint16_t epwm3time;// dbg
 
                 TRIP_Clear();
 
+                MBOX_uiLinkTick1s(); // нет команды 336 от программы 5 с - выход из сеанса, MBOX28.c
+
                 if (CheckLamp > 0U)
                 {
                     CheckLamp--;

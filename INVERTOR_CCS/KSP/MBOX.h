@@ -23,6 +23,9 @@
 
 extern uint16_t Req_336;
 
+// Сторож связи с программой, раз в секунду из фона (main.c). Разбор - MBOX28.c.
+void MBOX_uiLinkTick1s(void);
+
 
 
 void SendL(void);
