@@ -1,7 +1,10 @@
 /*
  * spi_link.c
  *
- * Ведомый SPI к прибору: проверка канала. Формат посылки - в spi_link.h.
+ * Ведомый SPI к прибору. Формат посылки - в spi_link.h.
+ *
+ * Этап 1: только разбор и счётчики. Кадры пока никуда не уходят, команд от
+ * нас прибору нет - посылка к нему пустая, с меткой и CRC.
  */
 #include <stdbool.h>
 #include <string.h>
@@ -16,7 +19,10 @@
 #include "board.h"
 #include "spi_link.h"
 
-#define LINK_BYTES 32
+#define WORDS     (SPI_LINK_BYTES / 2)
+#define HDR_WORDS 4
+#define LAST_WORD (WORDS - 1)
+#define MAX_DATA  64 /* байт - больше в CAN FD не бывает */
 
 #define MAGIC_F28 0xA55Au
 #define MAGIC_ESP 0x5AA5u
@@ -24,10 +30,12 @@
 static const char *TAG = "spi_link";
 
 /* DMA ведомого SPI у ESP32: буфер с границы 4 байт, длина кратна 4. */
-static WORD_ALIGNED_ATTR uint8_t s_tx[LINK_BYTES];
-static WORD_ALIGNED_ATTR uint8_t s_rx[LINK_BYTES];
+static WORD_ALIGNED_ATTR uint8_t s_tx[2][SPI_LINK_BYTES];
+static WORD_ALIGNED_ATTR uint8_t s_rx[2][SPI_LINK_BYTES];
+static spi_slave_transaction_t s_trans[2];
 
 static spi_link_stat_t s_stat;
+static uint16_t s_seq_out;
 
 static void IRAM_ATTR on_setup(spi_slave_transaction_t *t)
 {
@@ -53,68 +61,128 @@ static void put_word(uint8_t *b, int i, uint16_t w)
     b[2 * i + 1] = (uint8_t)w;
 }
 
-static void check(const uint8_t *rx, size_t bits, uint16_t *last_seq, bool *have_seq)
+/* CRC-16/CCITT-FALSE (0x1021, начальное 0xFFFF) по байтам в порядке провода. */
+static uint16_t crc16(const uint8_t *b, size_t n)
 {
-    s_stat.total++;
-    memcpy(s_stat.last, rx, LINK_BYTES);
+    uint16_t crc = 0xFFFF;
+    for (size_t i = 0; i < n; i++) {
+        crc ^= (uint16_t)b[i] << 8;
+        for (int k = 0; k < 8; k++) {
+            crc = (crc & 0x8000) ? (uint16_t)((crc << 1) ^ 0x1021) : (uint16_t)(crc << 1);
+        }
+    }
+    return crc;
+}
 
-    if (bits < LINK_BYTES * 8) {
+static void prepare_tx(uint8_t *tx)
+{
+    memset(tx, 0, SPI_LINK_BYTES);
+    put_word(tx, 0, MAGIC_ESP);
+    put_word(tx, 1, s_seq_out++);
+    put_word(tx, 2, 0); /* команд пока нет - этап 2 */
+    put_word(tx, 3, 0);
+    put_word(tx, LAST_WORD, crc16(tx, LAST_WORD * 2));
+}
+
+static void parse(const uint8_t *rx, size_t bits, uint16_t *last_seq, bool *have_seq,
+                  uint16_t *last_tick, bool *have_tick)
+{
+    if (bits < SPI_LINK_BYTES * 8) {
         s_stat.truncated++;
         return;
     }
     if (word_at(rx, 0) != MAGIC_F28) {
-        s_stat.noMagic++;
+        s_stat.badMagic++;
         return;
     }
+    s_stat.packets++;
 
     uint16_t seq = word_at(rx, 1);
-    for (int i = 2; i < LINK_BYTES / 2; i++) {
-        if (word_at(rx, i) != (uint16_t)(seq + i * 0x0101u)) {
-            s_stat.bad++;
-            return;
-        }
-    }
-
     if (*have_seq && seq != (uint16_t)(*last_seq + 1)) {
-        s_stat.gap++;
-    } else {
-        s_stat.ok++;
+        s_stat.seqGap++;
     }
     *last_seq = seq;
     *have_seq = true;
+
+    uint16_t fill = word_at(rx, 2);
+    s_stat.f28Drop += word_at(rx, 3);
+    s_stat.lastFill = fill;
+    if (fill > s_stat.maxFill) {
+        s_stat.maxFill = fill;
+    }
+    if (fill > (LAST_WORD - HDR_WORDS) * 2 || (fill & 1)) {
+        s_stat.badLayout++;
+        return;
+    }
+
+    int w   = HDR_WORDS;
+    int end = HDR_WORDS + fill / 2;
+    while (w < end) {
+        if (w + 2 > end) {
+            s_stat.badLayout++;
+            return;
+        }
+        uint16_t id  = word_at(rx, w);
+        uint16_t len = word_at(rx, w + 1);
+        int      n   = len / 2;
+        if ((len & 1) || len > MAX_DATA || w + 2 + n > end) {
+            s_stat.badLayout++;
+            return;
+        }
+
+        switch (id) {
+        case 103: {
+            /* Последнее слово быстрого кадра - счётчик тактов во всех
+             * режимах (1ph_Sin.c, Main_ISR.c). Разрыв - кадр потерян. */
+            s_stat.fr103++;
+            if (n > 0) {
+                uint16_t tick = word_at(rx, w + 2 + n - 1);
+                if (*have_tick && tick != (uint16_t)(*last_tick + 1)) {
+                    s_stat.tickGap++;
+                }
+                *last_tick = tick;
+                *have_tick = true;
+            }
+            break;
+        }
+        case 140: s_stat.fr140++; break;
+        case 1:   s_stat.fr1++;   break;
+        case 132: s_stat.fr132++; break;
+        default:  s_stat.frOther++; break;
+        }
+        w += 2 + n;
+    }
 }
 
 static void link_task(void *arg)
 {
     (void)arg;
-    uint16_t last_seq = 0;
-    bool have_seq = false;
+    uint16_t last_seq = 0, last_tick = 0;
+    bool have_seq = false, have_tick = false;
 
-    /* До первой посылки отвечать нечем: метка без эха. Прибор посчитает это
-     * как seqMiss, а не как ошибку данных. */
-    memset(s_tx, 0, sizeof s_tx);
-    put_word(s_tx, 0, MAGIC_ESP);
+    for (int i = 0; i < 2; i++) {
+        prepare_tx(s_tx[i]);
+        s_trans[i] = (spi_slave_transaction_t){
+            .length    = SPI_LINK_BYTES * 8,
+            .tx_buffer = s_tx[i],
+            .rx_buffer = s_rx[i],
+        };
+        ESP_ERROR_CHECK(spi_slave_queue_trans(BOARD_SPI_HOST, &s_trans[i], portMAX_DELAY));
+    }
 
     for (;;) {
-        spi_slave_transaction_t t = {
-            .length    = LINK_BYTES * 8,
-            .tx_buffer = s_tx,
-            .rx_buffer = s_rx,
-        };
-        memset(s_rx, 0, sizeof s_rx);
-
-        esp_err_t err = spi_slave_transmit(BOARD_SPI_HOST, &t, portMAX_DELAY);
+        spi_slave_transaction_t *t;
+        esp_err_t err = spi_slave_get_trans_result(BOARD_SPI_HOST, &t, portMAX_DELAY);
         if (err != ESP_OK) {
-            ESP_LOGE(TAG, "spi_slave_transmit: %s", esp_err_to_name(err));
             continue;
         }
 
-        check(s_rx, t.trans_len, &last_seq, &have_seq);
+        parse(t->rx_buffer, t->trans_len, &last_seq, &have_seq, &last_tick, &have_tick);
 
-        /* Следующий ответ - эхо этой посылки. Транзакция закончена, буфер
-         * передачи DMA больше не читает - менять его можно. */
-        memcpy(s_tx, s_rx, LINK_BYTES);
-        put_word(s_tx, 0, MAGIC_ESP);
+        /* Транзакция закончена, её буферы DMA больше не трогает. Вторая в это
+         * время уже заряжена - прибор её и заберёт. */
+        prepare_tx((uint8_t *)t->tx_buffer);
+        ESP_ERROR_CHECK(spi_slave_queue_trans(BOARD_SPI_HOST, t, portMAX_DELAY));
     }
 }
 
@@ -128,16 +196,17 @@ void spi_link_start(void)
     gpio_set_level(BOARD_RDY_GPIO, 1);
 
     spi_bus_config_t bus = {
-        .mosi_io_num   = BOARD_SPI_MOSI,
-        .miso_io_num   = BOARD_SPI_MISO,
-        .sclk_io_num   = BOARD_SPI_SCLK,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
+        .mosi_io_num     = BOARD_SPI_MOSI,
+        .miso_io_num     = BOARD_SPI_MISO,
+        .sclk_io_num     = BOARD_SPI_SCLK,
+        .quadwp_io_num   = -1,
+        .quadhd_io_num   = -1,
+        .max_transfer_sz = SPI_LINK_BYTES,
     };
     spi_slave_interface_config_t slv = {
         .mode          = BOARD_SPI_MODE,
         .spics_io_num  = BOARD_SPI_CS,
-        .queue_size    = 1,
+        .queue_size    = 2,
         .post_setup_cb = on_setup,
         .post_trans_cb = on_done,
     };
@@ -151,9 +220,7 @@ void spi_link_start(void)
     ESP_ERROR_CHECK(spi_slave_initialize(BOARD_SPI_HOST, &bus, &slv, SPI_DMA_CH_AUTO));
 
     xTaskCreatePinnedToCore(link_task, "spi_link", 4096, NULL, 10, NULL, 1);
-    ESP_LOGI(TAG, "ведомый SPI: режим %d, SCLK %d, MOSI %d, MISO %d, CS %d, RDY %d",
-             BOARD_SPI_MODE, BOARD_SPI_SCLK, BOARD_SPI_MOSI, BOARD_SPI_MISO,
-             BOARD_SPI_CS, BOARD_RDY_GPIO);
+    ESP_LOGI(TAG, "ведомый SPI: режим %d, посылка %d байт", BOARD_SPI_MODE, SPI_LINK_BYTES);
 }
 
 void spi_link_get_stat(spi_link_stat_t *out)

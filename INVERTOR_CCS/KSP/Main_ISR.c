@@ -119,8 +119,10 @@ void MainISR(void)
 
     // Быстрый кадр F3 выключен вместе с CANA_UI.c
 
+    // Без проверки буфера CAN: кадр уходит и в WiFi, а буфер Send_mbox_FD
+    // проверяет сама - см. 1ph_Sin.c, телеметрия в такте.
+    (void)txbrp;
     if (canaKadr.bit.F1_invertor == 1)
-        if ((txbrp & 2) == 0U)
         {
             // Токи берутся у CPU (1ph_Sin.c, xfmr_currents_from_adc), ток АКБ -
             // у CLA: канал A12 больше никто не читает.

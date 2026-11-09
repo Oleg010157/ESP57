@@ -137,6 +137,7 @@ void main(void)
     //
 
     Board_init();
+    WifiLink_init(); // DMA передачи к ESP32 - не из SysConfig, разбор в wifi_link.c
 
     // Временно: опора АЦП от VDDA, разбор в myADC.c.
     ADC_useVddaReference();
@@ -280,6 +281,10 @@ extern volatile uint16_t epwm3time;// dbg
         // Смена скорости фазы данных и ответ о ней. Разбор в myMCAN.c.
         MCAN_rateBackground();
 
+        // WiFi: переложить ACK, 140 и 132 из очереди в посылку к ESP32 и
+        // разобрать её ответ. Сам обмен запускает такт, wifi_link.c.
+        WifiLink_background();
+
         // Сетевой режим: закрытие IGBT и запись аварии в журнал. Из прерывания
         // это звать нельзя - IGBT*_Disable() делает EINT внутри себя (вложенное
         // прерывание посреди ISR), а RegisterSessionEvent() лезет в историю
@@ -376,7 +381,6 @@ extern volatile uint16_t epwm3time;// dbg
 
             MCAN_rateTick50ms(); // ошибки шины и таймаут пробы 5 Мбит/с
 
-            WifiLink_tick50ms(); // dbg проверка SPI к ESP32, итоги в wifiLink
 
             if (cntT0 == OneSecond) // события обрабатываемые каждую секунду
             {
@@ -401,12 +405,10 @@ extern volatile uint16_t epwm3time;// dbg
             {
                 // если завершена передача всех Mbox ref_kadra
 #if MCANA
-                // MCAN: читаем TX Buffer Request Pending регистр
-                uint32_t txbrp = HWREG(MCANA_DRIVER_BASE + MCAN_TXBRP);
-                if ((txbrp & MCAN_TXBRP_TRP2) == 0) // буфер 2 свободен ?
-                {
-                    send_REF_kadr();
-                }
+                // Без проверки буфера 2: кадр уходит и в WiFi, а без PCAN
+                // буфер не освобождается никогда. В CAN кадр попадёт, только
+                // если буфер свободен, - это проверяет Send_mbox_FD.
+                send_REF_kadr();
 #else
                 // DCAN: классический CAN TX Request Register
                 //       if (!canaKadr.bit.can_stopTX)
@@ -440,8 +442,13 @@ extern volatile uint16_t epwm3time;// dbg
         {
             uint32_t txbrp = HWREG(MCANA_DRIVER_BASE + MCAN_TXBRP);
             // Буфер 4: через него Send_mbox(4, ...) шлёт и ошибки, и лампу. Занят -
-            // ждём: новая запись затёрла бы кадр, который ещё не ушёл на шину.
-            if ((txbrp & MCAN_TXBRP_TRP4) == 0)
+            // ждём: список ошибок идёт по одной записи за проход, и запись,
+            // не попавшая на шину, из списка выпала бы.
+            //
+            // Ждать незачем, только если слушать на шине некому
+            // (MCAN_canAlive): тогда буфер не освободится никогда, а список
+            // нужен пульту, подключённому по WiFi.
+            if (((txbrp & MCAN_TXBRP_TRP4) == 0) || !MCAN_canAlive())
 #else
         if ((CanaRegs.CAN_TXRQ_21 & BIT31) == 0) // проверяем свободен ли 32-oй бох msgID = 131
 #endif

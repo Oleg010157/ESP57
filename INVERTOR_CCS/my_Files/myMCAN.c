@@ -17,6 +17,7 @@
 #include "mcan.h"
 #include "myMCAN.h"
 #include "myDCAN.h"
+#include "wifi_link.h"
 
 
 
@@ -35,6 +36,33 @@ MCAN_RxBufElement    rxMsg;
 MCAN_RxNewDataStatus newData;
 
 static uint32_t txPayloadAddr[myMCANA_MCAN_TX_BUFF_SIZE] = {0};
+
+// ID кадра для WiFi по номеру буфера, 0 - в WiFi не идёт. Заполняется в
+// MCAN_initAllTxBuffers(). Каждый кадр прибора уходит и в CAN, и в SPI к
+// ESP32 - docs/esp32-spi-protocol-RU.md.
+static uint16_t txWifiId[myMCANA_MCAN_TX_BUFF_SIZE] = {0};
+
+//
+// Есть ли кому слушать на шине.
+//
+// Без второго узла кадр никто не подтверждает: счётчик ошибок передачи доходит
+// до 128, и узел становится error passive. Буфер при этом не освобождается
+// НИКОГДА - модуль переповторяет кадр бесконечно. Ждать такой буфер
+// бессмысленно, а без этой проверки SendAck() ждал бы его на каждом ответе,
+// когда пульт подключён по WiFi, а PCAN - нет.
+//
+// Как только PCAN подключат, подтверждения пойдут, счётчик спустится ниже 128,
+// и всё вернётся к прежнему порядку само.
+//
+bool MCAN_canAlive(void)
+{
+    return (HW_RD_REG32(myMCANA_BASE + MCAN_PSR) & (MCAN_PSR_EP | MCAN_PSR_BO)) == 0UL;
+}
+
+static inline bool txBufFree(uint16_t bufNum)
+{
+    return (HW_RD_REG32(myMCANA_BASE + MCAN_TXBRP) & (1UL << bufNum)) == 0UL;
+}
 
 __interrupt void INT_myMCANA_0_ISR(void) 
 {
@@ -121,12 +149,21 @@ __interrupt void INT_myMCANA_0_ISR(void)
 // Стандартный CAN. Прямая отправка через номер буфера
 // bufNum - номер TX буфера (0-31)
 //
+// В WiFi уходит всегда, в CAN - если буфер свободен: занятый буфер означает,
+// что прошлый кадр ещё не ушёл на шину, и запись затёрла бы его.
 void Send_mbox(uint16_t bufNum, uint16_t d1, uint16_t d2, uint16_t d3, uint16_t d4)
 {
     if (bufNum >= myMCANA_MCAN_TX_BUFF_SIZE) return;
 
+    if (txWifiId[bufNum] != 0U)
+    {
+        const uint16_t w[4] = { d1, d2, d3, d4 };
+        WifiLink_push(txWifiId[bufNum], w, 4U);
+    }
+
     uint32_t addr = txPayloadAddr[bufNum];
     if (addr == 0) return;
+    if (!txBufFree(bufNum)) return;
 
     // Только 2 записи данных
     HWREG(addr)      = ((uint32_t)d2 << 16) | d1;
@@ -211,6 +248,13 @@ void MCAN_initAllTxBuffers(void)
     MCAN_initTxBuffer(  3, 133,    15,   1,   1);  // ответ на пробу скорости (64 байта)
     MCAN_initTxBuffer(  4, 132,     8,   1,   1);  // Errors/main
     MCAN_initTxBuffer(  5,   1,     8,   0,   1);  // ответ о скорости
+
+    // Что из этого идёт и в WiFi. Буферы 3 и 5 - проба и ответ о скорости
+    // CAN: к WiFi они отношения не имеют.
+    txWifiId[0] = 1U;
+    txWifiId[1] = 103U;
+    txWifiId[2] = 140U;
+    txWifiId[4] = 132U;
 }
 
 //
@@ -235,6 +279,18 @@ volatile bool txCancelPending = false; // выставляется в SendAck, �
 
 void SendAck(int d1, int d2, int d3, int cmd)
 {
+    {
+        const uint16_t w[4] = { (uint16_t)cmd, (uint16_t)d1, (uint16_t)d2, (uint16_t)d3 };
+        WifiLink_push(1U, w, 4U);
+    }
+
+    // Слушателя на шине нет - буфер не освободится, ждать его незачем.
+    // См. MCAN_canAlive().
+    if (!MCAN_canAlive())
+    {
+        return;
+    }
+
     uint32_t txbrp = HW_RD_REG32(myMCANA_BASE + MCAN_TXBRP);
     uint32_t timeout = 100000;
 
@@ -274,12 +330,26 @@ void SendAck(int d1, int d2, int d3, int cmd)
 // Для реального payload > 8 байт: увеличить txBufElemSize в SysConfig и задать FD-DLC
 // (dlc 9..15 = 12..64 байт) в MCAN_initTxBuffer для соответствующего буфера.
 //
+//
+// В WiFi уходит всегда, в CAN - если буфер свободен. Быстрый кадр (буфер 1)
+// приходит из прерывания такта и идёт в посылку напрямую, остальные - через
+// очередь, см. wifi_link.h.
+//
 void Send_mbox_FD(uint16_t bufNum, const uint16_t *w, uint16_t numWords)
 {
     if (bufNum >= myMCANA_MCAN_TX_BUFF_SIZE) return;
 
+    if (txWifiId[bufNum] != 0U)
+    {
+        if (bufNum == 1U)
+            WifiLink_pushFast(txWifiId[bufNum], w, numWords);
+        else
+            WifiLink_push(txWifiId[bufNum], w, numWords);
+    }
+
     uint32_t addr = txPayloadAddr[bufNum];
     if (addr == 0) return;
+    if (!txBufFree(bufNum)) return;
 
     // Пакуем по 2 слова (16 бит) в каждое 32-битное слово Message RAM.
     // numWords предполагается чётным (64 байта = 32 слова). Прямой цикл без промежуточных

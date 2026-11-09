@@ -50,6 +50,10 @@ void MCAN_enableLine1Routing(void);
 // Лечит уход в CCCR.INIT после остановки отладчиком — разбор в myMCAN.c.
 void MCAN_keepOnBus(void);
 
+// Есть ли кому слушать на шине: не error passive и не Bus_Off. Без PCAN буфер
+// передачи не освобождается никогда - ждать его нельзя. Разбор в myMCAN.c.
+bool MCAN_canAlive(void);
+
 void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd);
 
 // ⚡ УЛЬТРА-FAST версия: без проверок, только чтение 8 байт
