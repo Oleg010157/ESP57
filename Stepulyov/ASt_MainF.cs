@@ -1244,6 +1244,10 @@ namespace ICDIBasic
             var txTFilesPath = $"{Application.StartupPath}\\TEST_TX";
             var rxFilesPath = $"{Application.StartupPath}\\CanRxFiles";
             var rxTFilesPath = $"{Application.StartupPath}\\TEST_RX";
+            // Пустую папку git не хранит: в свежем клоне CanRxFiles нет, и
+            // GetFiles падал при старте. Недостающую - создать, список будет пуст.
+            foreach (var dir in new[] { txFilesPath, txTFilesPath, rxFilesPath, rxTFilesPath })
+                Directory.CreateDirectory(dir);
             var canTxFiles = Directory.GetFiles(txFilesPath, ext);
             var canTxTFiles = Directory.GetFiles(txTFilesPath, ext);
             var canRxFiles = Directory.GetFiles(rxFilesPath, ext);
@@ -1445,6 +1449,14 @@ namespace ICDIBasic
         {
             try
             {
+                /* Основной список кадров задан в самой форме (MainWindow.Designer.cs,
+                 * F2_Kadr_Name.Items). Отсюда только ДОБАВЛЯЮТСЯ наборы из Spl,
+                 * и не на «F» - быстрые кадры в форме уже есть.
+                 *
+                 * Spl в свежем клоне нет - пустую папку git не хранит, - и
+                 * GetFiles падал в catch ниже: весь список, вместе с кадрами из
+                 * формы, заменялся одной строкой «Ошибка». */
+                Directory.CreateDirectory($"{Application.StartupPath}\\Spl");
                 _splIniL =
                     Directory.GetFiles($"{Application.StartupPath}\\Spl", @"*.ini")
                         .Where(t => !t.Contains("WScope"))
@@ -1468,9 +1480,13 @@ namespace ICDIBasic
                      * что дописать в .spl чужую раскладку этим нельзя. */
                     if (_tapeOn != 0) TapeStart();
                 };
-                F2_Kadr_Name.SelectedIndex = Settings.Default.LastSplMf <= F2_Kadr_Name.Items.Count
-                    ? Settings.Default.LastSplMf
-                    : 0;
+                // Строго меньше: индекс, равный числу строк, - уже за концом
+                // списка, и SelectedIndex бросил бы исключение, а поле показало
+                // бы «Ошибка». Здесь стояло <=.
+                F2_Kadr_Name.SelectedIndex =
+                    Settings.Default.LastSplMf >= 0 && Settings.Default.LastSplMf < F2_Kadr_Name.Items.Count
+                        ? Settings.Default.LastSplMf
+                        : 0;
                 F2Kadr_IniFileName = $"{F2_Kadr_Name.SelectedItem}.ini";
             }
             catch
