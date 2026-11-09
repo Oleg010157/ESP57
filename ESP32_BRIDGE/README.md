@@ -20,5 +20,13 @@ idf.py build
 idf.py -p COM<N> flash monitor
 ```
 
+### В VS Code
+
+Нужно расширение Espressif IDF. Открывать **папку `ESP32_BRIDGE`**, а не весь
+ESP57: расширение ищет `CMakeLists.txt` проекта в корне окна. Сборка, прошивка
+и монитор — кнопками в нижней строке. Настройки `.vscode` (версия IDF, порт,
+IntelliSense) локальные и в репозиторий не попадают. Подсказки по коду
+появятся после первой сборки: пути берутся из `build/compile_commands.json`.
+
 На этой же плате жила прошивка ESP_INV (`C:\Work\ESP_INV\firmware`).
 Вернуть её — `idf.py -p COM<N> flash` из её каталога.
