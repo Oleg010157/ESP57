@@ -50,6 +50,7 @@
 #include "SPI_EEPROM.h"
 #include "calib_store.h"
 #include "nv_store.h"
+#include "wifi_link.h"
 
 
 
@@ -374,7 +375,9 @@ extern volatile uint16_t epwm3time;// dbg
             Core_Temp_Update(); // температура ядра, раз в 50 мс, без прерывания
 
             MCAN_rateTick50ms(); // ошибки шины и таймаут пробы 5 Мбит/с
- 
+
+            WifiLink_tick50ms(); // dbg проверка SPI к ESP32, итоги в wifiLink
+
             if (cntT0 == OneSecond) // события обрабатываемые каждую секунду
             {
                  Errors_CurrentErrorWindowTick();

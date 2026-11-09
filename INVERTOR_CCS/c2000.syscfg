@@ -46,6 +46,8 @@ const epwm8          = epwm.addInstance();
 const gpio           = scripting.addModule("/driverlib/gpio.js", {}, false);
 const gpio1          = gpio.addInstance();
 const gpio2          = gpio.addInstance();
+const gpio3          = gpio.addInstance();
+const gpio4          = gpio.addInstance();
 const i2c            = scripting.addModule("/driverlib/i2c.js", {}, false);
 const i2c1           = i2c.addInstance();
 const mcan           = scripting.addModule("/driverlib/mcan.js", {}, false);
@@ -53,6 +55,7 @@ const mcan1          = mcan.addInstance();
 const memcfg         = scripting.addModule("/driverlib/memcfg.js");
 const spi            = scripting.addModule("/driverlib/spi.js", {}, false);
 const spi1           = spi.addInstance();
+const spi2           = spi.addInstance();
 const TILE           = scripting.addModule("/utilities/clb_tool/clb_syscfg/source/TILE", {}, false);
 const TILE1          = TILE.addInstance();
 
@@ -396,6 +399,16 @@ gpio1.gpioPin.$assign = "GPIO57";
 gpio2.$name           = "strob";
 gpio2.gpioPin.$assign = "GPIO32";
 
+gpio3.$name             = "wifi_cs";
+gpio3.direction         = "GPIO_DIR_MODE_OUT";
+gpio3.writeInitialValue = true;
+gpio3.initialValue      = 1;
+gpio3.gpioPin.$assign   = "A24, D0, E0, GPIO11";
+
+gpio4.$name           = "wifi_rdy";
+gpio4.padConfig       = "PULLUP";
+gpio4.gpioPin.$assign = "GPIO55";
+
 i2c1.$name                  = "myI2CB";
 i2c1.i2c.$assign            = "I2CB";
 i2c1.i2c.i2c_sdaPin.$assign = "A16, B16, C16, GPIO28";
@@ -455,6 +468,19 @@ spi1.$name       = "mySPIB";
 spi1.useCase     = "CUSTOM";
 spi1.spi.$assign = "SPIB";
 
+spi2.$name                   = "wifiSPI";
+spi2.mode                    = "SPI_MODE_CONTROLLER";
+spi2.bitRate                 = 4000000;
+spi2.useInterrupts           = false;
+spi2.useCase                 = "CUSTOM";
+spi2.useInterfacePins        = ["SPI@_CLK","SPI@_PICO","SPI@_POCI"];
+spi2.spi.spi_picoPin.$assign = "GPIO8";
+spi2.spi.spi_pociPin.$assign = "GPIO10";
+spi2.spi.spi_clkPin.$assign  = "GPIO9";
+spi2.clkQual.$name           = "myGPIOQUAL0";
+spi2.picoQual.$name          = "myGPIOQUAL1";
+spi2.pociQual.$name          = "myGPIOQUAL2";
+
 TILE1.$name              = "TILE0";
 clb1.tile                = TILE1;
 TILE1.BOUNDARY.$name     = "BOUNDARY0";
@@ -506,3 +532,4 @@ analog1.analog["a1, b7, d11, cmp1_daclPin"].$suggestSolution        = "A1, B7, D
 epwm5.epwm.epwm_aPin.$suggestSolution                               = "GPIO37/TDO";
 epwm5.epwm.epwm_bPin.$suggestSolution                               = "GPIO35/TDI";
 epwm6.epwm.$suggestSolution                                         = "EPWM6";
+spi2.spi.$suggestSolution                                           = "SPIA";

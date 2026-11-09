@@ -1,0 +1,15 @@
+# Значения по умолчанию. Сам sdkconfig в репозиторий не кладётся.
+
+# Плата на столе - ESP32-Core-Board-V2 (ESP32-D0WDQ6, ревизия v0.0).
+CONFIG_IDF_TARGET="esp32"
+
+# На плате флеш 4 МБ, по умолчанию сборка считает его двухмегабайтным.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+CONFIG_FREERTOS_HZ=1000
+
+# Обработчики ведомого SPI - в IRAM: колбэки post_setup/post_trans зовутся из
+# прерывания, и при записи во флеш (NVS для WiFi) кэш отключается.
+CONFIG_SPI_SLAVE_ISR_IN_IRAM=y
+# Колбэки двигают ножку «есть данные» - gpio_set_level тоже в IRAM.
+CONFIG_GPIO_CTRL_FUNC_IN_IRAM=y
