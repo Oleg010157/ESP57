@@ -19,6 +19,7 @@
 #include "esp_log.h"
 
 #include "board.h"
+#include "net_link.h"
 #include "spi_link.h"
 
 #define WORDS     (SPI_LINK_BYTES / 2)
@@ -213,8 +214,53 @@ static void parse(const uint8_t *rx, size_t bits, uint16_t *last_seq, bool *have
         case 132: s_stat.fr132++; break;
         default:  s_stat.frOther++; break;
         }
+
+        /* В сеть - байтами в порядке шины: каждое слово младшим байтом
+         * вперёд. Получается ровно DATA кадра CAN FD. */
+        {
+            uint8_t data[MAX_DATA];
+            for (int i = 0; i < n; i++) {
+                uint16_t v      = word_at(rx, w + 2 + i);
+                data[2 * i]     = (uint8_t)v;
+                data[2 * i + 1] = (uint8_t)(v >> 8);
+            }
+            net_link_frame(id, data, (uint8_t)len);
+        }
         w += 2 + n;
     }
+    net_link_packet_end(word_at(rx, 3));
+}
+
+/* Прерывание ведомого SPI садится на то ядро, где позван spi_slave_initialize.
+ * Поэтому зовём его здесь, в задаче на ядре 1, а не из app_main на ядре 0:
+ * там живёт WiFi, и его прерывания задерживали бы перезарядку транзакции. */
+static void slave_init(void)
+{
+    spi_bus_config_t bus = {
+        .mosi_io_num     = BOARD_SPI_MOSI,
+        .miso_io_num     = BOARD_SPI_MISO,
+        .sclk_io_num     = BOARD_SPI_SCLK,
+        .quadwp_io_num   = -1,
+        .quadhd_io_num   = -1,
+        .max_transfer_sz = SPI_LINK_BYTES,
+    };
+    spi_slave_interface_config_t slv = {
+        .mode          = BOARD_SPI_MODE,
+        .spics_io_num  = BOARD_SPI_CS,
+        .queue_size    = 2,
+        .post_setup_cb = on_setup,
+        .post_trans_cb = on_done,
+    };
+
+    /* Без подтяжек провода висят, пока прибор не настроил SPIA: CS поплыл бы
+     * вниз, и ведомый принял бы шум за посылку. */
+    gpio_set_pull_mode(BOARD_SPI_MOSI, GPIO_PULLUP_ONLY);
+    gpio_set_pull_mode(BOARD_SPI_SCLK, GPIO_PULLUP_ONLY);
+    gpio_set_pull_mode(BOARD_SPI_CS, GPIO_PULLUP_ONLY);
+
+    ESP_ERROR_CHECK(spi_slave_initialize(BOARD_SPI_HOST, &bus, &slv, SPI_DMA_CH_AUTO));
+    ESP_LOGI(TAG, "ведомый SPI: режим %d, посылка %d байт, ядро %d",
+             BOARD_SPI_MODE, SPI_LINK_BYTES, xPortGetCoreID());
 }
 
 static void link_task(void *arg)
@@ -222,6 +268,8 @@ static void link_task(void *arg)
     (void)arg;
     uint16_t last_seq = 0, last_tick = 0;
     bool have_seq = false, have_tick = false;
+
+    slave_init();
 
     for (int i = 0; i < 2; i++) {
         prepare_tx(s_tx[i]);
@@ -261,32 +309,7 @@ void spi_link_start(void)
     ESP_ERROR_CHECK(gpio_config(&rdy));
     gpio_set_level(BOARD_RDY_GPIO, 1);
 
-    spi_bus_config_t bus = {
-        .mosi_io_num     = BOARD_SPI_MOSI,
-        .miso_io_num     = BOARD_SPI_MISO,
-        .sclk_io_num     = BOARD_SPI_SCLK,
-        .quadwp_io_num   = -1,
-        .quadhd_io_num   = -1,
-        .max_transfer_sz = SPI_LINK_BYTES,
-    };
-    spi_slave_interface_config_t slv = {
-        .mode          = BOARD_SPI_MODE,
-        .spics_io_num  = BOARD_SPI_CS,
-        .queue_size    = 2,
-        .post_setup_cb = on_setup,
-        .post_trans_cb = on_done,
-    };
-
-    /* Без подтяжек провода висят, пока прибор не настроил SPIA: CS поплыл бы
-     * вниз, и ведомый принял бы шум за посылку. */
-    gpio_set_pull_mode(BOARD_SPI_MOSI, GPIO_PULLUP_ONLY);
-    gpio_set_pull_mode(BOARD_SPI_SCLK, GPIO_PULLUP_ONLY);
-    gpio_set_pull_mode(BOARD_SPI_CS, GPIO_PULLUP_ONLY);
-
-    ESP_ERROR_CHECK(spi_slave_initialize(BOARD_SPI_HOST, &bus, &slv, SPI_DMA_CH_AUTO));
-
     xTaskCreatePinnedToCore(link_task, "spi_link", 4096, NULL, 10, NULL, 1);
-    ESP_LOGI(TAG, "ведомый SPI: режим %d, посылка %d байт", BOARD_SPI_MODE, SPI_LINK_BYTES);
 }
 
 void spi_link_get_stat(spi_link_stat_t *out)

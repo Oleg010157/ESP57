@@ -1,11 +1,15 @@
 /*
  * main.c
  *
- * Мост SPI <-> WiFi для прибора K57. Сейчас: кадры по SPI в обе стороны, WiFi
- * ещё нет. Раз в секунду в консоль (COM-порт платы, 115200) печатается,
- * сколько кадров каждого номера пришло, и ответы ACK.
+ * Мост SPI <-> WiFi для прибора K57. Кадры прибора уходят на ПК по сети
+ * (net_link.c), команды с ПК - прибору. Раз в секунду в консоль (COM-порт
+ * платы, 115200) печатается, сколько кадров каждого номера пришло, что ушло
+ * в сеть, и ответы ACK.
  *
- * Пока сети нет, команду прибору можно дать из той же консоли:
+ * Обмен с прибором поднимается ПЕРВЫМ и от сети не зависит: пока WiFi
+ * подключается или его нет вовсе, прибор видит мост готовым и не копит кадры.
+ *
+ * Команду прибору можно дать и из консоли, без сети:
  *
  *   c <cmd> [d1] [d2] [d3]      например: c 333 - прибор пришлёт своё инфо
  *
@@ -23,6 +27,9 @@
 #include "esp_log.h"
 
 #include "board.h"
+#include "net_link.h"
+#include "net_proto.h"
+#include "net_wifi.h"
 #include "spi_link.h"
 
 static const char *TAG = "bridge";
@@ -83,11 +90,18 @@ static void console_start(void)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "мост K57, плата %s: кадры по SPI, команды из консоли", BOARD_NAME);
+    ESP_LOGI(TAG, "мост K57, плата %s", BOARD_NAME);
     spi_link_start();
     console_start();
 
+    net_wifi_start(); /* ждёт: сеть или своя точка доступа */
+    net_link_start();
+    ESP_LOGI(TAG, "сеть: %s %s, TCP %d, UDP %d, имя %s.local",
+             net_wifi_is_sta() ? "подключён, адрес" : "точка доступа, адрес",
+             net_wifi_ip(), K57_TCP_PORT, K57_UDP_PORT, K57_MDNS_HOST);
+
     spi_link_stat_t p = {0};
+    net_link_stat_t np = {0};
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(1000));
 
@@ -104,6 +118,17 @@ void app_main(void)
                  (unsigned long)s.f28Drop, (unsigned long)s.truncated,
                  (unsigned long)s.badMagic, (unsigned long)s.badLayout,
                  (unsigned long)s.cmdDrop);
+
+        net_link_stat_t n;
+        net_link_get_stat(&n);
+        ESP_LOGI(TAG, "    сеть: %s%s | за 1 с: UDP %lu, TCP %lu, команд с ПК %lu | "
+                      "всего: отказов UDP %lu, очередь в сеть полна %lu | сигнал %ld дБм",
+                 n.connected ? "клиент есть" : "клиента нет",
+                 n.connected ? (n.udpPeer ? ", телеметрия идёт" : ", ждём K57U") : "",
+                 (unsigned long)(n.udpOut - np.udpOut), (unsigned long)(n.tcpOut - np.tcpOut),
+                 (unsigned long)(n.cmdIn - np.cmdIn), (unsigned long)n.udpErr,
+                 (unsigned long)n.outDrop, (long)net_wifi_rssi());
+        np = n;
 
         /* ACK печатаются не все: на залпе от ползунка их сотни в секунду. */
         uint16_t a[4];

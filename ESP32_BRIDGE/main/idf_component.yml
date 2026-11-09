@@ -1,0 +1,8 @@
+# mDNS в ESP-IDF v5 вынесен из ядра в отдельный компонент реестра, поэтому
+# объявляется здесь, а не в REQUIRES. dependencies.lock и managed_components/
+# в .gitignore: их содержимое выводится отсюда.
+dependencies:
+  idf:
+    version: ">=5.0"
+  espressif/mdns:
+    version: "^1.2.0"

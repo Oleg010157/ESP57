@@ -2,6 +2,8 @@ idf_component_register(
     SRCS
         "main.c"
         "spi_link.c"
+        "net_wifi.c"
+        "net_link.c"
     INCLUDE_DIRS
         "."
     REQUIRES
@@ -9,4 +11,9 @@ idf_component_register(
         esp_driver_gpio
         esp_driver_uart
         vfs
+        esp_wifi
+        esp_netif
+        esp_event
+        nvs_flash
+        lwip
 )
