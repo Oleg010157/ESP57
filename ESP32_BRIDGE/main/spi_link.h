@@ -11,6 +11,7 @@
  *   слово 1     номер посылки
  *   слово 2     байт кадров дальше
  *   слово 3     прибор: сколько кадров не влезло с прошлой посылки
+ *               мы: сколько кадров ещё ждёт в очереди к прибору
  *   слова 4...  кадры: номер (ID CAN), длина в байтах, данные
  *   слово 255   от нас к прибору: CRC-16/CCITT слов 0..254
  *
@@ -20,6 +21,7 @@
  */
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #define SPI_LINK_BYTES 512
@@ -41,9 +43,32 @@ typedef struct {
 
     uint16_t lastFill;  /* байт кадров в последней посылке */
     uint16_t maxFill;
+
+    uint32_t cmdOut;    /* кадров уложено в посылки к прибору */
+    uint32_t cmdDrop;   /* очередь к прибору была полна - кадр выброшен */
 } spi_link_stat_t;
 
+/* Кадр к прибору. data - байты в порядке CAN (как DATA у PCAN), len чётная,
+ * до 8: к прибору идут только команды, ID 2. */
+typedef struct {
+    uint16_t id;
+    uint8_t  len;
+    uint8_t  data[8];
+} spi_link_frame_t;
+
 void spi_link_start(void);
+
+/* Поставить кадр в очередь к прибору. false - очередь полна. Можно звать из
+ * любой задачи. */
+bool spi_link_send(const spi_link_frame_t *f);
+
+/* Команда пульта в раскладке Motor_Control (MainWindow.cs): cmd, d3, d2, d1
+ * младшим байтом вперёд. */
+bool spi_link_send_cmd(uint16_t cmd, uint16_t d1, uint16_t d2, uint16_t d3);
+
+/* Следующий пришедший ACK (кадр 1), если есть: cmd, d1, d2, d3. Для печати в
+ * консоль; хранится последние несколько, лишние выбрасываются. */
+bool spi_link_get_ack(uint16_t out[4]);
 
 /* Снимок счётчиков для печати. Читается без блокировки: для лога этого хватает. */
 void spi_link_get_stat(spi_link_stat_t *out);

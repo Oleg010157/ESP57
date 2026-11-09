@@ -3,13 +3,15 @@
  *
  * Ведомый SPI к прибору. Формат посылки - в spi_link.h.
  *
- * Этап 1: только разбор и счётчики. Кадры пока никуда не уходят, команд от
- * нас прибору нет - посылка к нему пустая, с меткой и CRC.
+ * Кадры от прибора пока никуда не уходят - только счётчики и ACK для печати.
+ * К прибору идут команды из очереди (spi_link_send), сейчас их ставит
+ * консоль в main.c.
  */
 #include <stdbool.h>
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "driver/spi_slave.h"
@@ -36,6 +38,13 @@ static spi_slave_transaction_t s_trans[2];
 
 static spi_link_stat_t s_stat;
 static uint16_t s_seq_out;
+
+/* К прибору: команды пульта. 64 - с запасом на залп от ползунка уставки
+ * (до 160 в секунду на стенде) при 500 посылках в секунду. */
+static QueueHandle_t s_to_f28;
+/* От прибора: ACK для печати в консоль. Лишние выбрасываются - это только
+ * глазам. */
+static QueueHandle_t s_acks;
 
 static void IRAM_ATTR on_setup(spi_slave_transaction_t *t)
 {
@@ -74,14 +83,60 @@ static uint16_t crc16(const uint8_t *b, size_t n)
     return crc;
 }
 
+/* Посылка к прибору: всё, что ждёт в очереди и влезает, затем CRC. Слова кадра
+ * - пары байт CAN младшим вперёд, по проводу старшим вперёд: прибор получает
+ * ровно те слова, что разобрал бы из кадра CAN (myMCAN.c). */
 static void prepare_tx(uint8_t *tx)
 {
+    spi_link_frame_t f;
+    int w = HDR_WORDS;
+
     memset(tx, 0, SPI_LINK_BYTES);
+    while (w + 2 + 4 <= LAST_WORD && xQueueReceive(s_to_f28, &f, 0) == pdTRUE) {
+        int n = f.len / 2;
+        put_word(tx, w, f.id);
+        put_word(tx, w + 1, (uint16_t)(n * 2));
+        for (int i = 0; i < n; i++) {
+            put_word(tx, w + 2 + i, (uint16_t)(f.data[2 * i] | (f.data[2 * i + 1] << 8)));
+        }
+        w += 2 + n;
+        s_stat.cmdOut++;
+    }
     put_word(tx, 0, MAGIC_ESP);
     put_word(tx, 1, s_seq_out++);
-    put_word(tx, 2, 0); /* команд пока нет - этап 2 */
-    put_word(tx, 3, 0);
+    put_word(tx, 2, (uint16_t)((w - HDR_WORDS) * 2));
+    put_word(tx, 3, (uint16_t)uxQueueMessagesWaiting(s_to_f28));
     put_word(tx, LAST_WORD, crc16(tx, LAST_WORD * 2));
+}
+
+bool spi_link_send(const spi_link_frame_t *f)
+{
+    if (f->len > 8 || (f->len & 1)) {
+        return false;
+    }
+    if (xQueueSend(s_to_f28, f, 0) != pdTRUE) {
+        s_stat.cmdDrop++;
+        return false;
+    }
+    return true;
+}
+
+bool spi_link_send_cmd(uint16_t cmd, uint16_t d1, uint16_t d2, uint16_t d3)
+{
+    /* Раскладка MainWindow.cs: DATA[0..1] = cmd, [2..3] = d3, [4..5] = d2,
+     * [6..7] = d1, младшим байтом вперёд. */
+    spi_link_frame_t f = { .id = 2, .len = 8 };
+    uint16_t w[4] = { cmd, d3, d2, d1 };
+    for (int i = 0; i < 4; i++) {
+        f.data[2 * i]     = (uint8_t)w[i];
+        f.data[2 * i + 1] = (uint8_t)(w[i] >> 8);
+    }
+    return spi_link_send(&f);
+}
+
+bool spi_link_get_ack(uint16_t out[4])
+{
+    return xQueueReceive(s_acks, out, 0) == pdTRUE;
 }
 
 static void parse(const uint8_t *rx, size_t bits, uint16_t *last_seq, bool *have_seq,
@@ -146,7 +201,15 @@ static void parse(const uint8_t *rx, size_t bits, uint16_t *last_seq, bool *have
             break;
         }
         case 140: s_stat.fr140++; break;
-        case 1:   s_stat.fr1++;   break;
+        case 1:
+            /* ACK: cmd, d1, d2, d3 - SendAck() в myMCAN.c. */
+            s_stat.fr1++;
+            if (n == 4) {
+                uint16_t a[4] = { word_at(rx, w + 2), word_at(rx, w + 3),
+                                  word_at(rx, w + 4), word_at(rx, w + 5) };
+                xQueueSend(s_acks, a, 0);
+            }
+            break;
         case 132: s_stat.fr132++; break;
         default:  s_stat.frOther++; break;
         }
@@ -188,6 +251,9 @@ static void link_task(void *arg)
 
 void spi_link_start(void)
 {
+    s_to_f28 = xQueueCreate(64, sizeof(spi_link_frame_t));
+    s_acks   = xQueueCreate(16, sizeof(uint16_t[4]));
+
     gpio_config_t rdy = {
         .pin_bit_mask = 1ULL << BOARD_RDY_GPIO,
         .mode         = GPIO_MODE_OUTPUT,

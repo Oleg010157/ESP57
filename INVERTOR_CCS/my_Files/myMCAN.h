@@ -54,6 +54,10 @@ void MCAN_keepOnBus(void);
 // передачи не освобождается никогда - ждать его нельзя. Разбор в myMCAN.c.
 bool MCAN_canAlive(void);
 
+// Придержать (true) или отпустить приём CAN: на время команды из WiFi, чтобы
+// cmd_MBOX28() не пошёл внахлёст из прерывания. Кадры ждут в FIFO.
+void MCAN_holdRx(bool hold);
+
 void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd);
 
 // ⚡ УЛЬТРА-FAST версия: без проверок, только чтение 8 байт

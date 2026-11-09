@@ -59,6 +59,22 @@ bool MCAN_canAlive(void)
     return (HW_RD_REG32(myMCANA_BASE + MCAN_PSR) & (MCAN_PSR_EP | MCAN_PSR_BO)) == 0UL;
 }
 
+//
+// Придержать приём CAN на время команды из WiFi.
+//
+// cmd_MBOX28() зовётся из прерывания приёма (линия 0), а команды из WiFi -
+// из фона (wifi_link.c). Без этого прерывание CAN могло бы влезть посреди
+// фоновой команды и выполнить свою внахлёст по тому же общему состоянию.
+//
+// Глушится линия 0 в самом модуле, а не в PIE: кадры при этом копятся в
+// FIFO 0 и флаг в MCAN остаётся взведённым - как только линию вернут,
+// прерывание придёт и всё разберёт. Ничего не теряется.
+//
+void MCAN_holdRx(bool hold)
+{
+    MCAN_enableIntrLine(myMCANA_BASE, MCAN_INTR_LINE_NUM_0, hold ? 0U : 1U);
+}
+
 static inline bool txBufFree(uint16_t bufNum)
 {
     return (HW_RD_REG32(myMCANA_BASE + MCAN_TXBRP) & (1UL << bufNum)) == 0UL;

@@ -10,6 +10,8 @@
 #include "device.h"
 #include "f28p55x_device.h" // EPwm7Regs - часы для dbg-замера, как у sine_Time
 #include "wifi_link.h"
+#include "myMCAN.h" // cmd_MBOX28, MCAN_holdRx - команды из WiFi
+#include "myDCAN.h" // CAN_RATE_CMD
 
 #define WL_MAGIC_F28 0xA55AU
 #define WL_MAGIC_ESP 0x5AA5U
@@ -44,14 +46,14 @@
 
 // DMA у F28P55x достаёт только до RAMGS. RAMGS2 под эти буферы и отдана:
 // секция ramgs2 в 28p55x_generic_flash_lnk.cmd.
-#pragma DATA_SECTION(txBuf, "ramgs2");
-#pragma DATA_SECTION(rxBuf, "ramgs2");
-static uint16_t txBuf[2][WIFI_LINK_WORDS];
-static uint16_t rxBuf[2][WIFI_LINK_WORDS];
+#pragma DATA_SECTION(wlTxBuf, "ramgs2");
+#pragma DATA_SECTION(wlRxBuf, "ramgs2");
+static uint16_t wlTxBuf[2][WIFI_LINK_WORDS];
+static uint16_t wlRxBuf[2][WIFI_LINK_WORDS];
 
 // Начальный адрес для DMA_init() из board.c. Дальше адрес задаётся перед
 // каждым обменом - буферов по два.
-const void *wifiLinkRxDst = rxBuf[0];
+const void *wifiLinkRxDst = wlRxBuf[0];
 
 //---------------------------------------------------------------------------
 // DMA передачи - не из SysConfig, и вот почему.
@@ -98,7 +100,7 @@ const void *wifiLinkRxDst = rxBuf[0];
 
 volatile WifiLinkStat wifiLink;
 
-static uint16_t fillIdx  = 0; // какой txBuf копится
+static uint16_t fillIdx  = 0; // какой wlTxBuf копится
 static uint16_t fillLen  = 0; // слов кадров в нём
 static uint16_t fastLen  = 0; // из них быстрых
 static uint16_t fastPrev = 0; // быстрых в прошлой посылке - столько и бережём
@@ -121,7 +123,7 @@ static uint16_t qCount = 0;
 // Кадр в посылку. Звать с запрещёнными прерываниями.
 static inline void put(uint16_t id, const uint16_t *w, uint16_t n)
 {
-    uint16_t *p = &txBuf[fillIdx][WL_HDR + fillLen];
+    uint16_t *p = &wlTxBuf[fillIdx][WL_HDR + fillLen];
     uint16_t  i;
 
     p[0] = id;
@@ -138,7 +140,7 @@ void WifiLink_init(void)
     // Канал приёма настроен в SysConfig (wifiSPI_RX_DMA), канал передачи -
     // здесь, разбор выше.
     DMA_configAddresses(WL_TX_DMA_BASE, (const void *)(SPIA_BASE + SPI_O_TXBUF),
-                        &txBuf[0][WL_PRIME]);
+                        &wlTxBuf[0][WL_PRIME]);
     DMA_configBurst(WL_TX_DMA_BASE, WL_BURST, 1, 0);
     DMA_configTransfer(WL_TX_DMA_BASE, (WIFI_LINK_WORDS - WL_PRIME) / WL_BURST, 1, 0);
     DMA_configWrap(WL_TX_DMA_BASE, 65535U, 0, 65535U, 0);
@@ -235,7 +237,7 @@ void WifiLink_tick(void)
 
     t0 = EPwm7Regs.TBCTR;
 
-    t = txBuf[fillIdx];
+    t = wlTxBuf[fillIdx];
     t[0]       = WL_MAGIC_F28;
     t[1]       = seq++;
     t[2]       = (uint16_t)(fillLen * 2U);
@@ -264,7 +266,7 @@ void WifiLink_tick(void)
 
     DMA_configAddresses(WL_TX_DMA_BASE, (const void *)(SPIA_BASE + SPI_O_TXBUF),
                         &t[WL_PRIME]);
-    DMA_configAddresses(wifiSPI_RX_DMA_BASE, rxBuf[next], wifiSPI_RX_DMA_ADDRESS);
+    DMA_configAddresses(wifiSPI_RX_DMA_BASE, wlRxBuf[next], wifiSPI_RX_DMA_ADDRESS);
 
     // CS программный: держится низким всю посылку. Микросекунда - ведомому
     // ESP32 заметить выбор кадра до первого фронта CLK.
@@ -337,7 +339,7 @@ static void drain(void)
 
         // По одному кадру за раз: запрет прерываний держится не дольше
         // копирования 34 слов.
-        p = &txBuf[fillIdx][WL_HDR + fillLen];
+        p = &wlTxBuf[fillIdx][WL_HDR + fillLen];
         for (i = 0U; i < n; i++)
         {
             p[i]  = queue[qTail];
@@ -347,6 +349,124 @@ static void drain(void)
         fillLen += n;
 
         __restore_interrupts(st);
+    }
+}
+
+//---------------------------------------------------------------------------
+// Команды от ESP32.
+//
+// Посылка ESP32 закрыта CRC-16/CCITT-FALSE (0x1021, начальное 0xFFFF) по
+// словам 0..254, каждое слово - старший байт, потом младший, как по проводу.
+// Битый кадр телеметрии безвреден, битая команда - нет: случайно сложившийся
+// номер прибор выполнил бы. Поэтому без верной CRC не выполняется ничего.
+//
+// Кадр команды - ID 2, 8 байт, слова в порядке CAN: cmd, d3, d2, d1 (так их
+// раскладывает MCAN-приёмник в myMCAN.c).
+//---------------------------------------------------------------------------
+#define WL_CMD_ID   2U
+#define WL_MAX_CMDS (WL_PAYLOAD / 6U) // кадр команды - 2 + 4 слова
+
+static const uint16_t crcTab[256] = {
+    0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7, 0x8108, 0x9129, 0xA14A, 0xB16B, 0xC18C, 0xD1AD, 0xE1CE, 0xF1EF,
+    0x1231, 0x0210, 0x3273, 0x2252, 0x52B5, 0x4294, 0x72F7, 0x62D6, 0x9339, 0x8318, 0xB37B, 0xA35A, 0xD3BD, 0xC39C, 0xF3FF, 0xE3DE,
+    0x2462, 0x3443, 0x0420, 0x1401, 0x64E6, 0x74C7, 0x44A4, 0x5485, 0xA56A, 0xB54B, 0x8528, 0x9509, 0xE5EE, 0xF5CF, 0xC5AC, 0xD58D,
+    0x3653, 0x2672, 0x1611, 0x0630, 0x76D7, 0x66F6, 0x5695, 0x46B4, 0xB75B, 0xA77A, 0x9719, 0x8738, 0xF7DF, 0xE7FE, 0xD79D, 0xC7BC,
+    0x48C4, 0x58E5, 0x6886, 0x78A7, 0x0840, 0x1861, 0x2802, 0x3823, 0xC9CC, 0xD9ED, 0xE98E, 0xF9AF, 0x8948, 0x9969, 0xA90A, 0xB92B,
+    0x5AF5, 0x4AD4, 0x7AB7, 0x6A96, 0x1A71, 0x0A50, 0x3A33, 0x2A12, 0xDBFD, 0xCBDC, 0xFBBF, 0xEB9E, 0x9B79, 0x8B58, 0xBB3B, 0xAB1A,
+    0x6CA6, 0x7C87, 0x4CE4, 0x5CC5, 0x2C22, 0x3C03, 0x0C60, 0x1C41, 0xEDAE, 0xFD8F, 0xCDEC, 0xDDCD, 0xAD2A, 0xBD0B, 0x8D68, 0x9D49,
+    0x7E97, 0x6EB6, 0x5ED5, 0x4EF4, 0x3E13, 0x2E32, 0x1E51, 0x0E70, 0xFF9F, 0xEFBE, 0xDFDD, 0xCFFC, 0xBF1B, 0xAF3A, 0x9F59, 0x8F78,
+    0x9188, 0x81A9, 0xB1CA, 0xA1EB, 0xD10C, 0xC12D, 0xF14E, 0xE16F, 0x1080, 0x00A1, 0x30C2, 0x20E3, 0x5004, 0x4025, 0x7046, 0x6067,
+    0x83B9, 0x9398, 0xA3FB, 0xB3DA, 0xC33D, 0xD31C, 0xE37F, 0xF35E, 0x02B1, 0x1290, 0x22F3, 0x32D2, 0x4235, 0x5214, 0x6277, 0x7256,
+    0xB5EA, 0xA5CB, 0x95A8, 0x8589, 0xF56E, 0xE54F, 0xD52C, 0xC50D, 0x34E2, 0x24C3, 0x14A0, 0x0481, 0x7466, 0x6447, 0x5424, 0x4405,
+    0xA7DB, 0xB7FA, 0x8799, 0x97B8, 0xE75F, 0xF77E, 0xC71D, 0xD73C, 0x26D3, 0x36F2, 0x0691, 0x16B0, 0x6657, 0x7676, 0x4615, 0x5634,
+    0xD94C, 0xC96D, 0xF90E, 0xE92F, 0x99C8, 0x89E9, 0xB98A, 0xA9AB, 0x5844, 0x4865, 0x7806, 0x6827, 0x18C0, 0x08E1, 0x3882, 0x28A3,
+    0xCB7D, 0xDB5C, 0xEB3F, 0xFB1E, 0x8BF9, 0x9BD8, 0xABBB, 0xBB9A, 0x4A75, 0x5A54, 0x6A37, 0x7A16, 0x0AF1, 0x1AD0, 0x2AB3, 0x3A92,
+    0xFD2E, 0xED0F, 0xDD6C, 0xCD4D, 0xBDAA, 0xAD8B, 0x9DE8, 0x8DC9, 0x7C26, 0x6C07, 0x5C64, 0x4C45, 0x3CA2, 0x2C83, 0x1CE0, 0x0CC1,
+    0xEF1F, 0xFF3E, 0xCF5D, 0xDF7C, 0xAF9B, 0xBFBA, 0x8FD9, 0x9FF8, 0x6E17, 0x7E36, 0x4E55, 0x5E74, 0x2E93, 0x3EB2, 0x0ED1, 0x1EF0
+};
+
+static uint16_t crc16(const uint16_t *w, uint16_t n)
+{
+    uint16_t crc = 0xFFFFU;
+    uint16_t i;
+
+    for (i = 0U; i < n; i++)
+    {
+        crc = (uint16_t)((crc << 8) ^ crcTab[((crc >> 8) ^ (w[i] >> 8)) & 0xFFU]);
+        crc = (uint16_t)((crc << 8) ^ crcTab[((crc >> 8) ^ w[i]) & 0xFFU]);
+    }
+    return crc;
+}
+
+// Команды копируются из буфера DMA до выполнения: команда может ждать буфер
+// CAN (SendAck), а через 2 мс DMA начнёт писать в этот же буфер следующий-
+// через-один ответ. Массив не на стеке: 164 слова при стеке проекта в 256
+// (--stack_size=0x100), поверх которых ещё лягут прерывания.
+#pragma DATA_SECTION(cmds, "ramgs2");
+static uint16_t cmds[WL_MAX_CMDS][4];
+
+static void rx_parse(const uint16_t *p)
+{
+    uint16_t nCmd = 0U;
+    uint16_t w, end, i;
+
+    if (p[0] != WL_MAGIC_ESP)
+    {
+        wifiLink.rxBad++;
+        return;
+    }
+    if (crc16(p, WL_LAST) != p[WL_LAST])
+    {
+        wifiLink.rxCrcBad++;
+        return;
+    }
+    if ((p[2] & 1U) || (p[2] / 2U > WL_PAYLOAD))
+    {
+        wifiLink.rxCrcBad++; // CRC сошлась, а длина - нет: чужая версия формата
+        return;
+    }
+    wifiLink.rxOk++;
+
+    w   = WL_HDR;
+    end = WL_HDR + p[2] / 2U;
+    while (w + 2U <= end)
+    {
+        uint16_t id = p[w];
+        uint16_t n  = p[w + 1U] / 2U;
+
+        if (w + 2U + n > end)
+        {
+            break;
+        }
+        if (id == WL_CMD_ID && n == 4U && nCmd < WL_MAX_CMDS)
+        {
+            for (i = 0U; i < 4U; i++)
+            {
+                cmds[nCmd][i] = p[w + 2U + i];
+            }
+            nCmd++;
+        }
+        w += 2U + n;
+    }
+
+    for (i = 0U; i < nCmd; i++)
+    {
+        uint16_t cmd = cmds[i][0];
+
+        // Не по WiFi:
+        //   9999 - уход в загрузчик, а он принимает прошивку только по CAN:
+        //          прибор встал бы в загрузчике без связи.
+        //   7100 - скорость фазы данных CAN, к WiFi отношения не имеет.
+        if (cmd == 9999U || cmd == CAN_RATE_CMD)
+        {
+            wifiLink.cmdRejected++;
+            continue;
+        }
+
+        MCAN_holdRx(true);
+        cmd_MBOX28(cmds[i][3], cmds[i][2], cmds[i][1], cmd); // d1, d2, d3, cmd
+        MCAN_holdRx(false);
+        wifiLink.cmdIn++;
     }
 }
 
@@ -364,15 +484,6 @@ void WifiLink_background(void)
 
     if (r != 0U)
     {
-        const uint16_t *p = rxBuf[r - 1U];
-
-        if (p[0] == WL_MAGIC_ESP)
-        {
-            wifiLink.rxOk++;
-        }
-        else
-        {
-            wifiLink.rxBad++;
-        }
+        rx_parse(wlRxBuf[r - 1U]);
     }
 }
