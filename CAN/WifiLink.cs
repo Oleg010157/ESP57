@@ -37,13 +37,14 @@ namespace ICDIBasic
         private const uint InfoId = 0x7F0;
 
         /// <summary>
-        /// Записи 0x7E0..0x7EF - чёрный ящик моста (ESP32_BRIDGE/main/bbox.h):
-        /// ответы на вопросы пульта, а не кадры прибора. В разбор CANA.cs не идут.
-        /// Аргументы - номер и данные записи. Зовётся из потока приёма.
+        /// Записи моста, а не кадры прибора для разбора CANA.cs: 0x7E0..0x7EF -
+        /// чёрный ящик (ESP32_BRIDGE/main/bbox.h), 0x7D0..0x7DF - журнал и
+        /// копия настройки (bstore.h). Аргументы - номер и данные записи.
+        /// Зовётся из потока приёма.
         /// </summary>
         public event Action<uint, byte[]> BridgeRecord;
 
-        public static bool IsBridgeId(uint id) => (id & 0xFFF0) == 0x7E0;
+        public static bool IsBridgeId(uint id) => (id & 0xFFF0) == 0x7E0 || (id & 0xFFF0) == 0x7D0;
 
         /// <summary>Имя сети моста; null, пока мост не сообщил.</summary>
         public string NetName { get; private set; }

@@ -900,6 +900,7 @@ namespace ICDIBasic
             измеренияToolStripMenuItem.DropDownItems.Add(_rxDataMenu);
             измеренияToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
             BlackBox_InitMenu(измеренияToolStripMenuItem);
+            BridgeStore_InitMenu(измеренияToolStripMenuItem);
 
             управлениеToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
             управлениеToolStripMenuItem.DropDownItems.Add(_canaM);

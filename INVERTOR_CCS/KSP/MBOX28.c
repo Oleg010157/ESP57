@@ -38,6 +38,7 @@
 #include "power_par.h"
 #include "wall_clock.h"
 #include "bbox_trig.h"
+#include "bridge_store.h"
 
 motor *motStrob = &motor1;
 
@@ -2135,6 +2136,14 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
         case BBOX_CMD:
             BBox_manual();
             SendAck(data1, data2, data3, cmd);
+            break;
+
+        // Копия настройки в мосте и восстановление из неё. Разбор и ответы -
+        // my_Files/bridge_store.h.
+        case BST_CMD_SEND:
+        case BST_CMD_WORDS:
+        case BST_CMD_APPLY:
+            BridgeStore_cmd(cmd, data1, data2, data3);
             break;
 
         // Тест IGBT, ручное управление ключами моста. Разбор - pwm_funcs.c,

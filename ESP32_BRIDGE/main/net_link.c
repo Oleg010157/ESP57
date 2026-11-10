@@ -26,6 +26,7 @@
 #include "net_wifi.h"
 #include "spi_link.h"
 #include "bbox.h"
+#include "bstore.h"
 
 static const char *TAG = "net";
 
@@ -114,8 +115,8 @@ void net_link_frame(uint16_t id, const uint8_t *data, uint8_t len)
     if (s_client < 0 || len > K57_DATA_MAX) {
         return; /* слушать некому - и собирать незачем */
     }
-    if (BBOX_IS_OWN_ID(id)) {
-        return; /* кадры прибора для чёрного ящика - только мосту, bbox.c */
+    if (BBOX_IS_OWN_ID(id) || (BST_IS_OWN_ID(id) && !BST_TO_PC(id))) {
+        return; /* кадры прибора мосту - чёрный ящик, журнал: bbox.c, bstore.c */
     }
 
     if (id == 103 || id == 140) {
@@ -305,6 +306,9 @@ static int process(uint8_t *buf, int have)
             /* Вопрос мосту, а не прибору: чёрный ящик. Ответ уходит сразу,
              * из этой же задачи, - пока он идёт, команды ждут в сокете. */
             bbox_request(f.id, buf + pos + K57_REC_HDR, (uint8_t)len);
+        } else if (BST_IS_OWN_ID(f.id)) {
+            /* Так же: журнал и копия настройки. */
+            bstore_request(f.id, buf + pos + K57_REC_HDR, (uint8_t)len);
         }
         pos += K57_REC_HDR + len;
     }

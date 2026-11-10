@@ -30,6 +30,7 @@
 #include "esp_log.h"
 
 #include "bbox.h"
+#include "bstore.h"
 #include "board.h"
 #include "net_link.h"
 #include "net_proto.h"
@@ -109,6 +110,10 @@ void app_main(void)
              net_wifi_is_sta() ? "подключён, адрес" : "точка доступа, адрес",
              net_wifi_ip(), K57_TCP_PORT, K57_UDP_PORT, K57_MDNS_HOST);
 
+    /* Журнал и копия настройки: NVS поднял net_wifi_start. До чёрного ящика
+     * - свою память берёт раньше его кольца. */
+    bstore_start();
+
     /* После WiFi, а не до: кольцо берёт ту кучу, что осталась, а WiFi при
      * запуске занимает своё. Наоборот - WiFi мог бы и не подняться. */
     bbox_start();
@@ -154,6 +159,13 @@ void app_main(void)
                      (unsigned long)b.triggers, (unsigned long)b.saved,
                      (unsigned long)b.missed, (unsigned long)b.saveMs);
         }
+        bstore_stat_t j;
+        bstore_get_stat(&j);
+        ESP_LOGI(TAG, "    журнал: строк %lu, событий %lu, свёрнуто повторов %lu, потеряно %lu | "
+                      "копия настройки: %s, принято %lu, битых %lu",
+                 (unsigned long)j.rows, (unsigned long)j.events, (unsigned long)j.folded,
+                 (unsigned long)j.lost, j.haveCopy ? "есть" : "нет",
+                 (unsigned long)j.copies, (unsigned long)j.copyBad);
         /* Куча: сколько свободно, сколько было в самый тесный момент и самый
          * большой кусок. По «минимуму» видно, сколько WiFi берёт под нагрузкой,
          * - от этого зависит, сколько можно отдать кольцу (bbox.c). */

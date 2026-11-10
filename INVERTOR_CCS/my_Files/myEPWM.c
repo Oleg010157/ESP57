@@ -13,6 +13,7 @@
 #include "KSP.h"
 #include "interrupt.h"
 #include "bbox_trig.h"
+#include "bridge_store.h"
 
 __interrupt void INT_EPWM2_Iu_ISR(void)
 {
@@ -46,7 +47,8 @@ bool eventDetected = false;
         }
 
         ErrHistory_OnError(code);
-        BBox_onEvent(code); // чёрный ящик в мосте, bbox_trig.h
+        BBox_onEvent(code);        // чёрный ящик в мосте, bbox_trig.h
+        BridgeStore_onEvent(code); // длинный журнал в мосте, bridge_store.h
     }
     eventDetected = true;
      CheckLamp = 10;

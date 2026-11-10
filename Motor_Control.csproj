@@ -146,6 +146,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Oleg\BlackBox.cs" />
+    <Compile Include="Oleg\BridgeStore.cs" />
     <Compile Include="Oleg\YokoAsyncAwait.cs">
       <SubType>Form</SubType>
     </Compile>

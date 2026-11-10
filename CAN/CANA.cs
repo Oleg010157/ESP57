@@ -583,7 +583,8 @@ namespace ICDIBasic
             {
                 var l = new WifiLink(host, _re);
                 l.NetInfo += () => BeginInvoke(new Action(() => CanRate_ShowTitle()));
-                l.BridgeRecord += BlackBox_OnRecord; // чёрный ящик моста, Oleg/BlackBox.cs
+                l.BridgeRecord += BlackBox_OnRecord;   // чёрный ящик моста, Oleg/BlackBox.cs
+                l.BridgeRecord += BridgeStore_OnRecord; // журнал и копия настройки, Oleg/BridgeStore.cs
                 // Обрыв и возврат связи WifiLink переживает сам; окну - только
                 // сказать оператору, что сейчас связи нет.
                 l.LinkChanged += () => BeginInvoke(new Action(() =>

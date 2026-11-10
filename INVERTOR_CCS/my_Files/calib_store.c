@@ -96,10 +96,26 @@ static uint16_t calib_sum(const CalibBlob *b)
 // ОЗУ и после включения питания всегда равен 1, даже когда во флеше лежит
 // валидная запись), а из самого содержимого - по сигнатуре и сумме.
 //---------------------------------------------------------------------------
-uint16_t calib_load(void)
+// Проверка записи без побочных действий: годится ли она как наша.
+static uint16_t calib_check(const CalibBlob *b)
 {
-    CalibBlob       blob;
-    uint16_t       *dst = (uint16_t *)&blob;
+    // Стёртый флеш читается как 0xFFFF во всех словах - это и есть "пусто"
+    if (b->magic == 0xFFFFU)
+    {
+        return CALIB_EMPTY;
+    }
+
+    if ((b->magic != CALIB_MAGIC) || (b->version != CALIB_VERSION) || (b->sum != calib_sum(b)))
+    {
+        return CALIB_BAD;
+    }
+
+    return CALIB_OK;
+}
+
+uint16_t calib_peek(CalibBlob *blob)
+{
+    uint16_t       *dst = (uint16_t *)blob;
     const uint16_t *src;
     uint16_t        i;
 
@@ -114,28 +130,21 @@ uint16_t calib_load(void)
         dst[i] = src[i];
     }
 
-    // Стёртый флеш читается как 0xFFFF во всех словах - это и есть "пусто"
-    if (blob.magic == 0xFFFFU)
-    {
-        return CALIB_EMPTY;
-    }
+    return calib_check(blob);
+}
 
-    if (blob.magic != CALIB_MAGIC)
+uint16_t calib_load(void)
+{
+    CalibBlob blob;
+    uint16_t  st = calib_peek(&blob);
+
+    if (st == CALIB_BAD)
     {
         calibBankSuspect = 1;
-        return CALIB_BAD;
     }
-
-    if (blob.version != CALIB_VERSION)
+    if (st != CALIB_OK)
     {
-        calibBankSuspect = 1;
-        return CALIB_BAD;
-    }
-
-    if (blob.sum != calib_sum(&blob))
-    {
-        calibBankSuspect = 1;
-        return CALIB_BAD;
+        return st;
     }
 
     // Всё сошлось - только теперь трогаем рабочие структуры.
@@ -252,6 +261,7 @@ uint16_t calib_save(void)
 volatile uint16_t calibCmd        = 0;
 volatile uint16_t calibSaveReq    = 0;
 uint16_t          calibSaveStatus = 0;
+volatile uint16_t calibSaveCount  = 0; // удачных сохранений с включения
 
 static uint16_t calibInitDone = 0;
 
@@ -297,7 +307,41 @@ static void calib_do_save(void)
         {
             calibSaveStatus = CALIB_FLASH_ERR;
         }
+        else if (calibSaveStatus == CALIB_OK)
+        {
+            calibSaveCount++; // копия в мосте обновится, bridge_store.c
+        }
     }
+}
+
+//---------------------------------------------------------------------------
+// Восстановление из копии (команда 343, bridge_store.c). Разбор - в .h.
+//---------------------------------------------------------------------------
+uint16_t calib_restore(const uint16_t *w, uint16_t n)
+{
+    const CalibBlob *b = (const CalibBlob *)w;
+
+    if (n != sizeof(CalibBlob))
+    {
+        return CALIB_RESTORE_SIZE;
+    }
+    if (calib_check(b) != CALIB_OK)
+    {
+        return CALIB_RESTORE_BAD;
+    }
+    if (power_par_busy())
+    {
+        return CALIB_RESTORE_BUSY;
+    }
+
+    offsets = b->offsets;
+    kadc    = b->kadc;
+    pwr     = b->pwr;
+    reg     = b->reg;
+    power_par_apply();
+    calibSaveReq = 1; // фону: во флеш, затем копия уйдёт в мост заново
+
+    return CALIB_RESTORE_OK;
 }
 
 //---------------------------------------------------------------------------

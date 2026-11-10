@@ -53,6 +53,7 @@
 #include "wifi_link.h"
 #include "wall_clock.h"
 #include "bbox_trig.h"
+#include "bridge_store.h"
 
 
 
@@ -303,6 +304,9 @@ extern volatile uint16_t epwm3time;// dbg
 
         // Чёрный ящик: пуск записи в мосте после новой аварии, bbox_trig.h.
         BBox_background();
+
+        // Журнал и копия настройки в мосте, bridge_store.h.
+        BridgeStore_background();
 
         // dbg Правка паспорта силовой части из отладчика (pwrCmd = 1): на
         // стенде пульта с CAN может и не быть, а настроить прибор надо.

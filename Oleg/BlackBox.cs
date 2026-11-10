@@ -13,7 +13,7 @@ namespace ICDIBasic
      * Чёрный ящик: аварийные записи быстрой ленты, которые хранит WiFi-мост.
      *
      * Сам осциллограф живёт в мосте (ESP32_BRIDGE/main/bbox.c): он всё время
-     * держит в памяти последние ~0,8 с ленты прибора, а по аварии дописывает
+     * держит в памяти последние ~0,75 с ленты прибора, а по аварии дописывает
      * ещё 0,2 с и сохраняет во флеш. Здесь - список этих записей и перевод
      * выбранной в .spl для Wscope, с меткой ровно в момент аварии.
      *
@@ -504,7 +504,7 @@ namespace ICDIBasic
         }
 
         // Описания кодов - из того же ErrorCodes.h, что у окна ошибок.
-        private static Dictionary<ushort, string> LoadErrorTexts()
+        internal static Dictionary<ushort, string> LoadErrorTexts()
         {
             var map = new Dictionary<ushort, string>();
             try

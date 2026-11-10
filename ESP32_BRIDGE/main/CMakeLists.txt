@@ -5,6 +5,7 @@ idf_component_register(
         "net_wifi.c"
         "net_link.c"
         "bbox.c"
+        "bstore.c"
     INCLUDE_DIRS
         "."
     REQUIRES

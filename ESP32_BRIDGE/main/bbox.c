@@ -67,7 +67,7 @@ static const char *TAG = "bbox";
  * (sdkconfig.defaults): кольцо не должно их выдавить - отказы sendto и так
  * были главной бедой ленты. После запуска WiFi свободно около 150 кБ; сколько
  * WiFi берёт под полной лентой - «минимум» в строке «куча» лога моста. */
-#define BB_HEAP_RESERVE (48u * 1024u)
+#define BB_HEAP_RESERVE (46u * 1024u)
 
 #define BB_POST_FRAMES  1000u /* 0,2 с на 5 кГц после пуска */
 
