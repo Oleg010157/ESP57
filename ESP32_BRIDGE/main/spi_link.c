@@ -21,6 +21,7 @@
 #include "board.h"
 #include "net_link.h"
 #include "spi_link.h"
+#include "bbox.h"
 
 #define WORDS     (SPI_LINK_BYTES / 2)
 #define HDR_WORDS 4
@@ -245,6 +246,7 @@ static void parse(const uint8_t *rx, size_t bits, uint16_t *last_seq, bool *have
             }
             break;
         case 132: s_stat.fr132++; break;
+        case BBOX_ID_FAST: s_stat.frBbox++; break;
         default:  s_stat.frOther++; break;
         }
 
@@ -258,6 +260,7 @@ static void parse(const uint8_t *rx, size_t bits, uint16_t *last_seq, bool *have
                 data[2 * i + 1] = (uint8_t)(v >> 8);
             }
             net_link_frame(id, data, (uint8_t)len);
+            bbox_frame(id, data, (uint8_t)len);
         }
         w += 2 + n;
     }

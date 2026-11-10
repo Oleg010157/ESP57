@@ -15,6 +15,8 @@
  *
  * Числа десятичные, отрицательные можно. Это та же команда, что шлёт
  * Motor_Control по CAN, - ID 2, cmd и три слова данных.
+ *
+ *   b                           пуск чёрного ящика вручную (bbox.h)
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,8 +26,10 @@
 #include "freertos/task.h"
 #include "driver/uart.h"
 #include "driver/uart_vfs.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 
+#include "bbox.h"
 #include "board.h"
 #include "net_link.h"
 #include "net_proto.h"
@@ -51,8 +55,13 @@ static void console_task(void *arg)
         if (line[0] == '\n' || line[0] == '\r' || line[0] == '\0') {
             continue; /* хвост CR LF от терминала */
         }
+        if (line[0] == 'b') {
+            bbox_manual();
+            printf("чёрный ящик: пуск вручную\n");
+            continue;
+        }
         if (line[0] != 'c') {
-            printf("команда прибору: c <cmd> [d1] [d2] [d3]\n");
+            printf("команда прибору: c <cmd> [d1] [d2] [d3]; пуск чёрного ящика: b\n");
             continue;
         }
 
@@ -100,6 +109,10 @@ void app_main(void)
              net_wifi_is_sta() ? "подключён, адрес" : "точка доступа, адрес",
              net_wifi_ip(), K57_TCP_PORT, K57_UDP_PORT, K57_MDNS_HOST);
 
+    /* После WiFi, а не до: кольцо берёт ту кучу, что осталась, а WiFi при
+     * запуске занимает своё. Наоборот - WiFi мог бы и не подняться. */
+    bbox_start();
+
     spi_link_stat_t p = {0};
     net_link_stat_t np = {0};
     for (;;) {
@@ -107,9 +120,9 @@ void app_main(void)
 
         spi_link_stat_t s;
         spi_link_get_stat(&s);
-        ESP_LOGI(TAG, "за 1 с: посылок %lu | 103: %lu, 140: %lu, 1: %lu, 132: %lu, "
+        ESP_LOGI(TAG, "за 1 с: посылок %lu | 103: %lu, 7E1: %lu, 140: %lu, 1: %lu, 132: %lu, "
                       "прочих %lu | заполнение %u, макс %u байт | к прибору %lu",
-                 D(packets), D(fr103), D(fr140), D(fr1), D(fr132), D(frOther),
+                 D(packets), D(fr103), D(frBbox), D(fr140), D(fr1), D(fr132), D(frOther),
                  s.lastFill, s.maxFill, D(cmdOut));
         ESP_LOGI(TAG, "    всего: разрывов 103 %lu, пропусков посылок %lu, "
                       "не влезло на приборе %lu, обрыв %lu, без метки %lu, битых %lu, "
@@ -129,6 +142,27 @@ void app_main(void)
                  (unsigned long)(n.cmdIn - np.cmdIn), (unsigned long)n.udpRetry, (unsigned long)n.udpErr,
                  (unsigned long)n.outDrop, (long)net_wifi_rssi());
         np = n;
+
+        bbox_stat_t b;
+        bbox_get_stat(&b);
+        if (!b.noFlash) {
+            static const char *const st[] = {"пишет", "дописывает хвост", "сохраняет"};
+            ESP_LOGI(TAG, "    чёрный ящик: %s | кольцо %lu кБ, кадров %lu (%.2f с) | "
+                          "пусков %lu, записей %lu, пропущено %lu | сохранение %lu мс",
+                     st[b.state < 3 ? b.state : 0], (unsigned long)(b.ringBytes / 1024),
+                     (unsigned long)b.ringFrames, b.ringFrames / 5000.0,
+                     (unsigned long)b.triggers, (unsigned long)b.saved,
+                     (unsigned long)b.missed, (unsigned long)b.saveMs);
+        }
+        /* Куча: сколько свободно, сколько было в самый тесный момент и самый
+         * большой кусок. По «минимуму» видно, сколько WiFi берёт под нагрузкой,
+         * - от этого зависит, сколько можно отдать кольцу (bbox.c). */
+        ESP_LOGI(TAG, "    куча: свободно %u кБ, минимум %u кБ, кусок %u кБ, IRAM %u кБ",
+                 (unsigned)(heap_caps_get_free_size(MALLOC_CAP_8BIT) / 1024),
+                 (unsigned)(heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT) / 1024),
+                 (unsigned)(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) / 1024),
+                 (unsigned)((heap_caps_get_free_size(MALLOC_CAP_32BIT) -
+                             heap_caps_get_free_size(MALLOC_CAP_8BIT)) / 1024));
 
         /* dbg Испорченная посылка: заголовок и 16 слов вокруг места поломки. */
         const uint8_t *bad;

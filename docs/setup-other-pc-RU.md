@@ -69,6 +69,7 @@ Project -> Build Configurations -> Set Active -> CPU1_RAM (или CPU1_FLASH)
 | Конфигурация отладки, настройки редактора | да | git (`INVERTOR_CCS/.theia/`) |
 | Выражения Watch | да | Export в файл → git → Import |
 | Патчи C2000Ware, конфиг clangd | восстанавливаются | `Tools\Setup-NewPC.ps1` |
+| `bin\Wscope\WScope.exe` (и его `WScope.ini`, `WScopeE.ini`) | **нет** | `*.exe` в `.gitignore`: скопировать руками, например из `C:\Work\K57\bin\Wscope` |
 | Открытые вкладки, раскладка окон | **нет** | открыть заново, это быстро |
 | История разговоров с Claude Code, его память | **нет** | лежит в профиле машины |
 

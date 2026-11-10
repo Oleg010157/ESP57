@@ -12,6 +12,7 @@
 #include "myEPWM.h"
 #include "KSP.h"
 #include "interrupt.h"
+#include "bbox_trig.h"
 
 __interrupt void INT_EPWM2_Iu_ISR(void)
 {
@@ -45,6 +46,7 @@ bool eventDetected = false;
         }
 
         ErrHistory_OnError(code);
+        BBox_onEvent(code); // чёрный ящик в мосте, bbox_trig.h
     }
     eventDetected = true;
      CheckLamp = 10;

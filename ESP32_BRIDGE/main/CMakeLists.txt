@@ -4,6 +4,7 @@ idf_component_register(
         "spi_link.c"
         "net_wifi.c"
         "net_link.c"
+        "bbox.c"
     INCLUDE_DIRS
         "."
     REQUIRES
@@ -16,4 +17,8 @@ idf_component_register(
         esp_event
         nvs_flash
         lwip
+        esp_partition
+        esp_timer
+        esp_rom
+        heap
 )

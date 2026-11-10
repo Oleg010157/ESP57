@@ -52,6 +52,7 @@
 #include "nv_store.h"
 #include "wifi_link.h"
 #include "wall_clock.h"
+#include "bbox_trig.h"
 
 
 
@@ -299,6 +300,9 @@ extern volatile uint16_t epwm3time;// dbg
 
         // История аварий: записать в память то, что накопилось.
         NvStore_background();
+
+        // Чёрный ящик: пуск записи в мосте после новой аварии, bbox_trig.h.
+        BBox_background();
 
         // dbg Правка паспорта силовой части из отладчика (pwrCmd = 1): на
         // стенде пульта с CAN может и не быть, а настроить прибор надо.

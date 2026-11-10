@@ -36,6 +36,15 @@ namespace ICDIBasic
         // Кадром прибора она не является и в разбор CANA.cs не идёт.
         private const uint InfoId = 0x7F0;
 
+        /// <summary>
+        /// Записи 0x7E0..0x7EF - чёрный ящик моста (ESP32_BRIDGE/main/bbox.h):
+        /// ответы на вопросы пульта, а не кадры прибора. В разбор CANA.cs не идут.
+        /// Аргументы - номер и данные записи. Зовётся из потока приёма.
+        /// </summary>
+        public event Action<uint, byte[]> BridgeRecord;
+
+        public static bool IsBridgeId(uint id) => (id & 0xFFF0) == 0x7E0;
+
         /// <summary>Имя сети моста; null, пока мост не сообщил.</summary>
         public string NetName { get; private set; }
 
@@ -242,6 +251,36 @@ namespace ICDIBasic
             }
         }
 
+        /// <summary>Вопрос самому мосту (чёрный ящик): запись с любой длиной до 64.</summary>
+        public bool SendBridge(uint id, byte[] data)
+        {
+            if (!_up) return false;
+
+            int len = data?.Length ?? 0;
+            var rec = new byte[RecHdr + len];
+            rec[0] = Sync;
+            rec[1] = (byte)len;
+            rec[2] = (byte)id;
+            rec[3] = (byte)(id >> 8);
+            if (len > 0) Array.Copy(data, 0, rec, RecHdr, len);
+
+            try
+            {
+                lock (_txLock)
+                {
+                    if (_stream == null) return false;
+                    _stream.Write(rec, 0, rec.Length);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[WifiLink] отправка мосту: {ex.Message}");
+                CloseTcp();
+                return false;
+            }
+        }
+
         private void SendHello()
         {
             try
@@ -266,6 +305,14 @@ namespace ICDIBasic
                 NetIsOwnAp = sp > 0 && text.Substring(0, sp) == "AP";
                 NetName = sp > 0 ? text.Substring(sp + 1) : text;
                 NetInfo?.Invoke();
+                return;
+            }
+
+            if (IsBridgeId(id))
+            {
+                var data = new byte[len];
+                Array.Copy(buf, pos + RecHdr, data, 0, len);
+                BridgeRecord?.Invoke(id, data);
                 return;
             }
 

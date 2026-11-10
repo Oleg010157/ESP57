@@ -25,6 +25,7 @@
 #include "net_proto.h"
 #include "net_wifi.h"
 #include "spi_link.h"
+#include "bbox.h"
 
 static const char *TAG = "net";
 
@@ -112,6 +113,9 @@ void net_link_frame(uint16_t id, const uint8_t *data, uint8_t len)
 {
     if (s_client < 0 || len > K57_DATA_MAX) {
         return; /* слушать некому - и собирать незачем */
+    }
+    if (BBOX_IS_OWN_ID(id)) {
+        return; /* кадры прибора для чёрного ящика - только мосту, bbox.c */
     }
 
     if (id == 103 || id == 140) {
@@ -297,6 +301,10 @@ static int process(uint8_t *buf, int have)
             memcpy(f.data, buf + pos + K57_REC_HDR, 8);
             spi_link_send(&f);
             s_stat.cmdIn++;
+        } else if (BBOX_IS_OWN_ID(f.id)) {
+            /* Вопрос мосту, а не прибору: чёрный ящик. Ответ уходит сразу,
+             * из этой же задачи, - пока он идёт, команды ждут в сокете. */
+            bbox_request(f.id, buf + pos + K57_REC_HDR, (uint8_t)len);
         }
         pos += K57_REC_HDR + len;
     }
@@ -427,6 +435,18 @@ void net_link_start(void)
     xTaskCreatePinnedToCore(out_task, "net_out", 3072, NULL, 6, NULL, NET_CORE);
     xTaskCreatePinnedToCore(udp_task, "net_udp", 3072, NULL, 5, NULL, NET_CORE);
     xTaskCreatePinnedToCore(tcp_task, "net_tcp", 4096, NULL, 5, NULL, NET_CORE);
+}
+
+bool net_link_tcp_send(const uint8_t *p, int n)
+{
+    bool ok = false;
+
+    xSemaphoreTake(s_tcp_mux, portMAX_DELAY);
+    if (s_client >= 0) {
+        ok = send_all(s_client, p, n);
+    }
+    xSemaphoreGive(s_tcp_mux);
+    return ok;
 }
 
 void net_link_get_stat(net_link_stat_t *out)

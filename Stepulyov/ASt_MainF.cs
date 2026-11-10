@@ -898,6 +898,8 @@ namespace ICDIBasic
             измеренияToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
             измеренияToolStripMenuItem.DropDownItems.Add(_txDataMenu);
             измеренияToolStripMenuItem.DropDownItems.Add(_rxDataMenu);
+            измеренияToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
+            BlackBox_InitMenu(измеренияToolStripMenuItem);
 
             управлениеToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
             управлениеToolStripMenuItem.DropDownItems.Add(_canaM);

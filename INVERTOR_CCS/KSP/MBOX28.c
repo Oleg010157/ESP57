@@ -37,6 +37,7 @@
 #include "plant_sim.h"
 #include "power_par.h"
 #include "wall_clock.h"
+#include "bbox_trig.h"
 
 motor *motStrob = &motor1;
 
@@ -2126,6 +2127,13 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
         // my_Files/wall_clock.h.
         case WALL_CLOCK_CMD:
             WallClock_set(((uint32_t)data2 << 16) | data1);
+            SendAck(data1, data2, data3, cmd);
+            break;
+
+        // Чёрный ящик: пуск записи вручную, для проверки. Сама запись - в
+        // мосте ESP32, my_Files/bbox_trig.h.
+        case BBOX_CMD:
+            BBox_manual();
             SendAck(data1, data2, data3, cmd);
             break;
 

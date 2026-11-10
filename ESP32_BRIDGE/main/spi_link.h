@@ -38,6 +38,7 @@ typedef struct {
     uint32_t fr140;
     uint32_t fr1;
     uint32_t fr132;
+    uint32_t frBbox;    /* 0x7E1 - лента для чёрного ящика, bbox.h */
     uint32_t frOther;
     uint32_t tickGap;   /* разрывы счётчика тактов в кадрах 103 */
 
