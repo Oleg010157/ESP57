@@ -91,6 +91,7 @@ namespace ICDIBasic
             }
 
             parent.DropDownItems.Add(_canSpeedMenu);
+            CanRate_StartClock();
         }
 
         private static string CanRate_ModeName(string mode)
@@ -142,8 +143,14 @@ namespace ICDIBasic
         }
 
         // Скорость и причина отката - в заголовке окна, чтобы не гадать, на чём работаем.
+        // Следом - текущие дата и время: заголовок обновляет часы раз в секунду
+        // (CanRate_StartClock), причина при этом остаётся прежней.
+        private string _titleWhy;
+        private System.Windows.Forms.Timer _titleClock;
+
         private void CanRate_ShowTitle(string why = null)
         {
+            _titleWhy = why;
             var title = Text;
             foreach (var mark in new[] { CanRateTitleMark, WifiTitleMark })
             {
@@ -153,7 +160,17 @@ namespace ICDIBasic
             title += _wifi != null
                 ? WifiTitleMark + WifiTitleNet() + _wifi.Host
                 : CanRateTitleMark + (_canFast ? "5" : "2.5") + " Мбит/с";
-            Text = why == null ? title : title + " (" + why + ")";
+            if (why != null) title += " (" + why + ")";
+            title += " — " + DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss");
+            if (Text != title) Text = title;
+        }
+
+        private void CanRate_StartClock()
+        {
+            _titleClock = new System.Windows.Forms.Timer { Interval = 1000 };
+            _titleClock.Tick += (s, e) => CanRate_ShowTitle(_titleWhy);
+            _titleClock.Start();
+            CanRate_ShowTitle();
         }
 
         // PCAN меняет скорость только переоткрытием канала. Приём при этом не
