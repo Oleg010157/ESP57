@@ -163,6 +163,7 @@ namespace ICDIBasic
             {
                 _wifi.Dispose();
                 _wifi = null;
+                BlackBox_Detach();
             }
             PCANBasic.Uninitialize(Ch);
             Ch = 0;
@@ -213,6 +214,7 @@ namespace ICDIBasic
             {
                 _wifi.Dispose();
                 _wifi = null;
+                BlackBox_Detach();
             }
 
             CanA_Ok = false;
@@ -574,6 +576,7 @@ namespace ICDIBasic
 
             _wifi?.Dispose();
             _wifi = null;
+            BlackBox_Detach();
 
             _re = new AutoResetEvent(false);
 
@@ -583,7 +586,6 @@ namespace ICDIBasic
             {
                 var l = new WifiLink(host, _re);
                 l.NetInfo += () => BeginInvoke(new Action(() => CanRate_ShowTitle()));
-                l.BridgeRecord += BlackBox_OnRecord;   // чёрный ящик моста, Oleg/BlackBox.cs
                 l.BridgeRecord += BridgeStore_OnRecord; // журнал и копия настройки, Oleg/BridgeStore.cs
                 // Обрыв и возврат связи WifiLink переживает сам; окну - только
                 // сказать оператору, что сейчас связи нет.
@@ -652,6 +654,10 @@ namespace ICDIBasic
             }
 
             _wifi = link;
+            // Чёрный ящик моста (Oleg/BlackBox.cs): связь уже есть, и запись
+            // о сети мост прислал ещё до этой строки - докачать архив сразу.
+            BlackBox_Attach(link);
+            _bbox.SyncAll();
             _rden = true;
             _crw.RunWorkerAsync();
             CanRate_ShowTitle(); // в заголовке - «WiFi <адрес>» вместо скорости CAN

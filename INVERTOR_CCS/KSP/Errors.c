@@ -8,6 +8,7 @@
 #include "MBOX.h"
 #include "Errors.h"
 #include "wall_clock.h"
+#include "bbox_trig.h"
 
 #pragma DATA_SECTION(ErrHistory, "ramgs0");
 #pragma DATA_SECTION(CurrentErrFlags, "ramgs0");
@@ -146,6 +147,7 @@ void ClearErrorTable(void)
         CTL.EER = true;
         memset(&ErrBuff, 0, sizeof(ErrBuff));
         ErrHistory_Reset();
+        BBox_resetSession(); // чёрный ящик: каждый код снова можно записать
         memset(&CurrentErrFlags, 0, sizeof(CurrentErrFlags));
         memset(&CurrentErrTxFlags, 0, sizeof(CurrentErrTxFlags));
         memset(&ErrSessionEdgeLatch, 0, sizeof(ErrSessionEdgeLatch));

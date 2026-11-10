@@ -15,22 +15,38 @@ namespace ICDIBasic
      * Сам осциллограф живёт в мосте (ESP32_BRIDGE/main/bbox.c): он всё время
      * держит в памяти последние ~0,75 с ленты прибора, а по аварии дописывает
      * ещё 0,2 с и сохраняет во флеш. Здесь - список этих записей и перевод
-     * выбранной в .spl для Wscope, с меткой ровно в момент аварии.
+     * их в .spl для Wscope, с меткой ровно в момент аварии.
+     *
+     * АВТОАРХИВ (с 10.11.2026). В мосте мест четыре, на ПК - сколько угодно.
+     * Пока пульт подключён через мост, каждая новая запись скачивается сама
+     * (мост сообщает о ней записью 0x7EF), а после подключения докачивается
+     * всё, что накопилось без пульта. Архив - SPL\spl_data\BlackBox, по файлу
+     * на запись; имя содержит номер записи, поэтому дважды одна запись не
+     * качается. Окно «Чёрный ящик» берёт файлы оттуда же.
+     *
+     * Обмен с мостом ведёт один BlackBoxClient - и для окна, и для архива: два
+     * скачивания сразу перемешали бы куски записей. Запросы идут по очереди.
      *
      * Только через мост: по CAN записей не достать, они не в приборе. Формат
      * обмена - docs/esp32-spi-protocol-RU.md, раздел «Чёрный ящик».
      */
     public partial class Form1
     {
-        private readonly ToolStripMenuItem _bboxMenu = new ToolStripMenuItem("Чёрный ящик (WiFi-мост)…");
+        private readonly ToolStripMenuItem _bboxMenu = new ToolStripMenuItem();
+        private const string BboxMenuText = "Чёрный ящик (WiFi-мост)…";
         private BlackBoxForm _bboxFrm;
+        private BlackBoxClient _bbox;
+        private int _bboxNew; // записей, скачанных в архив, пока окно было закрыто
+
+        private string BlackBoxDir => Path.Combine(spl_Dir, "BlackBox");
 
         private void BlackBox_InitMenu(ToolStripMenuItem parent)
         {
+            _bboxMenu.Text = BboxMenuText;
             parent.DropDownItems.Add(_bboxMenu);
             _bboxMenu.Click += (s, e) =>
             {
-                if (_wifi == null)
+                if (_bbox == null)
                 {
                     MessageBox.Show(this,
                         "Записи чёрного ящика хранит WiFi-мост.\n" +
@@ -38,10 +54,12 @@ namespace ICDIBasic
                         "Чёрный ящик", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
+                _bboxNew = 0;
+                _bboxMenu.Text = BboxMenuText;
+                _bboxMenu.Font = new Font(_bboxMenu.Font, FontStyle.Regular);
                 if (_bboxFrm == null || _bboxFrm.IsDisposed)
                 {
-                    _bboxFrm = new BlackBoxForm(_wifi, spl_Dir, BlackBox_CreateSplHeader,
-                                                () => uint_128(0, 0, 0, 339), BlackBox_OpenWscope);
+                    _bboxFrm = new BlackBoxForm(_bbox, () => uint_128(0, 0, 0, 339), BlackBox_OpenWscope);
                     _bboxFrm.FormClosed += (a, b) => _bboxFrm = null;
                     _bboxFrm.Show(this);
                 }
@@ -50,6 +68,36 @@ namespace ICDIBasic
                     _bboxFrm.Activate();
                 }
             };
+        }
+
+        // Новый мост - новый клиент: из CANA.cs, при создании WifiLink.
+        private void BlackBox_Attach(WifiLink link)
+        {
+            _bbox = new BlackBoxClient(link, BlackBoxDir, BlackBox_CreateSplHeader);
+            _bbox.Archived += (e, path, fresh) =>
+            {
+                if (!fresh) return;
+                BeginInvoke(new Action(() =>
+                {
+                    if (_bboxFrm != null && !_bboxFrm.IsDisposed) return; // окно само обновит список
+                    _bboxNew++;
+                    _bboxMenu.Text = $"{BboxMenuText}  — новых: {_bboxNew}";
+                    _bboxMenu.Font = new Font(_bboxMenu.Font, FontStyle.Bold);
+                }));
+            };
+            link.BridgeRecord += _bbox.OnRecord;
+            // Подключились (мост сообщил, в какой он сети) - докачать накопленное.
+            link.NetInfo += () => _bbox?.SyncAll();
+        }
+
+        // Связь через мост закрыта: окно держит старого клиента - закрыть и его.
+        // Зовут и не из потока окна (переинициализация CAN), отсюда BeginInvoke.
+        private void BlackBox_Detach()
+        {
+            _bbox = null;
+            var f = _bboxFrm;
+            if (f == null || f.IsDisposed || !IsHandleCreated) return;
+            BeginInvoke(new Action(() => { if (!f.IsDisposed) f.Close(); }));
         }
 
         // Тот же заголовок, что у записи по F2: Wscope читает их одинаково.
@@ -67,15 +115,55 @@ namespace ICDIBasic
             Open_WScope(path.Contains(" ") ? "\"" + path + "\"" : path);
             return true;
         }
+    }
 
-        // Из потока приёма WifiLink.
-        private void BlackBox_OnRecord(uint id, byte[] data)
+    /// <summary>Заголовок записи - bb_hdr_t в bbox.c.</summary>
+    internal sealed class BlackBoxEntry
+    {
+        public int Slot;
+        public uint Seq;
+        public ushort Code;
+        public ushort FrameType;
+        public uint Utc;
+        public ushort Session;
+        public ushort TrigTick;
+        public uint Frames;
+        public uint DataBytes;
+        public uint DataCrc;
+        public uint TrigFrame;
+        public ushort[] Extra = new ushort[4];
+
+        public static BlackBoxEntry Parse(byte[] d, int slot)
         {
-            _bboxFrm?.OnRecord(id, data);
+            // d - заголовок с нулевого байта
+            return new BlackBoxEntry
+            {
+                Slot = slot,
+                Seq = BitConverter.ToUInt32(d, 8),
+                Code = BitConverter.ToUInt16(d, 12),
+                FrameType = BitConverter.ToUInt16(d, 14),
+                Utc = BitConverter.ToUInt32(d, 16),
+                Session = BitConverter.ToUInt16(d, 20),
+                TrigTick = BitConverter.ToUInt16(d, 22),
+                Frames = BitConverter.ToUInt32(d, 24),
+                DataBytes = BitConverter.ToUInt32(d, 28),
+                DataCrc = BitConverter.ToUInt32(d, 32),
+                TrigFrame = BitConverter.ToUInt32(d, 36),
+                Extra = new[]
+                {
+                    BitConverter.ToUInt16(d, 40), BitConverter.ToUInt16(d, 42),
+                    BitConverter.ToUInt16(d, 44), BitConverter.ToUInt16(d, 46)
+                },
+            };
         }
     }
 
-    internal sealed class BlackBoxForm : Form
+    /// <summary>
+    /// Обмен с мостом по чёрному ящику и архив на диске. Запросы - по очереди,
+    /// по одному в полёте; ответ не пришёл за 15 с - запрос снят, идёт следующий.
+    /// События зовутся из потока приёма WifiLink.
+    /// </summary>
+    internal sealed class BlackBoxClient
     {
         // Номера записей - ESP32_BRIDGE/main/bbox.h.
         private const uint IdList = 0x7E8;
@@ -87,206 +175,227 @@ namespace ICDIBasic
         private const uint IdClear = 0x7EE;
         private const uint IdSaved = 0x7EF;
 
-        private const int HdrSize = 64;
-        private const ushort CodeHand = 0xFFFF;
-        private const int FrameRate = 5000; // кадров в секунду: такт прибора 200 мкс
+        public const int HdrSize = 64;
+        public const ushort CodeHand = 0xFFFF;
+        public const int FrameRate = 5000; // кадров в секунду: такт прибора 200 мкс
 
-        /// <summary>Заголовок записи - bb_hdr_t в bbox.c.</summary>
-        private sealed class Entry
+        private enum OpKind { List, Read, Clear }
+
+        private sealed class Op
         {
-            public int Slot;
-            public uint Seq;
-            public ushort Code;
-            public ushort FrameType;
-            public uint Utc;
-            public ushort Session;
-            public ushort TrigTick;
-            public uint Frames;
-            public uint DataBytes;
-            public uint DataCrc;
-            public uint TrigFrame;
-            public ushort[] Extra = new ushort[4];
-
-            public static Entry Parse(byte[] d, int slot)
-            {
-                // d - заголовок с нулевого байта
-                return new Entry
-                {
-                    Slot = slot,
-                    Seq = BitConverter.ToUInt32(d, 8),
-                    Code = BitConverter.ToUInt16(d, 12),
-                    FrameType = BitConverter.ToUInt16(d, 14),
-                    Utc = BitConverter.ToUInt32(d, 16),
-                    Session = BitConverter.ToUInt16(d, 20),
-                    TrigTick = BitConverter.ToUInt16(d, 22),
-                    Frames = BitConverter.ToUInt32(d, 24),
-                    DataBytes = BitConverter.ToUInt32(d, 28),
-                    DataCrc = BitConverter.ToUInt32(d, 32),
-                    TrigFrame = BitConverter.ToUInt32(d, 36),
-                    Extra = new[]
-                    {
-                        BitConverter.ToUInt16(d, 40), BitConverter.ToUInt16(d, 42),
-                        BitConverter.ToUInt16(d, 44), BitConverter.ToUInt16(d, 46)
-                    },
-                };
-            }
+            public OpKind Kind;
+            public BlackBoxEntry Entry;
+            public bool Sync; // список ради архива: недостающее - скачать
+            public Action<bool, string, string, bool> Done; // ok, путь, сводка, CRC сошлась
         }
 
         private readonly WifiLink _link;
         private readonly string _dir;
         private readonly Action<ushort, string, string> _createHeader;
-        private readonly Action _manual;
-        private readonly Func<string, bool> _openWscope;
         private readonly Dictionary<ushort, string> _errText = LoadErrorTexts();
 
-        private readonly ListView _list = new ListView();
-        private readonly Label _status = new Label();
-        private readonly Button _btnRefresh = new Button { Text = "Обновить" };
-        private readonly Button _btnView = new Button { Text = "Смотреть в Wscope" };
-        private readonly Button _btnSave = new Button { Text = "Сохранить для Wscope" };
-        private readonly Button _btnManual = new Button { Text = "Записать сейчас" };
-        private readonly Button _btnClear = new Button { Text = "Стереть все" };
-
-        // Список копится в потоке приёма и уходит в окно по записи конца.
         private readonly object _lock = new object();
-        private readonly List<Entry> _pending = new List<Entry>();
-        private Entry _reading;
+        private readonly Queue<Op> _queue = new Queue<Op>();
+        private Op _cur;
+        private readonly System.Threading.Timer _timeout;
+        private readonly List<BlackBoxEntry> _pending = new List<BlackBoxEntry>();
         private byte[] _buf;
-        private bool _viewAfter; // скачанное сразу открыть в Wscope - только поток окна
 
-        public BlackBoxForm(WifiLink link, string splDir, Action<ushort, string, string> createHeader,
-                            Action manual, Func<string, bool> openWscope)
+        /// <summary>Список пришёл: записи (новые сверху) и состояние моста.</summary>
+        public event Action<List<BlackBoxEntry>, string> ListReady;
+
+        /// <summary>Запись легла в архив: запись, путь, true - скачана только что.</summary>
+        public event Action<BlackBoxEntry, string, bool> Archived;
+
+        public BlackBoxClient(WifiLink link, string dir, Action<ushort, string, string> createHeader)
         {
             _link = link;
-            _dir = splDir;
+            _dir = dir;
             _createHeader = createHeader;
-            _manual = manual;
-            _openWscope = openWscope;
+            _timeout = new System.Threading.Timer(_ => Timeout());
+        }
 
-            Text = "Чёрный ящик - аварийные записи моста";
-            Size = new Size(820, 380);
-            StartPosition = FormStartPosition.CenterParent;
-            Font = new Font("Microsoft Sans Serif", 10F);
+        public Dictionary<ushort, string> ErrText => _errText;
 
-            _list.View = View.Details;
-            _list.FullRowSelect = true;
-            _list.MultiSelect = false;
-            _list.HideSelection = false;
-            _list.Dock = DockStyle.Fill;
-            _list.Columns.Add("№", 50);
-            _list.Columns.Add("Время", 160);
-            _list.Columns.Add("Код", 55);
-            _list.Columns.Add("Авария", 300);
-            _list.Columns.Add("До / после, с", 110);
-            _list.Columns.Add("Лента", 110);
-            _list.DoubleClick += (s, e) => Download(true);
+        public void RequestList() => Enqueue(new Op { Kind = OpKind.List });
 
-            var bar = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(4) };
-            foreach (var b in new[] { _btnRefresh, _btnView, _btnSave, _btnManual, _btnClear })
+        /// <summary>Список и скачивание всего, чего ещё нет в архиве.</summary>
+        public void SyncAll() => Enqueue(new Op { Kind = OpKind.List, Sync = true });
+
+        public void Clear() => Enqueue(new Op { Kind = OpKind.Clear });
+
+        /// <summary>Запись в архив; уже есть - сразу путь к файлу, без моста.</summary>
+        public void Download(BlackBoxEntry e, Action<bool, string, string, bool> done)
+        {
+            string path = ArchivePath(e);
+            if (File.Exists(path))
             {
-                b.AutoSize = true;
-                bar.Controls.Add(b);
+                done?.Invoke(true, path, Summary(e), true);
+                return;
             }
-            _status.Dock = DockStyle.Bottom;
-            _status.Height = 24;
-            _status.TextAlign = ContentAlignment.MiddleLeft;
-
-            Controls.Add(_list);
-            Controls.Add(_status);
-            Controls.Add(bar);
-
-            _btnRefresh.Click += (s, e) => RequestList();
-            _btnView.Click += (s, e) => Download(true);
-            _btnSave.Click += (s, e) => Download(false);
-            _btnManual.Click += (s, e) =>
-            {
-                // Пуск даёт прибор (команда 339): в записи будут его время и
-                // сессия. Мост сохранит её через 0,2 с и сам сообщит - список
-                // обновится по записи 0x7EF.
-                _manual();
-                _status.Text = "Пуск отправлен прибору, ждём запись…";
-            };
-            _btnClear.Click += (s, e) =>
-            {
-                if (MessageBox.Show(this, "Стереть все записи чёрного ящика в мосте?", "Чёрный ящик",
-                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
-                    Send(IdClear, new byte[0]);
-            };
-
-            Load += (s, e) => RequestList();
+            Enqueue(new Op { Kind = OpKind.Read, Entry = e, Done = done });
         }
 
-        private void Send(uint id, byte[] data)
+        public string ArchivePath(BlackBoxEntry e)
         {
-            if (!_link.SendBridge(id, data))
-                _status.Text = "Нет связи с мостом.";
+            string when = e.Utc != 0
+                ? DateTimeOffset.FromUnixTimeSeconds(e.Utc).LocalDateTime.ToString("dd.MM.yyyy_HH.mm.ss", CultureInfo.InvariantCulture)
+                : "время-неизвестно";
+            return Path.Combine(_dir, $"BB_{when}_{(e.Code == CodeHand ? "hand" : e.Code.ToString())}_n{e.Seq}.spl");
         }
 
-        private void RequestList()
+        //-------------------------------------------------------------------
+        private void Enqueue(Op op)
         {
-            lock (_lock) _pending.Clear();
-            _status.Text = "Запрос списка…";
-            Send(IdList, new byte[0]);
+            lock (_lock)
+            {
+                _queue.Enqueue(op);
+                if (_cur == null) StartNext();
+            }
         }
 
-        /// <summary>Из потока приёма WifiLink.</summary>
+        // Под _lock.
+        private void StartNext()
+        {
+            _cur = _queue.Count > 0 ? _queue.Dequeue() : null;
+            if (_cur == null) return;
+
+            bool sent;
+            switch (_cur.Kind)
+            {
+                case OpKind.List:
+                    _pending.Clear();
+                    sent = _link.SendBridge(IdList, new byte[0]);
+                    break;
+                case OpKind.Clear:
+                    _pending.Clear();
+                    sent = _link.SendBridge(IdClear, new byte[0]);
+                    break;
+                default:
+                    _buf = new byte[HdrSize + _cur.Entry.DataBytes];
+                    sent = _link.SendBridge(IdRead, new[] { (byte)_cur.Entry.Slot });
+                    break;
+            }
+            if (!sent)
+            {
+                // Связи нет - очередь сбросить: после подключения SyncAll
+                // спросит заново.
+                var done = _cur.Done;
+                _queue.Clear();
+                _cur = null;
+                done?.Invoke(false, null, "нет связи с мостом", false);
+                return;
+            }
+            _timeout.Change(15000, System.Threading.Timeout.Infinite);
+        }
+
+        private void Timeout()
+        {
+            Action<bool, string, string, bool> done = null;
+            lock (_lock)
+            {
+                if (_cur == null) return;
+                done = _cur.Done;
+                _buf = null;
+                StartNext();
+            }
+            done?.Invoke(false, null, "мост не ответил", false);
+        }
+
+        private void Finish()
+        {
+            _timeout.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+            StartNext();
+        }
+
+        /// <summary>Из потока приёма WifiLink - все записи моста.</summary>
         public void OnRecord(uint id, byte[] d)
         {
-            if (IsDisposed) return;
+            List<BlackBoxEntry> list = null;
+            bool sync = false;
+            BlackBoxEntry readEntry = null;
+            byte[] readBuf = null;
+            bool readOk = false;
+            Action<bool, string, string, bool> readDone = null;
 
-            switch (id)
+            lock (_lock)
             {
-                case IdEntry:
-                    if (d.Length >= 2 + 60)
-                    {
-                        var h = new byte[HdrSize];
-                        Array.Copy(d, 2, h, 0, 60);
-                        lock (_lock) _pending.Add(Entry.Parse(h, d[0]));
-                    }
-                    break;
-
-                case IdListEnd:
+                switch (id)
                 {
-                    List<Entry> got;
-                    lock (_lock)
-                    {
-                        got = _pending.OrderByDescending(x => x.Seq).ToList();
-                        _pending.Clear();
-                    }
-                    string st = DescribeState(d);
-                    BeginInvoke(new Action(() => ShowList(got, st)));
-                    break;
-                }
+                    case IdEntry:
+                        if (d.Length >= 2 + 60)
+                        {
+                            var h = new byte[HdrSize];
+                            Array.Copy(d, 2, h, 0, 60);
+                            _pending.Add(BlackBoxEntry.Parse(h, d[0]));
+                        }
+                        return;
 
-                case IdData:
-                    lock (_lock)
-                    {
-                        if (_buf == null || d.Length < 4) break;
+                    case IdListEnd:
+                        list = _pending.OrderByDescending(x => x.Seq).ToList();
+                        _pending.Clear();
+                        sync = _cur != null && _cur.Kind == OpKind.List && _cur.Sync;
+                        if (_cur != null && (_cur.Kind == OpKind.List || _cur.Kind == OpKind.Clear)) Finish();
+                        break;
+
+                    case IdData:
+                        if (_buf == null || d.Length < 4) return;
                         uint at = BitConverter.ToUInt32(d, 0);
                         int n = d.Length - 4;
                         if (at + n <= _buf.Length) Array.Copy(d, 4, _buf, at, n);
-                    }
-                    break;
+                        return;
 
-                case IdReadEnd:
-                {
-                    byte[] buf;
-                    Entry e;
-                    lock (_lock)
-                    {
-                        buf = _buf;
-                        e = _reading;
+                    case IdReadEnd:
+                        if (_cur == null || _cur.Kind != OpKind.Read) return;
+                        readEntry = _cur.Entry;
+                        readBuf = _buf;
+                        readDone = _cur.Done;
+                        readOk = d.Length >= 2 && d[1] == 1 && readBuf != null;
                         _buf = null;
-                        _reading = null;
-                    }
-                    bool ok = d.Length >= 2 && d[1] == 1 && buf != null && e != null;
-                    BeginInvoke(new Action(() => Downloaded(ok, e, buf)));
-                    break;
-                }
+                        Finish();
+                        break;
 
-                case IdSaved:
-                    BeginInvoke(new Action(RequestList));
-                    break;
+                    case IdSaved:
+                        break;
+
+                    default:
+                        return;
+                }
+            }
+
+            if (id == IdSaved)
+            {
+                SyncAll(); // новая запись в мосте - в архив
+                return;
+            }
+
+            if (list != null)
+            {
+                ListReady?.Invoke(list, DescribeState(d));
+                if (sync)
+                    foreach (var e in list.Where(x => !File.Exists(ArchivePath(x))).Reverse())
+                        Enqueue(new Op { Kind = OpKind.Read, Entry = e });
+                return;
+            }
+
+            if (readEntry != null)
+            {
+                if (!readOk)
+                {
+                    readDone?.Invoke(false, null, "запись не скачалась целиком", false);
+                    return;
+                }
+                bool crcOk = Crc32(readBuf, HdrSize, (int)readEntry.DataBytes) == readEntry.DataCrc;
+                try
+                {
+                    string path = WriteSpl(readEntry, readBuf, out string info);
+                    readDone?.Invoke(true, path, info, crcOk);
+                    Archived?.Invoke(readEntry, path, true);
+                }
+                catch (Exception ex)
+                {
+                    readDone?.Invoke(false, null, "не удалось сохранить: " + ex.Message, false);
+                }
             }
         }
 
@@ -303,34 +412,12 @@ namespace ICDIBasic
                    (missed > 0 ? $"; пропущено пусков: {missed}" : "");
         }
 
-        private void ShowList(List<Entry> entries, string state)
-        {
-            _list.BeginUpdate();
-            _list.Items.Clear();
-            foreach (var e in entries)
-            {
-                var it = new ListViewItem(e.Seq.ToString());
-                it.SubItems.Add(TimeText(e.Utc));
-                it.SubItems.Add(e.Code == CodeHand ? "—" : e.Code.ToString());
-                it.SubItems.Add(CodeText(e));
-                double before = e.TrigFrame / (double)FrameRate;
-                double after = (e.Frames - Math.Min(e.TrigFrame, e.Frames)) / (double)FrameRate;
-                it.SubItems.Add($"{before:0.00} / {after:0.00}");
-                it.SubItems.Add(e.FrameType == 0 ? "F3_convertor" : FrameName(e.FrameType) ?? "?");
-                it.Tag = e;
-                _list.Items.Add(it);
-            }
-            _list.EndUpdate();
-            if (_list.Items.Count > 0) _list.Items[0].Selected = true;
-            _status.Text = (entries.Count == 0 ? "Записей нет. " : $"Записей: {entries.Count}. ") + state;
-        }
-
-        private static string TimeText(uint utc) =>
+        public static string TimeText(uint utc) =>
             utc == 0
                 ? "время неизвестно"
                 : DateTimeOffset.FromUnixTimeSeconds(utc).LocalDateTime.ToString("dd.MM.yyyy HH:mm:ss");
 
-        private string CodeText(Entry e)
+        public string CodeText(BlackBoxEntry e)
         {
             if (e.Code == CodeHand) return "пуск вручную";
             string s = _errText.TryGetValue(e.Code, out var t) ? t : "код " + e.Code;
@@ -339,8 +426,10 @@ namespace ICDIBasic
             return s;
         }
 
+        private string Summary(BlackBoxEntry e) => $"Запись {e.Seq}: {CodeText(e)}, {TimeText(e.Utc)}.";
+
         /// <summary>Тип ленты 103 - код команды 1001 в приборе (MBOX28.c).</summary>
-        private static string FrameName(ushort type)
+        public static string FrameName(ushort type)
         {
             switch (type)
             {
@@ -350,60 +439,6 @@ namespace ICDIBasic
                 case 4: return "F3_convertor";
                 case 6: return "F3_grid";
                 default: return null;
-            }
-        }
-
-        /// <summary>Скачать выбранную запись в .spl; view - сразу открыть в Wscope.</summary>
-        private void Download(bool view)
-        {
-            if (_list.SelectedItems.Count == 0) return;
-            var e = (Entry)_list.SelectedItems[0].Tag;
-            _viewAfter = view;
-            lock (_lock)
-            {
-                _reading = e;
-                _buf = new byte[HdrSize + e.DataBytes];
-            }
-            _status.Text = $"Скачиваю запись {e.Seq}, {(HdrSize + e.DataBytes) / 1024} кБ…";
-            Send(IdRead, new[] { (byte)e.Slot });
-        }
-
-        private void Downloaded(bool ok, Entry e, byte[] buf)
-        {
-            if (!ok)
-            {
-                _status.Text = "Запись не скачалась целиком - попробуйте ещё раз.";
-                return;
-            }
-
-            bool crcOk = Crc32(buf, HdrSize, (int)e.DataBytes) == e.DataCrc;
-            try
-            {
-                string path = WriteSpl(e, buf, out string info);
-                _status.Text = (crcOk ? "" : "ВНИМАНИЕ: CRC записи не сошлась. ") + "Сохранено: " + path;
-
-                if (_viewAfter)
-                {
-                    if (!crcOk)
-                        MessageBox.Show(this, "Контрольная сумма записи не сошлась - данные могут быть испорчены.",
-                                        "Чёрный ящик", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    if (!_openWscope(path))
-                        _status.Text = "Идёт запись ленты (F2/F5) - Wscope откроется после её остановки. " +
-                                       "Файл сохранён: " + path;
-                    return;
-                }
-
-                if (MessageBox.Show(this,
-                        (crcOk ? "" : "ВНИМАНИЕ: контрольная сумма не сошлась, данные могут быть испорчены.\n\n") +
-                        info + "\n\n" + path + "\n\nПоказать файл в папке?",
-                        "Чёрный ящик", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
-                {
-                    Process.Start("explorer.exe", "/select,\"" + path + "\"");
-                }
-            }
-            catch (Exception ex)
-            {
-                _status.Text = "Не удалось сохранить: " + ex.Message;
             }
         }
 
@@ -418,7 +453,7 @@ namespace ICDIBasic
          * кадра старшим байтом вперёд. Метка 0x55 - обычный кадр; на кадре
          * аварии стоит 1 - Wscope покажет её, как метку пробела.
          */
-        private string WriteSpl(Entry e, byte[] buf, out string info)
+        private string WriteSpl(BlackBoxEntry e, byte[] buf, out string info)
         {
             var frames = new List<(int kind, byte[] data)>();
             int pos = HdrSize, end = HdrSize + (int)e.DataBytes;
@@ -457,15 +492,17 @@ namespace ICDIBasic
             }
 
             if (!Directory.Exists(_dir)) Directory.CreateDirectory(_dir);
-            DateTime when = e.Utc != 0 ? DateTimeOffset.FromUnixTimeSeconds(e.Utc).LocalDateTime : DateTime.Now;
-            string path = Path.Combine(_dir, "BB_" + when.ToString("dd.MM.yyyy_HH.mm.ss", CultureInfo.InvariantCulture) +
-                                              "_" + (e.Code == CodeHand ? "hand" : e.Code.ToString()) + ".spl");
+            string path = ArchivePath(e);
+            string tmp = path + ".tmp";
 
+            // Сначала во временный файл: оборвись запись посреди - в архиве не
+            // останется недописанного .spl, который потом считался бы готовым.
             ushort words = (ushort)(tLen / 2);
-            _createHeader(words, name + ".ini", path);
+            if (File.Exists(tmp)) File.Delete(tmp);
+            _createHeader(words, name + ".ini", tmp);
 
             int written = 0, before = 0;
-            using (var fs = new FileStream(path, FileMode.Append, FileAccess.Write))
+            using (var fs = new FileStream(tmp, FileMode.Append, FileAccess.Write))
             {
                 var rec = new byte[1 + tLen];
                 for (int i = 0; i < frames.Count; i++)
@@ -483,8 +520,10 @@ namespace ICDIBasic
                     written++;
                 }
             }
+            if (File.Exists(path)) File.Delete(path);
+            File.Move(tmp, path);
 
-            info = $"Запись {e.Seq}: {CodeText(e)}, {TimeText(e.Utc)}.\n" +
+            info = Summary(e) + "\n" +
                    $"Лента {name}: {written} кадров, до аварии {before / (double)FrameRate:0.000} с, " +
                    $"после {(written - before) / (double)FrameRate:0.000} с. Авария - метка 1.";
             return path;
@@ -523,6 +562,177 @@ namespace ICDIBasic
                 // нет файла - покажем просто номера
             }
             return map;
+        }
+    }
+
+    internal sealed class BlackBoxForm : Form
+    {
+        private readonly BlackBoxClient _bb;
+        private readonly Action _manual;
+        private readonly Func<string, bool> _openWscope;
+
+        private readonly ListView _list = new ListView();
+        private readonly Label _status = new Label();
+        private readonly Button _btnRefresh = new Button { Text = "Обновить" };
+        private readonly Button _btnView = new Button { Text = "Смотреть в Wscope" };
+        private readonly Button _btnSave = new Button { Text = "Показать файл" };
+        private readonly Button _btnFolder = new Button { Text = "Папка архива" };
+        private readonly Button _btnManual = new Button { Text = "Записать сейчас" };
+        private readonly Button _btnClear = new Button { Text = "Стереть в мосте" };
+
+        public BlackBoxForm(BlackBoxClient bb, Action manual, Func<string, bool> openWscope)
+        {
+            _bb = bb;
+            _manual = manual;
+            _openWscope = openWscope;
+
+            Text = "Чёрный ящик - аварийные записи моста";
+            Size = new Size(900, 380);
+            StartPosition = FormStartPosition.CenterParent;
+            Font = new Font("Microsoft Sans Serif", 10F);
+
+            _list.View = View.Details;
+            _list.FullRowSelect = true;
+            _list.MultiSelect = false;
+            _list.HideSelection = false;
+            _list.Dock = DockStyle.Fill;
+            _list.Columns.Add("№", 50);
+            _list.Columns.Add("Время", 160);
+            _list.Columns.Add("Код", 55);
+            _list.Columns.Add("Авария", 300);
+            _list.Columns.Add("До / после, с", 110);
+            _list.Columns.Add("Лента", 110);
+            _list.Columns.Add("В архиве", 80);
+            _list.DoubleClick += (s, e) => Open(true);
+
+            var bar = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(4) };
+            foreach (var b in new[] { _btnRefresh, _btnView, _btnSave, _btnFolder, _btnManual, _btnClear })
+            {
+                b.AutoSize = true;
+                bar.Controls.Add(b);
+            }
+            _status.Dock = DockStyle.Bottom;
+            _status.Height = 24;
+            _status.TextAlign = ContentAlignment.MiddleLeft;
+
+            Controls.Add(_list);
+            Controls.Add(_status);
+            Controls.Add(bar);
+
+            _btnRefresh.Click += (s, e) => Refresh_();
+            _btnView.Click += (s, e) => Open(true);
+            _btnSave.Click += (s, e) => Open(false);
+            _btnFolder.Click += (s, e) =>
+            {
+                string dir = Path.GetDirectoryName(_bb.ArchivePath(new BlackBoxEntry()));
+                if (dir != null && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                Process.Start("explorer.exe", "\"" + dir + "\"");
+            };
+            _btnManual.Click += (s, e) =>
+            {
+                // Пуск даёт прибор (команда 339): в записи будут его время и
+                // сессия. Мост сохранит её через 0,2 с и сам сообщит - запись
+                // скачается в архив, список обновится.
+                _manual();
+                _status.Text = "Пуск отправлен прибору, ждём запись…";
+            };
+            _btnClear.Click += (s, e) =>
+            {
+                if (MessageBox.Show(this, "Стереть все записи чёрного ящика в мосте?\nАрхив на этом компьютере останется.",
+                        "Чёрный ящик", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                    _bb.Clear();
+            };
+
+            _bb.ListReady += OnList;
+            _bb.Archived += OnArchived;
+            FormClosed += (s, e) =>
+            {
+                _bb.ListReady -= OnList;
+                _bb.Archived -= OnArchived;
+            };
+            Load += (s, e) => Refresh_();
+        }
+
+        private void Refresh_()
+        {
+            _status.Text = "Запрос списка…";
+            _bb.SyncAll();
+        }
+
+        private void OnList(List<BlackBoxEntry> entries, string state)
+        {
+            if (IsDisposed) return;
+            BeginInvoke(new Action(() => ShowList(entries, state)));
+        }
+
+        private void OnArchived(BlackBoxEntry e, string path, bool fresh)
+        {
+            if (IsDisposed) return;
+            BeginInvoke(new Action(() =>
+            {
+                foreach (ListViewItem it in _list.Items)
+                    if (((BlackBoxEntry)it.Tag).Seq == e.Seq)
+                        it.SubItems[6].Text = "да";
+                _status.Text = "В архив: " + path;
+            }));
+        }
+
+        private void ShowList(List<BlackBoxEntry> entries, string state)
+        {
+            int selSeq = _list.SelectedItems.Count > 0 ? (int)((BlackBoxEntry)_list.SelectedItems[0].Tag).Seq : -1;
+            _list.BeginUpdate();
+            _list.Items.Clear();
+            foreach (var e in entries)
+            {
+                var it = new ListViewItem(e.Seq.ToString());
+                it.SubItems.Add(BlackBoxClient.TimeText(e.Utc));
+                it.SubItems.Add(e.Code == BlackBoxClient.CodeHand ? "—" : e.Code.ToString());
+                it.SubItems.Add(_bb.CodeText(e));
+                double before = e.TrigFrame / (double)BlackBoxClient.FrameRate;
+                double after = (e.Frames - Math.Min(e.TrigFrame, e.Frames)) / (double)BlackBoxClient.FrameRate;
+                it.SubItems.Add($"{before:0.00} / {after:0.00}");
+                it.SubItems.Add(e.FrameType == 0 ? "F3_convertor" : BlackBoxClient.FrameName(e.FrameType) ?? "?");
+                it.SubItems.Add(File.Exists(_bb.ArchivePath(e)) ? "да" : "качается…");
+                it.Tag = e;
+                if (e.Seq == selSeq) it.Selected = true;
+                _list.Items.Add(it);
+            }
+            _list.EndUpdate();
+            if (_list.SelectedItems.Count == 0 && _list.Items.Count > 0) _list.Items[0].Selected = true;
+            _status.Text = (entries.Count == 0 ? "В мосте записей нет. " : $"В мосте записей: {entries.Count}. ") + state;
+        }
+
+        /// <summary>Открыть выбранную запись из архива (докачав, если её там нет); view - в Wscope.</summary>
+        private void Open(bool view)
+        {
+            if (_list.SelectedItems.Count == 0) return;
+            var e = (BlackBoxEntry)_list.SelectedItems[0].Tag;
+            _status.Text = $"Запись {e.Seq}…";
+            _bb.Download(e, (ok, path, info, crcOk) =>
+            {
+                if (IsDisposed) return;
+                BeginInvoke(new Action(() => Opened(view, ok, path, info, crcOk)));
+            });
+        }
+
+        private void Opened(bool view, bool ok, string path, string info, bool crcOk)
+        {
+            if (!ok)
+            {
+                _status.Text = "Не получилось: " + info + ".";
+                return;
+            }
+            _status.Text = (crcOk ? "" : "ВНИМАНИЕ: CRC записи не сошлась. ") + path;
+            if (!crcOk)
+                MessageBox.Show(this, "Контрольная сумма записи не сошлась - данные могут быть испорчены.",
+                                "Чёрный ящик", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            if (view)
+            {
+                if (!_openWscope(path))
+                    _status.Text = "Идёт запись ленты (F2/F5) - Wscope откроется после её остановки. Файл: " + path;
+                return;
+            }
+            Process.Start("explorer.exe", "/select,\"" + path + "\"");
         }
     }
 }

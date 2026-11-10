@@ -37,8 +37,12 @@
 // Из RegisterSessionEvent(), на новую аварию сессии. Можно из прерывания.
 void BBox_onEvent(uint16_t code);
 
-// Пуск вручную - команда 339.
+// Пуск вручную - команда 339. Пускает всегда, повтор или нет.
 void BBox_manual(void);
+
+// Сброс таблицы ошибок (ClearErrorTable): каждый код снова можно записать.
+// Без этого код пускает чёрный ящик один раз за сессию - разбор в bbox_trig.c.
+void BBox_resetSession(void);
 
 // Из фона: отправить пуск, если он есть.
 void BBox_background(void);

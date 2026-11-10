@@ -135,7 +135,7 @@ namespace ICDIBasic
 
         private readonly WifiLink _link;
         private readonly Action<ushort, ushort, ushort, ushort> _cmd; // cmd, d1, d2, d3
-        private readonly Dictionary<ushort, string> _errText = BlackBoxForm.LoadErrorTexts();
+        private readonly Dictionary<ushort, string> _errText = BlackBoxClient.LoadErrorTexts();
 
         private readonly ListView _list = new ListView();
         private readonly Label _jStatus = new Label();
