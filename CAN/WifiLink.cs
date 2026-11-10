@@ -25,6 +25,7 @@ namespace ICDIBasic
     internal sealed class WifiLink : IDisposable
     {
         public const string DefaultHost = "192.168.4.1"; // своя точка доступа моста, сеть K57
+        public const string DefaultApSsid = "K57";       // её имя (K57_AP_SSID в мосте)
         public const int TcpPort = 5520;
         public const int UdpPort = 5521;
 
@@ -53,9 +54,15 @@ namespace ICDIBasic
         private UdpClient _udp;
         private IPEndPoint _bridgeUdp;
         private Timer _hello;
-        private volatile bool _run;
+        private volatile bool _alive; // объект в работе: не закрыт Dispose
+        private volatile bool _up;    // TCP-соединение есть прямо сейчас
 
         private int _lastSeq = -1;
+
+        // Пауза между попытками переподключиться. Мост в режиме своей точки
+        // встаёт после перезагрузки меньше чем за секунду, а сторож связи на
+        // приборе ждёт команду 336 пять секунд: успеваем без потери сеанса.
+        private const int ReconnectMs = 1000;
 
         public string Host { get; }
 
@@ -65,7 +72,23 @@ namespace ICDIBasic
         /// <summary>Кадров, не влезших в посылку SPI на приборе (из датаграмм).</summary>
         public int F28Drop { get; private set; }
 
-        public bool Connected => _run;
+        /// <summary>Связь с мостом есть прямо сейчас.</summary>
+        public bool Connected => _up;
+
+        /// <summary>Связь пропала или вернулась. Зовётся из своего потока.</summary>
+        public event Action LinkChanged;
+
+        /// <summary>
+        /// Зовётся, когда переподключиться не выходит несколько секунд: окно
+        /// просит Windows снова войти в сеть моста (CANA.cs, JoinBridgeAp).
+        /// Из своего потока, можно блокировать.
+        /// </summary>
+        public Action Rejoin;
+
+        // После скольких неудачных попыток подряд звать Rejoin и как часто
+        // повторять: 3 - мост успевает встать сам, 10 - не долбить netsh.
+        private const int RejoinFirst = 3;
+        private const int RejoinEvery = 10;
 
         /// <param name="rxEvent">Тот же _re, что PCAN будит по приёму: поток приёма
         /// в CANA.cs ждёт на нём и тут же разбирает очередь.</param>
@@ -75,8 +98,39 @@ namespace ICDIBasic
             _rxEvent = rxEvent;
         }
 
-        /// <summary>Подключиться. Блокирует не дольше timeoutMs.</summary>
+        /// <summary>
+        /// Подключиться. Блокирует не дольше timeoutMs. Не вышло - false, и
+        /// объект можно выбросить. Вышло - дальше связь держится сама: пропала
+        /// (мост перезагрузили, WiFi моргнул) - раз в секунду пробуем снова,
+        /// очередь кадров и поток приёма в CANA.cs остаются прежними.
+        /// </summary>
         public bool Connect(int timeoutMs = 2000)
+        {
+            if (!TryOpen(timeoutMs))
+            {
+                Dispose();
+                return false;
+            }
+
+            try
+            {
+                _udp = new UdpClient(0);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[WifiLink] UDP: {ex.Message}");
+                Dispose();
+                return false;
+            }
+
+            _alive = true;
+            new Thread(Supervise) { IsBackground = true, Name = "WifiLink TCP" }.Start();
+            new Thread(UdpLoop) { IsBackground = true, Name = "WifiLink UDP" }.Start();
+            _hello = new Timer(_ => SendHello(), null, 0, 1000);
+            return true;
+        }
+
+        private bool TryOpen(int timeoutMs)
         {
             try
             {
@@ -89,23 +143,68 @@ namespace ICDIBasic
                 }
                 tcp.EndConnect(ar);
 
-                _tcp = tcp;
-                _stream = tcp.GetStream();
                 var addr = ((IPEndPoint)tcp.Client.RemoteEndPoint).Address;
-                _bridgeUdp = new IPEndPoint(addr, UdpPort);
-                _udp = new UdpClient(0);
-
-                _run = true;
-                new Thread(TcpLoop) { IsBackground = true, Name = "WifiLink TCP" }.Start();
-                new Thread(UdpLoop) { IsBackground = true, Name = "WifiLink UDP" }.Start();
-                _hello = new Timer(_ => SendHello(), null, 0, 1000);
+                lock (_txLock)
+                {
+                    _tcp = tcp;
+                    _stream = tcp.GetStream();
+                    _bridgeUdp = new IPEndPoint(addr, UdpPort);
+                }
+                _up = true;
                 return true;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[WifiLink] {Host}: {ex.Message}");
-                Dispose();
                 return false;
+            }
+        }
+
+        // Держит связь: пока есть - читает TCP, пропала - переподключается.
+        private void Supervise()
+        {
+            int fails = 0;
+            while (_alive)
+            {
+                if (_up)
+                {
+                    TcpLoop(); // вернётся, когда соединение оборвётся
+                    if (!_alive) break;
+
+                    _up = false;
+                    CloseTcp();
+                    Debug.WriteLine("[WifiLink] связь пропала, переподключаюсь");
+                    LinkChanged?.Invoke();
+                    _rxEvent.Set();
+                    continue;
+                }
+
+                Thread.Sleep(ReconnectMs);
+                if (_alive && TryOpen(2000))
+                {
+                    Debug.WriteLine("[WifiLink] связь восстановлена");
+                    fails = 0;
+                    SendHello(); // телеметрия - сразу, не через секунду
+                    LinkChanged?.Invoke();
+                    continue;
+                }
+
+                // Мост встал бы за секунду; раз не отвечает дольше - скорее
+                // всего, Windows не вернулась в его сеть сама.
+                fails++;
+                if (fails == RejoinFirst || (fails > RejoinFirst && (fails - RejoinFirst) % RejoinEvery == 0))
+                    Rejoin?.Invoke();
+            }
+        }
+
+        private void CloseTcp()
+        {
+            lock (_txLock)
+            {
+                try { _stream?.Close(); } catch { }
+                try { _tcp?.Close(); } catch { }
+                _stream = null;
+                _tcp = null;
             }
         }
 
@@ -114,7 +213,7 @@ namespace ICDIBasic
         /// <summary>Кадр к прибору. Длина - по DLC, как у PCAN.</summary>
         public bool Send(TPCANMsgFD msg)
         {
-            if (!_run) return false;
+            if (!_up) return false;
 
             int len = PcanFdMessageConverter.DlcToLength(msg.DLC);
             var rec = new byte[RecHdr + len];
@@ -126,20 +225,31 @@ namespace ICDIBasic
 
             try
             {
-                lock (_txLock) _stream.Write(rec, 0, rec.Length);
+                lock (_txLock)
+                {
+                    if (_stream == null) return false;
+                    _stream.Write(rec, 0, rec.Length);
+                }
                 return true;
             }
             catch (Exception ex)
             {
+                // Закрыть сокет: чтение в Supervise оборвётся, и он
+                // переподключится сам.
                 Debug.WriteLine($"[WifiLink] отправка: {ex.Message}");
-                Stop();
+                CloseTcp();
                 return false;
             }
         }
 
         private void SendHello()
         {
-            try { if (_run) _udp.Send(new[] { (byte)'K', (byte)'5', (byte)'7', (byte)'U' }, 4, _bridgeUdp); }
+            try
+            {
+                IPEndPoint to;
+                lock (_txLock) to = _bridgeUdp;
+                if (_alive && to != null) _udp.Send(new[] { (byte)'K', (byte)'5', (byte)'7', (byte)'U' }, 4, to);
+            }
             catch { /* следующая попытка через секунду */ }
         }
 
@@ -184,15 +294,19 @@ namespace ICDIBasic
             return pos - start;
         }
 
+        // Читает, пока соединение живо, и возвращается при обрыве.
         private void TcpLoop()
         {
             var buf = new byte[4096];
             int have = 0;
+            NetworkStream stream;
+            lock (_txLock) stream = _stream;
+            if (stream == null) return;
             try
             {
-                while (_run)
+                while (_alive)
                 {
-                    int n = _stream.Read(buf, have, buf.Length - have);
+                    int n = stream.Read(buf, have, buf.Length - have);
                     if (n <= 0) break; // мост закрыл соединение
                     have += n;
                     int used = Parse(buf, 0, have);
@@ -204,50 +318,53 @@ namespace ICDIBasic
             }
             catch (Exception ex)
             {
-                if (_run) Debug.WriteLine($"[WifiLink] приём TCP: {ex.Message}");
+                if (_alive) Debug.WriteLine($"[WifiLink] приём TCP: {ex.Message}");
             }
-            Stop();
         }
 
         private void UdpLoop()
         {
             var any = new IPEndPoint(IPAddress.Any, 0);
-            try
+            while (_alive)
             {
-                while (_run)
+                byte[] dg;
+                try
                 {
-                    var dg = _udp.Receive(ref any);
-                    if (dg.Length < 8 || dg[0] != 'K' || dg[1] != '5' || dg[2] != '7' || dg[3] != 'F') continue;
-
-                    int seq = dg[4] | (dg[5] << 8);
-                    if (_lastSeq >= 0 && seq != ((_lastSeq + 1) & 0xFFFF)) UdpGaps++;
-                    _lastSeq = seq;
-                    F28Drop += dg[6] | (dg[7] << 8);
-
-                    Parse(dg, 8, dg.Length);
-                    _rxEvent.Set();
+                    dg = _udp.Receive(ref any);
                 }
-            }
-            catch (Exception ex)
-            {
-                if (_run) Debug.WriteLine($"[WifiLink] приём UDP: {ex.Message}");
-            }
-        }
+                catch (SocketException ex) when (ex.SocketErrorCode == SocketError.ConnectionReset)
+                {
+                    // Windows: K57U ушла на закрытый порт (мост перезагружается),
+                    // пришёл ICMP «порт недоступен», и следующий Receive его
+                    // выбрасывает. Сокет при этом жив - читаем дальше.
+                    continue;
+                }
+                catch (Exception ex)
+                {
+                    if (_alive) Debug.WriteLine($"[WifiLink] приём UDP: {ex.Message}");
+                    return; // сокет закрыт - Dispose
+                }
 
-        private void Stop()
-        {
-            if (!_run) return;
-            _run = false;
-            _rxEvent.Set(); // разбудить поток приёма: связь кончилась
+                if (dg.Length < 8 || dg[0] != 'K' || dg[1] != '5' || dg[2] != '7' || dg[3] != 'F') continue;
+
+                int seq = dg[4] | (dg[5] << 8);
+                if (_lastSeq >= 0 && seq != ((_lastSeq + 1) & 0xFFFF)) UdpGaps++;
+                _lastSeq = seq;
+                F28Drop += dg[6] | (dg[7] << 8);
+
+                Parse(dg, 8, dg.Length);
+                _rxEvent.Set();
+            }
         }
 
         public void Dispose()
         {
-            _run = false;
+            _alive = false;
+            _up = false;
             _hello?.Dispose();
-            try { _stream?.Close(); } catch { }
-            try { _tcp?.Close(); } catch { }
+            CloseTcp();
             try { _udp?.Close(); } catch { }
+            _rxEvent.Set(); // разбудить поток приёма
         }
     }
 }

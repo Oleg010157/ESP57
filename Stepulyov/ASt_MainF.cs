@@ -905,6 +905,7 @@ namespace ICDIBasic
             управлениеToolStripMenuItem.DropDownItems.Add(_checkCanAMenu);
             _wifiMenu.Checked = LinkWifi;
             _wifiMenu.Click += WifiMenu_Click;
+            UpdateLinkMenuText();
             управлениеToolStripMenuItem.DropDownItems.Add(_wifiMenu);
             CanRate_InitMenu(управлениеToolStripMenuItem);
             управлениеToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());

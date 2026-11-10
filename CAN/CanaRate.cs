@@ -383,6 +383,9 @@ namespace ICDIBasic
         private void CanRate_Watchdog()
         {
             if (!_canFast || _canRateTrial || Settings.Default.CanASpeedMode != CanSpeedAuto) return;
+            // Через WiFi-мост скорость CAN к связи не относится, а тишина в
+            // телеметрии - это обрыв WiFi, который WifiLink лечит сам.
+            if (_wifi != null) return;
             if (Environment.TickCount - Volatile.Read(ref _canLastTele) < CanRateWatchdogMs) return;
 
             CanRate_Send(CanRateDown, 0, false);

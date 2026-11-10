@@ -96,6 +96,15 @@ namespace ICDIBasic
             }
         }
 
+        // Подписи пунктов меню - по выбранному каналу: «CAN A» при работе через
+        // WiFi путало (замечание оператора, 10.11.2026). Делают они в обоих
+        // случаях одно: CanaConnect() / CanI(), а CanI() сам выбирает канал.
+        private void UpdateLinkMenuText()
+        {
+            _checkCanAMenu.Text = LinkWifi ? @"Проверить связь WiFi" : @"Проверить связь CANA";
+            _reInitCanAMenu.Text = LinkWifi ? @"Переподключить WiFi" : @"Реинициализация CAN A";
+        }
+
         // Пункт меню «Связь через WiFi (мост K57)». Менять канал посреди
         // сеанса нельзя: сеанс прибора и лента привязаны к тому, кто их открыл.
         private void WifiMenu_Click(object sender, EventArgs e)
@@ -124,6 +133,7 @@ namespace ICDIBasic
 
             LinkWifi = !LinkWifi;
             _wifiMenu.Checked = LinkWifi;
+            UpdateLinkMenuText();
             SaveLinkIni();
             CanaConnect();
             CanRate_ShowTitle(); // и обратно на скорость CAN, если вернулись к PCAN
@@ -505,6 +515,42 @@ namespace ICDIBasic
             }
         }
 
+        /*
+         * Попросить Windows подключиться к сети моста.
+         *
+         * Профиль K57 стоит на «подключаться автоматически», а Windows всё
+         * равно в неё не возвращается: когда есть кабель с интернетом, она
+         * сводит к минимуму одновременные подключения и сеть без интернета
+         * сама не берёт. Оператору приходилось каждый раз подключать K57
+         * руками (10.11.2026). Явный «netsh wlan connect» Windows выполняет и
+         * держит - как ручное подключение. Прав администратора не нужно.
+         *
+         * Профиль должен уже быть: его оставляет первое ручное подключение к
+         * K57. Нет профиля - netsh откажет, и всё останется как было.
+         */
+        private static void JoinBridgeAp(string ssid)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("netsh", $"wlan connect name=\"{ssid}\"")
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                using (var p = Process.Start(psi))
+                {
+                    p?.WaitForExit(5000);
+                    System.Diagnostics.Debug.WriteLine($"[WiFi] netsh wlan connect {ssid}: {p?.StandardOutput.ReadToEnd().Trim()}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WiFi] netsh: {ex.Message}");
+            }
+        }
+
         // Подключение через WiFi-мост. Повторяет CanI() для PCAN: тот же поток
         // приёма, тот же _re, тот же пинг cmd_128(0) в конце.
         private bool WifiI()
@@ -527,24 +573,57 @@ namespace ICDIBasic
             {
                 var l = new WifiLink(host, _re);
                 l.NetInfo += () => BeginInvoke(new Action(() => CanRate_ShowTitle()));
+                // Обрыв и возврат связи WifiLink переживает сам; окну - только
+                // сказать оператору, что сейчас связи нет.
+                l.LinkChanged += () => BeginInvoke(new Action(() =>
+                    CanRate_ShowTitle(_wifi != null && !_wifi.Connected ? "нет связи, переподключаюсь" : null)));
+                // Своя точка моста: долгий обрыв - скорее всего, Windows не
+                // вернулась в K57 сама (перезагрузка моста), - просим её.
+                if (host == WifiLink.DefaultHost) l.Rejoin = () => JoinBridgeAp(WifiLink.DefaultApSsid);
                 return l;
             }
 
-            var link = NewLink(LinkWifiHost);
-            if (!link.Connect())
+            WifiLink link = null;
+            if (LinkWifiHost != WifiLink.DefaultHost)
             {
-                System.Diagnostics.Debug.WriteLine($"[WiFi] мост {LinkWifiHost} не ответил");
+                link = NewLink(LinkWifiHost);
+                if (!link.Connect())
+                {
+                    System.Diagnostics.Debug.WriteLine($"[WiFi] мост {LinkWifiHost} не ответил");
+                    link = null;
+                }
+            }
 
-                // Не вошёл в общую сеть за 8 попыток - мост поднимает свою точку
-                // K57 и живёт на 192.168.4.1. Так бывает при слабом сигнале до
-                // роутера (стенд, 10.11.2026), и править link.ini на каждый такой
-                // случай незачем: адрес точки постоянный.
-                if (LinkWifiHost == WifiLink.DefaultHost) return false;
+            // Не вошёл в общую сеть за 8 попыток - мост поднимает свою точку
+            // K57 и живёт на 192.168.4.1. Так бывает при слабом сигнале до
+            // роутера (стенд, 10.11.2026), и править link.ini на каждый такой
+            // случай незачем: адрес точки постоянный.
+            if (link == null)
+            {
                 link = NewLink(WifiLink.DefaultHost);
                 if (!link.Connect())
                 {
-                    System.Diagnostics.Debug.WriteLine($"[WiFi] и на {WifiLink.DefaultHost} не ответил");
-                    return false;
+                    // Компьютер не в сети K57 - просим Windows подключиться и
+                    // ждём, пока она войдёт и получит адрес. 5 секунд не
+                    // хватило: на стенде подключилось только со второго нажатия
+                    // (10.11.2026) - WPA2 плюс DHCP бывает и 8-10 секунд. Ждём
+                    // до 15, проверяя каждую секунду, и выходим сразу, как мост
+                    // ответил.
+                    Cursor.Current = Cursors.WaitCursor;
+                    JoinBridgeAp(WifiLink.DefaultApSsid);
+                    var ok = false;
+                    for (var i = 0; i < 15 && !ok; i++)
+                    {
+                        Thread.Sleep(1000);
+                        link = NewLink(WifiLink.DefaultHost);
+                        ok = link.Connect(1000);
+                    }
+                    Cursor.Current = Cursors.Default;
+                    if (!ok)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[WiFi] и на {WifiLink.DefaultHost} не ответил");
+                        return false;
+                    }
                 }
             }
 
