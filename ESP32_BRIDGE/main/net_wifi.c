@@ -120,7 +120,10 @@ static esp_err_t start_ap(void)
         .ap = {
             .ssid_len       = strlen(CONFIG_K57_AP_SSID),
             .channel        = 1,
-            .max_connection = 2,
+            /* Компьютер и пара телефонов или планшетов. По TCP мост всё
+             * равно держит одного клиента, остальные увидят точку и смогут
+             * подключиться, когда он отключится. */
+            .max_connection = 4,
             .authmode       = WIFI_AUTH_WPA2_PSK,
         },
     };
@@ -144,8 +147,12 @@ static esp_err_t start_ap(void)
     snprintf(s_ip, sizeof(s_ip), IPSTR, IP2STR(&ip.ip));
 
     s_is_sta = false;
+#if CONFIG_K57_AP_ONLY
+    ESP_LOGI(TAG, "своя точка доступа %s, адрес %s (K57_AP_ONLY)", CONFIG_K57_AP_SSID, s_ip);
+#else
     ESP_LOGW(TAG, "запасной режим: точка доступа %s, адрес %s",
              CONFIG_K57_AP_SSID, s_ip);
+#endif
     return ESP_OK;
 }
 
@@ -191,13 +198,23 @@ esp_err_t net_wifi_start(void)
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_sta();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         WIFI_EVENT, ESP_EVENT_ANY_ID, on_wifi, NULL, NULL));
+
+#if CONFIG_K57_AP_ONLY
+    /* Только своя точка: компьютер, телефон или планшет подключаются к ней
+     * напрямую, роутер не нужен. Надёжнее общей сети при слабом сигнале до
+     * роутера - см. help у K57_AP_ONLY в Kconfig.projbuild. */
+    ESP_ERROR_CHECK(start_ap());
+    start_mdns();
+    return ESP_OK;
+#endif
+
+    esp_netif_create_default_wifi_sta();
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         IP_EVENT, IP_EVENT_STA_GOT_IP, on_got_ip, NULL, NULL));
 
@@ -257,3 +274,8 @@ int32_t net_wifi_rssi(void)
 }
 
 const char *net_wifi_ip(void) { return s_ip; }
+
+const char *net_wifi_ssid(void)
+{
+    return s_is_sta ? CONFIG_K57_WIFI_SSID : CONFIG_K57_AP_SSID;
+}

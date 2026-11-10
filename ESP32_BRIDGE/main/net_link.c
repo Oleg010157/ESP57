@@ -9,6 +9,7 @@
  * кадры CAN, а не собственный протокол.
  */
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
@@ -22,18 +23,30 @@
 
 #include "net_link.h"
 #include "net_proto.h"
+#include "net_wifi.h"
 #include "spi_link.h"
 
 static const char *TAG = "net";
 
 #define NET_CORE 0 /* WiFi живёт на ядре 0, обмен с прибором - на ядре 1 */
 
-/* Одна датаграмма - две посылки SPI, 4 мс: до 20 кадров 103 и кадр 140, около
- * 870 байт. Влезает в один MTU с запасом: фрагментированная датаграмма
- * теряется целиком при потере любого фрагмента. И это 250 датаграмм в
- * секунду, а не 500 - WiFi на ESP_INV держал ровно столько. */
-#define UDP_PACKETS 2
-#define OUT_MAX     1200 /* предел содержимого одного элемента очереди */
+/* Одна датаграмма - три посылки SPI, 6 мс: до 30 кадров 103 по 36 байт и
+ * кадр 140, не больше 1160 байт. Влезает в один MTU (1472): фрагментированная
+ * датаграмма теряется целиком при потере любого фрагмента.
+ *
+ * Было две посылки, 263 датаграммы в секунду, - и в домашней сети с сигналом
+ * -68 дБм набежало 3804 отказа sendto, пачками: на ленте редкие, но большие
+ * дыры (стенд, 10.11.2026). В WiFi дорог каждый пакет, а не байт: 175 крупных
+ * датаграмм занимают эфир меньше, чем 263 мелких. */
+#define UDP_PACKETS 3
+#define OUT_MAX     1400 /* предел содержимого одного элемента очереди */
+
+/* Повтор при отказе sendto. Отказ - почти всегда ENOMEM: радио не успевает
+ * вытолкнуть очередь, эфир занят. ESP_INV не повторяет, и там это верно:
+ * перед сокетом у него ничего нет. Здесь перед ним очередь, около 30 мс
+ * ленты, - короткая занятость эфира превращается в задержку, а не в дыру. Дольше 5 мс не ждём: дальше очередь начнёт переполняться, и ждать
+ * будет уже нечего. */
+#define UDP_RETRIES 5
 
 typedef struct {
     uint8_t  udp; /* 1 - датаграмма телеметрии, 0 - кусок TCP-потока */
@@ -109,7 +122,7 @@ void net_link_frame(uint16_t id, const uint8_t *data, uint8_t len)
             udp_begin();
         }
         if (s_udp_acc.len + K57_REC_HDR + len > OUT_MAX) {
-            return; /* не бывает: две посылки SPI - меньше 1000 байт */
+            return; /* не бывает: три посылки SPI - не больше 1160 байт */
         }
         put_rec(&s_udp_acc, id, data, len);
     } else {
@@ -123,15 +136,26 @@ void net_link_frame(uint16_t id, const uint8_t *data, uint8_t len)
 
 void net_link_packet_end(uint16_t f28Drop)
 {
-    /* ACK - сразу, не дожидаясь второй посылки: пульт ждёт ответ. */
+    s_udp_drop += f28Drop;
+    if (++s_udp_packets < UDP_PACKETS) {
+        return;
+    }
+    s_udp_packets = 0;
+
+    /* ACK - тем же шагом, что телеметрия, раз в 6 мс, одним сегментом.
+     *
+     * Сначала они уходили сразу, по сегменту на каждую посылку SPI с ответом.
+     * Пока оператор тянет ползунок Iset, пульт шлёт команду на каждое
+     * положение, и это до 500 мелких TCP-сегментов в секунду плюс их
+     * подтверждения от ПК. В WiFi дорог каждый пакет, а не байт: эфир кончался,
+     * и телеметрия рвалась ровно тогда, когда трогали уставку (стенд,
+     * 10.11.2026). 6 мс задержки ответа пульт не заметит. */
     push(&s_tcp_acc);
 
-    s_udp_drop += f28Drop;
-    if (s_udp_acc.len != 0 && ++s_udp_packets >= UDP_PACKETS) {
+    if (s_udp_acc.len != 0) {
         s_udp_acc.data[6] = (uint8_t)s_udp_drop;
         s_udp_acc.data[7] = (uint8_t)(s_udp_drop >> 8);
-        s_udp_drop    = 0;
-        s_udp_packets = 0;
+        s_udp_drop = 0;
         push(&s_udp_acc);
     }
 }
@@ -155,7 +179,7 @@ static bool send_all(int sock, const uint8_t *p, int n)
 static void out_task(void *arg)
 {
     (void)arg;
-    static out_item_t it; /* 1,2 кБ - не на стек задачи */
+    static out_item_t it; /* 1,4 кБ - не на стек задачи */
 
     for (;;) {
         xQueueReceive(s_out, &it, portMAX_DELAY);
@@ -170,9 +194,15 @@ static void out_task(void *arg)
             if (!ok || s_udp < 0) {
                 continue;
             }
-            /* Повторять бессмысленно: отказ - почти всегда ENOMEM, кончились
-             * буферы lwIP, и через 4 мс данные всё равно устареют. */
-            if (sendto(s_udp, it.data, it.len, 0, (struct sockaddr *)&to, sizeof(to)) < 0) {
+            int tries = 0;
+            while (sendto(s_udp, it.data, it.len, 0, (struct sockaddr *)&to, sizeof(to)) < 0) {
+                if (++tries > UDP_RETRIES) {
+                    break;
+                }
+                s_stat.udpRetry++;
+                vTaskDelay(1); /* 1 мс: CONFIG_FREERTOS_HZ = 1000 */
+            }
+            if (tries > UDP_RETRIES) {
                 s_stat.udpErr++;
             } else {
                 s_stat.udpOut++;
@@ -347,6 +377,27 @@ static void tcp_task(void *arg)
         s_stat.clients++;
         s_stat.connected = true;
 
+        /* Первым делом - в какой сети мост: по одному адресу этого не понять,
+         * а от сети зависит всё - в общей через роутер эфир может не тянуть
+         * ленту, в своей точке тянет (docs/esp32-spi-protocol-RU.md). */
+        {
+            char    text[K57_DATA_MAX + 1];
+            uint8_t rec[K57_REC_HDR + K57_DATA_MAX];
+            int n = snprintf(text, sizeof text, "%s %s", net_wifi_is_sta() ? "STA" : "AP",
+                             net_wifi_ssid());
+            if (n > K57_DATA_MAX) {
+                n = K57_DATA_MAX;
+            }
+            rec[0] = K57_REC_SYNC;
+            rec[1] = (uint8_t)n;
+            rec[2] = (uint8_t)K57_INFO_ID;
+            rec[3] = (uint8_t)(K57_INFO_ID >> 8);
+            memcpy(rec + K57_REC_HDR, text, n);
+            xSemaphoreTake(s_tcp_mux, portMAX_DELAY);
+            send_all(sock, rec, K57_REC_HDR + n);
+            xSemaphoreGive(s_tcp_mux);
+        }
+
         serve(sock);
 
         /* Сначала снять указатель, потом закрыть: иначе задача отправки
@@ -367,7 +418,9 @@ static void tcp_task(void *arg)
 
 void net_link_start(void)
 {
-    s_out     = xQueueCreate(6, sizeof(out_item_t));
+    /* 10 мест по 1,4 кБ: на шаг 6 мс приходится до двух (TCP и UDP), так что
+     * это около 30 мс запаса, пока эфир занят и задача отправки повторяет. */
+    s_out     = xQueueCreate(10, sizeof(out_item_t));
     s_tcp_mux = xSemaphoreCreateMutex();
     configASSERT(s_out != NULL && s_tcp_mux != NULL);
 

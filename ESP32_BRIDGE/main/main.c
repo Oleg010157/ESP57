@@ -122,11 +122,11 @@ void app_main(void)
         net_link_stat_t n;
         net_link_get_stat(&n);
         ESP_LOGI(TAG, "    сеть: %s%s | за 1 с: UDP %lu, TCP %lu, команд с ПК %lu | "
-                      "всего: отказов UDP %lu, очередь в сеть полна %lu | сигнал %ld дБм",
+                      "всего: повторов UDP %lu, отказов UDP %lu, очередь в сеть полна %lu | сигнал %ld дБм",
                  n.connected ? "клиент есть" : "клиента нет",
                  n.connected ? (n.udpPeer ? ", телеметрия идёт" : ", ждём K57U") : "",
                  (unsigned long)(n.udpOut - np.udpOut), (unsigned long)(n.tcpOut - np.tcpOut),
-                 (unsigned long)(n.cmdIn - np.cmdIn), (unsigned long)n.udpErr,
+                 (unsigned long)(n.cmdIn - np.cmdIn), (unsigned long)n.udpRetry, (unsigned long)n.udpErr,
                  (unsigned long)n.outDrop, (long)net_wifi_rssi());
         np = n;
 

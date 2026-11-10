@@ -17,7 +17,8 @@ typedef struct {
     uint32_t clients;   /* подключений по TCP с начала работы */
     uint32_t cmdIn;     /* кадров от ПК принято по TCP */
     uint32_t udpOut;    /* датаграмм телеметрии отправлено */
-    uint32_t udpErr;    /* sendto отказал - датаграмма потеряна в мосте */
+    uint32_t udpErr;    /* sendto отказал и после повторов - датаграмма потеряна в мосте */
+    uint32_t udpRetry;  /* повторов sendto: эфир был занят, но датаграмма ушла */
     uint32_t tcpOut;    /* кадров отправлено по TCP */
     uint32_t outDrop;   /* очередь в сеть полна - потеряно в мосте */
     bool     connected; /* TCP-клиент есть */

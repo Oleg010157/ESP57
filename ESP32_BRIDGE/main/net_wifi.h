@@ -20,3 +20,4 @@ bool        net_wifi_is_sta(void);
 bool        net_wifi_is_up(void);
 int32_t     net_wifi_rssi(void); /* дБм, 0 в режиме точки доступа */
 const char *net_wifi_ip(void);
+const char *net_wifi_ssid(void); /* сеть, в которой мост: общая или своя точка */

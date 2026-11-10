@@ -13,3 +13,8 @@ CONFIG_FREERTOS_HZ=1000
 CONFIG_SPI_SLAVE_ISR_IN_IRAM=y
 # Колбэки двигают ножку «есть данные» - gpio_set_level тоже в IRAM.
 CONFIG_GPIO_CTRL_FUNC_IN_IRAM=y
+
+# Буферов передачи WiFi вдвое больше умолчания. С 32 в домашней сети (-68 дБм)
+# sendto пачками отказывал - 3804 датаграммы, дыры на ленте (10.11.2026).
+# Буфер динамический: память занимается, только пока пакет стоит в очереди.
+CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=64
