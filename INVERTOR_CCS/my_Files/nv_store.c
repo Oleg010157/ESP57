@@ -28,14 +28,21 @@
 //   0x0000  заголовок: метка, версия, CRC16
 //   0x0008  номер сессии, копия 0: номер, 0, CRC16
 //   0x0010  номер сессии, копия 1
-//   0x0040  ErrHistory[ERR_BUFF_SIZE]: счётчик, последняя сессия, CRC16
+//   0x0040  ErrHistory[ERR_BUFF_SIZE]: счётчик, последняя сессия, время UTC
+//           (два слова, младшее вперёд), CRC16 - 10 байт с шагом 16, до 0x0680
 //
-// Шаг 8 байт: запись не пересекает страницу EEPROM в 64 байта и влезает в FIFO за
-// одну передачу, поэтому делить её не нужно.
+// Шаг 8 байт у заголовка и сессии, 16 у истории: запись не пересекает страницу
+// EEPROM в 64 байта и влезает в FIFO (16 байт) за одну передачу, поэтому делить
+// её не нужно.
 //
-// Чистая память проходит здесь тот же путь, что и испорченная: запись с неверной
-// CRC обнуляется и встаёт в очередь. Отдельной разметки нет, поэтому пропажа
-// питания посреди первого заполнения ничего не ломает.
+// Версия 2 (10.11.2026) добавила к истории время. Записи версии 1 лежали с шагом
+// 8, и читать их по новой раскладке нельзя: при другой версии в заголовке история
+// один раз обнуляется целиком. Номер сессии при этом сохраняется.
+//
+// Без заголовка (чистая память или другая версия) история не читается: все записи
+// обнуляются и встают в очередь. Испорченная запись - та же очередь: неверная CRC,
+// нули. Отдельной разметки нет, поэтому пропажа питания посреди первого
+// заполнения ничего не ломает - недописанные записи не пройдут CRC.
 //
 // Номер сессии лежит в двух копиях, запись идёт в ту, что старше. Пропадёт питание
 // посреди записи - останется вторая.
@@ -63,11 +70,14 @@ volatile uint16_t dbgNvRaise   = 0;
 #define NV_ADDR_HEADER  0x0000U
 #define NV_ADDR_SESSION 0x0008U
 #define NV_ADDR_HISTORY 0x0040U
-#define NV_STEP         8U
+#define NV_STEP         8U      // заголовок и копии сессии
+#define NV_HIST_STEP    16U
 
 #define NV_MAGIC        0x4B35U // "K5"
-#define NV_VERSION      1U
-#define NV_REC_BYTES    6U      // три слова: два значения и CRC16
+#define NV_VERSION      2U
+#define NV_REC_BYTES    6U      // заголовок и сессия: два значения и CRC16
+#define NV_HIST_VALUES  4U      // счётчик, сессия, время мл., время ст.
+#define NV_HIST_BYTES   (2U * NV_HIST_VALUES + 2U)
 
 #define NV_WAIT_LOOPS   20000UL // ожидание одного обмена, с запасом на 100 кГц
 #define NV_WR_POLLS     200U    // опрос адреса после записи при старте, до 20 мс
@@ -75,7 +85,7 @@ volatile uint16_t dbgNvRaise   = 0;
 #define NV_MAX_RETRIES  3U
 
 //--------------------------------------------------------------------------------
-// Запись: два значения и CRC16 в шесть байт на шине.
+// Запись: n значений и CRC16, 2n + 2 байт на шине.
 //--------------------------------------------------------------------------------
 static uint16_t nv_crc16(const uint16_t *bytes, uint16_t len)
 {
@@ -92,28 +102,53 @@ static uint16_t nv_crc16(const uint16_t *bytes, uint16_t len)
     return crc;
 }
 
-static void nv_pack(uint16_t v0, uint16_t v1, uint16_t *bytes)
+static void nv_pack(const uint16_t *v, uint16_t n, uint16_t *bytes)
 {
     uint16_t crc;
+    uint16_t i;
 
-    bytes[0] = v0 & 0xFFU;
-    bytes[1] = v0 >> 8;
-    bytes[2] = v1 & 0xFFU;
-    bytes[3] = v1 >> 8;
-    crc      = nv_crc16(bytes, 4U);
-    bytes[4] = crc & 0xFFU;
-    bytes[5] = crc >> 8;
+    for (i = 0; i < n; i++)
+    {
+        bytes[2U * i]      = v[i] & 0xFFU;
+        bytes[2U * i + 1U] = v[i] >> 8;
+    }
+    crc                = nv_crc16(bytes, 2U * n);
+    bytes[2U * n]      = crc & 0xFFU;
+    bytes[2U * n + 1U] = crc >> 8;
 }
 
-static bool nv_unpack(const uint16_t *bytes, uint16_t *v0, uint16_t *v1)
+static bool nv_unpack(const uint16_t *bytes, uint16_t n, uint16_t *v)
 {
-    uint16_t crc = (uint16_t)(bytes[4] | (bytes[5] << 8));
+    uint16_t crc = (uint16_t)(bytes[2U * n] | (bytes[2U * n + 1U] << 8));
+    uint16_t i;
 
-    if (crc != nv_crc16(bytes, 4U))
+    if (crc != nv_crc16(bytes, 2U * n))
         return false;
 
-    *v0 = (uint16_t)(bytes[0] | (bytes[1] << 8));
-    *v1 = (uint16_t)(bytes[2] | (bytes[3] << 8));
+    for (i = 0; i < n; i++)
+        v[i] = (uint16_t)(bytes[2U * i] | (bytes[2U * i + 1U] << 8));
+    return true;
+}
+
+// Два значения - заголовок и сессия.
+static void nv_pack2(uint16_t v0, uint16_t v1, uint16_t *bytes)
+{
+    uint16_t v[2];
+
+    v[0] = v0;
+    v[1] = v1;
+    nv_pack(v, 2U, bytes);
+}
+
+static bool nv_unpack2(const uint16_t *bytes, uint16_t *v0, uint16_t *v1)
+{
+    uint16_t v[2];
+
+    if (!nv_unpack(bytes, 2U, v))
+        return false;
+
+    *v0 = v[0];
+    *v1 = v[1];
     return true;
 }
 
@@ -359,30 +394,38 @@ static bool nv_header(void)
     if (!nv_read(NV_ADDR_HEADER, bytes, NV_REC_BYTES))
         return false;
 
-    if (nv_unpack(bytes, &magic, &version) && (magic == NV_MAGIC) && (version == NV_VERSION))
+    if (nv_unpack2(bytes, &magic, &version) && (magic == NV_MAGIC) && (version == NV_VERSION))
         return true;
 
     nvBlank = 1U;
-    nv_pack(NV_MAGIC, NV_VERSION, bytes);
+    nv_pack2(NV_MAGIC, NV_VERSION, bytes);
     return nv_writeWait(NV_ADDR_HEADER, bytes, NV_REC_BYTES);
 }
 
 static bool nv_history(void)
 {
-    uint16_t bytes[NV_REC_BYTES];
+    uint16_t bytes[NV_HIST_BYTES];
+    uint16_t v[NV_HIST_VALUES];
     uint16_t code;
-    uint16_t count;
-    uint16_t last;
 
     for (code = 0; code < ERR_BUFF_SIZE; code++)
     {
-        if (!nv_read((uint16_t)(NV_ADDR_HISTORY + code * NV_STEP), bytes, NV_REC_BYTES))
+        // Другая раскладка: старое не читается, нули встают в очередь все сразу.
+        // Случайно сошедшаяся CRC на чужих байтах дала бы мусорный счётчик.
+        if (nvBlank != 0U)
+        {
+            ErrHistory_MarkPending(code);
+            continue;
+        }
+
+        if (!nv_read((uint16_t)(NV_ADDR_HISTORY + code * NV_HIST_STEP), bytes, NV_HIST_BYTES))
             return false;
 
-        if (nv_unpack(bytes, &count, &last))
+        if (nv_unpack(bytes, NV_HIST_VALUES, v))
         {
-            ErrHistory[code].HistoryCount  = count;
-            ErrHistory[code].LastSessionId = last;
+            ErrHistory[code].HistoryCount  = v[0];
+            ErrHistory[code].LastSessionId = v[1];
+            ErrHistory[code].LastTime      = ((uint32_t)v[3] << 16) | v[2];
         }
         else
         {
@@ -407,7 +450,7 @@ static bool nv_session(void)
     {
         if (!nv_read((uint16_t)(NV_ADDR_SESSION + i * NV_STEP), bytes, NV_REC_BYTES))
             return false;
-        ok[i] = nv_unpack(bytes, &id[i], &pad) && (id[i] != 0U);
+        ok[i] = nv_unpack2(bytes, &id[i], &pad) && (id[i] != 0U);
     }
 
     if (ok[0] && ok[1])
@@ -417,7 +460,7 @@ static bool nv_session(void)
 
     CurrentSessionId = (ok[0] || ok[1]) ? nv_nextSession(id[newest]) : 1U;
 
-    nv_pack(CurrentSessionId, 0U, bytes);
+    nv_pack2(CurrentSessionId, 0U, bytes);
     return nv_writeWait((uint16_t)(NV_ADDR_SESSION + (newest ^ 1U) * NV_STEP), bytes, NV_REC_BYTES);
 }
 
@@ -493,9 +536,8 @@ void NvStore_background(void)
     {
     case NV_IDLE:
     {
-        uint16_t bytes[NV_REC_BYTES];
-        uint16_t count = 0U;
-        uint16_t last  = 0U;
+        uint16_t bytes[NV_HIST_BYTES];
+        uint16_t v[NV_HIST_VALUES] = {0U, 0U, 0U, 0U};
         bool     got;
 
         // RegisterSessionEvent() зовётся и из INT_EPWM2_Iu_TZ_ISR, поэтому и флаги
@@ -504,17 +546,19 @@ void NvStore_background(void)
         got = ErrHistory_GetNextPendingCode(&nvCode);
         if (got)
         {
-            count = ErrHistory[nvCode].HistoryCount;
-            last  = ErrHistory[nvCode].LastSessionId;
+            v[0] = ErrHistory[nvCode].HistoryCount;
+            v[1] = ErrHistory[nvCode].LastSessionId;
+            v[2] = (uint16_t)(ErrHistory[nvCode].LastTime & 0xFFFFUL);
+            v[3] = (uint16_t)(ErrHistory[nvCode].LastTime >> 16);
         }
         EINT;
 
         if (!got)
             return;
 
-        nv_pack(count, last, bytes);
+        nv_pack(v, NV_HIST_VALUES, bytes);
         nvT0 = CPUTimer_getTimerCount(CPUTIMER0_BASE);
-        nv_writeStart((uint16_t)(NV_ADDR_HISTORY + nvCode * NV_STEP), bytes, NV_REC_BYTES);
+        nv_writeStart((uint16_t)(NV_ADDR_HISTORY + nvCode * NV_HIST_STEP), bytes, NV_HIST_BYTES);
         nvState = NV_WRITING;
         break;
     }

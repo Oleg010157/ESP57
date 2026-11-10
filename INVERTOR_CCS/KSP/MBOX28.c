@@ -36,6 +36,7 @@
 #include "grid_tie.h"
 #include "plant_sim.h"
 #include "power_par.h"
+#include "wall_clock.h"
 
 motor *motStrob = &motor1;
 
@@ -2119,6 +2120,14 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             uiSilentSec = 0; // программа на связи
         }
         break;
+
+        // Время от пульта для журнала аварий: d1 - младшее, d2 - старшее слово
+        // UTC, секунды с 1970. Шлёт его пульт при подключении. Разбор -
+        // my_Files/wall_clock.h.
+        case WALL_CLOCK_CMD:
+            WallClock_set(((uint32_t)data2 << 16) | data1);
+            SendAck(data1, data2, data3, cmd);
+            break;
 
         // Тест IGBT, ручное управление ключами моста. Разбор - pwm_funcs.c,
         // блок "ТЕСТ IGBT". Отказ (мост работает, сквозная маска, авария)

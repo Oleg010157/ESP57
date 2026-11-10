@@ -270,6 +270,15 @@ namespace ICDIBasic
                 cmd_128(0);
         }
 
+        // Время для журнала аварий прибора: своих часов у него нет, дальше он
+        // считает секунды сам (INVERTOR_CCS/my_Files/wall_clock.h). UTC, секунды
+        // с 1970: d1 - младшее слово, d2 - старшее, d3 = 1 - время верное.
+        private void SendWallClock()
+        {
+            uint utc = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            uint_128((ushort)(utc & 0xFFFF), (ushort)(utc >> 16), 1, 337);
+        }
+
         private void connect_CAN()
         {
             _throttleCanTraffic = true;
@@ -322,6 +331,7 @@ namespace ICDIBasic
                 }
 
                 uint_128(0xA6, 0, 0, 338); // !!! Выкл ручн. упр. IGBT
+                SendWallClock();
                 refresh_Form1();
 
                 if (!IdRcvd)

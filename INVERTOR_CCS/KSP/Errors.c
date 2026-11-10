@@ -7,6 +7,7 @@
 #include "board.h"
 #include "MBOX.h"
 #include "Errors.h"
+#include "wall_clock.h"
 
 #pragma DATA_SECTION(ErrHistory, "ramgs0");
 #pragma DATA_SECTION(CurrentErrFlags, "ramgs0");
@@ -130,6 +131,9 @@ void ErrHistory_OnError(uint16_t code)
             ErrHistory[code].HistoryCount++;
         }
         ErrHistory[code].LastSessionId = CurrentSessionId;
+        // Время - там же, где счётчик: раз за сессию, и в EEPROM запись
+        // уходит так же редко, как раньше. Пульт ещё не подключался - 0.
+        ErrHistory[code].LastTime = WallClock_now();
         ErrHistory_MarkPending(code);
     }
 }
@@ -180,23 +184,56 @@ void Errors_CurrentErrorWindowTick(void)
  * сообщение по линии CAN фоновая программа продолжает работать.
  */
 
+/*
+ * За парой кодов (32010) идёт время каждого из них, если оно известно:
+ * 32013 - код, младшее и старшее слово UTC последней сессии с этой ошибкой
+ * (wall_clock.h). Старый пульт кадр 32013 не знает и пропускает.
+ */
 void SendErrs(void)
 {
     static uint16_t err_number = 0; // номер элемента маассива ошибок -> код ошибки
+    static uint16_t phase      = 0; // 0 - пара кодов, 1 и 2 - время err_number и err_number + 1
 
-    if (err_number == 0U)
+    if ((err_number == 0U) && (phase == 0U))
     {
         Errors_AttachHistoryToErrBuff();
     }
 
     if (err_number < ERR_BUFF_SIZE) //
     {
-        if (ErrBuff[err_number].Word != 0 || ErrBuff[err_number + 1].Word != 0)
-        // посылаем слово с установленной ошибкой
+        if (phase == 0U)
         {
-            Send_mbox(4, err_number, ErrBuff[err_number].Word, ErrBuff[err_number + 1].Word, 32010);
+            if (ErrBuff[err_number].Word != 0 || ErrBuff[err_number + 1].Word != 0)
+            // посылаем слово с установленной ошибкой
+            {
+                Send_mbox(4, err_number, ErrBuff[err_number].Word, ErrBuff[err_number + 1].Word, 32010);
+                phase = 1U;
+            }
+            else
+            {
+                err_number = err_number + 2;
+            }
         }
-        err_number = err_number + 2;
+        else
+        {
+            uint16_t code = (uint16_t)(err_number + phase - 1U);
+            uint32_t t    = ErrHistory[code].LastTime; // одно 32-битное чтение
+
+            if ((t != 0UL) && (ErrHistory[code].HistoryCount != 0U))
+            {
+                Send_mbox(4, code, (uint16_t)(t & 0xFFFFUL), (uint16_t)(t >> 16), 32013);
+            }
+
+            if (phase == 2U)
+            {
+                phase      = 0U;
+                err_number = err_number + 2;
+            }
+            else
+            {
+                phase = 2U;
+            }
+        }
     }
     else // err_number >= ERR_BUFF_SIZE
     {

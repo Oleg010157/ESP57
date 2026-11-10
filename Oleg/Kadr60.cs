@@ -816,6 +816,14 @@ namespace ICDIBasic
                 {
                     _errFrm._errorsArray[u1].Word = u2;
                     _errFrm._errorsArray[u1 + 1].Word = u3;
+                    // Время, если прибор его знает, идёт следом кадром 32013.
+                    _errFrm._errorsArray[u1].LastTime = 0;
+                    _errFrm._errorsArray[u1 + 1].LastTime = 0;
+                }
+                else if (u4 == 32013)
+                {
+                    // Код, младшее и старшее слово UTC последней сессии с ошибкой.
+                    _errFrm._errorsArray[u1].LastTime = u2 | ((uint)u3 << 16);
                 }
                 else if (u4 == 32011)
                 {

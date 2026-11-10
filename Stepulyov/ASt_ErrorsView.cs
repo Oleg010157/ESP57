@@ -22,6 +22,7 @@ namespace ICDIBasic.Stepulyov
         private const string SMultTErr = "Многократная ошибка";
         private const string SSessionCnt = "Счётчик сессии";
         private const string SHistoryCnt = "Счётчик истории";
+        private const string SLastTime = "Последний раз";
         private const string SErrDesc = "Описание ошибки";
         private const string SStart = "#####*****";
         private const string SEnd = "*****#####";
@@ -46,6 +47,7 @@ namespace ICDIBasic.Stepulyov
             _errsViewTable.Columns.Add(SMultTErr, typeof(Bitmap));
             _errsViewTable.Columns.Add(SSessionCnt, typeof(ushort));
             _errsViewTable.Columns.Add(SHistoryCnt, typeof(ushort));
+            _errsViewTable.Columns.Add(SLastTime, typeof(string));
             _errsViewTable.Columns.Add(SErrDesc, typeof(string));
         }
 
@@ -143,6 +145,7 @@ namespace ICDIBasic.Stepulyov
                             _errorsArray[i].OneTErr ? _redLed : _greenLed,
                             _errorsArray[i].MultError ? _redLed : _greenLed, _errorsArray[i].SessionCnt,
                             _errorsArray[i].HistoryCnt,
+                            _errorsArray[i].LastTimeText,
                             rows[0].ItemArray[2]);
                     }
                     if (!ReferenceEquals(dataGridView1.DataSource, _errsViewTable))
@@ -166,6 +169,8 @@ namespace ICDIBasic.Stepulyov
                     if (o7 != null) o7.Visible = ErrCounterMenu.Checked;
                     var o8 = dataGridView1.Columns[SErrDesc];
                     if (o8 != null) o8.Visible = ErrDescMenu.Checked;
+                    var o9 = dataGridView1.Columns[SLastTime];
+                    if (o9 != null) o9.Visible = ErrCounterMenu.Checked;
 
                     if (o1 != null) o1.Width = 110;
                     if (o2 != null) o2.Width = 55;
@@ -174,6 +179,7 @@ namespace ICDIBasic.Stepulyov
                     if (o5 != null) o5.Width = 100;
                     if (o6 != null) o6.Width = 75;
                     if (o7 != null) o7.Width = 80;
+                    if (o9 != null) o9.Width = 150;
                     if (o8 != null) o8.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 
                     if (o2 != null)
@@ -192,6 +198,12 @@ namespace ICDIBasic.Stepulyov
                     {
                         o7.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                         o7.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    }
+
+                    if (o9 != null)
+                    {
+                        o9.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                        o9.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     }
                     #endregion
                     foreach (DataGridViewColumn column in dataGridView1.Columns)
@@ -379,6 +391,14 @@ namespace ICDIBasic.Stepulyov
             public bool MultError => HistoryCnt != 0; // ошибка встречалась в предыдущих сессиях
             public ushort ErrCnt => SessionCnt;
             public ushort Word { get; set; }
+
+            // UTC последней сессии с этой ошибкой, кадр 32013; 0 - прибор не знал
+            // времени (пульт с его включения не подключался) или прошивка старая.
+            public uint LastTime { get; set; }
+
+            public string LastTimeText => LastTime == 0
+                ? "—"
+                : DateTimeOffset.FromUnixTimeSeconds(LastTime).LocalDateTime.ToString("dd.MM.yyyy HH:mm:ss");
 
 
         }

@@ -37,6 +37,7 @@ typedef struct
 {
     uint16_t HistoryCount;       // Количество сессий, в которых код хотя бы раз появлялся
     uint16_t LastSessionId;      // SessionId последнего появления ошибки
+    uint32_t LastTime;           // UTC первого появления в той сессии, 0 - время неизвестно
 } ErrHistoryData;
 
 typedef struct

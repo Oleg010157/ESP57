@@ -51,6 +51,7 @@
 #include "calib_store.h"
 #include "nv_store.h"
 #include "wifi_link.h"
+#include "wall_clock.h"
 
 
 
@@ -391,6 +392,8 @@ extern volatile uint16_t epwm3time;// dbg
                 TRIP_Clear();
 
                 MBOX_uiLinkTick1s(); // нет команды 336 от программы 5 с - выход из сеанса, MBOX28.c
+
+                WallClock_tick1s(); // часы журнала аварий, wall_clock.h
 
                 if (CheckLamp > 0U)
                 {
