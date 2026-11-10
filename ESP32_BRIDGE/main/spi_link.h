@@ -44,6 +44,8 @@ typedef struct {
     uint16_t lastFill;  /* байт кадров в последней посылке */
     uint16_t maxFill;
 
+    uint32_t slaveResets; /* перезапусков ведомого SPI после серии испорченных посылок */
+
     uint32_t cmdOut;    /* кадров уложено в посылки к прибору */
     uint32_t cmdDrop;   /* очередь к прибору была полна - кадр выброшен */
 } spi_link_stat_t;
@@ -69,6 +71,10 @@ bool spi_link_send_cmd(uint16_t cmd, uint16_t d1, uint16_t d2, uint16_t d3);
 /* Следующий пришедший ACK (кадр 1), если есть: cmd, d1, d2, d3. Для печати в
  * консоль; хранится последние несколько, лишние выбрасываются. */
 bool spi_link_get_ack(uint16_t out[4]);
+
+/* dbg Первая испорченная посылка от прибора: сама посылка и номер слова, на
+ * котором сломался разбор. true - один раз, когда она появилась. */
+bool spi_link_get_bad(const uint8_t **pkt, int *word);
 
 /* Снимок счётчиков для печати. Читается без блокировки: для лога этого хватает. */
 void spi_link_get_stat(spi_link_stat_t *out);

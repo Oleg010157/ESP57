@@ -113,11 +113,11 @@ void app_main(void)
                  s.lastFill, s.maxFill, D(cmdOut));
         ESP_LOGI(TAG, "    всего: разрывов 103 %lu, пропусков посылок %lu, "
                       "не влезло на приборе %lu, обрыв %lu, без метки %lu, битых %lu, "
-                      "очередь к прибору полна %lu",
+                      "очередь к прибору полна %lu, перезапусков SPI %lu",
                  (unsigned long)s.tickGap, (unsigned long)s.seqGap,
                  (unsigned long)s.f28Drop, (unsigned long)s.truncated,
                  (unsigned long)s.badMagic, (unsigned long)s.badLayout,
-                 (unsigned long)s.cmdDrop);
+                 (unsigned long)s.cmdDrop, (unsigned long)s.slaveResets);
 
         net_link_stat_t n;
         net_link_get_stat(&n);
@@ -129,6 +129,19 @@ void app_main(void)
                  (unsigned long)(n.cmdIn - np.cmdIn), (unsigned long)n.udpRetry, (unsigned long)n.udpErr,
                  (unsigned long)n.outDrop, (long)net_wifi_rssi());
         np = n;
+
+        /* dbg Испорченная посылка: заголовок и 16 слов вокруг места поломки. */
+        const uint8_t *bad;
+        int bw;
+        if (spi_link_get_bad(&bad, &bw)) {
+            int from = bw > 8 ? bw - 8 : 0;
+            ESP_LOGW(TAG, "    ИСПОРЧЕННАЯ посылка, разбор сломался на слове %d, заголовок:", bw);
+            ESP_LOG_BUFFER_HEX_LEVEL(TAG, bad, 8, ESP_LOG_WARN);
+            ESP_LOGW(TAG, "    слова %d..%d:", from, from + 15);
+            ESP_LOG_BUFFER_HEX_LEVEL(TAG, bad + 2 * from, 32, ESP_LOG_WARN);
+            ESP_LOGW(TAG, "    кадры с начала (слова 4..35):");
+            ESP_LOG_BUFFER_HEX_LEVEL(TAG, bad + 8, 64, ESP_LOG_WARN);
+        }
 
         /* ACK печатаются не все: на залпе от ползунка их сотни в секунду. */
         uint16_t a[4];

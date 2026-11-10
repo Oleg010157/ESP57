@@ -40,6 +40,35 @@ static spi_slave_transaction_t s_trans[2];
 static spi_link_stat_t s_stat;
 static uint16_t s_seq_out;
 
+/* dbg Первая испорченная посылка целиком - разобрать глазами, что в ней.
+ * Пишет задача SPI, печатает main.c; s_bad_ready - флаг «есть что печатать». */
+static uint8_t           s_bad[SPI_LINK_BYTES];
+static int               s_bad_word;  /* слово, на котором разбор сломался */
+static volatile bool     s_bad_ready;
+static bool              s_bad_taken; /* одну и запоминаем - дальше только счётчик */
+
+static void keep_bad(const uint8_t *rx, int w)
+{
+    if (s_bad_taken) {
+        return;
+    }
+    memcpy(s_bad, rx, SPI_LINK_BYTES);
+    s_bad_word  = w;
+    s_bad_taken = true;
+    s_bad_ready = true;
+}
+
+bool spi_link_get_bad(const uint8_t **pkt, int *word)
+{
+    if (!s_bad_ready) {
+        return false;
+    }
+    s_bad_ready = false;
+    *pkt  = s_bad;
+    *word = s_bad_word;
+    return true;
+}
+
 /* К прибору: команды пульта. 64 - с запасом на залп от ползунка уставки
  * (до 160 в секунду на стенде) при 500 посылках в секунду. */
 static QueueHandle_t s_to_f28;
@@ -149,6 +178,7 @@ static void parse(const uint8_t *rx, size_t bits, uint16_t *last_seq, bool *have
     }
     if (word_at(rx, 0) != MAGIC_F28) {
         s_stat.badMagic++;
+        keep_bad(rx, 0);
         return;
     }
     s_stat.packets++;
@@ -168,6 +198,7 @@ static void parse(const uint8_t *rx, size_t bits, uint16_t *last_seq, bool *have
     }
     if (fill > (LAST_WORD - HDR_WORDS) * 2 || (fill & 1)) {
         s_stat.badLayout++;
+        keep_bad(rx, 2);
         return;
     }
 
@@ -176,6 +207,7 @@ static void parse(const uint8_t *rx, size_t bits, uint16_t *last_seq, bool *have
     while (w < end) {
         if (w + 2 > end) {
             s_stat.badLayout++;
+            keep_bad(rx, w);
             return;
         }
         uint16_t id  = word_at(rx, w);
@@ -183,6 +215,7 @@ static void parse(const uint8_t *rx, size_t bits, uint16_t *last_seq, bool *have
         int      n   = len / 2;
         if ((len & 1) || len > MAX_DATA || w + 2 + n > end) {
             s_stat.badLayout++;
+            keep_bad(rx, w);
             return;
         }
 
@@ -263,16 +296,11 @@ static void slave_init(void)
              BOARD_SPI_MODE, SPI_LINK_BYTES, xPortGetCoreID());
 }
 
-static void link_task(void *arg)
+static void queue_both(void)
 {
-    (void)arg;
-    uint16_t last_seq = 0, last_tick = 0;
-    bool have_seq = false, have_tick = false;
-
-    slave_init();
-
     for (int i = 0; i < 2; i++) {
         prepare_tx(s_tx[i]);
+        memset(s_rx[i], 0, SPI_LINK_BYTES);
         s_trans[i] = (spi_slave_transaction_t){
             .length    = SPI_LINK_BYTES * 8,
             .tx_buffer = s_tx[i],
@@ -280,6 +308,45 @@ static void link_task(void *arg)
         };
         ESP_ERROR_CHECK(spi_slave_queue_trans(BOARD_SPI_HOST, &s_trans[i], portMAX_DELAY));
     }
+}
+
+/*
+ * Перезапуск ведомого SPI.
+ *
+ * После перезагрузки моста ведомый SPI иногда стартует в сбитом состоянии:
+ * в каждой посылке байты 1..7 заголовка приходят нулями, а всё дальше - на
+ * своих местах (стенд, 10.11.2026: «a5 00 00 00 00 00 00 00 | 00 8c 00 40»,
+ * то есть кадр 140 с восьмого байта, как положено). Само оно не проходит:
+ * однажды держалось 70 секунд, и все ACK в это время терялись - у пульта
+ * оставались жёлтые поля. Лечится перезапуском - драйвер при этом
+ * сбрасывает и сам периферийный блок.
+ *
+ * Порядок важен: сначала поднять «есть данные», чтобы прибор не начал новую
+ * посылку, дождаться конца текущей (она идёт меньше миллисекунды) и только
+ * при высоком CS зарядить транзакции заново - иначе ведомый встанет на
+ * середину посылки.
+ */
+#define BAD_IN_ROW 4
+
+static void slave_reset(void)
+{
+    spi_slave_free(BOARD_SPI_HOST);
+    gpio_set_level(BOARD_RDY_GPIO, 1);
+    vTaskDelay(pdMS_TO_TICKS(5));
+    slave_init();
+    queue_both();
+    s_stat.slaveResets++;
+}
+
+static void link_task(void *arg)
+{
+    (void)arg;
+    uint16_t last_seq = 0, last_tick = 0;
+    bool have_seq = false, have_tick = false;
+    int bad_in_row = 0;
+
+    slave_init();
+    queue_both();
 
     for (;;) {
         spi_slave_transaction_t *t;
@@ -288,7 +355,19 @@ static void link_task(void *arg)
             continue;
         }
 
+        uint32_t bad_before = s_stat.truncated + s_stat.badMagic + s_stat.badLayout;
         parse(t->rx_buffer, t->trans_len, &last_seq, &have_seq, &last_tick, &have_tick);
+        if (s_stat.truncated + s_stat.badMagic + s_stat.badLayout != bad_before) {
+            if (++bad_in_row >= BAD_IN_ROW) {
+                ESP_LOGW(TAG, "%d посылок подряд испорчены - перезапуск ведомого SPI", bad_in_row);
+                bad_in_row = 0;
+                have_seq = have_tick = false;
+                slave_reset();
+                continue; /* обе транзакции заряжены заново */
+            }
+        } else {
+            bad_in_row = 0;
+        }
 
         /* Транзакция закончена, её буферы DMA больше не трогает. Вторая в это
          * время уже заряжена - прибор её и заберёт. */
