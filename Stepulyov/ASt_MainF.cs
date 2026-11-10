@@ -169,6 +169,8 @@ namespace ICDIBasic
             new ToolStripMenuItem { Name = "FuncTblMenu2", Text = @"Таблица функц. АИН2" };
         private readonly ToolStripMenuItem _checkCanAMenu =
             new ToolStripMenuItem { Name = "CheckCanAMenu_", Text = @"Проверить связь CANA" };
+        private readonly ToolStripMenuItem _wifiMenu =
+            new ToolStripMenuItem { Name = "WifiMenu_", Text = @"Связь через WiFi (мост K57)" };
         #endregion
 
         private TPCANStatus _stsResult;
@@ -901,6 +903,9 @@ namespace ICDIBasic
             управлениеToolStripMenuItem.DropDownItems.Add(_canaM);
             управлениеToolStripMenuItem.DropDownItems.Add(_reInitCanAMenu);
             управлениеToolStripMenuItem.DropDownItems.Add(_checkCanAMenu);
+            _wifiMenu.Checked = LinkWifi;
+            _wifiMenu.Click += WifiMenu_Click;
+            управлениеToolStripMenuItem.DropDownItems.Add(_wifiMenu);
             CanRate_InitMenu(управлениеToolStripMenuItem);
             управлениеToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
             управлениеToolStripMenuItem.DropDownItems.Add(_canbM);
@@ -1102,12 +1107,12 @@ namespace ICDIBasic
             _canaM.BackColor = Color.Yellow;
             PulseCanCheckMenu();
 
-            if (!_rden || Ch == 0)
+            if (!_rden || !CanaLinkUp)
             {
                 CanaConnect();
             }
 
-            if (Ch == 0)
+            if (!CanaLinkUp)
             {
                 return;
             }

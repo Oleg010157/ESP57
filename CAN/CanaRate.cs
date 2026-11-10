@@ -127,12 +127,32 @@ namespace ICDIBasic
             }
         }
 
+        // Через WiFi-мост скорость CAN к связи с ПК отношения не имеет, и в
+        // заголовке вместо неё - адрес моста (CAN/WifiLink.cs).
+        private const string WifiTitleMark = " — WiFi ";
+
+        // Имя сети - его мост сообщает сам при подключении. По одному адресу не
+        // понять, через роутер связь или напрямую, а от этого зависит, тянет ли
+        // эфир ленту (docs/esp32-spi-protocol-RU.md, «Что на ПК»).
+        private string WifiTitleNet()
+        {
+            var name = _wifi?.NetName;
+            if (string.IsNullOrEmpty(name)) return "";
+            return _wifi.NetIsOwnAp ? $"{name} (точка моста), " : $"{name}, ";
+        }
+
         // Скорость и причина отката - в заголовке окна, чтобы не гадать, на чём работаем.
         private void CanRate_ShowTitle(string why = null)
         {
-            var i = Text.IndexOf(CanRateTitleMark, StringComparison.Ordinal);
-            var title = i >= 0 ? Text.Substring(0, i) : Text;
-            title += CanRateTitleMark + (_canFast ? "5" : "2.5") + " Мбит/с";
+            var title = Text;
+            foreach (var mark in new[] { CanRateTitleMark, WifiTitleMark })
+            {
+                var i = title.IndexOf(mark, StringComparison.Ordinal);
+                if (i >= 0) title = title.Substring(0, i);
+            }
+            title += _wifi != null
+                ? WifiTitleMark + WifiTitleNet() + _wifi.Host
+                : CanRateTitleMark + (_canFast ? "5" : "2.5") + " Мбит/с";
             Text = why == null ? title : title + " (" + why + ")";
         }
 

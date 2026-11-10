@@ -32,11 +32,128 @@ namespace ICDIBasic
         private readonly ConcurrentQueue<ushort> _bootRespQueue = new ConcurrentQueue<ushort>();
         private readonly AutoResetEvent _bootRespEvent = new AutoResetEvent(false);
 
+        // WiFi-мост вместо PCAN (CAN/WifiLink.cs). null - работаем через PCAN.
+        // Выбор канала - пункт меню «Связь через WiFi», хранится в link.ini.
+        private WifiLink _wifi;
+
+        /* link.ini рядом с программой:
+         *     link=wifi           или link=can (так же, как без файла)
+         *     host=192.168.4.1    адрес моста; по умолчанию - его своя точка K57
+         * Файл, а не Settings: адрес моста правят руками на месте, а формат
+         * user.config для этого неудобен. */
+        private static readonly string LinkIniPath =
+            System.IO.Path.Combine(Application.StartupPath, "link.ini");
+
+        private bool _linkLoaded;
+        private bool _linkWifiSel;
+        private string _linkHost = WifiLink.DefaultHost;
+
+        /// <summary>Выбран WiFi-мост (из link.ini, читается при первом обращении).</summary>
+        private bool LinkWifi
+        {
+            get { LoadLinkIni(); return _linkWifiSel; }
+            set { LoadLinkIni(); _linkWifiSel = value; }
+        }
+
+        /// <summary>Адрес моста, если выбран WiFi; null - работаем через PCAN.</summary>
+        private string LinkWifiHost => LinkWifi ? _linkHost : null;
+
+        private void LoadLinkIni()
+        {
+            if (_linkLoaded) return;
+            _linkLoaded = true;
+            try
+            {
+                if (!System.IO.File.Exists(LinkIniPath)) return;
+                foreach (var raw in System.IO.File.ReadAllLines(LinkIniPath))
+                {
+                    var line = raw.Trim();
+                    if (line.StartsWith("link=", StringComparison.OrdinalIgnoreCase))
+                        _linkWifiSel = line.Substring(5).Trim().Equals("wifi", StringComparison.OrdinalIgnoreCase);
+                    else if (line.StartsWith("host=", StringComparison.OrdinalIgnoreCase) && line.Length > 5)
+                        _linkHost = line.Substring(5).Trim();
+                }
+            }
+            catch
+            {
+                // нечитаемый файл - работаем как без него, через PCAN
+            }
+        }
+
+        private void SaveLinkIni()
+        {
+            try
+            {
+                System.IO.File.WriteAllText(LinkIniPath,
+                    "# Связь с прибором: link=wifi - через мост ESP32, link=can - через PCAN.\r\n" +
+                    $"link={(LinkWifi ? "wifi" : "can")}\r\n" +
+                    $"host={_linkHost}\r\n");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Не удалось сохранить {LinkIniPath}: {ex.Message}", "Связь",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        // Пункт меню «Связь через WiFi (мост K57)». Менять канал посреди
+        // сеанса нельзя: сеанс прибора и лента привязаны к тому, кто их открыл.
+        private void WifiMenu_Click(object sender, EventArgs e)
+        {
+            if (tsmConnect.Text == @"Отключить")
+            {
+                MessageBox.Show("Сначала отключитесь от прибора, потом меняйте канал.", "Связь",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _wifiMenu.Checked = LinkWifi;
+                return;
+            }
+
+            CanaDisconnect();
+
+            // Поток приёма PCAN уже вышел из цикла, но IsBusy у BackgroundWorker
+            // снимается только в RunWorkerCompleted, а его доставляет очередь
+            // сообщений окна. Мы сейчас в обработчике меню, очередь стоит - и
+            // ожидание в WifiI() не кончалось никогда: мост отвечал, а связь
+            // отбрасывалась по таймауту (стенд, 10.11.2026). Даём окну
+            // разобрать сообщения, пока поток не освободится.
+            for (var i = 0; i < 100 && _crw.IsBusy; i++)
+            {
+                Application.DoEvents();
+                Thread.Sleep(10);
+            }
+
+            LinkWifi = !LinkWifi;
+            _wifiMenu.Checked = LinkWifi;
+            SaveLinkIni();
+            CanaConnect();
+            CanRate_ShowTitle(); // и обратно на скорость CAN, если вернулись к PCAN
+
+            if (LinkWifi && !CanaLinkUp)
+            {
+                MessageBox.Show(
+                    (LinkWifiHost == WifiLink.DefaultHost
+                        ? $"Мост {LinkWifiHost} не ответил по TCP {WifiLink.TcpPort}.\r\n"
+                        : $"Мост не ответил по TCP {WifiLink.TcpPort} ни на {LinkWifiHost}, ни на {WifiLink.DefaultHost}.\r\n") +
+                    "Компьютер должен быть в сети K57 (своя точка моста, пароль k57bridge) " +
+                    "или в одной сети с мостом. Адрес моста - в link.ini рядом с программой.",
+                    "Связь через WiFi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        // Канал поднят: PCAN нашёл адаптер или мост ответил по TCP. Ch == 0
+        // по-прежнему значит «нет PCAN», но не «нет связи».
+        private bool CanaLinkUp => _wifi != null ? _wifi.Connected : Ch != 0;
+
         private void CanaDisconnect()
         {
             _crw.CancelAsync();
             _rden = CanA_Ok = tsmConnect.Enabled = false;
             _canaM.BackColor = Color.Yellow;
+            if (_wifi != null)
+            {
+                _wifi.Dispose();
+                _wifi = null;
+            }
             PCANBasic.Uninitialize(Ch);
             Ch = 0;
         }
@@ -82,6 +199,11 @@ namespace ICDIBasic
                 PCANBasic.Uninitialize(Ch);
                 Ch = 0;
             }
+            if (_wifi != null)
+            {
+                _wifi.Dispose();
+                _wifi = null;
+            }
 
             CanA_Ok = false;
 
@@ -94,7 +216,7 @@ namespace ICDIBasic
                 connected = CanI();
             }
 
-            if (!connected || Ch == 0)
+            if (!connected || !CanaLinkUp)
             {
                 _canaM.BackColor = Color.Salmon;
                 MessageBox.Show(
@@ -243,6 +365,8 @@ namespace ICDIBasic
         // метод поиска и подключения CAN адаптера к одному из свободных USB-портов: 
         private bool CanI()
         {
+            if (LinkWifiHost != null) return WifiI();
+
             var cha = new[] { (byte)81, (byte)82, (byte)83, (byte)84, (byte)85, (byte)86, (byte)87, (byte)88 };
 
             if (Ch != 0 && _crw.IsBusy)
@@ -381,6 +505,69 @@ namespace ICDIBasic
             }
         }
 
+        // Подключение через WiFi-мост. Повторяет CanI() для PCAN: тот же поток
+        // приёма, тот же _re, тот же пинг cmd_128(0) в конце.
+        private bool WifiI()
+        {
+            if (_wifi != null && _wifi.Connected && _crw.IsBusy)
+            {
+                _rden = true;
+                cmd_128(0);
+                return true;
+            }
+
+            _wifi?.Dispose();
+            _wifi = null;
+
+            _re = new AutoResetEvent(false);
+
+            // Имя сети мост шлёт сразу после подключения, из потока приёма, -
+            // заголовок обновится, когда окно до него доберётся.
+            WifiLink NewLink(string host)
+            {
+                var l = new WifiLink(host, _re);
+                l.NetInfo += () => BeginInvoke(new Action(() => CanRate_ShowTitle()));
+                return l;
+            }
+
+            var link = NewLink(LinkWifiHost);
+            if (!link.Connect())
+            {
+                System.Diagnostics.Debug.WriteLine($"[WiFi] мост {LinkWifiHost} не ответил");
+
+                // Не вошёл в общую сеть за 8 попыток - мост поднимает свою точку
+                // K57 и живёт на 192.168.4.1. Так бывает при слабом сигнале до
+                // роутера (стенд, 10.11.2026), и править link.ini на каждый такой
+                // случай незачем: адрес точки постоянный.
+                if (LinkWifiHost == WifiLink.DefaultHost) return false;
+                link = NewLink(WifiLink.DefaultHost);
+                if (!link.Connect())
+                {
+                    System.Diagnostics.Debug.WriteLine($"[WiFi] и на {WifiLink.DefaultHost} не ответил");
+                    return false;
+                }
+            }
+
+            if (!_crwHooked)
+            {
+                _crw.DoWork += Crw_DoWork;
+                _crwHooked = true;
+            }
+            for (var i = 0; i < 200 && _crw.IsBusy; i++) Thread.Sleep(10);
+            if (_crw.IsBusy)
+            {
+                link.Dispose();
+                return false;
+            }
+
+            _wifi = link;
+            _rden = true;
+            _crw.RunWorkerAsync();
+            CanRate_ShowTitle(); // в заголовке - «WiFi <адрес>» вместо скорости CAN
+            cmd_128(0);
+            return true;
+        }
+
         private void Crw_DoWork(object sender, DoWorkEventArgs e)  // асинхронный приём данных от КСП через CANA
         {
             while (_rden)
@@ -393,16 +580,31 @@ namespace ICDIBasic
 
                 if (!_re.WaitOne(10)) continue;
 
+                // WiFi-мост: те же кадры, из своей очереди (CAN/WifiLink.cs).
+                var wifi = _wifi;
+                if (wifi != null)
+                {
+                    while (_rden && wifi.TryRead(out var wm)) CanaRxFrame(wm);
+                    continue;
+                }
+
                 TPCANStatus stsResult;
                 do
                 {
                     stsResult = PCANBasic.ReadFD(Ch, out var canMsg, out _);
                     if (stsResult != TPCANStatus.PCAN_ERROR_OK) continue;
+                    CanaRxFrame(canMsg);
+                } while (_rden && !_canReopening && (stsResult & TPCANStatus.PCAN_ERROR_QRCVEMPTY) == 0);
+            }
+        }
 
+        // Разбор одного кадра - общий для PCAN и WiFi-моста.
+        private void CanaRxFrame(TPCANMsgFD canMsg)
+        {
                     var data = canMsg.DATA;
                     switch (canMsg.ID)
                     {
-                        
+
                         case 1:
                         {
                             ushort cmd = (ushort)(data[0] | (data[1] << 8));
@@ -436,8 +638,6 @@ namespace ICDIBasic
                             try { CAN_RxData(canMsg); } catch { }
                             break;
                     }
-                } while (_rden && !_canReopening && (stsResult & TPCANStatus.PCAN_ERROR_QRCVEMPTY) == 0);
-            }
         }
 
         #endregion

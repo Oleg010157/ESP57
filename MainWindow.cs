@@ -1476,10 +1476,16 @@ namespace ICDIBasic
             txMsg.DATA[6] = (byte)(d1u & 0xFF);
             txMsg.DATA[7] = (byte)((d1u >> 8) & 0xFF);
 
-            var result = PCANBasic.WriteFD(Ch, ref txMsg);
+            // Через WiFi-мост - тот же кадр, но в TCP (CAN/WifiLink.cs).
+            var result = _wifi != null
+                ? (_wifi.Send(txMsg) ? TPCANStatus.PCAN_ERROR_OK : TPCANStatus.PCAN_ERROR_ILLOPERATION)
+                : PCANBasic.WriteFD(Ch, ref txMsg);
             if (result != TPCANStatus.PCAN_ERROR_OK)
             {
-                MessageBox.Show(GetFormatedError(result));
+                // Пропавший WiFi - без окна: команда 336 уходит раз в секунду,
+                // и окна посыпались бы одно за другим. Связь видна по индикатору.
+                if (_wifi == null)
+                    MessageBox.Show(GetFormatedError(result));
             }
             else
             {

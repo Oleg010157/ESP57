@@ -114,6 +114,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="CAN\PcanFdMessageConverter.cs" />
+    <Compile Include="CAN\WifiLink.cs" />
     <Compile Include="CAN\CanaRate.cs">
       <SubType>Form</SubType>
     </Compile>
