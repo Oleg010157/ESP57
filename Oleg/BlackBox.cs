@@ -236,12 +236,17 @@ namespace ICDIBasic
             Enqueue(new Op { Kind = OpKind.Read, Entry = e, Done = done });
         }
 
+        // В имени - и контрольная сумма записи (e.DataCrc): номер записи мост
+        // начинает заново с 1 после смены раскладки флеша (12.11.2026, места
+        // по 128 кБ) или его стирания, и без суммы новая «n1» без времени
+        // совпала бы с давно скачанной - и не попала бы в архив.
         public string ArchivePath(BlackBoxEntry e)
         {
             string when = e.Utc != 0
                 ? DateTimeOffset.FromUnixTimeSeconds(e.Utc).LocalDateTime.ToString("dd.MM.yyyy_HH.mm.ss", CultureInfo.InvariantCulture)
                 : "время-неизвестно";
-            return Path.Combine(_dir, $"BB_{when}_{(e.Code == CodeHand ? "hand" : e.Code.ToString())}_n{e.Seq}.spl");
+            return Path.Combine(_dir,
+                $"BB_{when}_{(e.Code == CodeHand ? "hand" : e.Code.ToString())}_n{e.Seq}_{e.DataCrc:X8}.spl");
         }
 
         //-------------------------------------------------------------------

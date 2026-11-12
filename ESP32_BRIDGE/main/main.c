@@ -33,6 +33,7 @@
 #include "bstore.h"
 #include "web.h"
 #include "live.h"
+#include "tables.h"
 #include "board.h"
 #include "net_link.h"
 #include "net_proto.h"
@@ -114,6 +115,7 @@ void app_main(void)
 
     /* HTTP: версия и обновление прошивки моста по WiFi. Тоже до чёрного
      * ящика - задача сервера и его сокеты берут кучу. */
+    tables_init(); /* до страницы: она отдаёт и таблицы Motor_Control */
     web_start();
     ESP_LOGI(TAG, "прошивка %s", web_version());
 

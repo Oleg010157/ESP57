@@ -23,11 +23,90 @@ namespace ICDIBasic
     public partial class Form1
     {
         private readonly ToolStripMenuItem _bridgeUpdMenu = new ToolStripMenuItem("Обновить прошивку WiFi-моста…");
+        private readonly ToolStripMenuItem _bridgeTblMenu = new ToolStripMenuItem("Отправить таблицы в WiFi-мост…");
 
         private void BridgeUpdate_InitMenu(ToolStripMenuItem parent)
         {
             parent.DropDownItems.Add(_bridgeUpdMenu);
             _bridgeUpdMenu.Click += async (s, e) => await BridgeUpdate_Run();
+            parent.DropDownItems.Add(_bridgeTblMenu);
+            _bridgeTblMenu.Click += async (s, e) => await BridgeTables_Send();
+        }
+
+        /*
+         * Таблицы окна «Таблицы» (CanTxFiles\*.ini) - в мост, для его страницы
+         * в браузере. Мост держит их во флеше и берёт вместо вшитых при сборке:
+         * поправили .ini - отправили, и страница показывает то же, что здесь,
+         * без пересборки моста (ESP32_BRIDGE/main/tables.c).
+         *
+         * Текст - ровно как склеивает сборка моста (main/CMakeLists.txt):
+         * «### имя» и файл; строки [Settings] (раскладка этого окна) выброшены.
+         */
+        private async Task BridgeTables_Send()
+        {
+            if (_wifi == null)
+            {
+                MessageBox.Show(this, "Таблицы отправляются через WiFi-мост: включите «Связь через WiFi (мост K57)».",
+                                "Таблицы в мост", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            var dir = Path.Combine(Application.StartupPath, "CanTxFiles");
+            var files = Directory.Exists(dir) ? Directory.GetFiles(dir, "*.ini") : new string[0];
+            Array.Sort(files, StringComparer.Ordinal);
+            if (files.Length == 0)
+            {
+                MessageBox.Show(this, "Нет файлов таблиц в " + dir, "Таблицы в мост",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var sb = new StringBuilder();
+            foreach (var f in files)
+            {
+                var text = File.ReadAllText(f, Encoding.UTF8);
+                text = System.Text.RegularExpressions.Regex.Replace(text, @"\[Settings\][^\n]*", "");
+                sb.Append("### ").Append(Path.GetFileNameWithoutExtension(f)).Append('\n').Append(text).Append('\n');
+            }
+            byte[] body = new UTF8Encoding(false).GetBytes(sb.ToString());
+            if (body.Length > 65536 - 16)
+            {
+                MessageBox.Show(this, $"Таблицы занимают {body.Length / 1024} кБ, в мосте под них 64 кБ.",
+                                "Таблицы в мост", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string pass = BridgeAskPassword();
+            if (pass == null) return;
+
+            using (var wc = new WebClient { Encoding = Encoding.UTF8 })
+            {
+                wc.Headers[HttpRequestHeader.Authorization] =
+                    "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("k57:" + pass));
+                wc.Headers[HttpRequestHeader.ContentType] = "text/plain; charset=utf-8";
+                wc.Headers["X-K57-Time"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+                try
+                {
+                    var reply = await wc.UploadDataTaskAsync("http://" + _wifi.Host + "/tables", "POST", body);
+                    MessageBox.Show(this,
+                        $"Мост принял таблицы: {files.Length} файлов, {body.Length / 1024} кБ.\n" +
+                        "Страница в браузере покажет их после обновления (Ctrl+F5).\n\nОтвет моста: " +
+                        Encoding.UTF8.GetString(reply),
+                        "Таблицы в мост", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (WebException ex)
+                {
+                    string why = ex.Message;
+                    if (ex.Response is HttpWebResponse r)
+                    {
+                        using (var sr = new StreamReader(r.GetResponseStream() ?? Stream.Null, Encoding.UTF8))
+                            why = sr.ReadToEnd();
+                        if (r.StatusCode == HttpStatusCode.Unauthorized) why = "неверный пароль";
+                        else if (r.StatusCode == HttpStatusCode.NotFound) why = "в мосте старая прошивка - обновите мост";
+                    }
+                    MessageBox.Show(this, "Таблицы не отправлены: " + why, "Таблицы в мост",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
         }
 
         private static string BridgeVersionText(string json)

@@ -70,6 +70,14 @@ button.act.mode { background: var(--card); color: var(--fg); border: 1px solid v
 button.act.mode.on { background: var(--accent); color: #fff; border-color: var(--accent); }
 input.num { width: 90px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); font: inherit; }
 .lbl { min-width: 210px; }
+select { font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); }
+#tHelp { white-space: pre-wrap; font: 13px/1.4 var(--mono); color: var(--muted); background: var(--card);
+         border: 1px solid var(--line); border-radius: 8px; padding: 10px; max-height: 360px; overflow: auto; }
+details { margin: 8px 0; }
+td .num { width: 100px; }
+.pm { font: inherit; width: 30px; padding: 4px 0; border: 1px solid var(--line); border-radius: 6px;
+      background: var(--bg); color: var(--fg); cursor: pointer; }
+.c1 { color: var(--bad); } .c2 { color: #b8860b; } .c3 { color: #6b8e23; } .c4 { color: var(--ok); } .c5 { color: var(--accent); }
 .auth { margin: 0 0 10px; font-size: 14px; color: var(--muted); }
 .auth a { color: var(--accent); }
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; max-width: 560px; }
@@ -88,7 +96,7 @@ input.num { width: 90px; padding: 7px 9px; border: 1px solid var(--line); border
 .pbtn.off { background: var(--bad); border-color: var(--bad); color: #fff; }
 .pbtn:disabled, input:disabled { opacity: .5; cursor: default; }
 .chk { display: flex; gap: 6px; align-items: center; }
-input.num.pending { background: #fff3a8; color: #000; }
+input.num.pending, select.pending { background: #fff3a8; color: #000; }
 .vals { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .cell { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; border: 1px solid var(--line);
         border-radius: 6px; padding: 6px 10px; }
@@ -112,6 +120,7 @@ input.num.pending { background: #fff3a8; color: #000; }
 </header>
 <nav>
   <button data-t="inv" class="on">Инвертор</button>
+  <button data-t="tbl">Таблицы</button>
   <button data-t="err">Ошибки</button>
   <button data-t="jour">Журнал</button>
   <button data-t="bbox">Чёрный ящик</button>
@@ -153,6 +162,22 @@ input.num.pending { background: #fff3a8; color: #000; }
   </div>
   <p class="note">Поле уставки желтеет, пока прибор не подтвердил новое значение. Ввод - Enter.
      Выключение ключей заодно обнуляет Uref и Iзад, как в Motor_Control.</p>
+</section>
+
+<section id="tbl">
+  <!-- Таблицы Motor_Control: те же CanTxFiles .ini, вшитые в мост (tables.h). -->
+  <p id="tNote" class="note"></p>
+  <p id="tSrc" class="note"></p>
+  <div class="row">
+    <select id="tSel"></select>
+    <button class="act" id="tRead">Прочитать из прибора</button>
+  </div>
+  <details id="tHelpBox"><summary>Описание таблицы</summary><pre id="tHelp"></pre></details>
+  <div class="wrap"><table>
+    <thead><tr><th>Параметр</th><th>Значение</th><th></th><th>М</th><th>В приборе</th><th>Пределы</th></tr></thead>
+    <tbody id="tBody"></tbody>
+  </table></div>
+  <p id="tRes" class="note res"></p>
 </section>
 
 <section id="err">
@@ -230,6 +255,7 @@ document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   if (tab === "jour") loadJournal();
   if (tab === "bbox") loadBbox();
   if (tab === "br") loadBridge();
+  if (tab === "tbl") tblOpen();
 });
 
 // --- описания кодов ---
@@ -301,7 +327,7 @@ function showState(s) {
 }
 
 async function pollState() {
-  try { const s = await getJson("/api/state"); showState(s); showCtl(s); }
+  try { const s = await getJson("/api/state"); lastState = s; showState(s); showCtl(s); }
   catch (e) { $("hSess").textContent = "мост не отвечает"; $("hSess").className = "chip bad"; }
   $("hClock").textContent = new Date().toLocaleTimeString("ru-RU");
 }
@@ -536,11 +562,175 @@ function showCtl(s) {
   syncField("pIset", set.iset, set.isetAge, set.iset * 0.01, 1);
 }
 
+// --- таблицы Motor_Control ---
+// Те же CanTxFiles .ini, что у окна таблиц Motor_Control (Stepulyov/TxDataFrm.cs),
+// вшитые в мост. Строка: «Имя = Мин,Макс,команда,Мод,Цвет,номер». Обмен тот же:
+// чтение (знач, 0), запись (знач, 3333), флаг М (знач, 5555, флаг). Мост
+// пропускает только команды таблиц и только в их пределах (tables.c).
+const TBL_FIRST = ["Offsets", "kADC", "Регуляторы АИН", "Силовая часть", "GridTie", "Модель", "ЦАП"];
+// Строки-действия: значение 1 делает дело (во флеш, откат, заводские, сброс).
+const TBL_ACT = ["Запись", "Откат", "Заводские", "RESET", "STORE", "RECALL"];
+let lastState = null; // последний /api/state - для вкладки «Таблицы»
+let tbls = null, tCur = null, tAcks = {}, tLoaded = false;
+
+async function tblLoad() {
+  if (tbls) return;
+  const t = (await (await fetch("/tables.txt", {cache: "no-store"})).text()).replace(/﻿/g, "");
+  tbls = {};
+  let cur = null, active = false;
+  for (const raw of t.split(/\r?\n/)) {
+    const line = raw.trim();
+    const m = line.match(/^### (.+)$/);
+    if (m) { cur = tbls[m[1]] = {name: m[1], help: [], rows: []}; active = false; continue; }
+    if (!cur) continue;
+    if (line === "[Active]") { active = true; continue; }
+    if (line.startsWith("[")) { active = false; continue; }
+    if (line.startsWith("//")) {
+      // Описание - комментарии над [Active], кроме двух строк про формат.
+      if (!active && !/^\/\/\s*(Имя|Цвет)/.test(line)) cur.help.push(line.replace(/^\/\/ ?/, ""));
+      continue;
+    }
+    if (!active) continue;
+    const e = line.match(/^(.+?)\s*=\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,(.*))?$/);
+    // После шестого поля могут идти имена значений по порядку от 0 - тогда
+    // вместо числа выпадающий список, как в Motor_Control (ЦАП.ini, Src).
+    const opts = e && e[7] ? e[7].split(",").map(x => x.trim()).filter(x => x) : [];
+    if (e) cur.rows.push({name: e[1].trim(), min: +e[2], max: +e[3], cmd: +e[4], mod: +e[5] === 1, color: +e[6], opts});
+  }
+  const names = Object.keys(tbls).filter(n => tbls[n].rows.length);
+  names.sort((a, b) => {
+    const ia = TBL_FIRST.indexOf(a), ib = TBL_FIRST.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b, "ru");
+  });
+  $("tSel").innerHTML = names.map(n => `<option>${esc(n)}</option>`).join("");
+  $("tSel").onchange = () => tblShow($("tSel").value);
+}
+
+async function tblOpen() {
+  try { await tblLoad(); } catch (e) { $("tNote").textContent = "Таблицы не прочитаны из моста."; return; }
+  try {
+    // Откуда таблицы: присланы из Motor_Control или вшиты при сборке моста.
+    const src = await getJson("/api/tblsrc");
+    $("tSrc").textContent = src.pc
+      ? "Таблицы присланы из Motor_Control" + (src.utc ? " " + when(src.utc) : "") + " («Управление → Отправить таблицы в WiFi-мост»)."
+      : "Таблицы вшиты в прошивку моста. Новые .ini - из Motor_Control: «Управление → Отправить таблицы в WiFi-мост».";
+  } catch (e) {}
+  if (!tLoaded) { tLoaded = true; tblShow($("tSel").value); }
+}
+
+function tblShow(name) {
+  tCur = tbls[name];
+  $("tHelp").textContent = tCur.help.join("\n").trim();
+  $("tHelpBox").hidden = !tCur.help.length;
+  $("tBody").innerHTML = tCur.rows.map((r, i) => {
+    const act = TBL_ACT.includes(r.name) && r.min === 0 && r.max === 1;
+    const val = act
+      ? `<button class="act" data-i="${i}" data-act="1">Выполнить</button>`
+      : r.opts.length
+      ? `<select data-i="${i}" data-opt="1">` +
+        r.opts.map((o, k) => `<option value="${k}">${esc(o.replace(/_/g, " "))}</option>`).join("") + `</select>`
+      : `<input type="number" class="num" data-i="${i}" min="${r.min}" max="${r.max}" step="1">`;
+    const pm = act || r.opts.length ? "" : `<button class="pm" data-i="${i}" data-d="-1">−</button> <button class="pm" data-i="${i}" data-d="1">+</button>`;
+    const mod = r.mod ? `<input type="checkbox" data-i="${i}" data-mod="1" title="М">` : "";
+    return `<tr><td class="c${r.color}">${esc(r.name)}</td><td>${val}</td><td class="n">${pm}</td>` +
+           `<td>${mod}</td><td class="n" id="tNow${i}">…</td><td class="n dim">${r.min}..${r.max}</td></tr>`;
+  }).join("");
+  $("tBody").querySelectorAll("input.num").forEach(el => {
+    el.onkeydown = e => { if (e.key === "Enter") el.blur(); };
+    el.onchange = () => tblWrite(+el.dataset.i, parseInt(el.value, 10));
+  });
+  $("tBody").querySelectorAll("select[data-opt]").forEach(el => el.onchange = () => {
+    el.dataset.want = el.value;
+    el.classList.add("pending");
+    tblWrite(+el.dataset.i, +el.value);
+  });
+  $("tBody").querySelectorAll("button.pm").forEach(b => b.onclick = () => {
+    const i = +b.dataset.i, r = tCur.rows[i], a = tAcks[r.cmd];
+    const v = (a ? a.val : 0) + +b.dataset.d;
+    if (v >= r.min && v <= r.max) tblWrite(i, v);
+  });
+  $("tBody").querySelectorAll("button[data-act]").forEach(b => b.onclick = () => {
+    const r = tCur.rows[+b.dataset.i];
+    if (confirm(`${tCur.name}: «${r.name}» - выполнить?`)) tblWrite(+b.dataset.i, 1, true);
+  });
+  $("tBody").querySelectorAll("input[data-mod]").forEach(c => c.onchange = () => {
+    const i = +c.dataset.i, r = tCur.rows[i], a = tAcks[r.cmd];
+    tblSend(r.cmd, "m", a ? a.val : 0, c.checked ? 1 : 0).then(() => setTimeout(tblReadAll, 400));
+  });
+  tblReadAll();
+}
+
+async function tblSend(cmd, op, v, m) {
+  try {
+    const r = await fetch(`/api/tbl?cmd=${cmd}&op=${op}&v=${v}&m=${m || 0}`, {
+      method: "POST", headers: {Authorization: "Basic " + btoa(unescape(encodeURIComponent("k57:" + pass())))}
+    });
+    if (r.status === 401) { pw = ""; store(""); authShow(false); $("tRes").textContent = "Нужен пароль - войдите на вкладке «Инвертор»."; return false; }
+    if (!r.ok) { $("tRes").textContent = "Отказ: " + await r.text(); return false; }
+    $("tRes").textContent = "";
+    return true;
+  } catch (e) { $("tRes").textContent = "Мост не ответил."; return false; }
+}
+
+// Записать и перечитать всю таблицу - как окно Motor_Control: правка одного
+// числа может поменять и сумму, и соседей (сброс, калибровка).
+async function tblWrite(i, v, act) {
+  const r = tCur.rows[i];
+  if (!(v >= r.min && v <= r.max)) { $("tRes").textContent = `«${r.name}»: допустимо ${r.min}..${r.max}.`; return; }
+  const el = $("tBody").querySelector(`input.num[data-i="${i}"], select[data-opt][data-i="${i}"]`);
+  if (el) { el.dataset.want = v; el.classList.add("pending"); }
+  if (await tblSend(r.cmd, "w", v)) setTimeout(tblReadAll, act ? 800 : 400);
+  else if (el) { el.classList.remove("pending"); delete el.dataset.want; }
+}
+
+async function tblReadAll() {
+  if (!tCur) return;
+  for (const r of tCur.rows) {
+    if (TBL_ACT.includes(r.name) && r.min === 0 && r.max === 1) continue; // чтение действия - лишнее нажатие
+    const a = tAcks[r.cmd];
+    if (!await tblSend(r.cmd, "r", a ? a.val : 0)) break;
+  }
+  setTimeout(tblPoll, 500);
+}
+
+async function tblPoll() {
+  if (!tCur) return;
+  let list;
+  try { list = await getJson("/api/tblacks"); } catch (e) { return; }
+  for (const [cmd, val, flag, age] of list) tAcks[cmd] = {val, flag, age};
+  tCur.rows.forEach((r, i) => {
+    const a = tAcks[r.cmd], now = $("tNow" + i);
+    if (!now) return;
+    now.textContent = !a ? "—" : (r.opts.length && r.opts[a.val] !== undefined ? r.opts[a.val].replace(/_/g, " ") + " (" + a.val + ")" : a.val);
+    const sel = $("tBody").querySelector(`select[data-opt][data-i="${i}"]`);
+    if (sel && a) {
+      if (sel.dataset.want !== undefined && +sel.dataset.want === a.val) { sel.classList.remove("pending"); delete sel.dataset.want; }
+      if (document.activeElement !== sel && sel.dataset.want === undefined) sel.value = a.val;
+    }
+    now.className = "n" + (a && a.age > 15000 ? " dim" : "");
+    const el = $("tBody").querySelector(`input.num[data-i="${i}"]`);
+    if (el && a) {
+      if (el.dataset.want !== undefined && +el.dataset.want === a.val) { el.classList.remove("pending"); delete el.dataset.want; }
+      if (document.activeElement !== el && el.dataset.want === undefined) el.value = a.val;
+    }
+    const c = $("tBody").querySelector(`input[data-mod][data-i="${i}"]`);
+    if (c && a && document.activeElement !== c) c.checked = !!a.flag;
+  });
+  // Пока сеанс Motor_Control открыт - только смотреть.
+  const lock = lastState && lastState.session;
+  $("tNote").textContent = lock ? "Открыт сеанс Motor_Control - правит он. Здесь только смотреть." :
+    (pw ? "" : "Чтобы читать и править, войдите паролем на вкладке «Инвертор».");
+  $("tBody").querySelectorAll("input, button, select").forEach(x => x.disabled = !!lock || !pw);
+  $("tRead").disabled = !!lock || !pw;
+}
+$("tRead").onclick = tblReadAll;
+
 // --- ход ---
 loadCodes().then(() => { pollState(); });
 setInterval(() => { if (!document.hidden) pollState(); }, 700);
 setInterval(() => { if (!document.hidden && tab === "err") loadErrors(); }, 3000);
 setInterval(() => { if (!document.hidden && tab === "br") loadBridge(); }, 3000);
+setInterval(() => { if (!document.hidden && tab === "tbl") tblPoll(); }, 1000);
 </script>
 </body>
 </html>

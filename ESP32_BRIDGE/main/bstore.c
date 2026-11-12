@@ -30,7 +30,7 @@
 
 static const char *TAG = "bstore";
 
-#define J_OFFSET      0xF0000u /* в разделе bbox: после пяти мест чёрного ящика */
+#define J_OFFSET      0xF0000u /* в разделе bbox: после чёрного ящика и таблиц (bbox.c) */
 #define J_SECTOR      4096u
 #define J_SECTORS     16u
 #define J_PER_SECTOR  (J_SECTOR / 16u)

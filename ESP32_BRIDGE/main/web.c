@@ -217,7 +217,7 @@ void web_start(void)
     cfg.max_open_sockets = 3;     /* куча моста почти вся у чёрного ящика */
     cfg.lru_purge_enable = true;
     cfg.recv_wait_timeout = 10;
-    cfg.max_uri_handlers = 14;
+    cfg.max_uri_handlers = 20;
     cfg.uri_match_fn     = httpd_uri_match_wildcard;
 
     if (httpd_start(&s_srv, &cfg) != ESP_OK) {

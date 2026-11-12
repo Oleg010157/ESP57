@@ -17,6 +17,11 @@
  *
  *   POST /api/ctl?do=..&v=N  управление - с паролем (live.c, live_control):
  *                          power, mode, gridEn, iset, uref, freq
+ *   GET /tables.txt        таблицы Motor_Control (CanTxFiles, tables.h)
+ *   POST /api/tbl?cmd=C&op=r|w|m&v=N&m=0|1  строка таблицы - с паролем
+ *   GET /api/tblacks       ответы прибора на команды таблиц
+ *   POST /tables           новые таблицы с ПК (Motor_Control) - с паролем
+ *   GET /api/tblsrc        откуда таблицы: с ПК (когда) или вшитые
  *
  * GET без пароля: только чтение. Пароль - у /update и у /api/ctl.
  */
@@ -34,6 +39,7 @@
 #include "net_link.h"
 #include "net_wifi.h"
 #include "spi_link.h"
+#include "tables.h"
 #include "web.h"
 
 extern const char page_start[] asm("_binary_index_html_start");
@@ -260,6 +266,119 @@ static esp_err_t ctl_post(httpd_req_t *req)
     return httpd_resp_sendstr(req, "OK");
 }
 
+/* Таблицы Motor_Control (tables.h): сам текст - странице, команды - через
+ * мост с проверкой, ответы прибора - списком. */
+static esp_err_t tables_get(httpd_req_t *req)
+{
+    int         n;
+    const char *t = tables_text(&n);
+    httpd_resp_set_type(req, "text/plain; charset=utf-8");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
+    return httpd_resp_send(req, t, n);
+}
+
+/* Новые таблицы с ПК: тело - текст в формате сборки («### имя» и файл),
+ * X-K57-Time - UTC отправки. ?clear=1 - назад к вшитым при сборке. */
+static esp_err_t tables_post(httpd_req_t *req)
+{
+    char q[16], v[4];
+
+    if (!web_auth_ok(req)) {
+        return ESP_OK;
+    }
+    if (httpd_req_get_url_query_str(req, q, sizeof q) == ESP_OK &&
+        httpd_query_key_value(q, "clear", v, sizeof v) == ESP_OK && v[0] == '1') {
+        tables_store_clear();
+        return httpd_resp_sendstr(req, "OK, вшитые при сборке");
+    }
+
+    char     t[16] = "0";
+    uint32_t utc   = 0;
+    if (httpd_req_get_hdr_value_str(req, "X-K57-Time", t, sizeof t) == ESP_OK) {
+        utc = (uint32_t)strtoul(t, NULL, 10);
+    }
+    int total = req->content_len;
+    if (!tables_store_begin((uint32_t)total, utc)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_sendstr(req, total <= 0 ? "пустые таблицы" : "таблицы больше 64 кБ");
+    }
+    int left = total;
+    while (left > 0) {
+        int n = httpd_req_recv(req, s_buf, left < (int)sizeof s_buf ? left : (int)sizeof s_buf);
+        if (n == HTTPD_SOCK_ERR_TIMEOUT) {
+            continue;
+        }
+        if (n <= 0 || !tables_store_write(s_buf, (uint32_t)n)) {
+            tables_store_clear();
+            httpd_resp_set_status(req, "500 Internal Server Error");
+            return httpd_resp_sendstr(req, "не записалось - мост вернулся к вшитым таблицам");
+        }
+        left -= n;
+    }
+    if (!tables_store_end()) {
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        return httpd_resp_sendstr(req, "записалось с ошибкой - мост взял вшитые таблицы");
+    }
+    return httpd_resp_sendstr(req, "OK");
+}
+
+static esp_err_t tblsrc_get(httpd_req_t *req)
+{
+    uint32_t utc;
+    int      n;
+    bool     pc = tables_source(&utc);
+    tables_text(&n);
+    json_begin(req);
+    out(req, "{\"pc\":%s,\"utc\":%lu,\"bytes\":%d}", pc ? "true" : "false", (unsigned long)utc, n);
+    return out_end(req);
+}
+
+static esp_err_t tbl_post(httpd_req_t *req)
+{
+    char q[64], c[8] = "", op[4] = "r", v[12] = "0", m[4] = "0";
+
+    if (!web_auth_ok(req)) {
+        return ESP_OK;
+    }
+    if (httpd_req_get_url_query_str(req, q, sizeof q) != ESP_OK ||
+        httpd_query_key_value(q, "cmd", c, sizeof c) != ESP_OK) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_sendstr(req, "нет команды");
+    }
+    httpd_query_key_value(q, "op", op, sizeof op);
+    httpd_query_key_value(q, "v", v, sizeof v);
+    httpd_query_key_value(q, "m", m, sizeof m);
+
+    const char *err = tables_cmd((uint16_t)atoi(c), op[0], atoi(v), atoi(m));
+    if (err != NULL) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return httpd_resp_sendstr(req, err);
+    }
+    return httpd_resp_sendstr(req, "OK");
+}
+
+typedef struct {
+    httpd_req_t *req;
+    bool         first;
+} actx_t;
+
+static void ack_row(uint16_t cmd, int16_t val, uint16_t flag, uint32_t age, void *ctx)
+{
+    actx_t *a = ctx;
+    out(a->req, "%s[%u,%d,%u,%lu]", a->first ? "" : ",", cmd, val, flag, (unsigned long)age);
+    a->first = false;
+}
+
+static esp_err_t tblacks_get(httpd_req_t *req)
+{
+    json_begin(req);
+    out(req, "[");
+    actx_t a = {.req = req, .first = true};
+    tables_acks(ack_row, &a);
+    out(req, "]");
+    return out_end(req);
+}
+
 void web_page_register(httpd_handle_t srv)
 {
     static const httpd_uri_t u[] = {
@@ -272,6 +391,11 @@ void web_page_register(httpd_handle_t srv)
         {.uri = "/api/bbox", .method = HTTP_GET, .handler = bbox_get},
         {.uri = "/api/bridge", .method = HTTP_GET, .handler = bridge_get},
         {.uri = "/api/ctl", .method = HTTP_POST, .handler = ctl_post},
+        {.uri = "/tables.txt", .method = HTTP_GET, .handler = tables_get},
+        {.uri = "/api/tbl", .method = HTTP_POST, .handler = tbl_post},
+        {.uri = "/api/tblacks", .method = HTTP_GET, .handler = tblacks_get},
+        {.uri = "/tables", .method = HTTP_POST, .handler = tables_post},
+        {.uri = "/api/tblsrc", .method = HTTP_GET, .handler = tblsrc_get},
     };
     for (size_t i = 0; i < sizeof u / sizeof u[0]; i++) {
         httpd_register_uri_handler(srv, &u[i]);

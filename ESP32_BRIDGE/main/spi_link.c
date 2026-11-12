@@ -24,6 +24,7 @@
 #include "bbox.h"
 #include "bstore.h"
 #include "live.h"
+#include "tables.h"
 
 #define WORDS     (SPI_LINK_BYTES / 2)
 #define HDR_WORDS 4
@@ -265,6 +266,7 @@ static void parse(const uint8_t *rx, size_t bits, uint16_t *last_seq, bool *have
             bbox_frame(id, data, (uint8_t)len);
             bstore_frame(id, data, (uint8_t)len);
             live_frame(id, data, (uint8_t)len);
+            tables_frame(id, data, (uint8_t)len);
         }
         w += 2 + n;
     }
