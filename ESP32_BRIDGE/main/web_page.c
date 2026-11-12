@@ -95,7 +95,8 @@ static esp_err_t codes_get(httpd_req_t *req)
 {
     /* ErrorCodes.h - в UTF-8, как и весь проект. */
     httpd_resp_set_type(req, "text/plain; charset=utf-8");
-    httpd_resp_set_hdr(req, "Cache-Control", "max-age=3600");
+    /* Без кэша: описания правят, а браузер держал бы старые час (было так). */
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
     return httpd_resp_send(req, codes_start, codes_end - codes_start - 1);
 }
 

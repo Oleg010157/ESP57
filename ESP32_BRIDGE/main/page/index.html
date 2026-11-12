@@ -179,7 +179,7 @@ document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
 // --- описания кодов ---
 async function loadCodes() {
   try {
-    const t = await (await fetch("/errorcodes.h")).text();
+    const t = await (await fetch("/errorcodes.h", {cache: "no-store"})).text();
     for (const line of t.split(/\r?\n/)) {
       const m = line.match(/^#define\s+\w+\s+(\d+)\s*\/\/\s*(.*)$/);
       if (m) codes[+m[1]] = m[2].trim();
