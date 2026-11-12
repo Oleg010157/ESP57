@@ -439,17 +439,14 @@ static void send_end(uint32_t rows)
     out_flush();
 }
 
-/* Журнал целиком, от старых строк к новым: сектор за текущим - самый старый. */
-static void send_journal(void)
+/* Журнал от старых строк к новым: сектор за текущим - самый старый. */
+uint32_t bstore_walk(uint32_t skip, void (*cb)(const bstore_row_t *r, void *ctx), void *ctx)
 {
-    jrec_t  *buf    = s_buf; /* под s_lock, как и jscan */
-    uint8_t  pack[48];
-    int      inPack = 0;
-    uint32_t rows   = 0;
+    jrec_t  *buf  = s_buf; /* под s_lock, как и jscan */
+    uint32_t rows = 0;
 
     if (s_part == NULL) {
-        send_end(0);
-        return;
+        return 0;
     }
     xSemaphoreTake(s_lock, portMAX_DELAY);
     for (uint32_t k = 1; k <= J_SECTORS; k++) {
@@ -459,17 +456,46 @@ static void send_journal(void)
             if (!rec_ok(&buf[i])) {
                 continue;
             }
-            memcpy(pack + 16 * inPack, &buf[i], 16);
-            rows++;
-            if (++inPack == 3) {
-                out_rec(BST_ID_JRECS, pack, 48);
-                inPack = 0;
+            if (rows++ < skip) {
+                continue;
             }
+            bstore_row_t r = {
+                .seq = buf[i].seq, .utc = buf[i].utc, .code = buf[i].code,
+                .session = buf[i].session, .count = buf[i].count,
+            };
+            cb(&r, ctx);
         }
     }
     xSemaphoreGive(s_lock);
-    if (inPack > 0) {
-        out_rec(BST_ID_JRECS, pack, (uint8_t)(16 * inPack));
+    return rows;
+}
+
+typedef struct {
+    uint8_t pack[48];
+    int     inPack;
+} jsend_t;
+
+static void jsend_row(const bstore_row_t *r, void *ctx)
+{
+    jsend_t *j = ctx;
+    jrec_t   rec = {
+        .seq = r->seq, .utc = r->utc, .code = r->code, .session = r->session, .count = r->count,
+    };
+    rec.crc = crc16((const uint8_t *)&rec, 14);
+    memcpy(j->pack + 16 * j->inPack, &rec, 16);
+    if (++j->inPack == 3) {
+        out_rec(BST_ID_JRECS, j->pack, 48);
+        j->inPack = 0;
+    }
+}
+
+static void send_journal(void)
+{
+    jsend_t  j = {.inPack = 0};
+    uint32_t rows = bstore_walk(0, jsend_row, &j);
+
+    if (j.inPack > 0) {
+        out_rec(BST_ID_JRECS, j.pack, (uint8_t)(16 * j.inPack));
     }
     send_end(rows);
 }

@@ -405,6 +405,28 @@ static void out_rec(uint16_t id, const void *data, uint8_t len)
     s_out_len += K57_REC_HDR + len;
 }
 
+int bbox_list(bbox_entry_t *out, int max)
+{
+    int n = 0;
+
+    if (s_part == NULL) {
+        return 0;
+    }
+    for (int i = 0; i < s_slots && n < max; i++) {
+        bb_hdr_t h;
+        if (i == s_next || !read_hdr(i, &h)) {
+            continue;
+        }
+        out[n] = (bbox_entry_t){
+            .slot = i, .seq = h.seq, .code = h.code, .frameType = h.frameType, .utc = h.utc,
+            .session = h.session, .frames = h.nFrames, .trigFrame = h.trigFrame,
+        };
+        memcpy(out[n].extra, h.extra, sizeof h.extra);
+        n++;
+    }
+    return n;
+}
+
 static void send_list(void)
 {
     uint8_t n = 0;

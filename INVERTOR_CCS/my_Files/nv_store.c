@@ -50,7 +50,7 @@
 // Из окна Watch:
 //
 //   nvFailed     - 1: память не отвечает, запись прекращена до перезагрузки,
-//                  поднят код CE01. Прибор работает, история только в ОЗУ;
+//                  поднят код NV_NoAnswer (56). Прибор работает, история только в ОЗУ;
 //   nvBlank      - 1: при старте не нашлось заголовка, память заполнена заново;
 //   nvBadRecords - сколько записей при старте не прошли проверку CRC;
 //   nvWrites     - сколько записей истории записано за эту сессию;
@@ -375,7 +375,7 @@ static bool nv_read(uint16_t mem, uint16_t *bytes, uint16_t len)
 static void nv_fail(void)
 {
     nvFailed = 1U;
-    RegisterSessionEvent(CE01);
+    RegisterSessionEvent(NV_NoAnswer);
 }
 
 // Номера идут по кругу, ноль пропускается: с ним LastSessionId чистой записи

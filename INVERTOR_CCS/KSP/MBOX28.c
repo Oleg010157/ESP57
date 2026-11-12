@@ -156,6 +156,7 @@ uint16_t Req_336 = 0; // логическая переменная для выв
 #define UI_LINK_LOST_SEC 5U
 
 static volatile uint16_t uiSilentSec = 0; // секунд без команды 336
+extern volatile uint16_t uiWatchSec;       // «только смотреть», команда 344 - ниже
 volatile uint16_t uiLinkLost = 0; // сколько раз сторож выводил из сеанса, смотреть в Watch
 
 void MBOX_uiLinkTick1s(void)
@@ -177,7 +178,30 @@ void MBOX_uiLinkTick1s(void)
         MCAN_rateCmd(CAN_RATE_DOWN, 0, 0U);
     }
 
+    if (uiWatchSec > 0U)
+    {
+        uiWatchSec--;
+    }
+
     __restore_interrupts(ints);
+}
+
+//
+// «Только смотреть» - команда 344 (12.11.2026). Её шлёт WiFi-мост, пока
+// открыта его страница в браузере, а пульта нет (ESP32_BRIDGE/main/live.c).
+//
+// Сеанс (команда 2) для этого не годится: «Подключить» закрывает ключи
+// (session_keys_off) и сбрасывает уставки. Прибор, который сам работает в
+// сети, встал бы от того, что кто-то открыл страницу посмотреть. Команда 344
+// ничего этого не делает: кадр 140 идёт ещё UI_LINK_LOST_SEC секунд, а d1
+// заказывает лампу и список ошибок - те же биты, что у 336 (1 - лампа,
+// 2 - список). Управление, режим, уставки, sbit.connect - не трогает.
+//
+volatile uint16_t uiWatchSec = 0;
+
+uint16_t MBOX_uiWatching(void)
+{
+    return uiWatchSec != 0U;
 }
 
 extern uint16_t dbgTrip;
@@ -2122,6 +2146,14 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
             uiSilentSec = 0; // программа на связи
         }
         break;
+
+        // «Только смотреть» - страница моста в браузере. Разбор - у
+        // MBOX_uiWatching() выше. Без ACK: идёт раз в секунду, ответ никому
+        // не нужен, а очередь к мосту он занимал бы зря.
+        case 344:
+            uiWatchSec = UI_LINK_LOST_SEC;
+            Req_336 |= (data1 & 3U);
+            break;
 
         // Время от пульта для журнала аварий: d1 - младшее, d2 - старшее слово
         // UTC, секунды с 1970. Шлёт его пульт при подключении. Разбор -

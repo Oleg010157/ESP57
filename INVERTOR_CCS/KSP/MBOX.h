@@ -26,6 +26,9 @@ extern uint16_t Req_336;
 // Сторож связи с программой, раз в секунду из фона (main.c). Разбор - MBOX28.c.
 void MBOX_uiLinkTick1s(void);
 
+// 1 - идёт «только смотреть» (команда 344): кадр 140 без сеанса. MBOX28.c.
+uint16_t MBOX_uiWatching(void);
+
 
 
 void SendL(void);

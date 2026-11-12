@@ -63,3 +63,19 @@ void bbox_manual(void);
 void bbox_request(uint16_t id, const uint8_t *data, uint8_t len);
 
 void bbox_get_stat(bbox_stat_t *out);
+
+/* Запись в списке - для страницы (web.c). */
+typedef struct {
+    int      slot;
+    uint32_t seq;
+    uint16_t code;      /* 0xFFFF - пуск вручную */
+    uint16_t frameType;
+    uint32_t utc;
+    uint16_t session;
+    uint32_t frames;
+    uint32_t trigFrame;
+    uint16_t extra[4];
+} bbox_entry_t;
+
+/* Сохранённые записи, до max штук. Читает флеш - не из задачи SPI. */
+int bbox_list(bbox_entry_t *out, int max);

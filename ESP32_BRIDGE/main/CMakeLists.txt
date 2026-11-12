@@ -7,6 +7,11 @@ idf_component_register(
         "bbox.c"
         "bstore.c"
         "web.c"
+        "web_page.c"
+        "live.c"
+    EMBED_TXTFILES
+        "page/index.html"
+        "../../bin/ErrorCodes.h"
     INCLUDE_DIRS
         "."
     REQUIRES

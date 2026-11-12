@@ -32,6 +32,7 @@
 #include "bbox.h"
 #include "bstore.h"
 #include "web.h"
+#include "live.h"
 #include "board.h"
 #include "net_link.h"
 #include "net_proto.h"
@@ -131,6 +132,9 @@ void app_main(void)
 
         /* Новая прошивка, дожившая сюда 20 раз, - годная (web.h). */
         web_confirm_if_pending();
+
+        /* Страница в браузере открыта, пульта нет - «только смотреть» (live.h). */
+        live_tick1s();
 
         spi_link_stat_t s;
         spi_link_get_stat(&s);

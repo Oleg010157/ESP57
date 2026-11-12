@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Прибор K57</title>
+<!--
+  Страница прибора K57 из WiFi-моста. Вшита в прошивку моста
+  (ESP32_BRIDGE/main/web_page.c), данные берёт запросами /api/*.
+  Внешних файлов нет: в сети K57 интернета нет.
+
+  Цены делений кадра 140 - те же, что у Motor_Control: Oleg/Kadr60.cs, Parse140,
+  и прибор: INVERTOR_CCS/KSP/REF_Kadr.c. Поменяли кадр - поменяйте и тут.
+-->
+<style>
+:root {
+  --bg: #f4f5f7; --card: #ffffff; --fg: #1d2329; --muted: #66707a; --line: #dde1e6;
+  --accent: #1f6fd1; --ok: #1e8e4e; --warn: #c27a00; --bad: #c8322b;
+  --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #15181c; --card: #1e2227; --fg: #e6e9ec; --muted: #9aa3ab; --line: #2e343b;
+          --accent: #5aa2ff; --ok: #3fbf74; --warn: #e0a030; --bad: #ff6b62; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+       font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { position: sticky; top: 0; z-index: 2; background: var(--card); border-bottom: 1px solid var(--line);
+         padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+.chip { font-size: 13px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.chip.ok { color: var(--ok); border-color: currentColor; }
+.chip.warn { color: var(--warn); border-color: currentColor; }
+.chip.bad { color: var(--bad); border-color: currentColor; }
+nav { display: flex; gap: 4px; overflow-x: auto; padding: 8px 16px 0; }
+nav button { border: 0; background: none; color: var(--muted); font: inherit; padding: 8px 12px;
+             border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; }
+nav button.on { color: var(--fg); border-bottom-color: var(--accent); }
+main { padding: 12px 16px 40px; max-width: 980px; margin: 0 auto; }
+section { display: none; } section.on { display: block; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.tile .k { font-size: 12px; color: var(--muted); }
+.tile .v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tile .u { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 3px; }
+.tile .s { font-size: 12px; color: var(--muted); }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 8px; font-weight: 600; }
+.note { color: var(--muted); font-size: 13px; margin: 8px 0; }
+table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wrap { overflow-x: auto; }
+.cur { color: var(--bad); font-weight: 600; }
+.dim { color: var(--muted); }
+button.act, input[type=file], input[type=password] { font: inherit; }
+button.act { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+button.act:disabled { opacity: .5; cursor: default; }
+input[type=password] { padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); width: 100%; max-width: 280px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 8px 0; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; background: var(--card);
+      border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+.kv div:nth-child(odd) { color: var(--muted); }
+progress { width: 100%; max-width: 420px; height: 10px; }
+/* Текущая ошибка: красный круг, нет - серый. */
+.lamp { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); background: transparent;
+        cursor: pointer; flex: none; }
+.lamp.on { background: var(--bad); border-color: var(--bad); box-shadow: 0 0 8px var(--bad); }
+.lamp.off { background: var(--line); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Прибор K57</h1>
+  <span id="hSess" class="chip">…</span>
+  <span id="hGrid" class="chip">…</span>
+  <span id="hLamp" class="lamp" title="текущих ошибок нет"></span>
+  <span id="hClock" class="chip dim"></span>
+</header>
+<nav>
+  <button data-t="dev" class="on">Прибор</button>
+  <button data-t="err">Ошибки</button>
+  <button data-t="jour">Журнал</button>
+  <button data-t="bbox">Чёрный ящик</button>
+  <button data-t="br">Мост</button>
+</nav>
+<main>
+
+<section id="dev" class="on">
+  <p id="devNote" class="note"></p>
+  <h2>Сеть и выход</h2>
+  <div class="grid" id="gNet"></div>
+  <h2>Мощность</h2>
+  <div class="grid" id="gPow"></div>
+  <h2>Контур</h2>
+  <div class="grid" id="gLoop"></div>
+  <h2>Питание и прибор</h2>
+  <div class="grid" id="gDev"></div>
+</section>
+
+<section id="err">
+  <p id="errNote" class="note"></p>
+  <div class="wrap"><table>
+    <thead><tr><th>Код</th><th>Ошибка</th><th>Сейчас</th><th>За сессию</th><th>В истории</th><th>Последний раз</th></tr></thead>
+    <tbody id="errBody"></tbody>
+  </table></div>
+</section>
+
+<section id="jour">
+  <div class="row"><button class="act" id="jMore">Показать больше</button><span id="jNote" class="note"></span></div>
+  <div class="wrap"><table>
+    <thead><tr><th>№</th><th>Время</th><th>Код</th><th>Событие</th><th>Сессия</th><th>Повторы</th></tr></thead>
+    <tbody id="jBody"></tbody>
+  </table></div>
+</section>
+
+<section id="bbox">
+  <p class="note">Аварийные записи быстрой ленты. Смотреть их - в Motor_Control: «Измерения → Чёрный ящик», там они открываются в Wscope.</p>
+  <p id="bNote" class="note"></p>
+  <div class="wrap"><table>
+    <thead><tr><th>№</th><th>Время</th><th>Код</th><th>Авария</th><th>До / после, с</th></tr></thead>
+    <tbody id="bBody"></tbody>
+  </table></div>
+</section>
+
+<section id="br">
+  <h2>Мост</h2>
+  <div class="kv" id="brKv"></div>
+  <h2>Обновить прошивку моста</h2>
+  <p class="note">Файл <b>esp32_bridge.bin</b> из ESP32_BRIDGE\build. Новая прошивка сначала пробная: не поднимется за минуту - мост сам вернётся к прежней.</p>
+  <div class="row"><input type="file" id="uFile" accept=".bin"></div>
+  <div class="row"><input type="password" id="uPass" placeholder="Пароль (по умолчанию - пароль сети K57)" autocomplete="current-password"></div>
+  <div class="row"><button class="act" id="uGo">Залить</button></div>
+  <div class="row"><progress id="uProg" max="100" value="0" hidden></progress></div>
+  <p id="uNote" class="note"></p>
+</section>
+
+</main>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const S16 = v => v > 32767 ? v - 65536 : v;
+// Автомат подключения к сети, gt.State (grid_tie.h). «Мостом» прошивка зовёт
+// силовой мост инвертора - ключи; на странице это «инвертор», чтобы не путать
+// с WiFi-мостом.
+const GRID = ["стоит, ключи закрыты", "следит за сетью", "выходит на ток", "в сети", "АВАРИЯ"];
+const GRIDCLS = ["", "warn", "warn", "ok", "bad"];
+const TELE = ["коды АЦП", "мгновенные", "действующие"];
+let codes = {};          // код -> описание, из ErrorCodes.h
+let tab = "dev";
+let jN = 300;
+
+function fmt(v, d) { return Number.isFinite(v) ? v.toFixed(d).replace(".", ",") : "—"; }
+function when(utc) {
+  if (!utc) return "время неизвестно";
+  const t = new Date(utc * 1000);
+  return t.toLocaleDateString("ru-RU") + " " + t.toLocaleTimeString("ru-RU");
+}
+function codeText(c) { return c === 65535 ? "пуск вручную" : (codes[c] || ("код " + c)); }
+async function getJson(u) { const r = await fetch(u, {cache: "no-store"}); if (!r.ok) throw new Error(r.status); return r.json(); }
+function tile(k, v, u, s) {
+  return `<div class="tile"><div class="k">${k}</div><div class="v">${v}<span class="u">${u || ""}</span></div>` +
+         (s ? `<div class="s">${s}</div>` : "") + `</div>`;
+}
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;"}[c])); }
+
+// --- вкладки ---
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll("section").forEach(x => x.classList.toggle("on", x.id === b.dataset.t));
+  tab = b.dataset.t;
+  if (tab === "err") loadErrors();
+  if (tab === "jour") loadJournal();
+  if (tab === "bbox") loadBbox();
+  if (tab === "br") loadBridge();
+});
+
+// --- описания кодов ---
+async function loadCodes() {
+  try {
+    const t = await (await fetch("/errorcodes.h")).text();
+    for (const line of t.split(/\r?\n/)) {
+      const m = line.match(/^#define\s+\w+\s+(\d+)\s*\/\/\s*(.*)$/);
+      if (m) codes[+m[1]] = m[2].trim();
+    }
+  } catch (e) { /* без описаний - номера */ }
+}
+
+// --- прибор: кадр 140 ---
+function showState(s) {
+  const w = s.w;
+  const fresh = s.age >= 0 && s.age < 3000;
+  // Чей сеанс
+  const hs = $("hSess");
+  // Сеанс - «Подключить» в Motor_Control; без него страница «только смотрит»
+  // (команда 344: ключи и уставки не трогает), даже если Motor_Control открыт.
+  if (s.session) { hs.textContent = "сеанс Motor_Control открыт"; hs.className = "chip ok"; }
+  else if (s.watch) {
+    hs.textContent = "только смотрим" + (s.pult ? " (Motor_Control подключён, сеанс закрыт)" : " (Motor_Control не подключён)");
+    hs.className = "chip";
+  }
+  else { hs.textContent = "нет данных"; hs.className = "chip warn"; }
+
+  // Круг: красный - есть текущая ошибка (горит прямо сейчас), серый - нет.
+  const hl = $("hLamp"), cur = s.cur || [];
+  hl.className = "lamp " + (cur.length ? "on" : "off");
+  hl.title = cur.length ? "Сейчас горит: " + cur.map(c => c + " - " + codeText(c)).join("; ") : "текущих ошибок нет";
+
+  const note = $("devNote");
+  if (!fresh) {
+    note.textContent = s.age < 0 ? "Прибор ещё не прислал ни одного кадра - жду…"
+      : "Нет свежих данных от прибора (" + Math.round(s.age / 1000) + " с).";
+    $("hGrid").textContent = "Инвертор: состояние неизвестно"; $("hGrid").className = "chip dim";
+    return;
+  }
+  note.textContent = s.session ? "Данные идут по сеансу Motor_Control. Пока сеанс открыт, управление со страницы выключено." : "";
+
+  const st = w[10] & 0xFF, fault = w[10] >> 8;
+  const hg = $("hGrid");
+  hg.textContent = "Инвертор: " + (GRID[st] || ("состояние " + st)) + (st === 4 && fault ? " — " + codeText(fault) : "");
+  hg.className = "chip " + (GRIDCLS[st] || "");
+
+  const sel = w[13];
+  const raw = sel === 0;
+  const I = v => raw ? S16(v) : S16(v) * 0.01, U = v => raw ? S16(v) : S16(v) * 0.1;
+  const ui = raw ? "код" : "А", uu = raw ? "код" : "В", di = raw ? 0 : 2, du = raw ? 0 : 1;
+  const selTxt = TELE[sel] || ("набор " + sel);
+  $("gNet").innerHTML =
+    tile("Напряжение сети", fmt(raw ? w[6] : U(w[6]), du), uu, selTxt) +
+    tile("Частота сети", fmt(w[16] * 0.01, 2), "Гц") +
+    tile("Выход инвертора", fmt(U(w[7]), du), uu, selTxt) +
+    tile("Ток в сеть", fmt(I(w[5]), di), ui, selTxt) +
+    tile("Ток первички", fmt(I(w[4]), di), ui, selTxt);
+  $("gPow").innerHTML =
+    tile("Активная P", fmt(S16(w[17]), 0), "Вт") +
+    tile("Реактивная Q", fmt(S16(w[18]), 0), "вар") +
+    tile("Полная S", fmt(S16(w[19]), 0), "ВА") +
+    tile("Коэфф. мощности", fmt(S16(w[20]) * 0.0001, 3), "");
+  $("gLoop").innerHTML =
+    tile("Ток сейчас", fmt(w[11] * 0.01, 2), "А", "куда идёт: " + fmt(w[23] * 0.01, 2) + " А") +
+    tile("Индекс модуляции", fmt(w[24] * 0.0001, 3), "", "пик за период") +
+    tile("В упоре", w[25], "из 100", "тактов за период") +
+    tile("Постоянка в трансф.", fmt(S16(w[21]) * 0.01, 2), "А", "поправка " + fmt(S16(w[22]) * 0.001, 3) + " В");
+  $("gDev").innerHTML =
+    tile("Напряжение АКБ", fmt(S16(w[8]) * 0.1, 1), "В") +
+    tile("Температура ядра", S16(w[9]), "°C") +
+    tile("Кадр", w[31], "", "свежесть " + s.age + " мс");
+}
+
+async function pollState() {
+  try { showState(await getJson("/api/state")); }
+  catch (e) { $("hSess").textContent = "мост не отвечает"; $("hSess").className = "chip bad"; }
+  $("hClock").textContent = new Date().toLocaleTimeString("ru-RU");
+}
+
+// --- ошибки ---
+async function loadErrors() {
+  let e;
+  try { e = await getJson("/api/errors"); } catch (x) { return; }
+  const st = await getJson("/api/state").catch(() => ({}));
+  $("errNote").textContent = !e.have
+    ? (st.session ? "Пока сеанс Motor_Control открыт, список ошибок приходит, только когда в нём открыто окно ошибок." : "Жду список ошибок от прибора…")
+    : (e.list.length ? "" : "Ошибок нет.");
+  $("errBody").innerHTML = e.list.map(([c, w, t]) => {
+    const cur = (w >> 15) & 1, ses = w & 0xFF, hist = (w >> 8) & 0x7F;
+    return `<tr><td class="n">${c}</td><td>${esc(codeText(c))}</td>` +
+      `<td class="${cur ? "cur" : "dim"}">${cur ? "горит" : "—"}</td>` +
+      `<td class="n">${ses || "—"}</td><td class="n">${hist || "—"}</td><td class="n">${t ? when(t) : "—"}</td></tr>`;
+  }).join("");
+}
+
+// --- журнал ---
+async function loadJournal() {
+  let j;
+  try { j = await getJson("/api/journal?n=" + jN); } catch (x) { $("jNote").textContent = "журнал не прочитан"; return; }
+  $("jNote").textContent = `Показано ${j.list.length} из ${j.rows}. Один код - не чаще раза в минуту, повторы - строкой «ещё N раз».`;
+  $("jMore").disabled = j.list.length >= j.rows;
+  $("jBody").innerHTML = j.list.slice().reverse().map(([seq, utc, code, ses, cnt]) =>
+    `<tr${cnt ? ' class="dim"' : ""}><td class="n">${seq}</td><td class="n">${when(utc)}</td><td class="n">${code}</td>` +
+    `<td>${esc(codeText(code))}</td><td class="n">${ses}</td><td>${cnt ? "ещё " + cnt + " раз за минуту" : ""}</td></tr>`).join("");
+}
+$("jMore").onclick = () => { jN += 1000; loadJournal(); };
+
+// --- чёрный ящик ---
+async function loadBbox() {
+  let b;
+  try { b = await getJson("/api/bbox"); } catch (x) { return; }
+  $("bNote").textContent = b.noFlash ? "В мосте нет раздела под записи." :
+    `Кольцо ${Math.round(b.ring / 1024)} кБ, сейчас в нём ${fmt(b.frames / 5000, 2)} с ленты. Записей: ${b.list.length}.`;
+  $("bBody").innerHTML = b.list.sort((a, c) => c.seq - a.seq).map(e => {
+    const more = e.extra.filter(x => x).map(x => x).join(", ");
+    return `<tr><td class="n">${e.seq}</td><td class="n">${when(e.utc)}</td><td class="n">${e.code === 65535 ? "—" : e.code}</td>` +
+      `<td>${esc(codeText(e.code))}${more ? " (следом: " + more + ")" : ""}</td>` +
+      `<td class="n">${fmt(e.trig / 5000, 2)} / ${fmt((e.frames - e.trig) / 5000, 2)}</td></tr>`;
+  }).join("");
+}
+
+// --- мост ---
+async function loadBridge() {
+  let b;
+  try { b = await getJson("/api/bridge"); } catch (x) { return; }
+  const kv = [
+    ["Прошивка", b.version],
+    ["Сеть", (b.sta ? "общая сеть " : "своя точка ") + b.ssid + ", " + b.ip + (b.sta ? ", сигнал " + b.rssi + " дБм" : "")],
+    ["Обмен с прибором", `посылок ${b.packets}, пропусков ${b.seqGap}, перезапусков SPI ${b.resets}`],
+    ["Motor_Control", b.pult ? "подключён" : "нет"],
+    ["Свободно памяти", b.heap + " кБ"],
+  ];
+  $("brKv").innerHTML = kv.map(([k, v]) => `<div>${k}</div><div>${esc(v)}</div>`).join("");
+}
+
+$("uGo").onclick = () => {
+  const f = $("uFile").files[0];
+  if (!f) { $("uNote").textContent = "Выберите файл esp32_bridge.bin."; return; }
+  const p = $("uPass").value;
+  const x = new XMLHttpRequest();
+  x.open("POST", "/update");
+  x.setRequestHeader("Authorization", "Basic " + btoa(unescape(encodeURIComponent("k57:" + p))));
+  const pr = $("uProg"); pr.hidden = false; pr.value = 0;
+  $("uGo").disabled = true;
+  x.upload.onprogress = e => { if (e.lengthComputable) pr.value = 100 * e.loaded / e.total; };
+  x.onload = () => {
+    $("uGo").disabled = false;
+    if (x.status === 200) {
+      $("uNote").textContent = "Залито. Мост перезапускается - страница вернётся сама через полминуты. " +
+                               "Если телефон отключился от сети K57, подключите его снова.";
+      setTimeout(() => location.reload(), 30000);
+    } else {
+      $("uNote").textContent = x.status === 401 ? "Неверный пароль." : "Не залито: " + x.responseText;
+    }
+  };
+  x.onerror = () => { $("uGo").disabled = false; $("uNote").textContent = "Связь оборвалась."; };
+  $("uNote").textContent = "Передаю…";
+  x.send(f);
+};
+
+$("hLamp").onclick = () => document.querySelector('nav button[data-t="err"]').click();
+
+// --- ход ---
+loadCodes().then(() => { pollState(); });
+setInterval(() => { if (!document.hidden) pollState(); }, 700);
+setInterval(() => { if (!document.hidden && tab === "err") loadErrors(); }, 3000);
+setInterval(() => { if (!document.hidden && tab === "br") loadBridge(); }, 3000);
+</script>
+</body>
+</html>

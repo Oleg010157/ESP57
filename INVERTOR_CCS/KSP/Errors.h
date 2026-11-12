@@ -92,4 +92,7 @@ void     SendL(void);
 void Errors_CurrentErrorWindowTick(void);
 void RegisterSessionEvent(uint16_t code);
 
+// dbg Мигающая авария для проверки: dbgErrBlink = код, Errors.c. Раз в секунду.
+void Errors_dbgBlinkTick1s(void);
+
 #endif /* KSP_KSP_HEADERS_ERRORS_H_ */

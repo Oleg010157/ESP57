@@ -36,3 +36,7 @@ void web_confirm_if_pending(void);
 
 /* Версия и что за раздел - для лога при старте. */
 const char *web_version(void);
+
+/* Страница прибора и её данные - web_page.c. */
+#include "esp_http_server.h"
+void web_page_register(httpd_handle_t srv);

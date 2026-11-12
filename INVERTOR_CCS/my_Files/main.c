@@ -394,6 +394,7 @@ extern volatile uint16_t epwm3time;// dbg
             if (cntT0 == OneSecond) // события обрабатываемые каждую секунду
             {
                  Errors_CurrentErrorWindowTick();
+                 Errors_dbgBlinkTick1s(); // dbg мигающая авария, Errors.c
 
            
 
@@ -412,7 +413,9 @@ extern volatile uint16_t epwm3time;// dbg
                 cnt1sek++;
             }
 
-            if (sbit.bit.connect) // проверяем что CAN is active
+            // Кадр 140 - в сеансе пульта или пока его смотрит страница моста
+            // (команда 344, «только смотреть»: ключи и уставки она не трогает).
+            if (sbit.bit.connect || MBOX_uiWatching())
             {
                 // если завершена передача всех Mbox ref_kadra
 #if MCANA

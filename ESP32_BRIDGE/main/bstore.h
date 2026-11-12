@@ -68,3 +68,16 @@ void bstore_frame(uint16_t id, const uint8_t *data, uint8_t len);
 void bstore_request(uint16_t id, const uint8_t *data, uint8_t len);
 
 void bstore_get_stat(bstore_stat_t *out);
+
+/* Строка журнала для страницы (web.c). count 0 - событие, N - повторы. */
+typedef struct {
+    uint32_t seq;
+    uint32_t utc;
+    uint16_t code;
+    uint16_t session;
+    uint16_t count;
+} bstore_row_t;
+
+/* Строки от старых к новым, пропустив первые skip; cb зовётся под замком
+ * журнала - быстро, без долгих ожиданий. Возвращает, сколько строк всего. */
+uint32_t bstore_walk(uint32_t skip, void (*cb)(const bstore_row_t *r, void *ctx), void *ctx);

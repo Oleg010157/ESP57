@@ -214,6 +214,8 @@ void web_start(void)
     cfg.max_open_sockets = 3;     /* куча моста почти вся у чёрного ящика */
     cfg.lru_purge_enable = true;
     cfg.recv_wait_timeout = 10;
+    cfg.max_uri_handlers = 12;
+    cfg.uri_match_fn     = httpd_uri_match_wildcard;
 
     if (httpd_start(&s_srv, &cfg) != ESP_OK) {
         ESP_LOGE(TAG, "HTTP-сервер не поднялся");
@@ -223,5 +225,6 @@ void web_start(void)
     static const httpd_uri_t upd = {.uri = "/update", .method = HTTP_POST, .handler = update_post};
     httpd_register_uri_handler(s_srv, &ver);
     httpd_register_uri_handler(s_srv, &upd);
-    ESP_LOGI(TAG, "HTTP 80: /version, /update");
+    web_page_register(s_srv);
+    ESP_LOGI(TAG, "HTTP 80: страница /, /version, /update");
 }
