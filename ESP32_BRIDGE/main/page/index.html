@@ -23,6 +23,7 @@
           --accent: #5aa2ff; --ok: #3fbf74; --warn: #e0a030; --bad: #ff6b62; }
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; } /* иначе .row с display:flex его перебивает */
 body { margin: 0; background: var(--bg); color: var(--fg);
        font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 header { position: sticky; top: 0; z-index: 2; background: var(--card); border-bottom: 1px solid var(--line);
@@ -63,6 +64,37 @@ input[type=password] { padding: 7px 9px; border: 1px solid var(--line); border-r
       border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
 .kv div:nth-child(odd) { color: var(--muted); }
 progress { width: 100%; max-width: 420px; height: 10px; }
+button.act.go { background: var(--ok); }
+button.act.stop { background: var(--bad); }
+button.act.mode { background: var(--card); color: var(--fg); border: 1px solid var(--line); }
+button.act.mode.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+input.num { width: 90px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); font: inherit; }
+.lbl { min-width: 210px; }
+.auth { margin: 0 0 10px; font-size: 14px; color: var(--muted); }
+.auth a { color: var(--accent); }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; max-width: 560px; }
+.prow { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin-bottom: 12px; }
+.pf .k { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.pbtn { font: inherit; font-weight: 600; min-width: 84px; padding: 8px 12px; border-radius: 8px; cursor: pointer;
+        border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+.seg { display: flex; flex-wrap: wrap; }
+.seg .pbtn { border-radius: 0; margin-left: -1px; min-width: 0; }
+.seg .pbtn:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+.seg .pbtn:last-child { border-radius: 0 8px 8px 0; }
+.pbtn.mode.cur { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pbtn.mode.pending { background: #fff3a8; color: #000; }
+.note.res { color: var(--bad); margin: -4px 0 10px; min-height: 0; }
+.pbtn.go { background: var(--ok); border-color: var(--ok); color: #fff; }
+.pbtn.off { background: var(--bad); border-color: var(--bad); color: #fff; }
+.pbtn:disabled, input:disabled { opacity: .5; cursor: default; }
+.chk { display: flex; gap: 6px; align-items: center; }
+input.num.pending { background: #fff3a8; color: #000; }
+.vals { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cell { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; border: 1px solid var(--line);
+        border-radius: 6px; padding: 6px 10px; }
+.cell .n { color: var(--muted); font-size: 14px; }
+.cell .v { font-weight: 600; font-variant-numeric: tabular-nums; font-size: 17px; }
+.cell .u { color: var(--muted); font-size: 12px; font-weight: 400; margin-left: 3px; }
 /* Текущая ошибка: красный круг, нет - серый. */
 .lamp { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); background: transparent;
         cursor: pointer; flex: none; }
@@ -79,7 +111,7 @@ progress { width: 100%; max-width: 420px; height: 10px; }
   <span id="hClock" class="chip dim"></span>
 </header>
 <nav>
-  <button data-t="dev" class="on">Прибор</button>
+  <button data-t="inv" class="on">Инвертор</button>
   <button data-t="err">Ошибки</button>
   <button data-t="jour">Журнал</button>
   <button data-t="bbox">Чёрный ящик</button>
@@ -87,16 +119,40 @@ progress { width: 100%; max-width: 420px; height: 10px; }
 </nav>
 <main>
 
-<section id="dev" class="on">
-  <p id="devNote" class="note"></p>
-  <h2>Сеть и выход</h2>
-  <div class="grid" id="gNet"></div>
-  <h2>Мощность</h2>
-  <div class="grid" id="gPow"></div>
-  <h2>Контур</h2>
-  <div class="grid" id="gLoop"></div>
-  <h2>Питание и прибор</h2>
-  <div class="grid" id="gDev"></div>
+<section id="inv" class="on">
+  <!-- Панель «Однофазный инвертор» Motor_Control (GridTieUi.cs, MainWindow.cs):
+       наверху органы, ниже величины в два столбца, те же имена и единицы. -->
+  <p id="invNote" class="note"></p>
+  <div class="auth" id="authBox">
+    <span id="authOk" hidden>Пароль сохранён в этом браузере · <a href="#" id="authForget">забыть</a></span>
+    <span id="authAsk" class="row" style="margin:0">
+      <input type="password" id="cPass" placeholder="Пароль управления (по умолчанию - пароль сети K57)" autocomplete="current-password">
+      <button class="act" id="authGo">Войти</button>
+    </span>
+  </div>
+  <div class="panel">
+    <div class="prow">
+      <span id="pKeys" class="chip">…</span>
+      <button id="pPower" class="pbtn" title="Ключи АИН-1">…</button>
+      <label class="chk"><input type="checkbox" id="pEn"> Разрешить сеть</label>
+    </div>
+    <div class="prow">
+      <div class="pf"><div class="k">Режим</div>
+        <div class="seg">
+          <button class="pbtn mode" data-m="0">АИН</button><button class="pbtn mode" data-m="1">Слежение</button><button class="pbtn mode" data-m="2">Выход в сеть</button>
+        </div>
+      </div>
+    </div>
+    <p id="cRes" class="note res"></p>
+    <div class="prow">
+      <div class="pf"><div class="k">Uref, В</div><input id="pUref" type="number" min="0" max="250" step="1" class="num"></div>
+      <div class="pf"><div class="k">F, Гц</div><input id="pFreq" type="number" min="40" max="70" step="1" class="num"></div>
+      <div class="pf"><div class="k">Iзад, А</div><input id="pIset" type="number" min="0" max="25" step="0.1" class="num"></div>
+    </div>
+    <div class="vals" id="pVals"></div>
+  </div>
+  <p class="note">Поле уставки желтеет, пока прибор не подтвердил новое значение. Ввод - Enter.
+     Выключение ключей заодно обнуляет Uref и Iзад, как в Motor_Control.</p>
 </section>
 
 <section id="err">
@@ -130,7 +186,7 @@ progress { width: 100%; max-width: 420px; height: 10px; }
   <h2>Обновить прошивку моста</h2>
   <p class="note">Файл <b>esp32_bridge.bin</b> из ESP32_BRIDGE\build. Новая прошивка сначала пробная: не поднимется за минуту - мост сам вернётся к прежней.</p>
   <div class="row"><input type="file" id="uFile" accept=".bin"></div>
-  <div class="row"><input type="password" id="uPass" placeholder="Пароль (по умолчанию - пароль сети K57)" autocomplete="current-password"></div>
+  <p class="note">Пароль - тот же, что на вкладке «Инвертор».</p>
   <div class="row"><button class="act" id="uGo">Залить</button></div>
   <div class="row"><progress id="uProg" max="100" value="0" hidden></progress></div>
   <p id="uNote" class="note"></p>
@@ -148,7 +204,7 @@ const GRID = ["стоит, ключи закрыты", "следит за сет
 const GRIDCLS = ["", "warn", "warn", "ok", "bad"];
 const TELE = ["коды АЦП", "мгновенные", "действующие"];
 let codes = {};          // код -> описание, из ErrorCodes.h
-let tab = "dev";
+let tab = "inv";
 let jN = 300;
 
 function fmt(v, d) { return Number.isFinite(v) ? v.toFixed(d).replace(".", ",") : "—"; }
@@ -207,7 +263,7 @@ function showState(s) {
   hl.className = "lamp " + (cur.length ? "on" : "off");
   hl.title = cur.length ? "Сейчас горит: " + cur.map(c => c + " - " + codeText(c)).join("; ") : "текущих ошибок нет";
 
-  const note = $("devNote");
+  const note = $("invNote");
   if (!fresh) {
     note.textContent = s.age < 0 ? "Прибор ещё не прислал ни одного кадра - жду…"
       : "Нет свежих данных от прибора (" + Math.round(s.age / 1000) + " с).";
@@ -221,35 +277,31 @@ function showState(s) {
   hg.textContent = "Инвертор: " + (GRID[st] || ("состояние " + st)) + (st === 4 && fault ? " — " + codeText(fault) : "");
   hg.className = "chip " + (GRIDCLS[st] || "");
 
-  const sel = w[13];
-  const raw = sel === 0;
+  // Цены делений - Parse140 в Oleg/Kadr60.cs. Слова 4..7 - по набору teleSel
+  // (слово 13): коды АЦП, мгновенные или действующие (rms).
+  const sel = w[13], raw = sel === 0;
   const I = v => raw ? S16(v) : S16(v) * 0.01, U = v => raw ? S16(v) : S16(v) * 0.1;
   const ui = raw ? "код" : "А", uu = raw ? "код" : "В", di = raw ? 0 : 2, du = raw ? 0 : 1;
-  const selTxt = TELE[sel] || ("набор " + sel);
-  $("gNet").innerHTML =
-    tile("Напряжение сети", fmt(raw ? w[6] : U(w[6]), du), uu, selTxt) +
-    tile("Частота сети", fmt(w[16] * 0.01, 2), "Гц") +
-    tile("Выход инвертора", fmt(U(w[7]), du), uu, selTxt) +
-    tile("Ток в сеть", fmt(I(w[5]), di), ui, selTxt) +
-    tile("Ток первички", fmt(I(w[4]), di), ui, selTxt);
-  $("gPow").innerHTML =
-    tile("Активная P", fmt(S16(w[17]), 0), "Вт") +
-    tile("Реактивная Q", fmt(S16(w[18]), 0), "вар") +
-    tile("Полная S", fmt(S16(w[19]), 0), "ВА") +
-    tile("Коэфф. мощности", fmt(S16(w[20]) * 0.0001, 3), "");
-  $("gLoop").innerHTML =
-    tile("Ток сейчас", fmt(w[11] * 0.01, 2), "А", "куда идёт: " + fmt(w[23] * 0.01, 2) + " А") +
-    tile("Индекс модуляции", fmt(w[24] * 0.0001, 3), "", "пик за период") +
-    tile("В упоре", w[25], "из 100", "тактов за период") +
-    tile("Постоянка в трансф.", fmt(S16(w[21]) * 0.01, 2), "А", "поправка " + fmt(S16(w[22]) * 0.001, 3) + " В");
-  $("gDev").innerHTML =
-    tile("Напряжение АКБ", fmt(S16(w[8]) * 0.1, 1), "В") +
-    tile("Температура ядра", S16(w[9]), "°C") +
-    tile("Кадр", w[31], "", "свежесть " + s.age + " мс");
+  const tag = ["код", "мгн", "rms"][sel] || "";
+  const cell = (n, v, u) => '<div class="cell"><span class="n">' + n + '</span><span class="v">' + v +
+                            '<span class="u">' + (u || "") + '</span></span></div>';
+  const GT = ["OFF", "SYNC", "RAMP", "RUN", "FAULT"];
+  const iset = w[11] * 0.01, isetRef = w[23] * 0.01;
+  $("pVals").innerHTML =
+    cell("Vin", fmt(S16(w[8]) * 0.1, 1), "В") +           cell("U220", fmt(U(w[6]), du), uu + " " + tag) +
+    cell("Usec", fmt(U(w[7]), du), uu + " " + tag) +       cell("F сети", fmt(w[16] * 0.01, 2), "Гц") +
+    cell("Ipri", fmt(I(w[4]), di), ui) +                   cell("I1_av", fmt(S16(w[21]) * 0.01, 2), "А") +
+    cell("Isec", fmt(I(w[5]), di), ui) +                   cell("Ucor", fmt(S16(w[22]) * 0.001, 3), "В") +
+    cell("P", fmt(S16(w[17]), 0), "Вт") +                  cell("Q", fmt(S16(w[18]), 0), "вар") +
+    cell("S", fmt(S16(w[19]), 0), "ВА") +                  cell("PF", fmt(S16(w[20]) * 0.0001, 4), "") +
+    cell("Iset", w[11] === w[23] ? fmt(iset, 2) : fmt(iset, 1) + "→" + fmt(isetRef, 1), "А") +
+    cell("m", fmt(w[24] * 0.0001, 3) + (w[25] ? "/" + w[25] : ""), "") +
+    cell("GT", GT[st] || st, "") +                         cell("Err", fault || 0, "") +
+    cell("CoreT", S16(w[9]), "°C") +                       cell("Кадр", w[31], "");
 }
 
 async function pollState() {
-  try { showState(await getJson("/api/state")); }
+  try { const s = await getJson("/api/state"); showState(s); showCtl(s); }
   catch (e) { $("hSess").textContent = "мост не отвечает"; $("hSess").className = "chip bad"; }
   $("hClock").textContent = new Date().toLocaleTimeString("ru-RU");
 }
@@ -313,7 +365,8 @@ async function loadBridge() {
 $("uGo").onclick = () => {
   const f = $("uFile").files[0];
   if (!f) { $("uNote").textContent = "Выберите файл esp32_bridge.bin."; return; }
-  const p = $("uPass").value;
+  const p = pass();
+  if (!p) { $("uNote").textContent = "Сначала войдите паролем на вкладке «Инвертор»."; return; }
   const x = new XMLHttpRequest();
   x.open("POST", "/update");
   x.setRequestHeader("Authorization", "Basic " + btoa(unescape(encodeURIComponent("k57:" + p))));
@@ -336,6 +389,152 @@ $("uGo").onclick = () => {
 };
 
 $("hLamp").onclick = () => document.querySelector('nav button[data-t="err"]').click();
+
+// --- управление ---
+// Мост разрешает его, только когда сеанс Motor_Control закрыт и прибор на
+// связи, и сам раскладывает действие в те же команды, что шлёт Motor_Control
+// (live.c, live_control). Пароль - тот же, что на обновление моста.
+const MODE = ["АИН", "Слежение", "Выход в сеть"];
+let ctlBusy = false, lastSet = {}, lastW = null;
+// Пароль запоминается в этом браузере (localStorage) и подставляется сам при
+// следующем входе (12.11.2026). Хранилище может быть недоступно (частное окно)
+// - тогда пароль живёт, пока открыта страница.
+let pw = "";
+function pass() { return pw; }
+function store(v) { try { v ? localStorage.setItem("k57pass", v) : localStorage.removeItem("k57pass"); } catch (e) {} }
+function stored() { try { return localStorage.getItem("k57pass") || ""; } catch (e) { return ""; } }
+function authShow(ok) { $("authOk").hidden = !ok; $("authAsk").hidden = ok; }
+// Верный ли пароль: любой ответ, кроме 401, значит - пароль принят.
+async function authCheck(v) {
+  try {
+    const r = await fetch("/api/ctl?do=check", {
+      method: "POST", headers: {Authorization: "Basic " + btoa(unescape(encodeURIComponent("k57:" + v)))}
+    });
+    return r.status !== 401;
+  } catch (e) { return null; } // мост не ответил - ни да, ни нет
+}
+$("authGo").onclick = async () => {
+  const v = $("cPass").value;
+  const ok = await authCheck(v);
+  if (ok) { pw = v; store(v); $("cPass").value = ""; authShow(true); $("cRes").textContent = ""; }
+  else $("cRes").textContent = ok === null ? "Мост не ответил." : "Неверный пароль.";
+};
+$("cPass").onkeydown = e => { if (e.key === "Enter") $("authGo").click(); };
+$("authForget").onclick = e => { e.preventDefault(); pw = ""; store(""); authShow(false); };
+(async () => {
+  const v = stored();
+  if (!v) { authShow(false); return; }
+  const ok = await authCheck(v);
+  if (ok === false) { store(""); authShow(false); return; } // пароль на мосту сменили
+  pw = v; authShow(true);
+})();
+
+async function ctl(what, v, sure) {
+  if (sure && !confirm(sure)) return false;
+  if (ctlBusy) return false;
+  ctlBusy = true;
+  $("cRes").textContent = "";
+  let ok = false;
+  try {
+    const r = await fetch("/api/ctl?do=" + what + "&v=" + (v || 0), {
+      method: "POST", headers: {Authorization: "Basic " + btoa(unescape(encodeURIComponent("k57:" + pass())))}
+    });
+    const t = await r.text();
+    ok = r.ok;
+    if (r.status === 401) { pw = ""; store(""); authShow(false); }
+    $("cRes").textContent = r.ok ? "" : (r.status === 401 ? "Неверный пароль - введите его вверху." : "Отказ: " + t);
+  } catch (e) { $("cRes").textContent = "Мост не ответил."; }
+  ctlBusy = false;
+  return ok;
+}
+
+// Ключи: состояние - отдельной надписью, на кнопке - действие. В Motor_Control
+// на кнопке состояние («Вкл» зелёным), и оно читалось как приглашение нажать
+// (12.11.2026). Состояние - бит pwm_On, слово 14.
+$("pPower").onclick = () => {
+  const on = lastW && (lastW[14] & 1);
+  if (on) ctl("power", 0);
+  else ctl("power", 1, "Открыть ключи АИН-1?");
+};
+// Режим - три кнопки, а не одна по кругу, как в Motor_Control: по кругу та
+// молча перескакивала «Выход в сеть» без разрешения, и казалось, что круг не
+// идёт (12.11.2026). Нажатая желтеет, пока прибор не подтвердил (ACK 630).
+let modeWant = -1;
+document.querySelectorAll("button.mode").forEach(b => b.onclick = async () => {
+  const m = +b.dataset.m;
+  if (m === lastSet.mode) return;
+  modeWant = m;
+  showMode();
+  if (!await ctl("mode", m, m === 2 ? "Выход в сеть: замкнуть контактор и пустить ток в сеть?" : null)) {
+    modeWant = -1;
+    showMode();
+  }
+});
+function showMode() {
+  const known = lastSet.modeAge >= 0 && lastSet.modeAge < 10000;
+  if (known && modeWant === lastSet.mode) modeWant = -1;
+  document.querySelectorAll("button.mode").forEach(b => {
+    const m = +b.dataset.m;
+    b.classList.toggle("cur", known && m === lastSet.mode && modeWant < 0);
+    b.classList.toggle("pending", m === modeWant);
+  });
+  const net = document.querySelector('button.mode[data-m="2"]');
+  if (!lastSet.en) {
+    net.disabled = true;
+    net.title = "Сначала поставьте галочку «Разрешить сеть»";
+  } else {
+    net.title = "";
+  }
+}
+$("pEn").onchange = () => ctl("gridEn", $("pEn").checked ? 1 : 0);
+
+// Поля уставок: Enter или уход из поля - отправить; жёлтое, пока прибор не подтвердил.
+function field(id, what, lo, hi, scale, unit) {
+  const el = $(id);
+  el.onkeydown = e => { if (e.key === "Enter") el.blur(); };
+  el.onchange = async () => {
+    const x = parseFloat(String(el.value).replace(",", "."));
+    if (!(x >= lo && x <= hi)) { $("cRes").textContent = "Допустимо " + lo + ".." + hi + " " + unit + "."; return; }
+    el.dataset.want = Math.round(x * scale);
+    el.classList.add("pending");
+    if (!await ctl(what, el.dataset.want)) { el.classList.remove("pending"); delete el.dataset.want; }
+  };
+}
+field("pUref", "uref", 0, 250, 10, "В");
+field("pFreq", "freq", 40, 70, 1, "Гц");
+field("pIset", "iset", 0, 25, 100, "А");
+
+// Поле показывает то, что в приборе, - кроме того, которое сейчас правят.
+function syncField(id, have, age, val, digits) {
+  const el = $(id);
+  if (!(age >= 0 && age < 10000)) return;
+  if (el.dataset.want !== undefined && +el.dataset.want === have) {
+    el.classList.remove("pending"); delete el.dataset.want;
+  }
+  if (document.activeElement !== el && el.dataset.want === undefined) el.value = val.toFixed(digits);
+}
+
+function showCtl(s) {
+  const fresh = s.age >= 0 && s.age < 3000;
+  const lock = s.session || !fresh;
+  lastW = fresh ? s.w : null;
+  const set = lastSet = s.set || {};
+  document.querySelectorAll("#inv button, #inv input.num, #pEn").forEach(x => x.disabled = lock);
+
+  const on = fresh && (s.w[14] & 1);
+  $("pKeys").textContent = !fresh ? "ключи: ?" : (on ? "ключи открыты" : "ключи закрыты");
+  $("pKeys").className = "chip " + (on ? "ok" : "");
+  $("pPower").textContent = on ? "Выключить" : "Включить";
+  $("pPower").classList.toggle("off", !!on);
+  $("pPower").classList.toggle("go", fresh && !on); // «Включить» - зелёная, «Выключить» - красная
+
+  const known = a => a >= 0 && a < 10000;
+  showMode();
+  if (known(set.enAge) && document.activeElement !== $("pEn")) $("pEn").checked = !!set.en;
+  syncField("pUref", set.uref, set.urefAge, set.uref * 0.1, 0);
+  syncField("pFreq", set.freq, set.freqAge, set.freq, 0);
+  syncField("pIset", set.iset, set.isetAge, set.iset * 0.01, 1);
+}
 
 // --- ход ---
 loadCodes().then(() => { pollState(); });

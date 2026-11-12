@@ -49,7 +49,7 @@ static void auth_init(void)
 }
 
 /* true - пароль верный; иначе ответ 401 уже отправлен. */
-static bool auth_ok(httpd_req_t *req)
+bool web_auth_ok(httpd_req_t *req)
 {
     char got[sizeof s_auth];
 
@@ -57,8 +57,11 @@ static bool auth_ok(httpd_req_t *req)
         strcmp(got, s_auth) == 0) {
         return true;
     }
+    /* Без WWW-Authenticate - нарочно (12.11.2026). С ним браузер на любой
+     * отказ выводил своё окно «имя пользователя и пароль» поверх поля пароля
+     * на странице, и было непонятно, что куда вводить. Страница, Motor_Control
+     * и curl -u шлют пароль сразу, вопрос им не нужен. */
     httpd_resp_set_status(req, "401 Unauthorized");
-    httpd_resp_set_hdr(req, "WWW-Authenticate", "Basic realm=\"K57\", charset=\"UTF-8\"");
     httpd_resp_sendstr(req, "нужен пароль");
     return false;
 }
@@ -94,7 +97,7 @@ static esp_err_t update_post(httpd_req_t *req)
 {
     static char buf[2048]; /* один запрос за раз - сервер однопоточный */
 
-    if (!auth_ok(req)) {
+    if (!web_auth_ok(req)) {
         return ESP_OK;
     }
     if (s_updating) {
@@ -214,7 +217,7 @@ void web_start(void)
     cfg.max_open_sockets = 3;     /* куча моста почти вся у чёрного ящика */
     cfg.lru_purge_enable = true;
     cfg.recv_wait_timeout = 10;
-    cfg.max_uri_handlers = 12;
+    cfg.max_uri_handlers = 14;
     cfg.uri_match_fn     = httpd_uri_match_wildcard;
 
     if (httpd_start(&s_srv, &cfg) != ESP_OK) {

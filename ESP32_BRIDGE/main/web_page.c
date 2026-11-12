@@ -15,8 +15,10 @@
  *   GET /api/bbox          записи чёрного ящика
  *   GET /api/bridge        мост: сеть, обмен с прибором, память
  *
- * Без пароля: всё это только для чтения. Пароль - у /update и у будущего
- * управления (web.c).
+ *   POST /api/ctl?do=..&v=N  управление - с паролем (live.c, live_control):
+ *                          power, mode, gridEn, iset, uref, freq
+ *
+ * GET без пароля: только чтение. Пароль - у /update и у /api/ctl.
  */
 #include <stdarg.h>
 #include <stdio.h>
@@ -120,7 +122,16 @@ static esp_err_t state_get(httpd_req_t *req)
     static uint16_t ew[LIVE_ERR_CODES];
     static uint32_t et[LIVE_ERR_CODES];
     live_errors(ew, et);
-    out(req, "],\"cur\":[");
+    live_set_t st;
+    live_get_set(&st);
+    out(req, "],\"set\":{\"mode\":%u,\"modeAge\":%ld,\"en\":%u,\"enAge\":%ld,\"iset\":%u,"
+             "\"isetAge\":%ld,\"uref\":%u,\"urefAge\":%ld,\"freq\":%u,\"freqAge\":%ld}",
+        st.mode, st.modeAge == UINT32_MAX ? -1L : (long)st.modeAge, st.gridEn,
+        st.enAge == UINT32_MAX ? -1L : (long)st.enAge, st.iset,
+        st.isetAge == UINT32_MAX ? -1L : (long)st.isetAge, st.uref,
+        st.urefAge == UINT32_MAX ? -1L : (long)st.urefAge, st.freq,
+        st.freqAge == UINT32_MAX ? -1L : (long)st.freqAge);
+    out(req, ",\"cur\":[");
     bool first = true;
     for (int i = 0; i < LIVE_ERR_CODES; i++) {
         if (ew[i] & 0x8000u) {
@@ -225,6 +236,30 @@ static esp_err_t bridge_get(httpd_req_t *req)
     return out_end(req);
 }
 
+/* Управление: POST /api/ctl?do=start|stop|mode|gridEn|iset|uref&v=N, с
+ * паролем. Само действие и его проверки - live_control() (live.c). */
+static esp_err_t ctl_post(httpd_req_t *req)
+{
+    char q[64], what[12] = "", v[12] = "0";
+
+    if (!web_auth_ok(req)) {
+        return ESP_OK;
+    }
+    if (httpd_req_get_url_query_str(req, q, sizeof q) != ESP_OK ||
+        httpd_query_key_value(q, "do", what, sizeof what) != ESP_OK) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_sendstr(req, "нет действия");
+    }
+    httpd_query_key_value(q, "v", v, sizeof v);
+
+    const char *err = live_control(what, atoi(v));
+    if (err != NULL) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return httpd_resp_sendstr(req, err);
+    }
+    return httpd_resp_sendstr(req, "OK");
+}
+
 void web_page_register(httpd_handle_t srv)
 {
     static const httpd_uri_t u[] = {
@@ -236,6 +271,7 @@ void web_page_register(httpd_handle_t srv)
         {.uri = "/api/journal", .method = HTTP_GET, .handler = journal_get},
         {.uri = "/api/bbox", .method = HTTP_GET, .handler = bbox_get},
         {.uri = "/api/bridge", .method = HTTP_GET, .handler = bridge_get},
+        {.uri = "/api/ctl", .method = HTTP_POST, .handler = ctl_post},
     };
     for (size_t i = 0; i < sizeof u / sizeof u[0]; i++) {
         httpd_register_uri_handler(srv, &u[i]);

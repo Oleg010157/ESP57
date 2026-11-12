@@ -11,7 +11,7 @@
  *
  * ПАРОЛЬ - HTTP Basic, пользователь k57, пароль CONFIG_K57_ADMIN_PASS из
  * sdkconfig.local; не задан - пароль точки доступа CONFIG_K57_AP_PASS.
- * Браузер спросит его сам.
+ * Вводится в поле на странице; окна входа браузера нет (web_auth_ok).
  *
  * ОБНОВЛЕНИЕ. Прошивка пишется в свободное из двух мест под программу
  * (partitions.csv), загрузчик переключается на неё, мост перезапускается.
@@ -40,3 +40,6 @@ const char *web_version(void);
 /* Страница прибора и её данные - web_page.c. */
 #include "esp_http_server.h"
 void web_page_register(httpd_handle_t srv);
+
+/* Пароль запроса (Basic, k57:пароль). false - ответ 401 уже ушёл. */
+bool web_auth_ok(httpd_req_t *req);

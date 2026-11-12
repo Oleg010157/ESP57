@@ -41,6 +41,10 @@ static uint32_t s_nextUtc[LIVE_ERR_CODES];
 static uint32_t s_utc[LIVE_ERR_CODES];
 static bool     s_haveErr;
 
+/* Подтверждённое прибором (ACK, кадр 1: cmd, d1, d2, d3). */
+static uint16_t s_mode, s_en, s_iset, s_uref, s_freq;
+static int64_t  s_tMode, s_tEn, s_tIset, s_tUref, s_tFreq;
+
 static volatile int64_t s_touch;
 static bool             s_watching;
 static int              s_ticks;
@@ -63,6 +67,21 @@ void live_frame(uint16_t id, const uint8_t *data, uint8_t len)
             s_w[i] = le16(data + 2 * i);
         }
         s_t140 = now_us();
+        portEXIT_CRITICAL(&s_mux);
+        return;
+    }
+    if (id == 1 && len >= 8) {
+        uint16_t c = le16(data), v = le16(data + 2);
+        int64_t  t = now_us();
+        portENTER_CRITICAL(&s_mux);
+        switch (c) {
+        case 630: s_mode = v; s_tMode = t; break;
+        case 635: s_en   = v; s_tEn   = t; break;
+        case 632: s_iset = v; s_tIset = t; break;
+        case 633: s_uref = v; s_tUref = t; break;
+        case 624: s_freq = v; s_tFreq = t; break;
+        default: break;
+        }
         portEXIT_CRITICAL(&s_mux);
         return;
     }
@@ -132,8 +151,109 @@ void live_tick1s(void)
     uint16_t req = WATCH_LAMP;
     if (++s_ticks % 3 == 0) {
         req |= WATCH_ERRORS; /* список - не каждую секунду: это 50 кадров */
+        /* И что задано в приборе - для вкладки «Управление». Без 3333 это
+         * только чтение: прибор отвечает текущим значением (MBOX28.c). */
+        spi_link_send_cmd(630, 0, 0, 0);
+        spi_link_send_cmd(635, 0, 0, 0);
+        spi_link_send_cmd(632, 0, 0, 0);
+        spi_link_send_cmd(633, 0, 0, 0);
+        spi_link_send_cmd(624, 0, 0, 0);
     }
     spi_link_send_cmd(CMD_WATCH, req, 0, 0);
+}
+
+bool live_session_open(void)
+{
+    return session_open();
+}
+
+void live_get_set(live_set_t *out)
+{
+    portENTER_CRITICAL(&s_mux);
+    out->mode   = s_mode;
+    out->gridEn = s_en;
+    out->iset   = s_iset;
+    out->uref   = s_uref;
+    out->freq   = s_freq;
+    int64_t tm = s_tMode, te = s_tEn, ti = s_tIset, tu = s_tUref, tf = s_tFreq;
+    portEXIT_CRITICAL(&s_mux);
+    out->modeAge = tm == 0 ? UINT32_MAX : (uint32_t)((now_us() - tm) / 1000);
+    out->enAge   = te == 0 ? UINT32_MAX : (uint32_t)((now_us() - te) / 1000);
+    out->isetAge = ti == 0 ? UINT32_MAX : (uint32_t)((now_us() - ti) / 1000);
+    out->urefAge = tu == 0 ? UINT32_MAX : (uint32_t)((now_us() - tu) / 1000);
+    out->freqAge = tf == 0 ? UINT32_MAX : (uint32_t)((now_us() - tf) / 1000);
+}
+
+/*---------------------------------------------------------------------------
+ * Управление со страницы
+ *
+ * Команды - те же и в том же порядке, что у Motor_Control:
+ *
+ *   mode    - 630 с 3333: 0 АИН, 1 слежение, 2 выход в сеть (прибор сам
+ *             откажет в 2 без разрешения 635);
+ *   gridEn  - 635 с 3333: разрешение выхода в сеть, 0/1;
+ *   iset    - 632 с 3333, 0.01 А;  uref - 633 с 3333, 0.1 В;
+ *   freq    - 624 с 3333, Гц - частота своего синуса в АИН;
+ *   power   - ключи АИН-1, кнопка «Вкл/Выкл» панели (InvPower_Click в
+ *             GridTieUi.cs): 1 - 10 «снять запрет» и 12 «ключи»; 0 - 10
+ *             «запретить» и Uref, Iset в ноль, чтобы следующее включение не
+ *             началось с полной уставки.
+ *
+ * Пределы - здесь, а не только в странице: страницу можно и обойти.
+ *---------------------------------------------------------------------------*/
+#define ISET_MAX 2500 /* 25 А - упор движка Load1 в Motor_Control */
+#define UREF_MAX 2500 /* 250 В */
+#define FREQ_MIN 40   /* Гц - шкала поля F Hz в Motor_Control */
+#define FREQ_MAX 70
+
+const char *live_control(const char *what, int value)
+{
+    if (session_open()) {
+        return "открыт сеанс Motor_Control - управляет он";
+    }
+    portENTER_CRITICAL(&s_mux);
+    bool fresh = s_t140 != 0 && now_us() - s_t140 < (int64_t)3000 * 1000;
+    portEXIT_CRITICAL(&s_mux);
+    if (!fresh) {
+        return "прибор не на связи";
+    }
+
+    bool ok = true;
+    /* Пуск/Стоп (4/5) нарочно нет: они от стенда с двумя двигателями и
+     * дублируют ключи «power» (12.11.2026). */
+    if (strcmp(what, "mode") == 0) {
+        if (value < 0 || value > 2) {
+            return "нет такого режима";
+        }
+        ok = spi_link_send_cmd(630, (uint16_t)value, 3333, 0);
+    } else if (strcmp(what, "gridEn") == 0) {
+        ok = spi_link_send_cmd(635, value ? 1 : 0, 3333, 0);
+    } else if (strcmp(what, "iset") == 0) {
+        if (value < 0 || value > ISET_MAX) {
+            return "Iset вне 0..25 А";
+        }
+        ok = spi_link_send_cmd(632, (uint16_t)value, 3333, 0);
+    } else if (strcmp(what, "power") == 0) {
+        if (value) {
+            ok = spi_link_send_cmd(10, 0, 3333, 0) && spi_link_send_cmd(12, 0, 0, 0);
+        } else {
+            ok = spi_link_send_cmd(10, 1, 3333, 0) && spi_link_send_cmd(633, 0, 3333, 0) &&
+                 spi_link_send_cmd(632, 0, 3333, 0);
+        }
+    } else if (strcmp(what, "freq") == 0) {
+        if (value < FREQ_MIN || value > FREQ_MAX) {
+            return "частота вне 40..70 Гц";
+        }
+        ok = spi_link_send_cmd(624, (uint16_t)value, 3333, 0);
+    } else if (strcmp(what, "uref") == 0) {
+        if (value < 0 || value > UREF_MAX) {
+            return "Uref вне 0..250 В";
+        }
+        ok = spi_link_send_cmd(633, (uint16_t)value, 3333, 0);
+    } else {
+        return "нет такого действия";
+    }
+    return ok ? NULL : "очередь к прибору полна";
 }
 
 static uint32_t age_ms(int64_t t)

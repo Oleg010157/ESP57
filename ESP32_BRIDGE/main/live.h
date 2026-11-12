@@ -51,6 +51,27 @@ void live_touch(void);
 
 void live_get(live_state_t *out);
 
+/* Что подтвердил прибор (ACK) на команды режима и уставок. age - мс с ответа,
+ * UINT32_MAX - ответа ещё не было. Пока страница смотрит, мост раз в три
+ * секунды спрашивает их сам (команда без 3333 - только чтение). */
+typedef struct {
+    uint16_t mode;   uint32_t modeAge;  /* 630: 0 АИН, 1 слежение, 2 сеть */
+    uint16_t gridEn; uint32_t enAge;    /* 635: разрешение выхода в сеть */
+    uint16_t iset;   uint32_t isetAge;  /* 632: уставка тока, 0.01 А */
+    uint16_t uref;   uint32_t urefAge;  /* 633: напряжение острова, 0.1 В */
+    uint16_t freq;   uint32_t freqAge;  /* 624: частота своего синуса (АИН), Гц */
+} live_set_t;
+
+void live_get_set(live_set_t *out);
+
+/* Сеанс Motor_Control открыт - управлять со страницы нельзя. */
+bool live_session_open(void);
+
+/* Управление со страницы (web_page.c). Раскладывает действие в те же
+ * команды прибору, что шлёт Motor_Control (GridTieUi.cs, MainWindow.cs).
+ * Возвращает NULL - отправлено, иначе причину отказа. */
+const char *live_control(const char *what, int value);
+
 /* Таблица ошибок: слово ErrBuff и время (UTC) последнего раза, по коду.
  * Возвращает false, если полного списка ещё не было. */
 bool live_errors(uint16_t word[LIVE_ERR_CODES], uint32_t utc[LIVE_ERR_CODES]);
