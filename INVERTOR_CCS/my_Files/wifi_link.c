@@ -12,6 +12,10 @@
 #include "wifi_link.h"
 #include "myMCAN.h" // cmd_MBOX28, MCAN_holdRx - команды из WiFi
 #include "myDCAN.h" // CAN_RATE_CMD
+#include "Bootloader/can_boot_protocol.h" // BOOT_CAN_RX_ID
+#include "Bootloader/boot_spi.h"          // BOOT_SPI_ENTER
+
+extern uint16_t request_firmware_update; // main.c
 
 #define WL_MAGIC_F28 0xA55AU
 #define WL_MAGIC_ESP 0x5AA5U
@@ -362,6 +366,10 @@ static void drain(void)
 //
 // Кадр команды - ID 2, 8 байт, слова в порядке CAN: cmd, d3, d2, d1 (так их
 // раскладывает MCAN-приёмник в myMCAN.c).
+//
+// Кадр 0x33 [BOOT_SPI_ENTER, BOOT_SPI_KEY] - мост зовёт прибор в загрузчик,
+// прошивать по SPI (Bootloader/boot_spi.h). Ставит его только сам мост: из
+// сети к прибору идут одни команды с ID 2 (ESP32_BRIDGE/main/net_link.c).
 //---------------------------------------------------------------------------
 #define WL_CMD_ID   2U
 #define WL_MAX_CMDS (WL_PAYLOAD / 6U) // кадр команды - 2 + 4 слова
@@ -438,7 +446,12 @@ static void rx_parse(const uint16_t *p)
         {
             break;
         }
-        if (id == WL_CMD_ID && n == 4U && nCmd < WL_MAX_CMDS)
+        if (id == BOOT_CAN_RX_ID && n == 4U &&
+            p[w + 2U] == BOOT_SPI_ENTER && p[w + 3U] == BOOT_SPI_KEY)
+        {
+            request_firmware_update = 2U; // уйдёт из фона main(), как 9999
+        }
+        else if (id == WL_CMD_ID && n == 4U && nCmd < WL_MAX_CMDS)
         {
             for (i = 0U; i < 4U; i++)
             {
@@ -454,8 +467,9 @@ static void rx_parse(const uint16_t *p)
         uint16_t cmd = cmds[i][0];
 
         // Не по WiFi:
-        //   9999 - уход в загрузчик, а он принимает прошивку только по CAN:
-        //          прибор встал бы в загрузчике без связи.
+        //   9999 - уход в загрузчик ПО CAN: прибор встал бы в загрузчике,
+        //          ожидая ПК на шине. По WiFi в загрузчик зовёт сам мост,
+        //          кадром BOOT_SPI_ENTER выше.
         //   7100 - скорость фазы данных CAN, к WiFi отношения не имеет.
         if (cmd == 9999U || cmd == CAN_RATE_CMD)
         {

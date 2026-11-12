@@ -31,6 +31,7 @@ namespace ICDIBasic
             _bridgeUpdMenu.Click += async (s, e) => await BridgeUpdate_Run();
             parent.DropDownItems.Add(_bridgeTblMenu);
             _bridgeTblMenu.Click += async (s, e) => await BridgeTables_Send();
+            BridgeF28_InitMenu(parent); // BridgeFlashF28.cs
         }
 
         /*

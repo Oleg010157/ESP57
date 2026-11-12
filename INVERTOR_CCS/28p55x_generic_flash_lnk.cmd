@@ -94,13 +94,17 @@ SECTIONS
     * Ramfuncs*, отдельного memcpy не нужно. Имя .lib обязано совпадать с тем,
     * что подключено в настройках проекта: разойдутся - линковка пройдёт, а
     * Fapi останется во флеше, и это обнаружится только на живой прошивке.
+    *
+    * ГДЕ. RAMGS3, целиком под неё. До 12.11.2026 была RAMGS0, но там же
+    * ramgs0 (журнал ошибок, bridge_store), и с SPI-каналом загрузчика
+    * (Bootloader/boot_spi.c) свободных осталось 46 слов.
     */
    #if defined(__TI_EABI__)
        GROUP
        {
           .TI.ramfunc : { -l FAPI_F28P55x_EABI_v4.00.00.lib }
        }                 LOAD = FLASH_BANK0,
-                        RUN = RAMGS0,
+                        RUN = RAMGS3,
                         LOAD_START(RamfuncsLoadStart),
                         LOAD_SIZE(RamfuncsLoadSize),
                         LOAD_END(RamfuncsLoadEnd),
@@ -113,7 +117,7 @@ SECTIONS
        {
           .TI.ramfunc : { -l FAPI_F28P55x_COFF_v4.00.00.lib }
        }                 LOAD = FLASH_BANK0,
-                        RUN = RAMGS0,
+                        RUN = RAMGS3,
                         LOAD_START(_RamfuncsLoadStart),
                         LOAD_SIZE(_RamfuncsLoadSize),
                         LOAD_END(_RamfuncsLoadEnd),

@@ -124,6 +124,7 @@ input.num.pending, select.pending { background: #fff3a8; color: #000; }
   <button data-t="err">Ошибки</button>
   <button data-t="jour">Журнал</button>
   <button data-t="bbox">Чёрный ящик</button>
+  <button data-t="fw">Прошивка</button>
   <button data-t="br">Мост</button>
 </nav>
 <main>
@@ -205,6 +206,27 @@ input.num.pending, select.pending { background: #fff3a8; color: #000; }
   </table></div>
 </section>
 
+<section id="fw">
+  <h2>Прошивка прибора</h2>
+  <p class="note">Файл <b>invertor.out</b> из INVERTOR_CCS\CPU1_FLASH. Сначала он целиком уходит в мост и проверяется - прибор
+    в это время работает как работал. Потом мост сам прошивает прибор по проводам SPI: WiFi для этого не нужен, страницу можно
+    закрыть. Калибровки и настройка прибора (BANK4) не стираются.</p>
+  <p class="note">Нужны пароль (вкладка «Инвертор»), закрытый сеанс Motor_Control и закрытые ключи. <b>Питание прибора во
+    время прошивки не снимать</b> - между стиранием и пуском у него нет программы.</p>
+  <div class="kv" id="fDev"></div>
+  <h2>1. Файл в мост</h2>
+  <div class="row"><input type="file" id="fFile" accept=".out"></div>
+  <p id="fInfo" class="note"></p>
+  <div class="row"><button class="act" id="fSend" disabled>Отправить в мост</button></div>
+  <div class="row"><progress id="fUp" max="100" value="0" hidden></progress></div>
+  <h2>2. Прошить прибор</h2>
+  <div class="kv" id="fImg"></div>
+  <div class="row"><button class="act" id="fGo" disabled>Прошить прибор</button></div>
+  <div class="row"><progress id="fProg" max="100" value="0" hidden></progress></div>
+  <p id="fNote" class="note"></p>
+  <p id="fTime" class="note"></p>
+</section>
+
 <section id="br">
   <h2>Мост</h2>
   <div class="kv" id="brKv"></div>
@@ -255,6 +277,7 @@ document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   if (tab === "jour") loadJournal();
   if (tab === "bbox") loadBbox();
   if (tab === "br") loadBridge();
+  if (tab === "fw") loadFw(true);
   if (tab === "tbl") tblOpen();
 });
 
@@ -413,6 +436,185 @@ $("uGo").onclick = () => {
   $("uNote").textContent = "Передаю…";
   x.send(f);
 };
+
+// --- прошивка прибора (ESP32_BRIDGE/main/fwup.h) ---
+// .out разбирается здесь же, в браузере, так же, как его режет Motor_Control
+// для CAN (Bootloader.cs: Cnv2, BuildLoadRuns): PT_LOAD по физическим адресам
+// (слова прибора), начало и конец - по 32 слова, сплошные 0xFF пропускаются,
+// сегменты кратны 64 байтам. В мост уходит только образ, около 0,1 МБ, а не
+// весь .out с отладочными сведениями (1,4 МБ).
+const FW_START = 0x080000, FW_END = 0x0FFFFF;
+let fwImg = null, fwLast = null;
+function hex6(v) { return "0x" + v.toString(16).toUpperCase().padStart(6, "0"); }
+function kb(n) { return (n / 1024).toFixed(1).replace(".", ","); }
+function secs(ms) { return (ms / 1000).toFixed(1).replace(".", ","); }
+// Шаги - как FWUP_PH_* в fwup.h.
+const FW_PH = ["проверка", "вход в загрузчик", "стирание", "запись", "сверка и пуск", "ответ прибора"];
+function fwParse(buf, name, mtime) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf);
+  const u16 = o => dv.getUint16(o, true), u32 = o => dv.getUint32(o, true);
+  if (buf.byteLength < 52 || u32(0) !== 0x464C457F) throw "не ELF - нужен invertor.out из CPU1_FLASH";
+  if (u8[4] !== 1 || u8[5] !== 1) throw "ждётся ELF32 младшим байтом вперёд";
+  const phoff = u32(28), shoff = u32(32), phent = u16(42), phnum = u16(44), shent = u16(46), shnum = u16(48);
+
+  // Вход - символ _c_int00, как у Motor_Control: e_entry у этой сборки -
+  // code_start, а не он.
+  const want = [..."_c_int00"].map(c => c.charCodeAt(0)).concat(0);
+  let entry = -1;
+  for (let i = 0; i < shnum && entry < 0; i++) {
+    const sh = shoff + i * shent;
+    if (u32(sh + 4) !== 2) continue; // SHT_SYMTAB
+    const off = u32(sh + 16), size = u32(sh + 20), link = u32(sh + 24), es = u32(sh + 36);
+    if (!es || link >= shnum) continue;
+    const so = u32(shoff + link * shent + 16), ss = u32(shoff + link * shent + 20);
+    for (let k = 0; k * es < size; k++) {
+      const n = u32(off + k * es);
+      if (n + want.length > ss) continue;
+      let j = 0;
+      while (j < want.length && u8[so + n + j] === want[j]) j++;
+      if (j === want.length) { entry = u32(off + k * es + 4); break; }
+    }
+  }
+  if (entry < FW_START || entry > FW_END) throw "нет символа _c_int00 во флеше - это не флеш-сборка прибора";
+
+  const segs = [];
+  let lo = Infinity, hi = 0;
+  for (let i = 0; i < phnum; i++) {
+    const ph = phoff + i * phent;
+    const pa = u32(ph + 12), fsz = u32(ph + 16);
+    if (u32(ph) !== 1 || !fsz) continue; // PT_LOAD с данными
+    const end = pa + fsz / 2;
+    if (end <= FW_START) continue;       // целиком в ОЗУ - не флеш
+    if (end - 1 > FW_END) throw "в файле есть данные за BANK3 - калибровки (BANK4) прошивкой не пишутся";
+    segs.push([pa, u32(ph + 4), fsz]);
+    lo = Math.min(lo, Math.max(pa, FW_START));
+    hi = Math.max(hi, end);
+  }
+  if (!segs.length) throw "в файле нет данных для флеша";
+  lo -= lo % 32;
+  hi = Math.ceil(hi / 32) * 32;
+  const img = new Uint8Array((hi - lo) * 2).fill(0xFF);
+  for (const [pa, off, fsz] of segs) {
+    const skip = pa < lo ? (lo - pa) * 2 : 0;
+    img.set(u8.subarray(off + skip, off + fsz), (pa - lo) * 2 + skip);
+  }
+
+  const runs = [];
+  let start = -1;
+  for (let b = 0; b <= img.length; b += 64) {
+    const ff = b === img.length || img.subarray(b, b + 64).every(x => x === 0xFF);
+    if (!ff && start < 0) start = b;
+    if (ff && start >= 0) { runs.push([start, b - start]); start = -1; }
+  }
+
+  let total = 64, bytes = 0, sum = 0;
+  for (const [, n] of runs) { total += 8 + n; bytes += n; }
+  const out = new Uint8Array(total), od = new DataView(out.buffer);
+  od.setUint32(0, 0x4637354B, true); // 'K57F'
+  od.setUint16(4, 1, true);
+  od.setUint16(6, 64, true);
+  od.setUint32(8, entry, true);
+  od.setUint32(12, runs.length, true);
+  od.setUint32(16, total - 64, true);
+  od.setUint32(20, Math.floor(mtime / 1000), true);
+  let nb = new TextEncoder().encode(name);
+  while (nb.length > 40) nb = new TextEncoder().encode(name = name.slice(0, -1));
+  out.set(nb, 24);
+  let p = 64;
+  for (const [b, n] of runs) {
+    od.setUint32(p, lo + b / 2, true);
+    od.setUint32(p + 4, n, true);
+    out.set(img.subarray(b, b + n), p + 8);
+    for (let k = b; k < b + n; k++) sum += img[k];
+    p += 8 + n;
+  }
+  return {data: out, name, mtime, entry, segs: runs.length, bytes, sum: sum >>> 0};
+}
+
+$("fFile").onchange = async () => {
+  fwImg = null;
+  $("fSend").disabled = true;
+  const f = $("fFile").files[0];
+  if (!f) { $("fInfo").textContent = ""; return; }
+  try {
+    fwImg = fwParse(await f.arrayBuffer(), f.name, f.lastModified);
+    $("fInfo").textContent = `${f.name} от ${when(fwImg.mtime / 1000)}: ${kb(fwImg.bytes)} кБ ` +
+      `в ${fwImg.segs} сегм., вход ${hex6(fwImg.entry)}.`;
+    $("fSend").disabled = false;
+  } catch (e) {
+    $("fInfo").textContent = "Не годится: " + e;
+  }
+};
+
+$("fSend").onclick = () => {
+  if (!fwImg) return;
+  const p = pass();
+  if (!p) { $("fInfo").textContent = "Сначала войдите паролем на вкладке «Инвертор»."; return; }
+  const x = new XMLHttpRequest();
+  x.open("POST", "/api/f28img");
+  x.setRequestHeader("Authorization", "Basic " + btoa(unescape(encodeURIComponent("k57:" + p))));
+  x.setRequestHeader("X-K57-Time", String(Math.floor(Date.now() / 1000)));
+  const pr = $("fUp"); pr.hidden = false; pr.value = 0;
+  $("fSend").disabled = true;
+  x.upload.onprogress = e => { if (e.lengthComputable) pr.value = 100 * e.loaded / e.total; };
+  x.onload = () => {
+    $("fSend").disabled = false;
+    pr.hidden = true;
+    $("fInfo").textContent = x.status === 200 ? "Образ в мосте и проверен - можно прошивать." :
+                             x.status === 401 ? "Неверный пароль." : "Не принят: " + x.responseText;
+    loadFw(false);
+  };
+  x.onerror = () => { $("fSend").disabled = false; $("fInfo").textContent = "Связь оборвалась."; };
+  $("fInfo").textContent = "Передаю…";
+  x.send(new Blob([fwImg.data]));
+};
+
+$("fGo").onclick = async () => {
+  const f = fwLast;
+  if (!f || !f.img) return;
+  if (!confirm(`Прошить прибор файлом ${f.name}?\n\nПрибор остановится примерно на полминуты. Питание не снимать.`)) return;
+  $("fNote").textContent = "";
+  try {
+    const r = await fetch("/api/f28go", {
+      method: "POST", headers: {Authorization: "Basic " + btoa(unescape(encodeURIComponent("k57:" + pass())))}
+    });
+    if (!r.ok) $("fNote").textContent = r.status === 401 ? "Неверный пароль - войдите на вкладке «Инвертор»." : "Отказ: " + await r.text();
+  } catch (e) { $("fNote").textContent = "Мост не ответил."; }
+  loadFw(false);
+};
+
+async function loadFw(ask) {
+  let f;
+  try { f = await getJson("/api/f28" + (ask ? "?ask=1" : "")); } catch (e) { return; }
+  fwLast = f;
+  const run = f.state === "run";
+  $("fDev").innerHTML = [
+    ["Прибор", f.inBoot && !run ? "в загрузчике - ждёт прошивку" :
+               f.devBuild ? `${f.devId}, сборка ${f.devBuild}` : "версия ещё не известна"],
+    ["Motor_Control", f.session ? "сеанс открыт - прошивать нельзя" : "сеанса нет"],
+  ].map(([k, v]) => `<div>${k}</div><div>${esc(v)}</div>`).join("");
+  $("fImg").innerHTML = (f.img ? [
+    ["Образ в мосте", `${f.name}, ${kb(f.bytes)} кБ, ${f.segs} сегм.`],
+    ["Файл от", when(f.ftime)],
+    ["Прислан", when(f.utime)],
+  ] : [["Образ в мосте", "нет"]]).map(([k, v]) => `<div>${k}</div><div>${esc(v)}</div>`).join("");
+  $("fGo").disabled = !f.img || run || f.session || !pass();
+  $("fSend").disabled = !fwImg || run;
+  const pr = $("fProg");
+  pr.hidden = f.state === "idle";
+  pr.value = f.pct;
+  if (f.state !== "idle") {
+    const sec = run ? `, ${Math.round(f.ms / 1000)} с` : "";
+    const att = f.attempt > 1 ? ` (попытка ${f.attempt})` : "";
+    $("fNote").className = "note" + (f.state === "fail" ? " cur" : "");
+    $("fNote").textContent = f.msg + att + sec;
+  }
+  // Время полного цикла: приём образа мостом и прошивка от «Прошить» до
+  // ответа новой прошивки. Пауза между двумя кнопками в него не входит.
+  $("fTime").textContent = f.state === "ok" && f.total ?
+    "Время: в мост " + secs(f.up) + " с · " + f.ph.map((v, i) => FW_PH[i] + " " + secs(v)).join(" · ") +
+    " · всего " + secs(f.up + f.total) + " с" + (f.attempt > 1 ? " (с неудачными попытками)" : "") : "";
+}
 
 $("hLamp").onclick = () => document.querySelector('nav button[data-t="err"]').click();
 
@@ -730,6 +932,7 @@ loadCodes().then(() => { pollState(); });
 setInterval(() => { if (!document.hidden) pollState(); }, 700);
 setInterval(() => { if (!document.hidden && tab === "err") loadErrors(); }, 3000);
 setInterval(() => { if (!document.hidden && tab === "br") loadBridge(); }, 3000);
+setInterval(() => { if (!document.hidden && tab === "fw") loadFw(false); }, 1000);
 setInterval(() => { if (!document.hidden && tab === "tbl") tblPoll(); }, 1000);
 </script>
 </body>

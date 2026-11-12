@@ -30,6 +30,7 @@ idf_component_register(
         "web_page.c"
         "live.c"
         "tables.c"
+        "fwup.c"
     EMBED_TXTFILES
         "page/index.html"
         "../../bin/ErrorCodes.h"

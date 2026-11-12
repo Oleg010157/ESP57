@@ -31,6 +31,7 @@
 
 #include "bbox.h"
 #include "bstore.h"
+#include "fwup.h"
 #include "web.h"
 #include "live.h"
 #include "tables.h"
@@ -116,6 +117,7 @@ void app_main(void)
     /* HTTP: версия и обновление прошивки моста по WiFi. Тоже до чёрного
      * ящика - задача сервера и его сокеты берут кучу. */
     tables_init(); /* до страницы: она отдаёт и таблицы Motor_Control */
+    fwup_init();   /* до страницы: она показывает образ прибора в мосте */
     web_start();
     ESP_LOGI(TAG, "прошивка %s", web_version());
 

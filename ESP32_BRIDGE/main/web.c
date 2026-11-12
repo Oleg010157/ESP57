@@ -17,6 +17,7 @@
 #include "esp_timer.h"
 #include "mbedtls/base64.h"
 
+#include "fwup.h"
 #include "web.h"
 
 static const char *TAG = "web";
@@ -104,6 +105,10 @@ static esp_err_t update_post(httpd_req_t *req)
         httpd_resp_set_status(req, "409 Conflict");
         return httpd_resp_sendstr(req, "обновление уже идёт");
     }
+    if (fwup_busy()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return httpd_resp_sendstr(req, "мост прошивает прибор - дождитесь конца");
+    }
 
     const esp_partition_t *dst = esp_ota_get_next_update_partition(NULL);
     int total = req->content_len;
@@ -186,6 +191,11 @@ void web_confirm_if_pending(void)
     }
 }
 
+bool web_updating(void)
+{
+    return s_updating;
+}
+
 const char *web_version(void)
 {
     return s_version;
@@ -217,7 +227,7 @@ void web_start(void)
     cfg.max_open_sockets = 3;     /* куча моста почти вся у чёрного ящика */
     cfg.lru_purge_enable = true;
     cfg.recv_wait_timeout = 10;
-    cfg.max_uri_handlers = 20;
+    cfg.max_uri_handlers = 24;
     cfg.uri_match_fn     = httpd_uri_match_wildcard;
 
     if (httpd_start(&s_srv, &cfg) != ESP_OK) {

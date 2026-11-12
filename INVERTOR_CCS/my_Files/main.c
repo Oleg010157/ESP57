@@ -105,8 +105,8 @@ void MainISR(void);
 //MCAN_start(myMCANA_BASE); // Запуск самого модуля CAN в работу
 #endif
 
-uint16_t          request_firmware_update = 0;
-extern void       app_request_firmware_update(void);
+uint16_t          request_firmware_update = 0; // 1 - по CAN (9999), 2 - по SPI от WiFi-моста
+extern void       app_request_firmware_update(uint16_t viaSpi);
 
 
 //
@@ -336,7 +336,7 @@ extern volatile uint16_t epwm3time;// dbg
 #ifdef _FLASH
         if (request_firmware_update)
         {
-            app_request_firmware_update();
+            app_request_firmware_update(request_firmware_update == 2U);
             request_firmware_update = 0;
         }
 #else

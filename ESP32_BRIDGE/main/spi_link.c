@@ -25,6 +25,7 @@
 #include "bstore.h"
 #include "live.h"
 #include "tables.h"
+#include "fwup.h"
 
 #define WORDS     (SPI_LINK_BYTES / 2)
 #define HDR_WORDS 4
@@ -126,6 +127,23 @@ static void prepare_tx(uint8_t *tx)
     int w = HDR_WORDS;
 
     memset(tx, 0, SPI_LINK_BYTES);
+
+    /* Первыми - кадры загрузчику (fwup.c): до 64 байт, пока прибор
+     * прошивается. В остальное время очереди нет. */
+    {
+        uint8_t d[MAX_DATA];
+        int     len;
+        while ((len = fwup_tx_next(d, (LAST_WORD - w - 2) * 2)) > 0) {
+            int n = len / 2;
+            put_word(tx, w, FWUP_ID_TO_F28);
+            put_word(tx, w + 1, (uint16_t)len);
+            for (int i = 0; i < n; i++) {
+                put_word(tx, w + 2 + i, (uint16_t)(d[2 * i] | (d[2 * i + 1] << 8)));
+            }
+            w += 2 + n;
+        }
+    }
+
     while (w + 2 + 4 <= LAST_WORD && xQueueReceive(s_to_f28, &f, 0) == pdTRUE) {
         int n = f.len / 2;
         put_word(tx, w, f.id);
@@ -267,6 +285,7 @@ static void parse(const uint8_t *rx, size_t bits, uint16_t *last_seq, bool *have
             bstore_frame(id, data, (uint8_t)len);
             live_frame(id, data, (uint8_t)len);
             tables_frame(id, data, (uint8_t)len);
+            fwup_frame(id, data, (uint8_t)len);
         }
         w += 2 + n;
     }

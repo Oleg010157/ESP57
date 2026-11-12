@@ -12,6 +12,10 @@
  *   3. bootloader_main() перенастраивает MCAN под себя и ведёт обмен с ПК:
  *      связь -> стирание -> приём и запись -> сверка суммы -> пуск приложения.
  *
+ * Тот же обмен идёт и по SPI до WiFi-моста - вход кадром BOOT_SPI_ENTER от
+ * моста, канал в boot_spi.c. Различаются только boot_poll_rx() и
+ * boot_can_send_frame(); всё остальное в этом файле от канала не зависит.
+ *
  * ПОЧЕМУ ВСЁ ИЗ ОЗУ. Стираются ВСЕ банки с кодом, включая тот, откуда шла бы
  * выборка команд. В ОЗУ обязаны лежать три вещи, и все три там лежат:
  *   - код этого файла (pragma CODE_SECTION ниже);
@@ -42,6 +46,7 @@
 #include "flash_eeprom/flash_programming_f28p55x.h"
 
 #include "can_boot_protocol.h"
+#include "boot_spi.h"
 
 /*---------------------------------------------------------------------------
  * Раскладка Message RAM под загрузчик.
@@ -115,6 +120,10 @@
 static volatile uint16_t boot_rxBuf[BOOT_DATA_WORDS];
 static volatile uint16_t boot_rxBytes = 0;   /* сколько байт в кадре по DLC */
 volatile uint16_t        boot_rx_ready = 0;
+
+/* Канал: 0 - CAN, иначе SPI до WiFi-моста (boot_spi.h). Выбирается при входе
+ * и дальше не меняется. Протокол поверх обоих один и тот же. */
+static uint16_t boot_via_spi = 0U;
 
 /* Диапазон стирания, запрошенный ПК (адреса слов, включительно).
  * По умолчанию - вся область приложения. */
@@ -214,6 +223,17 @@ static void boot_poll_rx(void)
     uint16_t words32;
     uint16_t i;
 
+    /* По SPI кадры ждут своей очереди в boot_spi.c - берём следующий, только
+     * когда прежний разобран. */
+    if (boot_via_spi)
+    {
+        if (!boot_rx_ready && boot_spi_take(boot_rxBuf, &boot_rxBytes))
+        {
+            boot_rx_ready = 1U;
+        }
+        return;
+    }
+
     status = BOOT_RD32(myMCANA_BASE + MCAN_RXF0S);
 
     if ((status & MCAN_RXF0S_F0FL_MASK) == 0U)
@@ -267,6 +287,12 @@ void boot_can_send_frame(uint16_t w0, uint16_t w1, uint16_t w2, uint16_t w3)
 {
     uint32_t elemAddr = myMCANA_BASE + MCAN_MCAN_MSG_MEM + BOOT_RAM_TXBUF_ADDR;
     uint32_t spin     = 0U;
+
+    if (boot_via_spi)
+    {
+        boot_spi_send(w0, w1, w2, w3);
+        return;
+    }
 
     /* Ждём, пока уйдёт предыдущий кадр. Таймаут нужен на случай обрыва шины:
      * без него первая же ошибка связи подвесила бы загрузчик навсегда. */
@@ -753,7 +779,7 @@ Fapi_StatusType bootloader_program_block(uint32_t addr, uint16_t *data32)
 /*---------------------------------------------------------------------------
  * Главный цикл загрузчика.
  *---------------------------------------------------------------------------*/
-void bootloader_main(void)
+void bootloader_main(uint16_t viaSpi)
 {
     uint16_t rxWord;
     uint32_t imgAddr  = 0U;
@@ -781,7 +807,17 @@ void bootloader_main(void)
     DINT;
     IER = 0U;
 
-    boot_can_init();
+    /* MCAN по SPI не трогаем вовсе: настройка приложения остаётся, кадры
+     * на шине копятся в его FIFO и никому не мешают. */
+    boot_via_spi = viaSpi;
+    if (boot_via_spi)
+    {
+        boot_spi_init();
+    }
+    else
+    {
+        boot_can_init();
+    }
 
     boot_can_send_word(MARK_BOOT_ENTER);
     boot_delay_stub(500U);
@@ -1119,6 +1155,12 @@ verify_phase:
          * стирание. Обе функции в .TI.ramfunc, звать их отсюда законно. */
         Flash_enableCache(FLASH0CTRL_BASE);
         Flash_enablePrefetch(FLASH0CTRL_BASE);
+
+        /* По SPI кадры уходят только с посылкой: паузы выше их не отдают. */
+        if (boot_via_spi)
+        {
+            boot_spi_flush();
+        }
 
         boot_jump_to_app(entryAddr);
     }

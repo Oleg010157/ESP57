@@ -43,3 +43,7 @@ void web_page_register(httpd_handle_t srv);
 
 /* Пароль запроса (Basic, k57:пароль). false - ответ 401 уже ушёл. */
 bool web_auth_ok(httpd_req_t *req);
+
+/* Идёт обновление самого моста - второе место под программу занято
+ * (там же образ прошивки прибора, fwup.h). */
+bool web_updating(void);

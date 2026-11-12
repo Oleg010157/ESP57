@@ -23,6 +23,11 @@
  *   POST /tables           новые таблицы с ПК (Motor_Control) - с паролем
  *   GET /api/tblsrc        откуда таблицы: с ПК (когда) или вшитые
  *
+ *   POST /api/f28img       образ прошивки прибора (K57F, fwup.h) - с паролем
+ *   POST /api/f28go        прошить прибор образом из моста - с паролем
+ *   GET /api/f28[?ask=1]   образ в мосте, ход прошивки; ask - спросить у
+ *                          прибора версию (333)
+ *
  * GET без пароля: только чтение. Пароль - у /update и у /api/ctl.
  */
 #include <stdarg.h>
@@ -35,6 +40,7 @@
 
 #include "bbox.h"
 #include "bstore.h"
+#include "fwup.h"
 #include "live.h"
 #include "net_link.h"
 #include "net_wifi.h"
@@ -379,6 +385,115 @@ static esp_err_t tblacks_get(httpd_req_t *req)
     return out_end(req);
 }
 
+/*---------------------------------------------------------------------------*/
+/* Строка в JSON: кавычки и обратная черта - с чертой, управляющие - мимо.
+ * Имя файла и ответ прибора - не наши строки. */
+static void out_str(httpd_req_t *req, const char *s)
+{
+    char   b[128];
+    size_t n = 0;
+    for (; *s && n < sizeof b - 2; s++) {
+        if (*s == '"' || *s == '\\') {
+            b[n++] = '\\';
+        } else if ((unsigned char)*s < 0x20) {
+            continue;
+        }
+        b[n++] = *s;
+    }
+    b[n] = 0;
+    out(req, "\"%s\"", b);
+}
+
+/* Прошивка прибора через мост (fwup.h). */
+static esp_err_t f28img_post(httpd_req_t *req)
+{
+    if (!web_auth_ok(req)) {
+        return ESP_OK;
+    }
+    char     t[16];
+    uint32_t utc   = 0;
+    int      total = req->content_len;
+    if (httpd_req_get_hdr_value_str(req, "X-K57-Time", t, sizeof t) == ESP_OK) {
+        utc = (uint32_t)strtoul(t, NULL, 10);
+    }
+    const char *err = fwup_store_begin(total > 0 ? (uint32_t)total : 0, utc);
+    if (err != NULL) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return httpd_resp_sendstr(req, err);
+    }
+    int left = total;
+    while (left > 0) {
+        int n = httpd_req_recv(req, s_buf, left < (int)sizeof s_buf ? left : (int)sizeof s_buf);
+        if (n == HTTPD_SOCK_ERR_TIMEOUT) {
+            continue;
+        }
+        if (n <= 0 || !fwup_store_write(s_buf, (uint32_t)n)) {
+            break;
+        }
+        left -= n;
+    }
+    err = fwup_store_end();
+    if (err != NULL) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_sendstr(req, err);
+    }
+    return httpd_resp_sendstr(req, "OK");
+}
+
+static esp_err_t f28go_post(httpd_req_t *req)
+{
+    if (!web_auth_ok(req)) {
+        return ESP_OK;
+    }
+    const char *err = fwup_start();
+    if (err != NULL) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return httpd_resp_sendstr(req, err);
+    }
+    return httpd_resp_sendstr(req, "OK");
+}
+
+static esp_err_t f28_get(httpd_req_t *req)
+{
+    static const char *const st[] = {"idle", "run", "ok", "fail"};
+    char          q[16], v[4];
+    fwup_status_t f;
+
+    /* Версию спрашиваем только без сеанса: ответ на 333 ушёл бы и в
+     * Motor_Control, а тот его не просил. */
+    if (httpd_req_get_url_query_str(req, q, sizeof q) == ESP_OK &&
+        httpd_query_key_value(q, "ask", v, sizeof v) == ESP_OK && v[0] == '1' &&
+        !fwup_busy() && !live_session_open()) {
+        fwup_ask_version();
+    }
+    fwup_status(&f);
+
+    json_begin(req);
+    out(req, "{\"img\":%s", f.img ? "true" : "false");
+    if (f.img) {
+        out(req, ",\"name\":");
+        out_str(req, f.name);
+        out(req, ",\"ftime\":%lu,\"utime\":%lu,\"bytes\":%lu,\"segs\":%lu,\"entry\":%lu",
+            (unsigned long)f.fileTime, (unsigned long)f.upTime, (unsigned long)f.bytes,
+            (unsigned long)f.segs, (unsigned long)f.entry);
+    }
+    out(req, ",\"state\":\"%s\",\"pct\":%d,\"attempt\":%d,\"ms\":%lu,\"msg\":", st[f.state],
+        f.pct, f.attempt, (unsigned long)f.elapsed);
+    out_str(req, f.msg);
+    out(req, ",\"up\":%lu,\"total\":%lu,\"ph\":[", (unsigned long)f.upMs, (unsigned long)f.totalMs);
+    for (int i = 0; i < FWUP_PHASES; i++) {
+        out(req, "%s%lu", i ? "," : "", (unsigned long)f.ph[i]);
+    }
+    out(req, "]");
+    out(req, ",\"inBoot\":%s,\"session\":%s,\"devId\":", f.inBoot ? "true" : "false",
+        live_session_open() ? "true" : "false");
+    out_str(req, f.devId);
+    out(req, ",\"devBuild\":");
+    out_str(req, f.devBuild);
+    out(req, "}");
+    return out_end(req);
+}
+
 void web_page_register(httpd_handle_t srv)
 {
     static const httpd_uri_t u[] = {
@@ -396,6 +511,9 @@ void web_page_register(httpd_handle_t srv)
         {.uri = "/api/tblacks", .method = HTTP_GET, .handler = tblacks_get},
         {.uri = "/tables", .method = HTTP_POST, .handler = tables_post},
         {.uri = "/api/tblsrc", .method = HTTP_GET, .handler = tblsrc_get},
+        {.uri = "/api/f28img", .method = HTTP_POST, .handler = f28img_post},
+        {.uri = "/api/f28go", .method = HTTP_POST, .handler = f28go_post},
+        {.uri = "/api/f28", .method = HTTP_GET, .handler = f28_get},
     };
     for (size_t i = 0; i < sizeof u / sizeof u[0]; i++) {
         httpd_register_uri_handler(srv, &u[i]);

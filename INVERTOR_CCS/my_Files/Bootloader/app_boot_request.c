@@ -1,11 +1,12 @@
 /*****************************************************************************
  * app_boot_request.c
  *
- * Точка входа приложения в CAN-загрузчик.
+ * Точка входа приложения в загрузчик.
  *
- * Команда 9999 по CAN взводит request_firmware_update (KSP/MBOX28.c), фоновый
- * цикл main() зовёт эту функцию. Она закрывает силовую часть, запрещает
- * прерывания и уходит в bootloader_main().
+ * Команда 9999 по CAN взводит request_firmware_update = 1 (KSP/MBOX28.c),
+ * кадр BOOT_SPI_ENTER от WiFi-моста - request_firmware_update = 2
+ * (wifi_link.c). Фоновый цикл main() зовёт эту функцию с каналом: она
+ * закрывает силовую часть, запрещает прерывания и уходит в bootloader_main().
  *
  * ПОЧЕМУ ИЗ ФОНА, А НЕ ИЗ ОБРАБОТЧИКА. cmd_MBOX28() выполняется в прерывании
  * MCAN, а загрузчик работает опросом и сам перенастраивает тот же MCAN. Уйти
@@ -27,7 +28,7 @@
 #include "f28p55x_device.h"
 
 /* bootloader_main() определён в can_bootloader.c, выполняется из ОЗУ */
-extern void bootloader_main(void);
+extern void bootloader_main(uint16_t viaSpi);
 
 /* IGBT disable — определены в myEPWM.h */
 extern void IGBT1_Disable(void);
@@ -35,7 +36,7 @@ extern void IGBT2_Disable(void);
 
 #pragma CODE_SECTION(app_request_firmware_update, ".TI.ramfunc")
 
-void app_request_firmware_update(void)
+void app_request_firmware_update(uint16_t viaSpi)
 {
     /* 1. Безопасность: закрываем мост. */
     IGBT1_Disable();
@@ -45,9 +46,9 @@ void app_request_firmware_update(void)
      *    CLA, прерывание АЦП, такт ШИМ и IER. */
     DINT;
 
-    /* 3. Переход в загрузчик. Он перенастроит MCAN под ID 0x33/0x32 и начнёт
-     *    обмен с ПК. */
-    bootloader_main();
+    /* 3. Переход в загрузчик. По CAN он перенастроит MCAN под ID 0x33/0x32 и
+     *    начнёт обмен с ПК, по SPI - с мостом (boot_spi.h). */
+    bootloader_main(viaSpi);
 
     /* Сброс регистром, а не SysCtl_resetDevice().
      *
