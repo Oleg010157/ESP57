@@ -910,6 +910,7 @@ namespace ICDIBasic
             _wifiMenu.Click += WifiMenu_Click;
             UpdateLinkMenuText();
             управлениеToolStripMenuItem.DropDownItems.Add(_wifiMenu);
+            BridgeUpdate_InitMenu(управлениеToolStripMenuItem);
             CanRate_InitMenu(управлениеToolStripMenuItem);
             управлениеToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
             управлениеToolStripMenuItem.DropDownItems.Add(_canbM);

@@ -31,6 +31,7 @@
 
 #include "bbox.h"
 #include "bstore.h"
+#include "web.h"
 #include "board.h"
 #include "net_link.h"
 #include "net_proto.h"
@@ -110,6 +111,11 @@ void app_main(void)
              net_wifi_is_sta() ? "подключён, адрес" : "точка доступа, адрес",
              net_wifi_ip(), K57_TCP_PORT, K57_UDP_PORT, K57_MDNS_HOST);
 
+    /* HTTP: версия и обновление прошивки моста по WiFi. Тоже до чёрного
+     * ящика - задача сервера и его сокеты берут кучу. */
+    web_start();
+    ESP_LOGI(TAG, "прошивка %s", web_version());
+
     /* Журнал и копия настройки: NVS поднял net_wifi_start. До чёрного ящика
      * - свою память берёт раньше его кольца. */
     bstore_start();
@@ -122,6 +128,9 @@ void app_main(void)
     net_link_stat_t np = {0};
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(1000));
+
+        /* Новая прошивка, дожившая сюда 20 раз, - годная (web.h). */
+        web_confirm_if_pending();
 
         spi_link_stat_t s;
         spi_link_get_stat(&s);

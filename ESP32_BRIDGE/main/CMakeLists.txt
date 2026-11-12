@@ -6,6 +6,7 @@ idf_component_register(
         "net_link.c"
         "bbox.c"
         "bstore.c"
+        "web.c"
     INCLUDE_DIRS
         "."
     REQUIRES
@@ -22,4 +23,8 @@ idf_component_register(
         esp_timer
         esp_rom
         heap
+        esp_http_server
+        app_update
+        esp_app_format
+        mbedtls
 )

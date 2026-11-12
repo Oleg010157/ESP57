@@ -24,3 +24,8 @@ CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=64
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
+
+# Новая прошивка по WiFi сначала пробная: не подтвердила себя - загрузчик
+# возвращает прежнюю (main/web.c). Это настройка ЗАГРУЗЧИКА: в силу она
+# входит после прошивки по USB, `idf.py flash` - по WiFi загрузчик не меняется.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
