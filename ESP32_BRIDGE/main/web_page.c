@@ -13,7 +13,10 @@
  *   GET /api/errors        таблица ошибок прибора
  *   GET /api/journal?n=N   последние N строк длинного журнала моста
  *   GET /api/bbox          записи чёрного ящика
- *   GET /api/bridge        мост: сеть, обмен с прибором, память
+ *   GET /api/bridge        мост: сети (своя точка и роутер), обмен с прибором, память
+ *   POST /api/wifi         роутер: тело ssid=..&pass=.. (пустой ssid - забыть) - с
+ *                          паролем; хранится в NVS моста (net_wifi.c)
+ *   GET /api/wifiscan      сети вокруг - для выбора роутера
  *
  *   POST /api/ctl?do=..&v=N  управление - с паролем (live.c, live_control):
  *                          power, mode, gridEn, iset, uref, freq, etrip
@@ -26,6 +29,8 @@
  *   POST /api/f28img       образ прошивки прибора (K57F, fwup.h) - с паролем
  *   POST /api/f28go        прошить прибор образом из моста - с паролем
  *   POST /api/f28stop      остановить прошивку - с паролем
+ *   GET /api/ehist?from=H&to=H  почасовая история энергии (ehist.h): записи
+ *                          по 12 байт - час, отдано, принято, младшим вперёд
  *   POST /api/time?t=UTC   время браузера - мосту и прибору (live.h), без
  *                          пароля: страницу смотрят и не входя
  *   GET /api/f28[?ask=1]   образ в мосте, ход прошивки; ask - спросить у
@@ -44,6 +49,7 @@
 #include "bbox.h"
 #include "bstore.h"
 #include "fwup.h"
+#include "ehist.h"
 #include "live.h"
 #include "net_link.h"
 #include "net_wifi.h"
@@ -61,6 +67,7 @@ static char s_buf[1024];
 static int  s_len;
 
 static void out(httpd_req_t *req, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+static void out_str(httpd_req_t *req, const char *s);
 
 static void out(httpd_req_t *req, const char *fmt, ...)
 {
@@ -243,8 +250,17 @@ static esp_err_t bridge_get(httpd_req_t *req)
     spi_link_get_stat(&s);
     net_link_get_stat(&n);
 
+    net_wifi_status_t w;
+    net_wifi_status(&w);
+
     json_begin(req);
-    out(req, "{\"version\":\"%s\",\"ssid\":\"%s\",\"sta\":%s,\"ip\":\"%s\",\"rssi\":%ld,"
+    out(req, "{\"ap\":{\"ssid\":");
+    out_str(req, w.apSsid);
+    out(req, ",\"ip\":\"%s\",\"clients\":%d},\"router\":{\"ssid\":", w.apIp, w.apClients);
+    out_str(req, w.routerSsid);
+    out(req, ",\"state\":%d,\"reason\":%d,\"ip\":\"%s\",\"rssi\":%d,\"ch\":%d},", w.state, w.reason,
+        w.staIp, w.rssi, w.ch);
+    out(req, "\"version\":\"%s\",\"ssid\":\"%s\",\"sta\":%s,\"ip\":\"%s\",\"rssi\":%ld,"
              "\"packets\":%lu,\"seqGap\":%lu,\"resets\":%lu,\"f28Drop\":%lu,"
              "\"pult\":%s,\"udpErr\":%lu,\"heap\":%u}",
         web_version(), net_wifi_ssid(), net_wifi_is_sta() ? "true" : "false", net_wifi_ip(),
@@ -459,6 +475,119 @@ static esp_err_t f28go_post(httpd_req_t *req)
     return httpd_resp_sendstr(req, "OK");
 }
 
+/* История энергии - двоичным: за год это 8760 записей, в JSON втрое длиннее. */
+typedef struct {
+    httpd_req_t *req;
+    uint8_t      buf[12 * 85];
+    int          n;
+} ehist_out_t;
+
+static void ehist_cb(const ehist_rec_t *r, void *ctx)
+{
+    ehist_out_t *o = ctx;
+    memcpy(o->buf + o->n, r, 12);
+    o->n += 12;
+    if (o->n == (int)sizeof o->buf) {
+        httpd_resp_send_chunk(o->req, (const char *)o->buf, o->n);
+        o->n = 0;
+    }
+}
+
+static esp_err_t ehist_get(httpd_req_t *req)
+{
+    char     q[40], v[16];
+    uint32_t from = 0, to = 0xFFFFFFFFu;
+    if (httpd_req_get_url_query_str(req, q, sizeof q) == ESP_OK) {
+        if (httpd_query_key_value(q, "from", v, sizeof v) == ESP_OK) {
+            from = (uint32_t)strtoul(v, NULL, 10);
+        }
+        if (httpd_query_key_value(q, "to", v, sizeof v) == ESP_OK) {
+            to = (uint32_t)strtoul(v, NULL, 10);
+        }
+    }
+    static ehist_out_t o; /* обработчики по одному - сервер однопоточный */
+    o.req = req;
+    o.n   = 0;
+    httpd_resp_set_type(req, "application/octet-stream");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    ehist_walk(from, to, ehist_cb, &o);
+    if (o.n > 0) {
+        httpd_resp_send_chunk(req, (const char *)o.buf, o.n);
+    }
+    return httpd_resp_send_chunk(req, NULL, 0);
+}
+
+/* Тело формы: %XX и «+» - обратно в байты, на месте. */
+static void url_decode(char *s)
+{
+    char *d = s;
+    for (; *s; s++) {
+        if (*s == '+') {
+            *d++ = ' ';
+        } else if (*s == '%' && s[1] && s[2]) {
+            char h[3] = {s[1], s[2], 0};
+            *d++ = (char)strtol(h, NULL, 16);
+            s += 2;
+        } else {
+            *d++ = *s;
+        }
+    }
+    *d = 0;
+}
+
+static esp_err_t wifi_post(httpd_req_t *req)
+{
+    char body[256], ssid[100] = "", pass[200] = "";
+
+    if (!web_auth_ok(req)) {
+        return ESP_OK;
+    }
+    int n = req->content_len < (int)sizeof body - 1 ? req->content_len : (int)sizeof body - 1;
+    int got = 0;
+    while (got < n) {
+        int r = httpd_req_recv(req, body + got, n - got);
+        if (r == HTTPD_SOCK_ERR_TIMEOUT) {
+            continue;
+        }
+        if (r <= 0) {
+            break;
+        }
+        got += r;
+    }
+    body[got] = 0;
+    httpd_query_key_value(body, "ssid", ssid, sizeof ssid);
+    httpd_query_key_value(body, "pass", pass, sizeof pass);
+    url_decode(ssid);
+    url_decode(pass);
+
+    const char *err = net_wifi_router_set(ssid, pass);
+    if (err != NULL) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_sendstr(req, err);
+    }
+    return httpd_resp_sendstr(req, ssid[0] ? "OK, подключаюсь" : "OK, роутер забыт");
+}
+
+static esp_err_t wifiscan_get(httpd_req_t *req)
+{
+    static net_wifi_ap_t ap[16]; /* обработчики по одному - сервер однопоточный */
+    int                  n = net_wifi_scan(ap, 16);
+
+    json_begin(req);
+    if (n < 0) {
+        out(req, "{\"busy\":true,\"list\":[]}");
+        return out_end(req);
+    }
+    out(req, "{\"list\":[");
+    for (int i = 0; i < n; i++) {
+        out(req, "%s{\"ssid\":", i ? "," : "");
+        out_str(req, ap[i].ssid);
+        out(req, ",\"rssi\":%d,\"ch\":%d,\"open\":%s}", ap[i].rssi, ap[i].ch, ap[i].open ? "true" : "false");
+    }
+    out(req, "]}");
+    return out_end(req);
+}
+
 static esp_err_t time_post(httpd_req_t *req)
 {
     char q[24], v[16];
@@ -544,6 +673,9 @@ void web_page_register(httpd_handle_t srv)
         {.uri = "/api/f28go", .method = HTTP_POST, .handler = f28go_post},
         {.uri = "/api/f28stop", .method = HTTP_POST, .handler = f28stop_post},
         {.uri = "/api/time", .method = HTTP_POST, .handler = time_post},
+        {.uri = "/api/ehist", .method = HTTP_GET, .handler = ehist_get},
+        {.uri = "/api/wifi", .method = HTTP_POST, .handler = wifi_post},
+        {.uri = "/api/wifiscan", .method = HTTP_GET, .handler = wifiscan_get},
         {.uri = "/api/f28", .method = HTTP_GET, .handler = f28_get},
     };
     for (size_t i = 0; i < sizeof u / sizeof u[0]; i++) {

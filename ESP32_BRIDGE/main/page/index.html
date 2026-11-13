@@ -109,6 +109,35 @@ input.num.pending, select.pending { background: #fff3a8; color: #000; }
 .lamp.on { background: var(--bad); border-color: var(--bad); box-shadow: 0 0 8px var(--bad); }
 .lamp.off { background: var(--line); }
 .approx { color: var(--muted); }
+input.txt { font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px;
+            background: var(--card); color: var(--fg); min-width: 220px; }
+/* Энергия: отдано и принято - первые два цвета эталонной палитры (синий,
+   оранжевый), пара проверена на различимость, и при дальтонизме тоже. */
+:root { --s1: #2a78d6; --s2: #eb6834; }
+@media (prefers-color-scheme: dark) { :root { --s1: #3987e5; --s2: #d95926; } }
+.elegend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 4px 0 8px; color: var(--muted); }
+.elegend b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+.sw.s1 { background: var(--s1); }
+.sw.s2 { background: var(--s2); }
+.echart { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 0; overflow: hidden; }
+.echart svg { display: block; width: 100%; height: auto; }
+.eb.s1 { fill: var(--s1); }
+.eb.s2 { fill: var(--s2); }
+.egrid { stroke: var(--line); stroke-width: 1; }
+.eaxis { stroke: var(--muted); stroke-width: 1; }
+.ey { fill: var(--muted); font-size: 11px; text-anchor: end; }
+.ex { fill: var(--muted); font-size: 11px; text-anchor: middle; }
+.eu { fill: var(--muted); font-size: 11px; text-anchor: start; }
+.ehit { fill: transparent; cursor: pointer; }
+.ehit.on { fill: var(--fg); fill-opacity: .06; }
+.etip { position: fixed; z-index: 5; background: var(--card); color: var(--fg); border: 1px solid var(--line);
+        border-radius: 8px; padding: 8px 10px; box-shadow: 0 4px 14px rgba(0,0,0,.18); font-size: 13px; pointer-events: none; }
+.etip .et { font-weight: 600; margin-bottom: 4px; }
+.etip .em { color: var(--muted); }
+.etip b { font-variant-numeric: tabular-nums; }
+.etable { margin-top: 8px; }
+.pbtn.eview.on { background: var(--accent); color: #fff; border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -121,6 +150,7 @@ input.num.pending, select.pending { background: #fff3a8; color: #000; }
 </header>
 <nav>
   <button data-t="inv" class="on">Инвертор</button>
+  <button data-t="en">Энергия</button>
   <button data-t="tbl">Таблицы</button>
   <button data-t="err">Ошибки</button>
   <button data-t="jour">Журнал</button>
@@ -170,6 +200,32 @@ input.num.pending, select.pending { background: #fff3a8; color: #000; }
   </div>
   <p class="note">Поле уставки желтеет, пока прибор не подтвердил новое значение. Ввод - Enter.
      Выключение ключей заодно обнуляет Uref и Iзад, как в Motor_Control.</p>
+</section>
+
+<section id="en">
+  <div class="row">
+    <div class="seg">
+      <button class="pbtn eview on" data-v="day">Сутки</button><button class="pbtn eview" data-v="month">Месяц</button><button class="pbtn eview" data-v="year">Год</button>
+    </div>
+    <div class="seg">
+      <button class="pbtn" id="ePrev" title="Раньше">‹</button><button class="pbtn" id="eToday">Сейчас</button><button class="pbtn" id="eNext" title="Позже">›</button>
+    </div>
+  </div>
+  <h2 id="eTitle"></h2>
+  <div class="elegend">
+    <span><i class="sw s1"></i>Отдано <b id="eSumOut">—</b> кВт·ч</span>
+    <span><i class="sw s2"></i>Принято <b id="eSumIn">—</b> кВт·ч</span>
+  </div>
+  <div class="echart" id="eChart"></div>
+  <div class="etip" id="eTip" hidden></div>
+  <p id="eNote" class="note"></p>
+  <details class="etable"><summary>Таблицей</summary>
+    <div class="wrap"><table><thead><tr><th>Период</th><th>Отдано, кВт·ч</th><th>Принято, кВт·ч</th></tr></thead>
+      <tbody id="eBody"></tbody></table></div>
+  </details>
+  <p class="note">Энергию считает прибор - по P на выходе инвертора и только при открытых ключах: отдано вверх, принято
+    вниз. Мост раз в час запоминает показания (около 15 месяцев истории). Если мост был выключен или не знал времени,
+    энергия за эти часы разложена по ним поровну.</p>
 </section>
 
 <section id="tbl">
@@ -238,6 +294,15 @@ input.num.pending, select.pending { background: #fff3a8; color: #000; }
 <section id="br">
   <h2>Мост</h2>
   <div class="kv" id="brKv"></div>
+  <h2>Роутер</h2>
+  <p class="note">Своя сеть K57 есть всегда. Роутер - вдобавок: через него мост виден из дома, по адресу в строке
+    «Роутер» выше или по имени <b>k57.local</b> (в Motor_Control - строка host= в link.ini). Имя и пароль хранятся
+    в самом мосте, не в прошивке. Для живой ленты нужен сигнал не слабее −65 дБм.</p>
+  <div class="row"><input id="rSsid" class="txt" list="rList" placeholder="Имя сети роутера" autocomplete="off">
+    <datalist id="rList"></datalist><button class="act" id="rScan">Найти сети</button></div>
+  <div class="row"><input id="rPass" class="txt" type="password" placeholder="Пароль роутера" autocomplete="new-password">
+    <button class="act" id="rSet">Подключить</button><button class="act stop" id="rForget">Забыть роутер</button></div>
+  <p id="rNote" class="note"></p>
   <h2>Обновить прошивку моста</h2>
   <p class="note">Файл <b>esp32_bridge.bin</b> из ESP32_BRIDGE\build. Новая прошивка сначала пробная: не поднимется за минуту - мост сам вернётся к прежней.</p>
   <div class="row"><input type="file" id="uFile" accept=".bin"></div>
@@ -304,6 +369,7 @@ document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   if (tab === "bbox") loadBbox();
   if (tab === "br") loadBridge();
   if (tab === "fw") loadFw(true);
+  if (tab === "en") eLoad();
   if (tab === "tbl") tblOpen();
 });
 
@@ -430,15 +496,56 @@ async function loadBbox() {
 async function loadBridge() {
   let b;
   try { b = await getJson("/api/bridge"); } catch (x) { return; }
+  const A = b.ap || {}, R = b.router || {};
+  if (!$("rSsid").value && document.activeElement !== $("rSsid") && R.ssid) $("rSsid").value = R.ssid;
   const kv = [
     ["Прошивка", b.version],
-    ["Сеть", (b.sta ? "общая сеть " : "своя точка ") + b.ssid + ", " + b.ip + (b.sta ? ", сигнал " + b.rssi + " дБм" : "")],
+    ["Своя точка", `${A.ssid}, ${A.ip}, подключено ${A.clients}`],
+    ["Роутер", !R.ssid ? "не задан" : `${R.ssid}: ${R_STATE[R.state] || "?"}` +
+      (R.state === 2 ? `, адрес ${R.ip}, сигнал ${R.rssi} дБм${R.rssi < -67 ? " - слабо для живой ленты" : ""}, канал ${R.ch}` :
+       R.state === 3 && R.reason ? ` - ${R_REASON[R.reason] || "причина " + R.reason}` : "")],
     ["Обмен с прибором", `посылок ${b.packets}, пропусков ${b.seqGap}, перезапусков SPI ${b.resets}`],
     ["Motor_Control", b.pult ? "подключён" : "нет"],
     ["Свободно памяти", b.heap + " кБ"],
   ];
   $("brKv").innerHTML = kv.map(([k, v]) => `<div>${k}</div><div>${esc(v)}</div>`).join("");
 }
+
+// --- роутер (net_wifi.c моста) ---
+const R_STATE = ["не задан", "подключаюсь…", "в сети", "нет связи, пробую снова"];
+// Частые причины разрыва, wifi_err_reason_t ESP-IDF.
+const R_REASON = {2: "роутер отключил", 8: "отключились", 15: "пароль не подошёл", 200: "пропал сигнал",
+                  201: "сеть не найдена", 202: "не пустил - пароль?", 204: "пароль не подошёл", 205: "не пустил"};
+const escAttr = v => esc(v).replace(/"/g, "&quot;");
+$("rScan").onclick = async () => {
+  $("rNote").textContent = "Ищу сети… K57 на пару секунд может притормозить.";
+  try {
+    const j = await getJson("/api/wifiscan");
+    if (j.busy) { $("rNote").textContent = "Мост сейчас сам подключается к роутеру - повторите через несколько секунд."; return; }
+    $("rList").innerHTML = j.list.filter(a => a.ssid).map(a =>
+      `<option value="${escAttr(a.ssid)}">${a.rssi} дБм, канал ${a.ch}${a.open ? ", открытая" : ""}</option>`).join("");
+    $("rNote").textContent = `Найдено сетей: ${j.list.length}. Выберите в поле имени.`;
+  } catch (e) { $("rNote").textContent = "Мост не ответил."; }
+};
+async function rSend(ssid, rpass) {
+  const p = pass_ => btoa(unescape(encodeURIComponent("k57:" + pass_)));
+  if (!pass()) { $("rNote").textContent = "Сначала войдите паролем на вкладке «Инвертор»."; return; }
+  try {
+    const r = await fetch("/api/wifi", {method: "POST", headers: {Authorization: "Basic " + p(pass()),
+      "Content-Type": "application/x-www-form-urlencoded"}, body: new URLSearchParams({ssid, pass: rpass}).toString()});
+    const t = await r.text();
+    $("rNote").textContent = r.ok ? t + (ssid ? " - строка «Роутер» выше обновится через несколько секунд." : "") :
+      r.status === 401 ? "Неверный пароль." : "Не принято: " + t;
+    if (r.ok) $("rPass").value = "";
+  } catch (e) { $("rNote").textContent = "Мост не ответил."; }
+  loadBridge();
+}
+$("rSet").onclick = () => {
+  const ssid = $("rSsid").value.trim();
+  if (!ssid) { $("rNote").textContent = "Впишите имя сети или нажмите «Найти сети»."; return; }
+  rSend(ssid, $("rPass").value);
+};
+$("rForget").onclick = () => { if (confirm("Забыть роутер? Останется только своя сеть K57.")) rSend("", ""); };
 
 $("uGo").onclick = () => {
   const f = $("uFile").files[0];
@@ -683,6 +790,182 @@ async function loadFw(ask) {
     "Время: в мост " + secs(f.up) + " с · " + f.ph.map((v, i) => FW_PH[i] + " " + secs(v)).join(" · ") +
     " · всего " + secs(f.up + f.total) + " с" + (f.attempt > 1 ? " (с неудачными попытками)" : "") : "";
 }
+
+// --- энергия: графики, как у поставщиков энергии (ESP32_BRIDGE/main/ehist.h) ---
+// Мост хранит показания «всего» раз в час; энергия за час - разность соседних
+// записей. Промежуток в несколько часов (мост был выключен) раскладывается
+// по ним поровну. Текущий, неоконченный час - по живым показаниям (/api/state).
+// Столбики: отдано вверх, принято вниз от одной оси - одна шкала на оба.
+let eView = "day", eAt = new Date(), eRecs = null, eRecsAt = 0;
+const E_MONTHS = ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
+const E_MON3 = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+const eKwh = (wh, d) => fmt(wh / 1000, d === undefined ? (wh < 10000 ? 3 : 1) : d);
+
+async function eLoad(force) {
+  if (force || !eRecs || Date.now() - eRecsAt > 60000) {
+    try {
+      const r = await fetch("/api/ehist", {cache: "no-store"});
+      if (!r.ok) throw new Error(r.status);
+      const b = new DataView(await r.arrayBuffer()), recs = [];
+      for (let o = 0; o + 12 <= b.byteLength; o += 12)
+        recs.push([b.getUint32(o, true), b.getUint32(o + 4, true), b.getUint32(o + 8, true)]);
+      recs.sort((a, c) => a[0] - c[0]);
+      eRecs = recs;
+      eRecsAt = Date.now();
+    } catch (e) {
+      $("eNote").textContent = "История не прочитана - мост не ответил.";
+      return;
+    }
+  }
+  eDraw();
+}
+
+// Энергия по часам: час (UTC/3600) -> [отдано, принято], Вт·ч.
+function eHours() {
+  const h = new Map(), r = eRecs.slice();
+  const e = lastSet.energy;
+  if (e && lastSet.energyAge >= 0 && lastSet.energyAge < 120000)
+    r.push([Math.floor(Date.now() / 3600000), e[0], e[1]]);
+  for (let i = 0; i + 1 < r.length; i++) {
+    const a = r[i], b = r[i + 1], dO = b[1] - a[1], dI = b[2] - a[2];
+    if (dO < 0 || dI < 0) continue; // счётчики прибора начаты заново
+    const k = Math.max(1, b[0] - a[0]);
+    for (let j = 0; j < k; j++) {
+      const v = h.get(a[0] + j) || [0, 0];
+      v[0] += dO / k; v[1] += dI / k;
+      h.set(a[0] + j, v);
+    }
+  }
+  return h;
+}
+
+// Столбики выбранного периода, по местному времени браузера.
+function eBuckets() {
+  const y = eAt.getFullYear(), m = eAt.getMonth(), d = eAt.getDate();
+  let n, label, title, from, to, idx;
+  if (eView === "day") {
+    from = new Date(y, m, d); to = new Date(y, m, d + 1); n = 24;
+    idx = t => t.getHours();
+    label = i => String(i);
+    title = from.toLocaleDateString("ru-RU", {day: "numeric", month: "long", year: "numeric"});
+  } else if (eView === "month") {
+    from = new Date(y, m, 1); to = new Date(y, m + 1, 1); n = new Date(y, m + 1, 0).getDate();
+    idx = t => t.getDate() - 1;
+    label = i => String(i + 1);
+    title = E_MONTHS[m] + " " + y;
+  } else {
+    from = new Date(y, 0, 1); to = new Date(y + 1, 0, 1); n = 12;
+    idx = t => t.getMonth();
+    label = i => E_MON3[i];
+    title = String(y);
+  }
+  const out = new Array(n).fill(0), inn = new Array(n).fill(0), seen = new Array(n).fill(false);
+  for (const [hh, v] of eHours()) {
+    const t = new Date(hh * 3600000);
+    if (t < from || t >= to) continue;
+    const i = idx(t);
+    out[i] += v[0]; inn[i] += v[1]; seen[i] = true;
+  }
+  const period = i => eView === "day" ? `${title}, ${String(i).padStart(2, "0")}:00–${String(i + 1).padStart(2, "0")}:00` :
+                      eView === "month" ? `${i + 1} ${E_MON3[m]} ${y}` : `${E_MONTHS[i]} ${y}`;
+  return {n, out, inn, seen, label, period, title, to};
+}
+
+function eDraw() {
+  if (!eRecs) return; // история ещё не пришла
+  const B = eBuckets();
+  $("eTitle").textContent = B.title;
+  const sumO = B.out.reduce((a, b) => a + b, 0), sumI = B.inn.reduce((a, b) => a + b, 0);
+  $("eSumOut").textContent = eKwh(sumO);
+  $("eSumIn").textContent = eKwh(sumI);
+  $("eNext").disabled = B.to > new Date();
+  $("eNote").textContent = !eRecs.length ? "История ещё пуста: мост запоминает показания раз в час, когда знает время " +
+    "(его даёт эта страница или Motor_Control)." : "";
+
+  // Геометрия. Ось - там, где отданное и принятое делят высоту по своим
+  // наибольшим значениям: шкала у обоих одна.
+  const box = $("eChart"), W = Math.max(280, box.clientWidth), H = 260;
+  const L = 46, R = 8, T = 22, Bm = 24, pw = W - L - R, ph = H - T - Bm;
+  const maxO = Math.max(...B.out), maxI = Math.max(...B.inn);
+  const step = eNice((maxO + maxI) / 4 || 1);
+  const topV = Math.max(step, Math.ceil(maxO / step) * step), botV = Math.ceil(maxI / step) * step;
+  const sc = ph / (topV + botV), y0 = T + topV * sc;
+  const band = pw / B.n, bw = Math.max(2, Math.min(28, band - 2) * (band > 10 ? 0.72 : 1));
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(B.title)}">`;
+  for (let v = -botV; v <= topV + 1e-9; v += step) {
+    const y = y0 - v * sc;
+    svg += `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" class="${v === 0 ? "eaxis" : "egrid"}"/>` +
+           `<text x="${L - 6}" y="${y + 4}" class="ey">${eKwh(Math.abs(v), step < 10 ? 3 : step < 100 ? 2 : step < 1000 ? 1 : 0)}</text>`;
+  }
+  const every = B.n <= 12 ? 1 : B.n <= 24 ? 3 : 5;
+  for (let i = 0; i < B.n; i++) {
+    const cx = L + band * (i + 0.5), x = cx - bw / 2;
+    if (B.out[i] > 0) svg += `<path class="eb s1" d="${eBar(x, y0, bw, -B.out[i] * sc)}"/>`;
+    if (B.inn[i] > 0) svg += `<path class="eb s2" d="${eBar(x, y0, bw, B.inn[i] * sc)}"/>`;
+    if (i % every === 0 || (eView === "month" && i === B.n - 1))
+      svg += `<text x="${cx}" y="${H - 6}" class="ex">${B.label(i)}</text>`;
+    svg += `<rect class="ehit" data-i="${i}" x="${L + band * i}" y="${T}" width="${band}" height="${ph}"/>`;
+  }
+  svg += `<text x="4" y="${T - 10}" class="eu">кВт·ч</text></svg>`;
+  box.innerHTML = svg;
+
+  // Наведение - по всей высоте столбика, не только по самой метке.
+  const tip = $("eTip");
+  box.querySelectorAll(".ehit").forEach(r => {
+    const show = ev => {
+      const i = +r.dataset.i;
+      tip.innerHTML = `<div class="et">${esc(B.period(i))}</div>` +
+        `<div><i class="sw s1"></i>Отдано <b>${eKwh(B.out[i])}</b> кВт·ч</div>` +
+        `<div><i class="sw s2"></i>Принято <b>${eKwh(B.inn[i])}</b> кВт·ч</div>` +
+        (B.seen[i] ? "" : `<div class="em">данных нет</div>`);
+      tip.hidden = false;
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      let left = ev.clientX + 14, top = ev.clientY + 14;
+      if (left + tw > window.innerWidth - 8) left = ev.clientX - tw - 14;
+      if (top + th > window.innerHeight - 8) top = ev.clientY - th - 14;
+      tip.style.left = Math.max(8, left) + "px";
+      tip.style.top = Math.max(8, top) + "px";
+      box.querySelectorAll(".ehit.on").forEach(x => x.classList.remove("on"));
+      r.classList.add("on");
+    };
+    r.addEventListener("mousemove", show);
+    r.addEventListener("click", show);
+    r.addEventListener("mouseleave", () => { tip.hidden = true; r.classList.remove("on"); });
+  });
+
+  $("eBody").innerHTML = B.out.map((o, i) => [o, B.inn[i], i]).filter(([o, n]) => o > 0 || n > 0)
+    .map(([o, n, i]) => `<tr><td>${esc(B.period(i))}</td><td class="n">${eKwh(o, 3)}</td><td class="n">${eKwh(n, 3)}</td></tr>`).join("") ||
+    `<tr><td colspan="3">за этот период энергии нет</td></tr>`;
+}
+
+// Шаг сетки: 1, 2 или 5 на степень десяти, Вт·ч.
+function eNice(v) {
+  const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+}
+
+// Столбик от оси y0 высотой dh (минус - вверх), скругление 4 px - только у
+// дальнего от оси конца: у оси столбик стоит плоско.
+function eBar(x, y0, w, dh) {
+  const r = Math.min(4, w / 2, Math.abs(dh)), y1 = y0 + dh, s = dh < 0 ? 1 : -1;
+  return `M${x},${y0}V${y1 + s * r}Q${x},${y1} ${x + r},${y1}H${x + w - r}Q${x + w},${y1} ${x + w},${y1 + s * r}V${y0}Z`;
+}
+
+document.querySelectorAll("button.eview").forEach(b => b.onclick = () => {
+  eView = b.dataset.v;
+  document.querySelectorAll("button.eview").forEach(x => x.classList.toggle("on", x === b));
+  eDraw();
+});
+$("ePrev").onclick = () => { eShift(-1); };
+$("eNext").onclick = () => { eShift(1); };
+$("eToday").onclick = () => { eAt = new Date(); eDraw(); };
+function eShift(k) {
+  const y = eAt.getFullYear(), m = eAt.getMonth(), d = eAt.getDate();
+  eAt = eView === "day" ? new Date(y, m, d + k) : eView === "month" ? new Date(y, m + k, 1) : new Date(y + k, 0, 1);
+  eDraw();
+}
+window.addEventListener("resize", () => { if (tab === "en" && eRecs) eDraw(); });
 
 $("hLamp").onclick = () => document.querySelector('nav button[data-t="err"]').click();
 
@@ -1018,6 +1301,9 @@ setInterval(sendTime, 600000);
 setInterval(() => { if (!document.hidden && tab === "err") loadErrors(); }, 3000);
 setInterval(() => { if (!document.hidden && tab === "br") loadBridge(); }, 3000);
 setInterval(() => { if (!document.hidden && tab === "fw") loadFw(false); }, 1000);
+// Энергия: история - раз в минуту, текущий час по живым показаниям - чаще.
+setInterval(() => { if (!document.hidden && tab === "en") eLoad(); }, 60000);
+setInterval(() => { if (!document.hidden && tab === "en" && eRecs) eDraw(); }, 10000);
 setInterval(() => { if (!document.hidden && tab === "tbl") tblPoll(); }, 1000);
 </script>
 </body>

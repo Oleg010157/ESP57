@@ -20,6 +20,7 @@
 #include "esp_timer.h"
 
 #include "live.h"
+#include "ehist.h"
 #include "net_link.h"
 #include "spi_link.h"
 
@@ -48,6 +49,8 @@ static uint32_t s_energy[4];
 static int64_t  s_tEnergy;
 
 #define CMD_ENERGY 345 /* energy.h прибора: ответ - ACK на каждый счётчик */
+#define ENERGY_EVERY_S 60 /* без страницы - так часто спрашивать для истории */
+static int s_energyTick;
 
 static volatile int64_t s_touch;
 static bool             s_watching;
@@ -190,6 +193,25 @@ void live_tick1s(void)
     if (--s_clockTick <= 0) {
         s_clockTick = CLOCK_EVERY_S;
         live_push_time();
+    }
+
+    /* История энергии (ehist.h): показания «всего» раз в час. Спрашивать
+     * прибор нужно и без страницы - раз в минуту; страница спрашивает сама,
+     * раз в 3 с. Чтение безвредно и в сеансе Motor_Control: тот ответ 345
+     * понимает и показывает в окне «Счётчики энергии». */
+    if (--s_energyTick <= 0) {
+        s_energyTick = ENERGY_EVERY_S;
+        if (!s_watching) {
+            spi_link_send_cmd(CMD_ENERGY, 0, 0, 0);
+        }
+        portENTER_CRITICAL(&s_mux);
+        int64_t  te  = s_tEnergy;
+        uint32_t eo  = s_energy[0], ei = s_energy[1];
+        portEXIT_CRITICAL(&s_mux);
+        uint32_t utc = live_utc();
+        if (utc != 0 && te != 0 && now_us() - te < (int64_t)90 * 1000000) {
+            ehist_add(utc / 3600, eo, ei);
+        }
     }
 
     /* Сеанс Motor_Control открыт - кадры идут по нему; страница только смотрит. */
