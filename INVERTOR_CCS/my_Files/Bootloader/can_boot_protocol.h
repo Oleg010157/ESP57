@@ -69,6 +69,11 @@
 
 #define CMD_CONTINUE            0xCC03U /* Отладочное: продолжить посекторное стирание */
 
+/* Отмена ДО стирания: флеш ещё цел - сброс, и прибор поднимается на прежней
+ * прошивке. После начала стирания не принимается: уйти было бы некуда. */
+#define CMD_ABORT               0xCC0AU
+#define ACK_ABORT               0x0BCCU
+
 #define CMD_LOAD                0xCC07U
 #define ACK_LOAD_READY          0x0ACCU
 #define ACK_BLOCK               0x06CCU

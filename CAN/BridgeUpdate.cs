@@ -277,6 +277,10 @@ namespace ICDIBasic
     {
         private readonly Label _text = new Label { Dock = DockStyle.Top, Height = 30, TextAlign = ContentAlignment.MiddleLeft };
         private readonly ProgressBar _bar = new ProgressBar { Dock = DockStyle.Top, Height = 22 };
+        private readonly Button _stop = new Button { Text = "Остановить", Dock = DockStyle.Bottom, Height = 28, Visible = false };
+
+        /// <summary>Нажата «Остановить» (кнопка видна, только если CanStop).</summary>
+        public event EventHandler StopClicked;
 
         public BridgeUpdateForm()
         {
@@ -288,6 +292,17 @@ namespace ICDIBasic
             Padding = new Padding(8);
             Controls.Add(_bar);
             Controls.Add(_text);
+            Controls.Add(_stop);
+            _stop.Click += (s, e) => StopClicked?.Invoke(this, e);
+        }
+
+        public bool CanStop
+        {
+            set
+            {
+                _stop.Visible = value;
+                ClientSize = new Size(420, value ? 108 : 70);
+            }
         }
 
         public void Show(string text, int percent)

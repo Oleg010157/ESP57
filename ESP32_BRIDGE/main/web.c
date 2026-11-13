@@ -18,6 +18,7 @@
 #include "mbedtls/base64.h"
 
 #include "fwup.h"
+#include "panic_note.h"
 #include "web.h"
 
 static const char *TAG = "web";
@@ -70,17 +71,37 @@ bool web_auth_ok(httpd_req_t *req)
 /*---------------------------------------------------------------------------
  * /version
  *---------------------------------------------------------------------------*/
+/* Отчего мост перезапускался в последний раз. 12.11.2026 обновление по WiFi
+ * трижды обрывалось перезапуском моста посреди записи, а причины по логам
+ * было не видно: теперь её говорит /version. */
+static const char *reset_name(void)
+{
+    switch (esp_reset_reason()) {
+    case ESP_RST_POWERON:   return "питание";
+    case ESP_RST_EXT:       return "кнопка/вывод EN";
+    case ESP_RST_SW:        return "программно";
+    case ESP_RST_PANIC:     return "паника";
+    case ESP_RST_INT_WDT:   return "сторож прерываний";
+    case ESP_RST_TASK_WDT:  return "сторож задач";
+    case ESP_RST_WDT:       return "сторож";
+    case ESP_RST_DEEPSLEEP: return "из сна";
+    case ESP_RST_BROWNOUT:  return "просадка питания";
+    case ESP_RST_SDIO:      return "SDIO";
+    default:                return "неизвестно";
+    }
+}
+
 static esp_err_t version_get(httpd_req_t *req)
 {
     const esp_app_desc_t   *d   = esp_app_get_description();
     const esp_partition_t  *run = esp_ota_get_running_partition();
-    char                    buf[256];
+    char                    buf[512];
 
     snprintf(buf, sizeof buf,
              "{\"version\":\"%s\",\"date\":\"%s\",\"time\":\"%s\",\"idf\":\"%s\","
-             "\"partition\":\"%s\",\"pending\":%s,\"uptime\":%d}",
+             "\"partition\":\"%s\",\"pending\":%s,\"uptime\":%d,\"reset\":\"%s\",\"panic\":\"%s\"}",
              d->version, d->date, d->time, d->idf_ver, run ? run->label : "?",
-             s_pending ? "true" : "false", s_uptime_s);
+             s_pending ? "true" : "false", s_uptime_s, reset_name(), panic_note());
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_sendstr(req, buf);
 }
@@ -216,6 +237,7 @@ void web_start(void)
             esp_timer_start_once(t, (uint64_t)PENDING_LIMIT_S * 1000 * 1000);
         }
     }
+    ESP_LOGI(TAG, "перезапуск: %s", reset_name());
     snprintf(s_version, sizeof s_version, "%s от %s %s, раздел %s%s", d->version, d->date, d->time,
              run ? run->label : "?", s_pending ? " - ПРОБНАЯ" : "");
 

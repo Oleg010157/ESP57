@@ -113,6 +113,7 @@
 #pragma CODE_SECTION(boot_wait_recovery_cmd_erase, ".TI.ramfunc")
 #pragma CODE_SECTION(boot_delay_stub,             ".TI.ramfunc")
 #pragma CODE_SECTION(boot_jump_to_app,            ".TI.ramfunc")
+#pragma CODE_SECTION(boot_abort_to_app,           ".TI.ramfunc")
 
 /*---------------------------------------------------------------------------
  * Состояние приёма. Буфер на полный кадр данных - 32 слова.
@@ -181,6 +182,30 @@ static void boot_jump_to_app(uint32_t entryAddr)
 
     DINT;
     appEntry();
+}
+
+/*---------------------------------------------------------------------------
+ * Отмена до стирания (CMD_ABORT): квитанция и сброс - прибор поднимается на
+ * прежней прошивке, флеш ещё не тронут. Сброс - сторожем, теми же двумя
+ * записями, что в app_boot_request.c: SysCtl_resetDevice() лежит во флеше.
+ *---------------------------------------------------------------------------*/
+static void boot_abort_to_app(void)
+{
+    boot_can_send_word(ACK_ABORT);
+    if (boot_via_spi)
+    {
+        boot_spi_flush();
+    }
+    boot_delay_stub(10000U);
+
+    EALLOW;
+    WdRegs.WDCR.all = 0x0028U;
+    WdRegs.WDCR.all = 0x0000U;
+    EDIS;
+
+    for (;;)
+    {
+    }
 }
 
 /*---------------------------------------------------------------------------
@@ -834,16 +859,45 @@ void bootloader_main(uint16_t viaSpi)
             boot_can_send_word(ACK_HANDSHAKE);
             break;
         }
+        if (rxWord == CMD_ABORT)
+        {
+            boot_abort_to_app();
+        }
 
         boot_service_watchdog();
         boot_delay_stub(1000U);
     }
 
     /*--- Фаза 2: стирание ---*/
-    if (!boot_can_wait_word(CMD_ERASE, 500000UL))
+    /* Ждём стирания, а до него ещё можно отказаться (CMD_ABORT). Поэтому не
+     * boot_can_wait_word(): та пропускает всё, кроме одного слова. */
     {
-        boot_send_error_word(MARK_FAIL);
-        boot_wait_recovery_cmd_erase();
+        uint32_t i;
+        bool     got = false;
+
+        for (i = 0U; (i < 500000UL) && !got; i++)
+        {
+            rxWord = boot_can_recv_word();
+            if (rxWord == CMD_ERASE)
+            {
+                got = true;
+            }
+            else if (rxWord == CMD_ABORT)
+            {
+                boot_abort_to_app();
+            }
+            else
+            {
+                boot_service_watchdog();
+                boot_delay_stub(100U);
+            }
+        }
+
+        if (!got)
+        {
+            boot_send_error_word(MARK_FAIL);
+            boot_wait_recovery_cmd_erase();
+        }
     }
 
     /* ДВЕ ТОЧКИ ВОЗВРАТА, И ЭТО НЕ ЛИШНЕЕ.

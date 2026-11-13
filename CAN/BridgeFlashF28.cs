@@ -42,6 +42,7 @@ namespace ICDIBasic
             public uint Entry;
             public int Segments;
             public int Bytes;
+            public bool Spi; // в прошивке есть прошивка через мост (boot_spi_init)
         }
 
         /// <summary>Образ K57F из ELF .out прибора.</summary>
@@ -57,25 +58,31 @@ namespace ICDIBasic
             uint phoff = U32(28), shoff = U32(32);
             int phent = U16(42), phnum = U16(44), shent = U16(46), shnum = U16(48);
 
-            // Вход - символ _c_int00, как у CAN-загрузки: e_entry здесь - code_start.
-            long entry = -1;
-            var want = Encoding.ASCII.GetBytes("_c_int00\0");
-            for (int i = 0; i < shnum && entry < 0; i++)
+            // Символ по имени: значение или -1.
+            long Sym(string symName)
             {
-                long sh = shoff + (long)i * shent;
-                if (U32(sh + 4) != 2) continue; // SHT_SYMTAB
-                uint off = U32(sh + 16), size = U32(sh + 20), link = U32(sh + 24), es = U32(sh + 36);
-                if (es == 0 || link >= shnum) continue;
-                uint so = U32(shoff + link * shent + 16), ss = U32(shoff + link * shent + 20);
-                for (uint k = 0; k * es < size; k++)
+                var want = Encoding.ASCII.GetBytes(symName + "\0");
+                for (int i = 0; i < shnum; i++)
                 {
-                    uint n = U32(off + k * es);
-                    if (n + want.Length > ss) continue;
-                    int j = 0;
-                    while (j < want.Length && b[so + n + j] == want[j]) j++;
-                    if (j == want.Length) { entry = U32(off + k * es + 4); break; }
+                    long sh = shoff + (long)i * shent;
+                    if (U32(sh + 4) != 2) continue; // SHT_SYMTAB
+                    uint off = U32(sh + 16), size = U32(sh + 20), link = U32(sh + 24), es = U32(sh + 36);
+                    if (es == 0 || link >= shnum) continue;
+                    uint so = U32(shoff + link * shent + 16), ss = U32(shoff + link * shent + 20);
+                    for (uint k = 0; k * es < size; k++)
+                    {
+                        uint n = U32(off + k * es);
+                        if (n + want.Length > ss) continue;
+                        int j = 0;
+                        while (j < want.Length && b[so + n + j] == want[j]) j++;
+                        if (j == want.Length) return U32(off + k * es + 4);
+                    }
                 }
+                return -1;
             }
+
+            // Вход - символ _c_int00, как у CAN-загрузки: e_entry здесь - code_start.
+            long entry = Sym("_c_int00");
             if (entry < F28FlashStart || entry > F28FlashEnd)
                 throw new InvalidDataException("нет символа _c_int00 во флеше - это не флеш-сборка прибора");
 
@@ -141,7 +148,14 @@ namespace ICDIBasic
                     w.Write((uint)len);
                     w.Write(img, start, len);
                 }
-                return new F28Image { Data = ms.ToArray(), Entry = (uint)entry, Segments = runs.Count, Bytes = runs.Sum(r => r.len) };
+                // Умеет ли новая прошивка сама прошиваться через мост
+                // (Bootloader/boot_spi.c). 12.11.2026 в прибор ушёл .out от
+                // 6 ноября, без неё, и мост прибор больше не слышал.
+                return new F28Image
+                {
+                    Data = ms.ToArray(), Entry = (uint)entry, Segments = runs.Count, Bytes = runs.Sum(r => r.len),
+                    Spi = Sym("boot_spi_init") >= 0
+                };
             }
         }
 
@@ -190,6 +204,29 @@ namespace ICDIBasic
             return sb.ToString();
         }
 
+        /// <summary>Сборка прибора - его ответ на 333 через мост, или null.</summary>
+        private static async Task<string> BridgeF28_DeviceBuild(string host)
+        {
+            try
+            {
+                using (var wc = new WebClient { Encoding = Encoding.UTF8 })
+                {
+                    var t = wc.DownloadStringTaskAsync("http://" + host + "/api/f28?ask=1");
+                    if (await Task.WhenAny(t, Task.Delay(3000)) != t) return null;
+                    await t;
+                }
+                await Task.Delay(800); // ответ - полсотни квитанций, несколько посылок
+                using (var wc = new WebClient { Encoding = Encoding.UTF8 })
+                {
+                    var t = wc.DownloadStringTaskAsync("http://" + host + "/api/f28");
+                    if (await Task.WhenAny(t, Task.Delay(3000)) != t) return null;
+                    var b = BridgeJsonField(await t, "devBuild");
+                    return b.Length > 0 ? b : null;
+                }
+            }
+            catch (WebException) { return null; }
+        }
+
         private static string BridgeErrorText(WebException ex)
         {
             if (!(ex.Response is HttpWebResponse r)) return ex.Message;
@@ -236,13 +273,25 @@ namespace ICDIBasic
                 return;
             }
 
+            if (!img.Spi && MessageBox.Show(this,
+                    $"В {Path.GetFileName(file)} от {File.GetLastWriteTime(file):dd.MM.yyyy HH:mm} нет прошивки через мост.\n\n" +
+                    "После неё прибор перестанет слышать мост, и прошить его снова можно будет только по CAN или JTAG.\n\n" +
+                    "Всё равно прошить?",
+                    caption, MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+                return;
+
             string pass = BridgeAskPassword();
             if (pass == null) return;
 
+            // Что в приборе сейчас - рядом с файлом: 12.11.2026 со страницы ушёл
+            // .out из другой папки, от 6 ноября, и этого никто не заметил.
+            string devBuild = await BridgeF28_DeviceBuild(host);
+
             if (MessageBox.Show(this,
-                    $"Прошить прибор файлом\n{file}\n({img.Bytes / 1024} кБ, {img.Segments} сегм., " +
+                    $"Сейчас в приборе: сборка {devBuild ?? "неизвестна"}\n\n" +
+                    $"Прошить файлом\n{file}\n({img.Bytes / 1024} кБ, {img.Segments} сегм., " +
                     $"{File.GetLastWriteTime(file):dd.MM.yyyy HH:mm})?\n\n" +
-                    "Сначала файл уйдёт в мост, потом мост сам прошьёт прибор по SPI - около полуминуты.\n" +
+                    "Сначала файл уйдёт в мост, потом мост сам прошьёт прибор по SPI - несколько секунд.\n" +
                     "Сеанс с прибором должен быть закрыт («Отключить»), ключи - закрыты.\n" +
                     "Питание прибора во время прошивки не снимать.",
                     caption, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
@@ -253,11 +302,38 @@ namespace ICDIBasic
             var cycle = System.Diagnostics.Stopwatch.StartNew();
             using (var prog = new BridgeUpdateForm { Text = caption })
             {
+                // «Остановить»: пока образ идёт в мост - просто оборвать передачу,
+                // прибор не тронут. Потом - попросить мост (fwup_stop): до стирания
+                // он вернёт прибор к прежней прошивке, после - оставит в загрузчике.
+                bool stopAsked = false;
+                WebClient uploading = null;
+                prog.StopClicked += async (s, e) =>
+                {
+                    if (stopAsked) return;
+                    if (MessageBox.Show(prog, "Остановить прошивку?\n\nДо стирания прибор вернётся к прежней прошивке. " +
+                                              "После - останется ждать в загрузчике без программы, пока не прошьёте верный файл.",
+                                        caption, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+                        return;
+                    stopAsked = true;
+                    if (uploading != null) { uploading.CancelAsync(); return; }
+                    using (var wc = new WebClient { Encoding = Encoding.UTF8 })
+                    {
+                        wc.Headers[HttpRequestHeader.Authorization] = auth;
+                        try { await wc.UploadStringTaskAsync("http://" + host + "/api/f28stop", "POST", ""); }
+                        catch (WebException) { /* прошивка уже кончилась - покажет итог */ }
+                    }
+                };
                 prog.Show(this);
+
+                // «Остановить» - только если застряло: обычно весь цикл идёт
+                // секунд пять (12.11.2026), и в нормальном кнопка не нужна.
+                _ = Task.Delay(8000).ContinueWith(_t => { if (!prog.IsDisposed) prog.CanStop = true; },
+                                                  TaskScheduler.FromCurrentSynchronizationContext());
 
                 // 1. Образ - в мост.
                 using (var wc = new WebClient { Encoding = Encoding.UTF8 })
                 {
+                    uploading = wc;
                     wc.Headers[HttpRequestHeader.Authorization] = auth;
                     wc.Headers[HttpRequestHeader.ContentType] = "application/octet-stream";
                     wc.Headers["X-K57-Time"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
@@ -271,10 +347,20 @@ namespace ICDIBasic
                     catch (WebException ex)
                     {
                         prog.Close();
-                        MessageBox.Show(this, "Мост не принял образ: " + BridgeErrorText(ex), caption,
+                        MessageBox.Show(this, ex.Status == WebExceptionStatus.RequestCanceled
+                                                  ? "Остановлено, прибор не тронут."
+                                                  : "Мост не принял образ: " + BridgeErrorText(ex), caption,
                                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return;
                     }
+                    uploading = null;
+                }
+                if (stopAsked)
+                {
+                    prog.Close();
+                    MessageBox.Show(this, "Остановлено: образ в мосте, прибор не тронут.", caption,
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
                 }
 
                 // 2. Пуск прошивки.

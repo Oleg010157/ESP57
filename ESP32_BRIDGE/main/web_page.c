@@ -25,6 +25,7 @@
  *
  *   POST /api/f28img       образ прошивки прибора (K57F, fwup.h) - с паролем
  *   POST /api/f28go        прошить прибор образом из моста - с паролем
+ *   POST /api/f28stop      остановить прошивку - с паролем
  *   GET /api/f28[?ask=1]   образ в мосте, ход прошивки; ask - спросить у
  *                          прибора версию (333)
  *
@@ -453,6 +454,19 @@ static esp_err_t f28go_post(httpd_req_t *req)
     return httpd_resp_sendstr(req, "OK");
 }
 
+static esp_err_t f28stop_post(httpd_req_t *req)
+{
+    if (!web_auth_ok(req)) {
+        return ESP_OK;
+    }
+    const char *err = fwup_stop();
+    if (err != NULL) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return httpd_resp_sendstr(req, err);
+    }
+    return httpd_resp_sendstr(req, "OK");
+}
+
 static esp_err_t f28_get(httpd_req_t *req)
 {
     static const char *const st[] = {"idle", "run", "ok", "fail"};
@@ -513,6 +527,7 @@ void web_page_register(httpd_handle_t srv)
         {.uri = "/api/tblsrc", .method = HTTP_GET, .handler = tblsrc_get},
         {.uri = "/api/f28img", .method = HTTP_POST, .handler = f28img_post},
         {.uri = "/api/f28go", .method = HTTP_POST, .handler = f28go_post},
+        {.uri = "/api/f28stop", .method = HTTP_POST, .handler = f28stop_post},
         {.uri = "/api/f28", .method = HTTP_GET, .handler = f28_get},
     };
     for (size_t i = 0; i < sizeof u / sizeof u[0]; i++) {

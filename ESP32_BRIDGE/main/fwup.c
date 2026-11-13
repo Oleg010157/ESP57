@@ -65,6 +65,8 @@ static const char *TAG = "fwup";
 #define MARK_ERASE_PCT   0xEB00
 #define BOOT_SPI_ENTER   0xB007
 #define BOOT_SPI_KEY     0x5350
+#define CMD_ABORT        0xCC0A
+#define ACK_ABORT        0x0BCC
 
 typedef struct {
     uint32_t magic;
@@ -209,11 +211,24 @@ int fwup_tx_next(uint8_t *data, int room)
     return f.len;
 }
 
+/* Кадры к загрузчику забирает задача SPI - на каждой посылке прибора.
+ * Посылок нет (в приборе программа без моста или он стоит) - очередь не
+ * пустеет. Ждать без конца нельзя: 12.11.2026 так встала вся прошивка, и мост
+ * отказывал во всём, даже в собственном обновлении. */
+static volatile bool s_stalled;
+static volatile bool s_cancel; /* «Остановить» - fwup_stop() */
+static bool          s_erased; /* стирание уже начато - отменять нечего */
+static const char    s_stallMsg[] =
+    "прибор не обменивается с мостом по SPI: в нём нет ни загрузчика, ни программы с мостом. "
+    "Прошейте его по CAN или JTAG";
+
 static void send_frame(const uint8_t *d, int len)
 {
     txf_t f = {.len = (uint8_t)len};
     memcpy(f.d, d, len);
-    xQueueSend(s_txq, &f, portMAX_DELAY);
+    if (!s_stalled && xQueueSend(s_txq, &f, pdMS_TO_TICKS(2000)) != pdTRUE) {
+        s_stalled = true;
+    }
 }
 
 static void send4(uint16_t w0, uint16_t w1, uint16_t w2, uint16_t w3)
@@ -236,7 +251,8 @@ static void drain(void)
 
 static bool in_boot(void)
 {
-    return s_lastBoot != 0 && esp_timer_get_time() - s_lastBoot < 2000000;
+    /* Три секунды: в ожидании после отказа загрузчик шлёт 0xDEAD раз в 1,8 с. */
+    return s_lastBoot != 0 && esp_timer_get_time() - s_lastBoot < 3000000;
 }
 
 /* Отказ загрузчика - маркеры 0xDEAD, 0xDEnn, 0xD0nn, 0xDFnn и «сумма не
@@ -257,7 +273,7 @@ static bool wait_word(uint16_t want, uint32_t ms, bool fails, int pct0, int pct1
     uint32_t t = now_ms();
     uint16_t w[4];
 
-    while (now_ms() - t < ms) {
+    while (now_ms() - t < ms && !s_stalled && !s_cancel) {
         if (xQueueReceive(s_rxq, w, pdMS_TO_TICKS(50)) != pdTRUE) {
             continue;
         }
@@ -531,13 +547,15 @@ static const char *attempt(bool enter)
 
     /* Повтор: время неудачной попытки в шаги не идёт, только во всю прошивку. */
     s_phT = esp_timer_get_time();
+    xQueueReset(s_txq);
+    s_stalled = false;
     if (enter) {
         say(1, "зову прибор в загрузчик");
         drain();
         /* С повтором: посылку с битой CRC прибор выбрасывает целиком. Лишний
          * кадр загрузчик пропустит - он ждёт связи и смотрит только на неё. */
         uint32_t t = now_ms();
-        for (int i = 0; !in_boot() && now_ms() - t < 3000; i++) {
+        for (int i = 0; !in_boot() && !s_cancel && now_ms() - t < 3000; i++) {
             if (i % 25 == 0) {
                 send4(BOOT_SPI_ENTER, BOOT_SPI_KEY, 0, 0);
             }
@@ -565,8 +583,12 @@ static const char *attempt(bool enter)
     }
 
     phase(FWUP_PH_ENTER);
+    if (s_cancel) {
+        return "остановлено";
+    }
     say(3, "стирание 0x%06lX..0x%06lX", (unsigned long)s_eraseLo, (unsigned long)s_eraseHi);
     drain();
+    s_erased = true; /* дальше отмена уже ничего не вернёт */
     send4(CMD_ERASE, 0, 0, 0);
     send4((uint16_t)(s_eraseLo >> 16), (uint16_t)s_eraseLo, (uint16_t)(s_eraseHi >> 16),
           (uint16_t)s_eraseHi);
@@ -667,6 +689,51 @@ static bool device_alive(void)
     return false;
 }
 
+/* «Остановить». До стирания флеш прибора цел: CMD_ABORT, и загрузчик сам
+ * сбрасывает прибор на прежнюю прошивку. После - уйти некуда: прибор ждёт в
+ * загрузчике, и прошить его можно тем же путём, отправив верный файл. */
+static void stop_job(void)
+{
+    s_cancel = false;
+    xQueueReset(s_txq);
+    s_stalled = false;
+    drain();
+
+    if (s_erased) {
+        send4(CMD_ABORT, 0, 0, 0); /* посреди записи уведёт его в ожидание стирания */
+        say(-1, "остановлено после начала стирания: в приборе нет программы. Он ждёт в загрузчике - "
+                "отправьте верный файл и нажмите «Прошить прибор». Питание не снимать");
+        set_state(FWUP_FAIL);
+        return;
+    }
+    /* Зов в загрузчик мог уже уйти - дать прибору ответить. */
+    for (int k = 0; k < 10 && !in_boot(); k++) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    if (!in_boot()) {
+        say(-1, "остановлено - прибор не тронут");
+        set_state(FWUP_FAIL);
+        return;
+    }
+    say(-1, "останавливаю - возвращаю прибор к прежней прошивке");
+    send4(CMD_ABORT, 0, 0, 0);
+    if (!wait_word(ACK_ABORT, 1500, false, 0, 0)) {
+        /* Загрузчик до 12.11.2026 отмены не знает. Флеш цел - прибор
+         * поднимется на прежней прошивке после перезапуска. */
+        say(-1, "прибор не принял отмену (загрузчик без неё?). Флеш не тронут: перезапустите прибор "
+                "по питанию - поднимется прежняя прошивка. Или прошейте верный файл");
+        set_state(FWUP_FAIL);
+        return;
+    }
+    s_lastBoot = 0;
+    if (device_alive()) {
+        say(-1, "остановлено до стирания: прибор на прежней прошивке, сборка %s", s_st.devBuild);
+    } else {
+        say(-1, "остановлено до стирания, но прибор не ответил - перезапустите его по питанию");
+    }
+    set_state(FWUP_FAIL);
+}
+
 static void job(void)
 {
     img_hdr_t h;
@@ -683,6 +750,7 @@ static void job(void)
     taskEXIT_CRITICAL(&s_mux);
 
     const char *bad = check_image(&h, &r);
+    s_erased = false;
     if (bad == NULL && !prepare()) {
         bad = "образ в мосте не читается";
     }
@@ -691,6 +759,7 @@ static void job(void)
      * или прошлая не удалась. Тогда ни ключей, ни сеанса нет, и проверять
      * их не по чему. */
     bool enter = !in_boot();
+    s_erased   = !enter; /* был в загрузчике - что во флеше, неизвестно */
     if (bad == NULL && enter) {
         bad = check_device();
         /* Молчит - может быть, это загрузчик, оставшийся посреди записи
@@ -707,6 +776,10 @@ static void job(void)
         return;
     }
 
+    if (s_cancel) {
+        stop_job();
+        return;
+    }
     phase(FWUP_PH_CHECK);
     ESP_LOGI(TAG, "прошивка: %s, %d сегм., вход 0x%06lX, сумма 0x%08lX", h.name, s_nseg,
              (unsigned long)h.entry, (unsigned long)s_sum);
@@ -720,12 +793,26 @@ static void job(void)
         if (bad == NULL) {
             break;
         }
+        if (s_cancel) {
+            stop_job();
+            return;
+        }
+        if (s_stalled) {
+            bad = s_stallMsg; /* повторять незачем - посылок нет вовсе */
+            break;
+        }
         ESP_LOGW(TAG, "попытка %d: %s", a, bad);
         if (a < 3) {
             say(-1, "попытка %d: %s - начинаю заново", a, bad);
             /* Отказавший загрузчик повторяет маркер 16 раз и уходит ждать
              * стирания - дать ему туда дойти. */
-            vTaskDelay(pdMS_TO_TICKS(2000));
+            for (int k = 0; k < 20 && !s_cancel; k++) {
+                vTaskDelay(pdMS_TO_TICKS(100));
+            }
+            if (s_cancel) {
+                stop_job();
+                return;
+            }
         }
     }
     if (bad != NULL) {
@@ -752,7 +839,8 @@ static void job(void)
         say(100, "прибор прошит и работает, сборка %s", s_st.devBuild);
         set_state(FWUP_OK);
     } else {
-        say(100, "прошито и запущено, но прибор не отвечает - проверьте его");
+        say(100, "прошито и запущено, но прибор не отвечает мосту - в этой прошивке, "
+                 "возможно, нет связи с мостом; проверьте его по CAN");
         set_state(FWUP_FAIL);
     }
 }
@@ -781,6 +869,7 @@ const char *fwup_start(void)
     if (live_session_open()) {
         return "открыт сеанс Motor_Control - нажмите в нём «Отключить»";
     }
+    s_cancel  = false;
     s_running = true;
     taskENTER_CRITICAL(&s_mux);
     s_st.state = FWUP_RUN;
@@ -797,6 +886,15 @@ void fwup_ask_version(void)
     s_verDone = false;
     memset(s_vs, 0, sizeof s_vs);
     spi_link_send_cmd(333, 0, 0, 0);
+}
+
+const char *fwup_stop(void)
+{
+    if (!s_running) {
+        return "прошивка не идёт";
+    }
+    s_cancel = true;
+    return NULL;
 }
 
 bool fwup_busy(void)

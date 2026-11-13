@@ -31,6 +31,7 @@ idf_component_register(
         "live.c"
         "tables.c"
         "fwup.c"
+        "panic_note.c"
     EMBED_TXTFILES
         "page/index.html"
         "../../bin/ErrorCodes.h"
@@ -56,3 +57,6 @@ idf_component_register(
         esp_app_format
         mbedtls
 )
+
+# След паники (panic_note.c): обёртка вокруг обработчика паники ESP-IDF.
+target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=esp_panic_handler")

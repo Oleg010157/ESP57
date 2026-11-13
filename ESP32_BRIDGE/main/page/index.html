@@ -221,7 +221,8 @@ input.num.pending, select.pending { background: #fff3a8; color: #000; }
   <div class="row"><progress id="fUp" max="100" value="0" hidden></progress></div>
   <h2>2. Прошить прибор</h2>
   <div class="kv" id="fImg"></div>
-  <div class="row"><button class="act" id="fGo" disabled>Прошить прибор</button></div>
+  <div class="row"><button class="act" id="fGo" disabled>Прошить прибор</button>
+    <button class="act stop" id="fStop" hidden>Остановить</button></div>
   <div class="row"><progress id="fProg" max="100" value="0" hidden></progress></div>
   <p id="fNote" class="note"></p>
   <p id="fTime" class="note"></p>
@@ -444,6 +445,7 @@ $("uGo").onclick = () => {
 // сегменты кратны 64 байтам. В мост уходит только образ, около 0,1 МБ, а не
 // весь .out с отладочными сведениями (1,4 МБ).
 const FW_START = 0x080000, FW_END = 0x0FFFFF;
+const FW_STUCK_MS = 8000; // дольше - прошивка застряла, показать «Остановить»
 let fwImg = null, fwLast = null;
 function hex6(v) { return "0x" + v.toString(16).toUpperCase().padStart(6, "0"); }
 function kb(n) { return (n / 1024).toFixed(1).replace(".", ","); }
@@ -457,25 +459,33 @@ function fwParse(buf, name, mtime) {
   if (u8[4] !== 1 || u8[5] !== 1) throw "ждётся ELF32 младшим байтом вперёд";
   const phoff = u32(28), shoff = u32(32), phent = u16(42), phnum = u16(44), shent = u16(46), shnum = u16(48);
 
+  // Символ по имени: значение или -1.
+  function sym(name) {
+    const want = [...name].map(c => c.charCodeAt(0)).concat(0);
+    for (let i = 0; i < shnum; i++) {
+      const sh = shoff + i * shent;
+      if (u32(sh + 4) !== 2) continue; // SHT_SYMTAB
+      const off = u32(sh + 16), size = u32(sh + 20), link = u32(sh + 24), es = u32(sh + 36);
+      if (!es || link >= shnum) continue;
+      const so = u32(shoff + link * shent + 16), ss = u32(shoff + link * shent + 20);
+      for (let k = 0; k * es < size; k++) {
+        const n = u32(off + k * es);
+        if (n + want.length > ss) continue;
+        let j = 0;
+        while (j < want.length && u8[so + n + j] === want[j]) j++;
+        if (j === want.length) return u32(off + k * es + 4);
+      }
+    }
+    return -1;
+  }
   // Вход - символ _c_int00, как у Motor_Control: e_entry у этой сборки -
   // code_start, а не он.
-  const want = [..."_c_int00"].map(c => c.charCodeAt(0)).concat(0);
-  let entry = -1;
-  for (let i = 0; i < shnum && entry < 0; i++) {
-    const sh = shoff + i * shent;
-    if (u32(sh + 4) !== 2) continue; // SHT_SYMTAB
-    const off = u32(sh + 16), size = u32(sh + 20), link = u32(sh + 24), es = u32(sh + 36);
-    if (!es || link >= shnum) continue;
-    const so = u32(shoff + link * shent + 16), ss = u32(shoff + link * shent + 20);
-    for (let k = 0; k * es < size; k++) {
-      const n = u32(off + k * es);
-      if (n + want.length > ss) continue;
-      let j = 0;
-      while (j < want.length && u8[so + n + j] === want[j]) j++;
-      if (j === want.length) { entry = u32(off + k * es + 4); break; }
-    }
-  }
+  const entry = sym("_c_int00");
   if (entry < FW_START || entry > FW_END) throw "нет символа _c_int00 во флеше - это не флеш-сборка прибора";
+  // Умеет ли новая прошивка сама прошиваться через мост (Bootloader/boot_spi.c).
+  // Нет - после неё прибор прошивается только по CAN или JTAG: 12.11.2026 так
+  // в прибор ушёл .out от 6 ноября, и мост его больше не слышал.
+  const spi = sym("boot_spi_init") >= 0;
 
   const segs = [];
   let lo = Infinity, hi = 0;
@@ -528,7 +538,7 @@ function fwParse(buf, name, mtime) {
     for (let k = b; k < b + n; k++) sum += img[k];
     p += 8 + n;
   }
-  return {data: out, name, mtime, entry, segs: runs.length, bytes, sum: sum >>> 0};
+  return {data: out, name, mtime, entry, segs: runs.length, bytes, sum: sum >>> 0, spi};
 }
 
 $("fFile").onchange = async () => {
@@ -539,7 +549,10 @@ $("fFile").onchange = async () => {
   try {
     fwImg = fwParse(await f.arrayBuffer(), f.name, f.lastModified);
     $("fInfo").textContent = `${f.name} от ${when(fwImg.mtime / 1000)}: ${kb(fwImg.bytes)} кБ ` +
-      `в ${fwImg.segs} сегм., вход ${hex6(fwImg.entry)}.`;
+      `в ${fwImg.segs} сегм., вход ${hex6(fwImg.entry)}.` +
+      (fwImg.spi ? "" : " ВНИМАНИЕ: в этой прошивке нет прошивки через мост - после неё прибор " +
+                        "прошивается только по CAN или JTAG.");
+    $("fInfo").className = "note" + (fwImg.spi ? "" : " cur");
     $("fSend").disabled = false;
   } catch (e) {
     $("fInfo").textContent = "Не годится: " + e;
@@ -548,6 +561,9 @@ $("fFile").onchange = async () => {
 
 $("fSend").onclick = () => {
   if (!fwImg) return;
+  if (!fwImg.spi && !confirm(`В ${fwImg.name} от ${when(fwImg.mtime / 1000)} нет прошивки через мост.\n\n` +
+                             "После неё прибор перестанет слышать мост и прошить его снова можно будет " +
+                             "только по CAN или JTAG. Всё равно отправить?")) return;
   const p = pass();
   if (!p) { $("fInfo").textContent = "Сначала войдите паролем на вкладке «Инвертор»."; return; }
   const x = new XMLHttpRequest();
@@ -572,13 +588,34 @@ $("fSend").onclick = () => {
 $("fGo").onclick = async () => {
   const f = fwLast;
   if (!f || !f.img) return;
-  if (!confirm(`Прошить прибор файлом ${f.name}?\n\nПрибор остановится примерно на полминуты. Питание не снимать.`)) return;
+  // Что в приборе сейчас и чем шьём - рядом: 12.11.2026 со страницы ушёл
+  // .out из другой папки, от 6 ноября, и этого никто не заметил.
+  if (!confirm(`Прошить прибор?\n\nСейчас в приборе: сборка ${f.devBuild || "неизвестна"}\n` +
+               `Шьём: ${f.name} от ${when(f.ftime)}\n\nПрибор остановится на несколько секунд. Питание не снимать.`)) return;
   $("fNote").textContent = "";
   try {
     const r = await fetch("/api/f28go", {
       method: "POST", headers: {Authorization: "Basic " + btoa(unescape(encodeURIComponent("k57:" + pass())))}
     });
     if (!r.ok) $("fNote").textContent = r.status === 401 ? "Неверный пароль - войдите на вкладке «Инвертор»." : "Отказ: " + await r.text();
+    // Пока идёт - опрос чаще: прошивка занимает секунды три.
+    if (r.ok) { fwFast(); return; }
+  } catch (e) { $("fNote").textContent = "Мост не ответил."; }
+  loadFw(false);
+};
+async function fwFast() {
+  await loadFw(false);
+  if (fwLast && fwLast.state === "run") setTimeout(fwFast, 300);
+}
+
+$("fStop").onclick = async () => {
+  if (!confirm("Остановить прошивку?\n\nДо стирания прибор вернётся к прежней прошивке. После - останется " +
+               "ждать в загрузчике без программы, пока не прошьёте верный файл.")) return;
+  try {
+    const r = await fetch("/api/f28stop", {
+      method: "POST", headers: {Authorization: "Basic " + btoa(unescape(encodeURIComponent("k57:" + pass())))}
+    });
+    if (!r.ok) $("fNote").textContent = r.status === 401 ? "Неверный пароль." : "Отказ: " + await r.text();
   } catch (e) { $("fNote").textContent = "Мост не ответил."; }
   loadFw(false);
 };
@@ -599,6 +636,9 @@ async function loadFw(ask) {
     ["Прислан", when(f.utime)],
   ] : [["Образ в мосте", "нет"]]).map(([k, v]) => `<div>${k}</div><div>${esc(v)}</div>`).join("");
   $("fGo").disabled = !f.img || run || f.session || !pass();
+  // «Остановить» - только если застряло: обычно прошивка идёт около 3 с
+  // (12.11.2026), и в нормальной кнопка не нужна.
+  $("fStop").hidden = !(run && f.ms > FW_STUCK_MS);
   $("fSend").disabled = !fwImg || run;
   const pr = $("fProg");
   pr.hidden = f.state === "idle";

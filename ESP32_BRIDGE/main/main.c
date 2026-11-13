@@ -32,6 +32,7 @@
 #include "bbox.h"
 #include "bstore.h"
 #include "fwup.h"
+#include "panic_note.h"
 #include "web.h"
 #include "live.h"
 #include "tables.h"
@@ -105,6 +106,7 @@ static void console_start(void)
 void app_main(void)
 {
     ESP_LOGI(TAG, "мост K57, плата %s", BOARD_NAME);
+    panic_note_init(); /* первым: след прошлой паники, если она была */
     spi_link_start();
     console_start();
 
