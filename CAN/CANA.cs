@@ -80,14 +80,34 @@ namespace ICDIBasic
             }
         }
 
+        // Меняет в файле только действующие link= и host=, остальное - как было:
+        // в link.ini держат запасной адрес строкой-комментарием (#host=...), и
+        // переписывать файл целиком значило бы его стереть (13.11.2026).
         private void SaveLinkIni()
         {
             try
             {
-                System.IO.File.WriteAllText(LinkIniPath,
-                    "# Связь с прибором: link=wifi - через мост ESP32, link=can - через PCAN.\r\n" +
-                    $"link={(LinkWifi ? "wifi" : "can")}\r\n" +
-                    $"host={_linkHost}\r\n");
+                var lines = System.IO.File.Exists(LinkIniPath)
+                    ? new System.Collections.Generic.List<string>(System.IO.File.ReadAllLines(LinkIniPath))
+                    : new System.Collections.Generic.List<string> { "# Связь с прибором: link=wifi - через мост ESP32, link=can - через PCAN." };
+                bool haveLink = false, haveHost = false;
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    var t = lines[i].Trim();
+                    if (!haveLink && t.StartsWith("link=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        lines[i] = $"link={(LinkWifi ? "wifi" : "can")}";
+                        haveLink = true;
+                    }
+                    else if (!haveHost && t.StartsWith("host=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        lines[i] = $"host={_linkHost}";
+                        haveHost = true;
+                    }
+                }
+                if (!haveLink) lines.Add($"link={(LinkWifi ? "wifi" : "can")}");
+                if (!haveHost) lines.Add($"host={_linkHost}");
+                System.IO.File.WriteAllLines(LinkIniPath, lines);
             }
             catch (Exception ex)
             {
@@ -608,10 +628,10 @@ namespace ICDIBasic
                 }
             }
 
-            // Не вошёл в общую сеть за 8 попыток - мост поднимает свою точку
-            // K57 и живёт на 192.168.4.1. Так бывает при слабом сигнале до
-            // роутера (стенд, 10.11.2026), и править link.ini на каждый такой
-            // случай незачем: адрес точки постоянный.
+            // Адрес в роутере не ответил - компьютер не в той сети (стенд, где
+            // роутера нет) или мост в роутер не вошёл. Своя точка K57 у моста
+            // есть всегда (с 13.11.2026, net_wifi.c), и адрес у неё постоянный,
+            // так что править link.ini на каждый такой случай незачем.
             if (link == null)
             {
                 link = NewLink(WifiLink.DefaultHost);
