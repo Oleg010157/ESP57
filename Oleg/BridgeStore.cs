@@ -234,6 +234,9 @@ namespace ICDIBasic
         {
             _list.BeginUpdate();
             _list.Items.Clear();
+            var seqs = rows.Select(r => BitConverter.ToUInt32(r, 0)).ToList();
+            var utcs = rows.Select(r => BitConverter.ToUInt32(r, 4)).ToList();
+            var sess = rows.Select(r => (uint)BitConverter.ToUInt16(r, 10)).ToList();
             // Новые сверху: смотрят обычно, что было последним.
             for (int i = rows.Count - 1; i >= 0; i--)
             {
@@ -242,7 +245,7 @@ namespace ICDIBasic
                 ushort code = BitConverter.ToUInt16(r, 8), ses = BitConverter.ToUInt16(r, 10);
                 ushort cnt = BitConverter.ToUInt16(r, 12);
                 var it = new ListViewItem(seq.ToString());
-                it.SubItems.Add(TimeText(utc));
+                it.SubItems.Add(utc != 0 ? TimeText(utc) : BlackBoxClient.ApproxTimeText(i, seqs, utcs, sess));
                 it.SubItems.Add(code.ToString());
                 it.SubItems.Add(_errText.TryGetValue(code, out var t) ? t : "код " + code);
                 it.SubItems.Add(ses.ToString());

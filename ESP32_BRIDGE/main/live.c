@@ -44,10 +44,19 @@ static bool     s_haveErr;
 /* Подтверждённое прибором (ACK, кадр 1: cmd, d1, d2, d3). */
 static uint16_t s_mode, s_en, s_iset, s_uref, s_freq;
 static int64_t  s_tMode, s_tEn, s_tIset, s_tUref, s_tFreq;
+static uint32_t s_energy[4];
+static int64_t  s_tEnergy;
+
+#define CMD_ENERGY 345 /* energy.h прибора: ответ - ACK на каждый счётчик */
 
 static volatile int64_t s_touch;
 static bool             s_watching;
 static int              s_ticks;
+static int64_t          s_utcBase;   /* UTC минус время работы моста, с; 0 - не знаем */
+static int              s_clockTick; /* секунд до следующей 337 */
+
+#define CMD_WALL_CLOCK 337 /* wall_clock.h прибора */
+#define CLOCK_EVERY_S  60
 
 static int64_t now_us(void)
 {
@@ -80,6 +89,12 @@ void live_frame(uint16_t id, const uint8_t *data, uint8_t len)
         case 632: s_iset = v; s_tIset = t; break;
         case 633: s_uref = v; s_tUref = t; break;
         case 624: s_freq = v; s_tFreq = t; break;
+        case CMD_ENERGY: /* d1 - номер счётчика, d2/d3 - младшее и старшее слово */
+            if (v < 4) {
+                s_energy[v] = (uint32_t)le16(data + 4) | ((uint32_t)le16(data + 6) << 16);
+                s_tEnergy   = t;
+            }
+            break;
         default: break;
         }
         portEXIT_CRITICAL(&s_mux);
@@ -141,8 +156,42 @@ static bool session_open(void)
     return open;
 }
 
+void live_set_time(uint32_t utc)
+{
+    /* Раньше 2024 года - не время, а ноль или мусор. */
+    if (utc < 1704067200u) {
+        return;
+    }
+    bool first = s_utcBase == 0;
+    s_utcBase  = (int64_t)utc - now_us() / 1000000;
+    if (first) {
+        s_clockTick = 0; /* узнали только что - прибору сразу */
+    }
+}
+
+uint32_t live_utc(void)
+{
+    return s_utcBase == 0 ? 0 : (uint32_t)(s_utcBase + now_us() / 1000000);
+}
+
+void live_push_time(void)
+{
+    uint32_t t = live_utc();
+    /* В сеансе время прибору даёт сам Motor_Control. */
+    if (t != 0 && !session_open()) {
+        spi_link_send_cmd(CMD_WALL_CLOCK, (uint16_t)t, (uint16_t)(t >> 16), 0);
+    }
+}
+
 void live_tick1s(void)
 {
+    /* Раз в минуту, а не однажды: прибор, перезапущенный (прошивка, питание),
+     * забывает время, а сам об этом не скажет. Команда - одна в минуту. */
+    if (--s_clockTick <= 0) {
+        s_clockTick = CLOCK_EVERY_S;
+        live_push_time();
+    }
+
     /* Сеанс Motor_Control открыт - кадры идут по нему; страница только смотрит. */
     s_watching = page_active() && !session_open();
     if (!s_watching) {
@@ -158,6 +207,7 @@ void live_tick1s(void)
         spi_link_send_cmd(632, 0, 0, 0);
         spi_link_send_cmd(633, 0, 0, 0);
         spi_link_send_cmd(624, 0, 0, 0);
+        spi_link_send_cmd(CMD_ENERGY, 0, 0, 0);
     }
     spi_link_send_cmd(CMD_WATCH, req, 0, 0);
 }
@@ -175,13 +225,15 @@ void live_get_set(live_set_t *out)
     out->iset   = s_iset;
     out->uref   = s_uref;
     out->freq   = s_freq;
-    int64_t tm = s_tMode, te = s_tEn, ti = s_tIset, tu = s_tUref, tf = s_tFreq;
+    int64_t tm = s_tMode, te = s_tEn, ti = s_tIset, tu = s_tUref, tf = s_tFreq, tw = s_tEnergy;
+    memcpy(out->energy, s_energy, sizeof out->energy);
     portEXIT_CRITICAL(&s_mux);
     out->modeAge = tm == 0 ? UINT32_MAX : (uint32_t)((now_us() - tm) / 1000);
     out->enAge   = te == 0 ? UINT32_MAX : (uint32_t)((now_us() - te) / 1000);
     out->isetAge = ti == 0 ? UINT32_MAX : (uint32_t)((now_us() - ti) / 1000);
     out->urefAge = tu == 0 ? UINT32_MAX : (uint32_t)((now_us() - tu) / 1000);
     out->freqAge = tf == 0 ? UINT32_MAX : (uint32_t)((now_us() - tf) / 1000);
+    out->energyAge = tw == 0 ? UINT32_MAX : (uint32_t)((now_us() - tw) / 1000);
 }
 
 /*---------------------------------------------------------------------------
@@ -245,6 +297,9 @@ const char *live_control(const char *what, int value)
             return "частота вне 40..70 Гц";
         }
         ok = spi_link_send_cmd(624, (uint16_t)value, 3333, 0);
+    } else if (strcmp(what, "etrip") == 0) {
+        /* Обнулить «с последнего сброса»; «всего» прибор не сбрасывает никогда. */
+        ok = spi_link_send_cmd(CMD_ENERGY, 1, 3333, 0);
     } else if (strcmp(what, "uref") == 0) {
         if (value < 0 || value > UREF_MAX) {
             return "Uref вне 0..250 В";

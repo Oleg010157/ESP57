@@ -900,6 +900,7 @@ namespace ICDIBasic
             измеренияToolStripMenuItem.DropDownItems.Add(_rxDataMenu);
             измеренияToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
             BlackBox_InitMenu(измеренияToolStripMenuItem);
+            Energy_InitMenu(измеренияToolStripMenuItem); // Oleg/EnergyForm.cs
             BridgeStore_InitMenu(измеренияToolStripMenuItem);
 
             управлениеToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());

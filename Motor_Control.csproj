@@ -149,6 +149,7 @@
     <Compile Include="Oleg\BridgeStore.cs" />
     <Compile Include="CAN\BridgeUpdate.cs" />
     <Compile Include="CAN\BridgeFlashF28.cs" />
+    <Compile Include="Oleg\EnergyForm.cs" />
     <Compile Include="Oleg\YokoAsyncAwait.cs">
       <SubType>Form</SubType>
     </Compile>

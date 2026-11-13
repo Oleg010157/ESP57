@@ -23,4 +23,8 @@ void NvStore_background(void);
 // Поставить на запись всю таблицу истории: после ClearErrorTable().
 void NvStore_requestClear(void);
 
+// Поставить на запись счётчики энергии (energy.h): маска по ENERGY_*. Можно и
+// из прерывания.
+void NvStore_requestEnergy(uint16_t mask);
+
 #endif /* NV_STORE_H_ */

@@ -834,6 +834,7 @@ static void job(void)
              (unsigned long)s_st.ph[3], (unsigned long)s_st.ph[4], (unsigned long)s_st.ph[5],
              (unsigned long)s_st.totalMs);
     if (alive) {
+        live_push_time(); /* новая прошивка проснулась без часов */
         /* Имя прибора - отдельной строкой на странице: вместе с ним время в
          * сообщение не влезало. */
         say(100, "прибор прошит и работает, сборка %s", s_st.devBuild);

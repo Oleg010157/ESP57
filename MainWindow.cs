@@ -2863,6 +2863,10 @@ namespace ICDIBasic
                     TeleSel_Ack(d1);
                     break;
 
+                case 345: // счётчики энергии: d1 - номер, d2/d3 - Вт·ч (Oleg/EnergyForm.cs)
+                    Energy_Ack(d1, d2, d3);
+                    break;
+
                 case 100: // подтверждение команды для запуска записи фаст spf кадра по нажатию F3
 
                     spf_Tooth_F9 = true;

@@ -422,6 +422,24 @@ namespace ICDIBasic
                 ? "время неизвестно"
                 : DateTimeOffset.FromUnixTimeSeconds(utc).LocalDateTime.ToString("dd.MM.yyyy HH:mm:ss");
 
+        /// <summary>
+        /// Время записи без времени (прибор ещё не знал часов, wall_clock.h) -
+        /// от ближайшей по номеру записи с временем, сначала из той же сессии
+        /// (ses == null - сессий нет), со значком «≈». Как на странице моста
+        /// (fillTimes): день и час тут важнее точности (13.11.2026).
+        /// </summary>
+        public static string ApproxTimeText(int i, IList<uint> seq, IList<uint> utc, IList<uint> ses)
+        {
+            int best = -1;
+            for (int pass = 0; pass < 2 && best < 0; pass++)
+                for (int k = 0; k < seq.Count; k++)
+                {
+                    if (utc[k] == 0 || (pass == 0 && (ses == null || ses[k] != ses[i]))) continue;
+                    if (best < 0 || Math.Abs((long)seq[k] - seq[i]) < Math.Abs((long)seq[best] - seq[i])) best = k;
+                }
+            return best < 0 ? "время неизвестно" : "≈ " + TimeText(utc[best]);
+        }
+
         public string CodeText(BlackBoxEntry e)
         {
             if (e.Code == CodeHand) return "пуск вручную";
@@ -687,10 +705,14 @@ namespace ICDIBasic
             int selSeq = _list.SelectedItems.Count > 0 ? (int)((BlackBoxEntry)_list.SelectedItems[0].Tag).Seq : -1;
             _list.BeginUpdate();
             _list.Items.Clear();
-            foreach (var e in entries)
+            var seqs = entries.Select(x => x.Seq).ToList();
+            var utcs = entries.Select(x => x.Utc).ToList();
+            for (int ei = 0; ei < entries.Count; ei++)
             {
+                var e = entries[ei];
                 var it = new ListViewItem(e.Seq.ToString());
-                it.SubItems.Add(BlackBoxClient.TimeText(e.Utc));
+                it.SubItems.Add(e.Utc != 0 ? BlackBoxClient.TimeText(e.Utc)
+                                           : BlackBoxClient.ApproxTimeText(ei, seqs, utcs, null));
                 it.SubItems.Add(e.Code == BlackBoxClient.CodeHand ? "—" : e.Code.ToString());
                 it.SubItems.Add(_bb.CodeText(e));
                 double before = e.TrigFrame / (double)BlackBoxClient.FrameRate;

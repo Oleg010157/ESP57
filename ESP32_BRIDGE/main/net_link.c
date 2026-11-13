@@ -22,6 +22,7 @@
 #include "esp_log.h"
 
 #include "net_link.h"
+#include "live.h"
 #include "net_proto.h"
 #include "net_wifi.h"
 #include "spi_link.h"
@@ -300,6 +301,13 @@ static int process(uint8_t *buf, int have)
          * не адресовано, а длиннее 8 в очередь не влезет. */
         if (f.id == 2 && len == 8) {
             memcpy(f.data, buf + pos + K57_REC_HDR, 8);
+            /* Время от Motor_Control (337: d1 - младшее слово, d2 - старшее;
+             * в кадре слова cmd, d3, d2, d1) - мосту оно тоже пригодится:
+             * отдавать прибору, когда сеанса нет (live.h). */
+            if ((f.data[0] | (f.data[1] << 8)) == 337) {
+                live_set_time((uint32_t)(f.data[6] | (f.data[7] << 8)) |
+                              ((uint32_t)(f.data[4] | (f.data[5] << 8)) << 16));
+            }
             spi_link_send(&f);
             s_stat.cmdIn++;
         } else if (BBOX_IS_OWN_ID(f.id)) {

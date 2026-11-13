@@ -37,6 +37,7 @@
 #include "plant_sim.h"
 #include "power_par.h"
 #include "wall_clock.h"
+#include "energy.h"
 #include "bbox_trig.h"
 #include "bridge_store.h"
 
@@ -2158,6 +2159,12 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
         // Время от пульта для журнала аварий: d1 - младшее, d2 - старшее слово
         // UTC, секунды с 1970. Шлёт его пульт при подключении. Разбор -
         // my_Files/wall_clock.h.
+        // Счётчики энергии, Вт·ч (my_Files/energy.h): прочитать, а с d1 = 1 и
+        // d2 = 3333 - обнулить «с последнего сброса». Ответ - четыре ACK.
+        case ENERGY_CMD:
+            Energy_cmd((uint16_t)data1, (uint16_t)data2);
+            break;
+
         case WALL_CLOCK_CMD:
             WallClock_set(((uint32_t)data2 << 16) | data1);
             SendAck(data1, data2, data3, cmd);

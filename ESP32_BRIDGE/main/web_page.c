@@ -16,7 +16,7 @@
  *   GET /api/bridge        мост: сеть, обмен с прибором, память
  *
  *   POST /api/ctl?do=..&v=N  управление - с паролем (live.c, live_control):
- *                          power, mode, gridEn, iset, uref, freq
+ *                          power, mode, gridEn, iset, uref, freq, etrip
  *   GET /tables.txt        таблицы Motor_Control (CanTxFiles, tables.h)
  *   POST /api/tbl?cmd=C&op=r|w|m&v=N&m=0|1  строка таблицы - с паролем
  *   GET /api/tblacks       ответы прибора на команды таблиц
@@ -26,6 +26,8 @@
  *   POST /api/f28img       образ прошивки прибора (K57F, fwup.h) - с паролем
  *   POST /api/f28go        прошить прибор образом из моста - с паролем
  *   POST /api/f28stop      остановить прошивку - с паролем
+ *   POST /api/time?t=UTC   время браузера - мосту и прибору (live.h), без
+ *                          пароля: страницу смотрят и не входя
  *   GET /api/f28[?ask=1]   образ в мосте, ход прошивки; ask - спросить у
  *                          прибора версию (333)
  *
@@ -138,12 +140,15 @@ static esp_err_t state_get(httpd_req_t *req)
     live_set_t st;
     live_get_set(&st);
     out(req, "],\"set\":{\"mode\":%u,\"modeAge\":%ld,\"en\":%u,\"enAge\":%ld,\"iset\":%u,"
-             "\"isetAge\":%ld,\"uref\":%u,\"urefAge\":%ld,\"freq\":%u,\"freqAge\":%ld}",
+             "\"isetAge\":%ld,\"uref\":%u,\"urefAge\":%ld,\"freq\":%u,\"freqAge\":%ld",
         st.mode, st.modeAge == UINT32_MAX ? -1L : (long)st.modeAge, st.gridEn,
         st.enAge == UINT32_MAX ? -1L : (long)st.enAge, st.iset,
         st.isetAge == UINT32_MAX ? -1L : (long)st.isetAge, st.uref,
         st.urefAge == UINT32_MAX ? -1L : (long)st.urefAge, st.freq,
         st.freqAge == UINT32_MAX ? -1L : (long)st.freqAge);
+    out(req, ",\"energy\":[%lu,%lu,%lu,%lu],\"energyAge\":%ld}", (unsigned long)st.energy[0],
+        (unsigned long)st.energy[1], (unsigned long)st.energy[2], (unsigned long)st.energy[3],
+        st.energyAge == UINT32_MAX ? -1L : (long)st.energyAge);
     out(req, ",\"cur\":[");
     bool first = true;
     for (int i = 0; i < LIVE_ERR_CODES; i++) {
@@ -454,6 +459,16 @@ static esp_err_t f28go_post(httpd_req_t *req)
     return httpd_resp_sendstr(req, "OK");
 }
 
+static esp_err_t time_post(httpd_req_t *req)
+{
+    char q[24], v[16];
+    if (httpd_req_get_url_query_str(req, q, sizeof q) == ESP_OK &&
+        httpd_query_key_value(q, "t", v, sizeof v) == ESP_OK) {
+        live_set_time((uint32_t)strtoul(v, NULL, 10));
+    }
+    return httpd_resp_sendstr(req, live_utc() ? "OK" : "время не принято");
+}
+
 static esp_err_t f28stop_post(httpd_req_t *req)
 {
     if (!web_auth_ok(req)) {
@@ -528,6 +543,7 @@ void web_page_register(httpd_handle_t srv)
         {.uri = "/api/f28img", .method = HTTP_POST, .handler = f28img_post},
         {.uri = "/api/f28go", .method = HTTP_POST, .handler = f28go_post},
         {.uri = "/api/f28stop", .method = HTTP_POST, .handler = f28stop_post},
+        {.uri = "/api/time", .method = HTTP_POST, .handler = time_post},
         {.uri = "/api/f28", .method = HTTP_GET, .handler = f28_get},
     };
     for (size_t i = 0; i < sizeof u / sizeof u[0]; i++) {

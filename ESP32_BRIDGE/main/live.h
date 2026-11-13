@@ -60,6 +60,9 @@ typedef struct {
     uint16_t iset;   uint32_t isetAge;  /* 632: уставка тока, 0.01 А */
     uint16_t uref;   uint32_t urefAge;  /* 633: напряжение острова, 0.1 В */
     uint16_t freq;   uint32_t freqAge;  /* 624: частота своего синуса (АИН), Гц */
+    /* 345: счётчики энергии, Вт·ч - отдано, принято, отдано и принято с
+     * последнего сброса (INVERTOR_CCS/my_Files/energy.h) */
+    uint32_t energy[4]; uint32_t energyAge;
 } live_set_t;
 
 void live_get_set(live_set_t *out);
@@ -71,6 +74,16 @@ bool live_session_open(void);
  * команды прибору, что шлёт Motor_Control (GridTieUi.cs, MainWindow.cs).
  * Возвращает NULL - отправлено, иначе причину отказа. */
 const char *live_control(const char *what, int value);
+
+/* Часы для прибора. Своих у прибора нет, время ему даёт команда 337
+ * (INVERTOR_CCS/my_Files/wall_clock.h) - раньше только от Motor_Control при
+ * подключении, и всё, что случалось до него, писалось в журнал без времени.
+ * Теперь мост узнаёт время сам - от страницы (браузер, POST /api/time) или
+ * подслушав 337 от Motor_Control (net_link.c) - и раз в минуту отдаёт его
+ * прибору, пока сеанса Motor_Control нет (13.11.2026). */
+void     live_set_time(uint32_t utc);
+uint32_t live_utc(void);         /* 0 - мост времени не знает */
+void     live_push_time(void);   /* сейчас же - прибору (после его прошивки) */
 
 /* Таблица ошибок: слово ErrBuff и время (UTC) последнего раза, по коду.
  * Возвращает false, если полного списка ещё не было. */

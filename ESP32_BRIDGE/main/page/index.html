@@ -108,6 +108,7 @@ input.num.pending, select.pending { background: #fff3a8; color: #000; }
         cursor: pointer; flex: none; }
 .lamp.on { background: var(--bad); border-color: var(--bad); box-shadow: 0 0 8px var(--bad); }
 .lamp.off { background: var(--line); }
+.approx { color: var(--muted); }
 </style>
 </head>
 <body>
@@ -160,6 +161,12 @@ input.num.pending, select.pending { background: #fff3a8; color: #000; }
       <div class="pf"><div class="k">Iзад, А</div><input id="pIset" type="number" min="0" max="25" step="0.1" class="num"></div>
     </div>
     <div class="vals" id="pVals"></div>
+    <!-- Счётчики энергии прибора (my_Files/energy.h): по P, только при открытых
+         ключах; «всего» не сбрасывается, «с сброса» - кнопкой ниже. -->
+    <div class="k" style="margin-top:10px">Энергия, кВт·ч</div>
+    <div class="vals" id="pEnergy"></div>
+    <div class="prow"><button id="pEtrip" class="pbtn" title="Обнулить счётчики «с сброса». «Всего» не сбрасывается">Сбросить «с сброса»</button>
+      <span id="pEnergyNote" class="note" style="margin:0"></span></div>
   </div>
   <p class="note">Поле уставки желтеет, пока прибор не подтвердил новое значение. Ввод - Enter.
      Выключение ключей заодно обнуляет Uref и Iзад, как в Motor_Control.</p>
@@ -260,6 +267,24 @@ function when(utc) {
   if (!utc) return "время неизвестно";
   const t = new Date(utc * 1000);
   return t.toLocaleDateString("ru-RU") + " " + t.toLocaleTimeString("ru-RU");
+}
+// Записи без времени - прибор ещё не знал часов (от включения до первого
+// времени: wall_clock.h). Им - время ближайшей по номеру записи, у которой оно
+// есть, сначала из той же сессии (тот же прогон прибора), со значком «≈»:
+// день и час тут важнее точности (13.11.2026).
+function fillTimes(rows, seq, utc, ses) {
+  const known = rows.filter(r => utc(r));
+  return rows.map(r => {
+    if (utc(r) || !known.length) return {t: utc(r), approx: false};
+    let pool = ses ? known.filter(k => ses(k) === ses(r)) : [];
+    if (!pool.length) pool = known;
+    let best = pool[0];
+    for (const k of pool) if (Math.abs(seq(k) - seq(r)) < Math.abs(seq(best) - seq(r))) best = k;
+    return {t: utc(best), approx: true};
+  });
+}
+function whenAt(x) {
+  return x.approx ? `<span class="approx" title="время неизвестно - взято у ближайшей записи">≈ ${when(x.t)}</span>` : when(x.t);
 }
 function codeText(c) { return c === 65535 ? "пуск вручную" : (codes[c] || ("код " + c)); }
 async function getJson(u) { const r = await fetch(u, {cache: "no-store"}); if (!r.ok) throw new Error(r.status); return r.json(); }
@@ -378,8 +403,9 @@ async function loadJournal() {
   try { j = await getJson("/api/journal?n=" + jN); } catch (x) { $("jNote").textContent = "журнал не прочитан"; return; }
   $("jNote").textContent = `Показано ${j.list.length} из ${j.rows}. Один код - не чаще раза в минуту, повторы - строкой «ещё N раз».`;
   $("jMore").disabled = j.list.length >= j.rows;
-  $("jBody").innerHTML = j.list.slice().reverse().map(([seq, utc, code, ses, cnt]) =>
-    `<tr${cnt ? ' class="dim"' : ""}><td class="n">${seq}</td><td class="n">${when(utc)}</td><td class="n">${code}</td>` +
+  const tm = fillTimes(j.list, r => r[0], r => r[1], r => r[3]);
+  $("jBody").innerHTML = j.list.map((r, i) => [r, tm[i]]).reverse().map(([[seq, utc, code, ses, cnt], t]) =>
+    `<tr${cnt ? ' class="dim"' : ""}><td class="n">${seq}</td><td class="n">${whenAt(t)}</td><td class="n">${code}</td>` +
     `<td>${esc(codeText(code))}</td><td class="n">${ses}</td><td>${cnt ? "ещё " + cnt + " раз за минуту" : ""}</td></tr>`).join("");
 }
 $("jMore").onclick = () => { jN += 1000; loadJournal(); };
@@ -390,9 +416,11 @@ async function loadBbox() {
   try { b = await getJson("/api/bbox"); } catch (x) { return; }
   $("bNote").textContent = b.noFlash ? "В мосте нет раздела под записи." :
     `Кольцо ${Math.round(b.ring / 1024)} кБ, сейчас в нём ${fmt(b.frames / 5000, 2)} с ленты. Записей: ${b.list.length}.`;
+  const tm = fillTimes(b.list, e => e.seq, e => e.utc, null);
+  b.list.forEach((e, i) => e.t = tm[i]);
   $("bBody").innerHTML = b.list.sort((a, c) => c.seq - a.seq).map(e => {
     const more = e.extra.filter(x => x).map(x => x).join(", ");
-    return `<tr><td class="n">${e.seq}</td><td class="n">${when(e.utc)}</td><td class="n">${e.code === 65535 ? "—" : e.code}</td>` +
+    return `<tr><td class="n">${e.seq}</td><td class="n">${whenAt(e.t)}</td><td class="n">${e.code === 65535 ? "—" : e.code}</td>` +
       `<td>${esc(codeText(e.code))}${more ? " (следом: " + more + ")" : ""}</td>` +
       `<td class="n">${fmt(e.trig / 5000, 2)} / ${fmt((e.frames - e.trig) / 5000, 2)}</td></tr>`;
   }).join("");
@@ -802,7 +830,19 @@ function showCtl(s) {
   syncField("pUref", set.uref, set.urefAge, set.uref * 0.1, 0);
   syncField("pFreq", set.freq, set.freqAge, set.freq, 0);
   syncField("pIset", set.iset, set.isetAge, set.iset * 0.01, 1);
+
+  // Энергия: мост спрашивает её раз в 3 с, пока страница смотрит без сеанса.
+  const e = set.energy, kwh = v => fmt(v / 1000, 3);
+  const ecell = (n, v) => '<div class="cell"><span class="n">' + n + '</span><span class="v">' + v +
+                          '<span class="u">кВт·ч</span></span></div>';
+  const eknown = e && set.energyAge >= 0;
+  $("pEnergy").innerHTML = eknown ?
+    ecell("Отдано", kwh(e[0])) + ecell("Принято", kwh(e[1])) +
+    ecell("Отдано с сброса", kwh(e[2])) + ecell("Принято с сброса", kwh(e[3])) : "";
+  $("pEnergyNote").textContent = !eknown ? "прибор ещё не ответил" :
+    set.energyAge > 10000 ? "данные " + Math.round(set.energyAge / 1000) + " с назад" : "";
 }
+$("pEtrip").onclick = () => ctl("etrip", 0, "Обнулить счётчики «с сброса»? «Всего» останутся как есть.");
 
 // --- таблицы Motor_Control ---
 // Те же CanTxFiles .ini, что у окна таблиц Motor_Control (Stepulyov/TxDataFrm.cs),
@@ -970,6 +1010,11 @@ $("tRead").onclick = tblReadAll;
 // --- ход ---
 loadCodes().then(() => { pollState(); });
 setInterval(() => { if (!document.hidden) pollState(); }, 700);
+// Время браузера - мосту, а он отдаст его прибору (live.h): без него всё, что
+// случилось до подключения Motor_Control, писалось в журнал без времени.
+function sendTime() { fetch("/api/time?t=" + Math.floor(Date.now() / 1000), {method: "POST"}).catch(() => {}); }
+sendTime();
+setInterval(sendTime, 600000);
 setInterval(() => { if (!document.hidden && tab === "err") loadErrors(); }, 3000);
 setInterval(() => { if (!document.hidden && tab === "br") loadBridge(); }, 3000);
 setInterval(() => { if (!document.hidden && tab === "fw") loadFw(false); }, 1000);

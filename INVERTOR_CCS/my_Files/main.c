@@ -52,6 +52,7 @@
 #include "nv_store.h"
 #include "wifi_link.h"
 #include "wall_clock.h"
+#include "energy.h"
 #include "bbox_trig.h"
 #include "bridge_store.h"
 
@@ -390,6 +391,8 @@ extern volatile uint16_t epwm3time;// dbg
 
             MCAN_rateTick50ms(); // ошибки шины и таймаут пробы 5 Мбит/с
 
+            Energy_tick50ms(); // счётчики энергии, energy.h
+
 
             if (cntT0 == OneSecond) // события обрабатываемые каждую секунду
             {
@@ -403,6 +406,7 @@ extern volatile uint16_t epwm3time;// dbg
                 MBOX_uiLinkTick1s(); // нет команды 336 от программы 5 с - выход из сеанса, MBOX28.c
 
                 WallClock_tick1s(); // часы журнала аварий, wall_clock.h
+                Energy_tick1s();    // раз в 10 минут - счётчики энергии на запись
 
                 if (CheckLamp > 0U)
                 {

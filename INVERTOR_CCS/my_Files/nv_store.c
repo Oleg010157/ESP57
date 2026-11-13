@@ -10,6 +10,7 @@
 #include "f28p55x_device.h"
 #include "Errors.h"
 #include "nv_store.h"
+#include "energy.h"
 
 //
 // История аварий (ErrHistory) и номер сессии в энергонезависимой памяти.
@@ -30,6 +31,11 @@
 //   0x0010  номер сессии, копия 1
 //   0x0040  ErrHistory[ERR_BUFF_SIZE]: счётчик, последняя сессия, время UTC
 //           (два слова, младшее вперёд), CRC16 - 10 байт с шагом 16, до 0x0680
+//   0x0700  счётчики энергии (energy.h, с 13.11.2026), каждый в двух копиях:
+//           Вт·ч (два слова, младшее вперёд), номер записи, CRC16 - 8 байт с
+//           шагом 8, до 0x0740. Запись идёт в копию, что старше, как у сессии.
+//           От версии заголовка не зависят: смена раскладки истории их не
+//           обнуляет.
 //
 // Шаг 8 байт у заголовка и сессии, 16 у истории: запись не пересекает страницу
 // EEPROM в 64 байта и влезает в FIFO (16 байт) за одну передачу, поэтому делить
@@ -70,6 +76,7 @@ volatile uint16_t dbgNvRaise   = 0;
 #define NV_ADDR_HEADER  0x0000U
 #define NV_ADDR_SESSION 0x0008U
 #define NV_ADDR_HISTORY 0x0040U
+#define NV_ADDR_ENERGY  0x0700U
 #define NV_STEP         8U      // заголовок и копии сессии
 #define NV_HIST_STEP    16U
 
@@ -78,6 +85,8 @@ volatile uint16_t dbgNvRaise   = 0;
 #define NV_REC_BYTES    6U      // заголовок и сессия: два значения и CRC16
 #define NV_HIST_VALUES  4U      // счётчик, сессия, время мл., время ст.
 #define NV_HIST_BYTES   (2U * NV_HIST_VALUES + 2U)
+#define NV_EN_VALUES    3U      // Вт·ч мл., ст., номер записи
+#define NV_EN_BYTES     (2U * NV_EN_VALUES + 2U)
 
 #define NV_WAIT_LOOPS   20000UL // ожидание одного обмена, с запасом на 100 кГц
 #define NV_WR_POLLS     200U    // опрос адреса после записи при старте, до 20 мс
@@ -437,6 +446,52 @@ static bool nv_history(void)
     return true;
 }
 
+// Номер записи у каждого счётчика - какая копия новее (сравнение на круге).
+static uint16_t nvEnSeq[ENERGY_N];
+
+static uint16_t nv_enAddr(uint16_t k, uint16_t seq)
+{
+    return (uint16_t)(NV_ADDR_ENERGY + (2U * k + (seq & 1U)) * NV_STEP);
+}
+
+static bool nv_energy(void)
+{
+    uint16_t bytes[NV_EN_BYTES];
+    uint16_t v[2][NV_EN_VALUES];
+    bool     ok[2];
+    uint16_t k;
+    uint16_t c;
+    uint16_t newest;
+
+    for (k = 0; k < ENERGY_N; k++)
+    {
+        for (c = 0; c < 2U; c++)
+        {
+            if (!nv_read((uint16_t)(NV_ADDR_ENERGY + (2U * k + c) * NV_STEP), bytes, NV_EN_BYTES))
+                return false;
+            ok[c] = nv_unpack(bytes, NV_EN_VALUES, v[c]);
+        }
+
+        if (ok[0] && ok[1])
+            newest = ((int16_t)(v[1][2] - v[0][2]) > 0) ? 1U : 0U;
+        else
+            newest = ok[1] ? 1U : 0U;
+
+        // Ни одной целой копии - чистая память: счёт с нуля.
+        if (ok[0] || ok[1])
+        {
+            energyWh[k] = ((uint32_t)v[newest][1] << 16) | v[newest][0];
+            nvEnSeq[k]  = v[newest][2];
+        }
+        else
+        {
+            energyWh[k] = 0UL;
+            nvEnSeq[k]  = 0U;
+        }
+    }
+    return true;
+}
+
 static bool nv_session(void)
 {
     uint16_t bytes[NV_REC_BYTES];
@@ -474,7 +529,7 @@ void NvStore_init(void)
 
     nv_busRecover();
 
-    if (!nv_header() || !nv_history() || !nv_session())
+    if (!nv_header() || !nv_history() || !nv_energy() || !nv_session())
         nv_fail();
 }
 
@@ -492,6 +547,9 @@ typedef enum
 
 static NvState  nvState   = NV_IDLE;
 static uint16_t nvCode    = 0U;     // какая запись идёт
+static bool     nvEnergy  = false;  // ...и это счётчик энергии nvCode, а не история
+static uint16_t nvEnNext  = 0U;     // номер, с которым он пишется
+static volatile uint16_t nvEnPending = 0U; // маска счётчиков на запись
 static uint16_t nvRetries = 0U;
 static bool     nvAcked   = false;
 static uint32_t nvT0      = 0UL;    // отсчёт CpuTimer0 с начала записи
@@ -511,7 +569,10 @@ static void nv_writeFailed(void)
     nvState = NV_IDLE;
 
     DINT;
-    ErrHistory_MarkPending(nvCode);
+    if (nvEnergy)
+        nvEnPending |= (uint16_t)(1U << nvCode);
+    else
+        ErrHistory_MarkPending(nvCode);
     EINT;
 
     nvRetries++;
@@ -554,8 +615,38 @@ void NvStore_background(void)
         EINT;
 
         if (!got)
-            return;
+        {
+            // История - первой: авария важнее. Потом счётчики энергии.
+            uint16_t k;
+            uint32_t wh = 0UL;
 
+            DINT;
+            for (k = 0; (k < ENERGY_N) && ((nvEnPending & (1U << k)) == 0U); k++)
+                ;
+            if (k < ENERGY_N)
+            {
+                nvEnPending &= (uint16_t)~(1U << k);
+                wh = energyWh[k];
+            }
+            EINT;
+
+            if (k >= ENERGY_N)
+                return;
+
+            nvCode   = k;
+            nvEnergy = true;
+            nvEnNext = (uint16_t)(nvEnSeq[k] + 1U);
+            v[0]     = (uint16_t)(wh & 0xFFFFUL);
+            v[1]     = (uint16_t)(wh >> 16);
+            v[2]     = nvEnNext;
+            nv_pack(v, NV_EN_VALUES, bytes);
+            nvT0 = CPUTimer_getTimerCount(CPUTIMER0_BASE);
+            nv_writeStart(nv_enAddr(k, nvEnNext), bytes, NV_EN_BYTES);
+            nvState = NV_WRITING;
+            break;
+        }
+
+        nvEnergy = false;
         nv_pack(v, NV_HIST_VALUES, bytes);
         nvT0 = CPUTimer_getTimerCount(CPUTIMER0_BASE);
         nv_writeStart((uint16_t)(NV_ADDR_HISTORY + nvCode * NV_HIST_STEP), bytes, NV_HIST_BYTES);
@@ -613,6 +704,8 @@ void NvStore_background(void)
         }
         else if (nvAcked)
         {
+            if (nvEnergy)
+                nvEnSeq[nvCode] = nvEnNext;
             nvRetries = 0U;
             nvWrites++;
             nvState = NV_IDLE;
@@ -631,6 +724,14 @@ void NvStore_background(void)
         nvState = NV_IDLE;
         break;
     }
+}
+
+void NvStore_requestEnergy(uint16_t mask)
+{
+    uint16_t st = __disable_interrupts();
+
+    nvEnPending |= mask;
+    __restore_interrupts(st);
 }
 
 void NvStore_requestClear(void)
