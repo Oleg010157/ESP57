@@ -274,11 +274,16 @@ static esp_err_t bridge_get(httpd_req_t *req)
     out(req, "]},");
     out(req, "\"version\":\"%s\",\"ssid\":\"%s\",\"sta\":%s,\"ip\":\"%s\",\"rssi\":%ld,"
              "\"packets\":%lu,\"seqGap\":%lu,\"resets\":%lu,\"f28Drop\":%lu,"
-             "\"pult\":%s,\"udpErr\":%lu,\"heap\":%u}",
+             "\"pult\":%s,\"udpErr\":%lu,\"heap\":%u,"
+             "\"tickGap\":%lu,\"fr103\":%lu,\"maxFill\":%u,\"udpOut\":%lu,\"udpRetry\":%lu,\"outDrop\":%lu,"
+             "\"stalls\":%lu,\"maxGapUs\":%lu}",
         web_version(), net_wifi_ssid(), net_wifi_is_sta() ? "true" : "false", net_wifi_ip(),
         (long)net_wifi_rssi(), (unsigned long)s.packets, (unsigned long)s.seqGap,
         (unsigned long)s.slaveResets, (unsigned long)s.f28Drop, n.connected ? "true" : "false",
-        (unsigned long)n.udpErr, (unsigned)(heap_caps_get_free_size(MALLOC_CAP_8BIT) / 1024));
+        (unsigned long)n.udpErr, (unsigned)(heap_caps_get_free_size(MALLOC_CAP_8BIT) / 1024),
+        (unsigned long)s.tickGap, (unsigned long)s.fr103, (unsigned)s.maxFill, (unsigned long)n.udpOut,
+        (unsigned long)n.udpRetry, (unsigned long)n.outDrop, (unsigned long)s.stalls,
+        (unsigned long)s.maxGapUs);
     return out_end(req);
 }
 

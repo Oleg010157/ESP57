@@ -17,6 +17,8 @@
 #include "driver/spi_slave.h"
 #include "esp_attr.h"
 #include "esp_log.h"
+#include "esp_rom_sys.h"
+#include "esp_timer.h"
 
 #include "board.h"
 #include "net_link.h"
@@ -81,10 +83,16 @@ static QueueHandle_t s_to_f28;
  * глазам. */
 static QueueHandle_t s_acks;
 
+/* Перезапуск ведомого (slave_reset): держать «нет данных», что бы ни было в
+ * очереди драйвера, - прибор не должен начать посылку, пока драйвер меняют. */
+static volatile bool s_hold;
+
 static void IRAM_ATTR on_setup(spi_slave_transaction_t *t)
 {
     (void)t;
-    gpio_set_level(BOARD_RDY_GPIO, 0);
+    if (!s_hold) {
+        gpio_set_level(BOARD_RDY_GPIO, 0);
+    }
 }
 
 static void IRAM_ATTR on_done(spi_slave_transaction_t *t)
@@ -358,11 +366,26 @@ static void queue_both(void)
 
 static void slave_reset(void)
 {
-    spi_slave_free(BOARD_SPI_HOST);
+    /* Освобождать драйвер посреди посылки нельзя: DMA доводит её по
+     * дескрипторам, которые spi_slave_free уже вернул в кучу, и пишет в
+     * чужую память. До 15.11.2026 порядок был именно такой - сначала free,
+     * потом «нет данных», - и при обновлении моста по WiFi, когда посылки
+     * портятся и перезапусков десятки, это портило кучу: паника в mem_free
+     * lwIP, обновление обрывалось (след паники, panic_note.c; и раньше -
+     * перезапуски моста от сторожа). */
+    s_hold = true;
     gpio_set_level(BOARD_RDY_GPIO, 1);
+    /* Прибор новую посылку не начнёт, текущая идёт меньше миллисекунды:
+     * дождаться высокого CS 2 мс подряд. */
+    for (int i = 0, high = 0; i < 200 && high < 20; i++) {
+        high = gpio_get_level(BOARD_SPI_CS) ? high + 1 : 0;
+        esp_rom_delay_us(100);
+    }
+    spi_slave_free(BOARD_SPI_HOST);
     vTaskDelay(pdMS_TO_TICKS(5));
     slave_init();
-    queue_both();
+    s_hold = false;
+    queue_both(); /* первая транзакция опустит «есть данные» сама */
     s_stat.slaveResets++;
 }
 
@@ -376,11 +399,25 @@ static void link_task(void *arg)
     slave_init();
     queue_both();
 
+    int64_t last = 0;
     for (;;) {
         spi_slave_transaction_t *t;
         esp_err_t err = spi_slave_get_trans_result(BOARD_SPI_HOST, &t, portMAX_DELAY);
         if (err != ESP_OK) {
             continue;
+        }
+        {
+            int64_t now = esp_timer_get_time();
+            if (last != 0) {
+                uint32_t gap = (uint32_t)(now - last);
+                if (gap > 3000) {
+                    s_stat.stalls++;
+                }
+                if (gap > s_stat.maxGapUs && gap < 10000000) {
+                    s_stat.maxGapUs = gap;
+                }
+            }
+            last = now;
         }
 
         uint32_t bad_before = s_stat.truncated + s_stat.badMagic + s_stat.badLayout;
