@@ -139,7 +139,8 @@ namespace ICDIBasic
         {
             var name = _wifi?.NetName;
             if (string.IsNullOrEmpty(name)) return "";
-            return _wifi.NetIsOwnAp ? $"{name} (точка моста), " : $"{name}, ";
+            // Мост в двух сетях сразу и сообщает ту, через которую пришли мы.
+            return _wifi.NetIsOwnAp ? $"{name} (точка моста), " : $"через роутер {name}, ";
         }
 
         // Скорость и причина отката - в заголовке окна, чтобы не гадать, на чём работаем.

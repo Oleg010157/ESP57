@@ -171,6 +171,8 @@ namespace ICDIBasic
             new ToolStripMenuItem { Name = "CheckCanAMenu_", Text = @"Проверить связь CANA" };
         private readonly ToolStripMenuItem _wifiMenu =
             new ToolStripMenuItem { Name = "WifiMenu_", Text = @"Связь через WiFi (мост K57)" };
+        private readonly ToolStripMenuItem _wifiRouterMenu =
+            new ToolStripMenuItem { Name = "WifiRouterMenu_", Text = @"Связь через WiFi (роутер)" };
         #endregion
 
         private TPCANStatus _stsResult;
@@ -907,10 +909,12 @@ namespace ICDIBasic
             управлениеToolStripMenuItem.DropDownItems.Add(_canaM);
             управлениеToolStripMenuItem.DropDownItems.Add(_reInitCanAMenu);
             управлениеToolStripMenuItem.DropDownItems.Add(_checkCanAMenu);
-            _wifiMenu.Checked = LinkWifi;
+            LinkMenus_Sync();
             _wifiMenu.Click += WifiMenu_Click;
+            _wifiRouterMenu.Click += WifiRouterMenu_Click;
             UpdateLinkMenuText();
             управлениеToolStripMenuItem.DropDownItems.Add(_wifiMenu);
+            управлениеToolStripMenuItem.DropDownItems.Add(_wifiRouterMenu);
             BridgeUpdate_InitMenu(управлениеToolStripMenuItem);
             CanRate_InitMenu(управлениеToolStripMenuItem);
             управлениеToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());

@@ -33,30 +33,49 @@ namespace ICDIBasic
         private readonly AutoResetEvent _bootRespEvent = new AutoResetEvent(false);
 
         // WiFi-мост вместо PCAN (CAN/WifiLink.cs). null - работаем через PCAN.
-        // Выбор канала - пункт меню «Связь через WiFi», хранится в link.ini.
+        // Выбор канала - пункты меню «Связь через WiFi (мост K57)» и «Связь через
+        // WiFi (роутер)», хранится в link.ini.
         private WifiLink _wifi;
 
         /* link.ini рядом с программой:
-         *     link=wifi           или link=can (так же, как без файла)
-         *     host=192.168.4.1    адрес моста; по умолчанию - его своя точка K57
+         *     link=k57            через свою сеть моста K57, 192.168.4.1
+         *     link=router         через роутер: мост ищется в сетях компьютера
+         *     link=can            через PCAN (так же, как без файла)
+         *     host=192.168.1.50   запасной адрес моста в роутере - если поиск
+         *                         не нашёл (сеть без широковещания)
+         * link=wifi до 15.11.2026 - то же, что k57.
+         *
+         * Сеть выбирается явно, без перехода с одной на другую (замечание
+         * оператора, 15.11.2026): подключившись через роутер, было непонятно,
+         * как вернуться к K57, а через K57 Motor_Control сам уводил WiFi
+         * компьютера из домашней сети. Теперь K57 - только K57, роутер - только
+         * роутер.
+         *
          * Файл, а не Settings: адрес моста правят руками на месте, а формат
          * user.config для этого неудобен. */
         private static readonly string LinkIniPath =
             System.IO.Path.Combine(Application.StartupPath, "link.ini");
 
+        private enum LinkKind { Can, K57, Router }
+
         private bool _linkLoaded;
-        private bool _linkWifiSel;
+        private LinkKind _linkKind = LinkKind.Can;
         private string _linkHost = WifiLink.DefaultHost;
 
-        /// <summary>Выбран WiFi-мост (из link.ini, читается при первом обращении).</summary>
-        private bool LinkWifi
+        /// <summary>Канал из link.ini (читается при первом обращении).</summary>
+        private LinkKind LinkSel
         {
-            get { LoadLinkIni(); return _linkWifiSel; }
-            set { LoadLinkIni(); _linkWifiSel = value; }
+            get { LoadLinkIni(); return _linkKind; }
+            set { LoadLinkIni(); _linkKind = value; }
         }
 
-        /// <summary>Адрес моста, если выбран WiFi; null - работаем через PCAN.</summary>
-        private string LinkWifiHost => LinkWifi ? _linkHost : null;
+        /// <summary>Выбран WiFi-мост - любой из двух путей.</summary>
+        private bool LinkWifi => LinkSel != LinkKind.Can;
+
+        /// <summary>Адрес моста, если выбран WiFi; null - работаем через PCAN.
+        /// Через роутер - запасной адрес из link.ini: сначала мост ищется.</summary>
+        private string LinkWifiHost =>
+            LinkSel == LinkKind.K57 ? WifiLink.DefaultHost : LinkSel == LinkKind.Router ? _linkHost : null;
 
         private void LoadLinkIni()
         {
@@ -69,7 +88,12 @@ namespace ICDIBasic
                 {
                     var line = raw.Trim();
                     if (line.StartsWith("link=", StringComparison.OrdinalIgnoreCase))
-                        _linkWifiSel = line.Substring(5).Trim().Equals("wifi", StringComparison.OrdinalIgnoreCase);
+                    {
+                        var v = line.Substring(5).Trim().ToLowerInvariant();
+                        _linkKind = v == "router" ? LinkKind.Router
+                                  : v == "k57" || v == "wifi" ? LinkKind.K57
+                                  : LinkKind.Can;
+                    }
                     else if (line.StartsWith("host=", StringComparison.OrdinalIgnoreCase) && line.Length > 5)
                         _linkHost = line.Substring(5).Trim();
                 }
@@ -89,14 +113,14 @@ namespace ICDIBasic
             {
                 var lines = System.IO.File.Exists(LinkIniPath)
                     ? new System.Collections.Generic.List<string>(System.IO.File.ReadAllLines(LinkIniPath))
-                    : new System.Collections.Generic.List<string> { "# Связь с прибором: link=wifi - через мост ESP32, link=can - через PCAN." };
+                    : new System.Collections.Generic.List<string> { "# Связь с прибором: link=k57 - через сеть моста K57, link=router - через роутер, link=can - через PCAN." };
                 bool haveLink = false, haveHost = false;
                 for (int i = 0; i < lines.Count; i++)
                 {
                     var t = lines[i].Trim();
                     if (!haveLink && t.StartsWith("link=", StringComparison.OrdinalIgnoreCase))
                     {
-                        lines[i] = $"link={(LinkWifi ? "wifi" : "can")}";
+                        lines[i] = $"link={LinkIniWord()}";
                         haveLink = true;
                     }
                     else if (!haveHost && t.StartsWith("host=", StringComparison.OrdinalIgnoreCase))
@@ -105,7 +129,7 @@ namespace ICDIBasic
                         haveHost = true;
                     }
                 }
-                if (!haveLink) lines.Add($"link={(LinkWifi ? "wifi" : "can")}");
+                if (!haveLink) lines.Add($"link={LinkIniWord()}");
                 if (!haveHost) lines.Add($"host={_linkHost}");
                 System.IO.File.WriteAllLines(LinkIniPath, lines);
             }
@@ -116,6 +140,9 @@ namespace ICDIBasic
             }
         }
 
+        private string LinkIniWord() =>
+            LinkSel == LinkKind.K57 ? "k57" : LinkSel == LinkKind.Router ? "router" : "can";
+
         // Подписи пунктов меню - по выбранному каналу: «CAN A» при работе через
         // WiFi путало (замечание оператора, 10.11.2026). Делают они в обоих
         // случаях одно: CanaConnect() / CanI(), а CanI() сам выбирает канал.
@@ -125,15 +152,26 @@ namespace ICDIBasic
             _reInitCanAMenu.Text = LinkWifi ? @"Переподключить WiFi" : @"Реинициализация CAN A";
         }
 
-        // Пункт меню «Связь через WiFi (мост K57)». Менять канал посреди
-        // сеанса нельзя: сеанс прибора и лента привязаны к тому, кто их открыл.
-        private void WifiMenu_Click(object sender, EventArgs e)
+        private void LinkMenus_Sync()
+        {
+            _wifiMenu.Checked = LinkSel == LinkKind.K57;
+            _wifiRouterMenu.Checked = LinkSel == LinkKind.Router;
+        }
+
+        // Пункты меню «Связь через WiFi (мост K57)» и «... (роутер)»: галочка
+        // одна. Нажать отмеченный - снять, связь через PCAN. Менять канал
+        // посреди сеанса нельзя: сеанс прибора и лента привязаны к тому, кто их
+        // открыл.
+        private void WifiMenu_Click(object sender, EventArgs e) => LinkMenu_Pick(LinkKind.K57);
+        private void WifiRouterMenu_Click(object sender, EventArgs e) => LinkMenu_Pick(LinkKind.Router);
+
+        private void LinkMenu_Pick(LinkKind kind)
         {
             if (tsmConnect.Text == @"Отключить")
             {
                 MessageBox.Show("Сначала отключитесь от прибора, потом меняйте канал.", "Связь",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-                _wifiMenu.Checked = LinkWifi;
+                LinkMenus_Sync();
                 return;
             }
 
@@ -151,8 +189,8 @@ namespace ICDIBasic
                 Thread.Sleep(10);
             }
 
-            LinkWifi = !LinkWifi;
-            _wifiMenu.Checked = LinkWifi;
+            LinkSel = LinkSel == kind ? LinkKind.Can : kind;
+            LinkMenus_Sync();
             UpdateLinkMenuText();
             SaveLinkIni();
             CanaConnect();
@@ -161,11 +199,13 @@ namespace ICDIBasic
             if (LinkWifi && !CanaLinkUp)
             {
                 MessageBox.Show(
-                    (LinkWifiHost == WifiLink.DefaultHost
-                        ? $"Мост {LinkWifiHost} не ответил по TCP {WifiLink.TcpPort}.\r\n"
-                        : $"Мост не ответил по TCP {WifiLink.TcpPort} ни на {LinkWifiHost}, ни на {WifiLink.DefaultHost}.\r\n") +
-                    "Компьютер должен быть в сети K57 (своя точка моста, пароль k57bridge) " +
-                    "или в одной сети с мостом. Адрес моста - в link.ini рядом с программой.",
+                    LinkSel == LinkKind.K57
+                        ? $"Мост {WifiLink.DefaultHost} не ответил по TCP {WifiLink.TcpPort}.\r\n" +
+                          "Компьютер должен быть в сети K57 (своя точка моста, пароль k57bridge) - " +
+                          "Motor_Control пробовал подключить его сам."
+                        : "Мост в сети роутера не найден.\r\n" +
+                          "Компьютер и мост должны быть в одной сети: мост входит в роутер, если тот " +
+                          "запомнен на странице моста (вкладка «Мост»). Запасной адрес - host= в link.ini.",
                     "Связь через WiFi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
@@ -618,20 +658,39 @@ namespace ICDIBasic
             }
 
             WifiLink link = null;
-            if (LinkWifiHost != WifiLink.DefaultHost)
+            if (LinkSel == LinkKind.Router)
             {
-                link = NewLink(LinkWifiHost);
-                if (!link.Connect())
+                // Сначала - найти мост в сетях компьютера самим: адрес в роутере
+                // роутер может сменить (15.11.2026). Только в сети роутера: через
+                // K57 - это другой пункт меню.
+                var found = WifiLink.Discover();
+                var near = found.Find(a => !a.StartsWith("192.168.4."));
+                if (near != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[WiFi] мост {LinkWifiHost} не ответил");
-                    link = null;
+                    link = NewLink(near);
+                    if (!link.Connect()) link = null;
+                }
+
+                // Потом - адрес из link.ini: в сети без широковещания поиск молчит.
+                if (link == null && LinkWifiHost != near && LinkWifiHost != WifiLink.DefaultHost)
+                {
+                    link = NewLink(LinkWifiHost);
+                    if (!link.Connect())
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[WiFi] мост {LinkWifiHost} не ответил");
+                        link = null;
+                    }
+                }
+
+                // Через роутер не нашёлся - на K57 сами не уходим: выбран роутер.
+                if (link == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[WiFi] мост в сети роутера не найден");
+                    return false;
                 }
             }
 
-            // Адрес в роутере не ответил - компьютер не в той сети (стенд, где
-            // роутера нет) или мост в роутер не вошёл. Своя точка K57 у моста
-            // есть всегда (с 13.11.2026, net_wifi.c), и адрес у неё постоянный,
-            // так что править link.ini на каждый такой случай незачем.
+            // Через K57: своя точка моста есть всегда, адрес у неё постоянный.
             if (link == null)
             {
                 link = NewLink(WifiLink.DefaultHost);

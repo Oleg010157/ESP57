@@ -14,8 +14,9 @@
  *   GET /api/journal?n=N   последние N строк длинного журнала моста
  *   GET /api/bbox          записи чёрного ящика
  *   GET /api/bridge        мост: сети (своя точка и роутер), обмен с прибором, память
- *   POST /api/wifi         роутер: тело ssid=..&pass=.. (пустой ssid - забыть) - с
- *                          паролем; хранится в NVS моста (net_wifi.c)
+ *   POST /api/wifi         роутеры (до четырёх) - с паролем, в NVS моста
+ *                          (net_wifi.c): тело ssid=..&pass=.. - запомнить и
+ *                          подключиться, forget=.. - забыть
  *   GET /api/wifiscan      сети вокруг - для выбора роутера
  *
  *   POST /api/ctl?do=..&v=N  управление - с паролем (live.c, live_control):
@@ -258,8 +259,19 @@ static esp_err_t bridge_get(httpd_req_t *req)
     out_str(req, w.apSsid);
     out(req, ",\"ip\":\"%s\",\"clients\":%d},\"router\":{\"ssid\":", w.apIp, w.apClients);
     out_str(req, w.routerSsid);
-    out(req, ",\"state\":%d,\"reason\":%d,\"ip\":\"%s\",\"rssi\":%d,\"ch\":%d},", w.state, w.reason,
-        w.staIp, w.rssi, w.ch);
+    out(req, ",\"state\":%d,\"reason\":%d,\"ip\":\"%s\",\"rssi\":%d,\"ch\":%d,\"mac\":\"%s\",\"saved\":[",
+        w.state, w.reason, w.staIp, w.rssi, w.ch, w.mac);
+    {
+        static char names[NET_ROUTERS_MAX][33];
+        int         n = net_wifi_routers(names, NET_ROUTERS_MAX);
+        for (int i = 0; i < n; i++) {
+            if (i) {
+                out(req, ",");
+            }
+            out_str(req, names[i]);
+        }
+    }
+    out(req, "]},");
     out(req, "\"version\":\"%s\",\"ssid\":\"%s\",\"sta\":%s,\"ip\":\"%s\",\"rssi\":%ld,"
              "\"packets\":%lu,\"seqGap\":%lu,\"resets\":%lu,\"f28Drop\":%lu,"
              "\"pult\":%s,\"udpErr\":%lu,\"heap\":%u}",
@@ -537,7 +549,7 @@ static void url_decode(char *s)
 
 static esp_err_t wifi_post(httpd_req_t *req)
 {
-    char body[256], ssid[100] = "", pass[200] = "";
+    char body[256], ssid[100] = "", pass[200] = "", forget[100] = "";
 
     if (!web_auth_ok(req)) {
         return ESP_OK;
@@ -557,15 +569,17 @@ static esp_err_t wifi_post(httpd_req_t *req)
     body[got] = 0;
     httpd_query_key_value(body, "ssid", ssid, sizeof ssid);
     httpd_query_key_value(body, "pass", pass, sizeof pass);
+    httpd_query_key_value(body, "forget", forget, sizeof forget);
     url_decode(ssid);
     url_decode(pass);
+    url_decode(forget);
 
-    const char *err = net_wifi_router_set(ssid, pass);
+    const char *err = forget[0] ? net_wifi_router_forget(forget) : net_wifi_router_add(ssid, pass);
     if (err != NULL) {
         httpd_resp_set_status(req, "400 Bad Request");
         return httpd_resp_sendstr(req, err);
     }
-    return httpd_resp_sendstr(req, ssid[0] ? "OK, подключаюсь" : "OK, роутер забыт");
+    return httpd_resp_sendstr(req, forget[0] ? "OK, роутер забыт" : "OK, запомнил и подключаюсь");
 }
 
 static esp_err_t wifiscan_get(httpd_req_t *req)

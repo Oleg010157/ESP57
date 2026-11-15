@@ -25,6 +25,7 @@ namespace ICDIBasic
     internal sealed class WifiLink : IDisposable
     {
         public const string DefaultHost = "192.168.4.1"; // своя точка доступа моста, сеть K57
+        public const int DiscPort = 5522;                // поиск моста, K57_DISC_PORT в net_proto.h
         public const string DefaultApSsid = "K57";       // её имя (K57_AP_SSID в мосте)
         public const int TcpPort = 5520;
         public const int UdpPort = 5521;
@@ -99,6 +100,69 @@ namespace ICDIBasic
         // повторять: 3 - мост успевает встать сам, 10 - не долбить netsh.
         private const int RejoinFirst = 3;
         private const int RejoinEvery = 10;
+
+        /// <summary>
+        /// Найти мост в сетях компьютера: «K57?» широковещательно на порт
+        /// DiscPort, мост отвечает «K57! &lt;MAC&gt;» (net_link.c, disc_task).
+        /// Адрес - тот, с которого пришёл ответ. Адрес моста в роутере роутер
+        /// выдаёт сам и может сменить (стенд, 15.11.2026: было .9, стало .6),
+        /// а имя k57.local Windows понимает не всегда - поэтому так.
+        /// </summary>
+        /// <remarks>
+        /// 255.255.255.255 Windows отправляет в одну сеть, поэтому ещё и на
+        /// широковещательный адрес каждой сети компьютера. Ответ идёт на тот
+        /// же сокет - брандмауэр пропускает его как ответ на исходящее.
+        /// </remarks>
+        public static System.Collections.Generic.List<string> Discover(int timeoutMs = 800)
+        {
+            var found = new System.Collections.Generic.List<string>();
+            try
+            {
+                using (var u = new UdpClient(new IPEndPoint(IPAddress.Any, 0)))
+                {
+                    u.EnableBroadcast = true;
+                    var ask = System.Text.Encoding.ASCII.GetBytes("K57?");
+                    var to = new System.Collections.Generic.List<IPAddress> { IPAddress.Broadcast };
+                    foreach (var ni in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+                    {
+                        if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
+                        foreach (var ua in ni.GetIPProperties().UnicastAddresses)
+                        {
+                            if (ua.Address.AddressFamily != AddressFamily.InterNetwork || ua.IPv4Mask == null) continue;
+                            var a = ua.Address.GetAddressBytes();
+                            var m = ua.IPv4Mask.GetAddressBytes();
+                            for (int i = 0; i < 4; i++) a[i] = (byte)(a[i] | ~m[i]);
+                            to.Add(new IPAddress(a));
+                        }
+                    }
+                    foreach (var t in to)
+                    {
+                        try { u.Send(ask, ask.Length, new IPEndPoint(t, DiscPort)); }
+                        catch (SocketException) { /* сеть без широковещания - мимо */ }
+                    }
+
+                    var until = DateTime.Now.AddMilliseconds(timeoutMs);
+                    while (true)
+                    {
+                        var left = (int)(until - DateTime.Now).TotalMilliseconds;
+                        if (left <= 0) break;
+                        u.Client.ReceiveTimeout = left;
+                        IPEndPoint from = null;
+                        byte[] r;
+                        try { r = u.Receive(ref from); }
+                        catch (SocketException) { break; }
+                        var host = from.Address.ToString();
+                        if (r.Length >= 4 && System.Text.Encoding.ASCII.GetString(r, 0, 4) == "K57!" && !found.Contains(host))
+                            found.Add(host);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[WifiLink] поиск моста: {ex.Message}");
+            }
+            return found;
+        }
 
         /// <param name="rxEvent">Тот же _re, что PCAN будит по приёму: поток приёма
         /// в CANA.cs ждёт на нём и тут же разбирает очередь.</param>
@@ -300,8 +364,9 @@ namespace ICDIBasic
 
             if (id == InfoId)
             {
-                // "STA <сеть>" или "AP <сеть>"
-                var text = System.Text.Encoding.ASCII.GetString(buf, pos + RecHdr, len);
+                // "STA <сеть>" или "AP <сеть>" - о сети, через которую пришли
+                // МЫ (мост в двух сразу). Имя сети - UTF-8, бывает не латиницей.
+                var text = System.Text.Encoding.UTF8.GetString(buf, pos + RecHdr, len);
                 var sp = text.IndexOf(' ');
                 NetIsOwnAp = sp > 0 && text.Substring(0, sp) == "AP";
                 NetName = sp > 0 ? text.Substring(sp + 1) : text;

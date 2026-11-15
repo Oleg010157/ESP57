@@ -403,8 +403,10 @@ static void tcp_task(void *arg)
         {
             char    text[K57_DATA_MAX + 1];
             uint8_t rec[K57_REC_HDR + K57_DATA_MAX];
-            int n = snprintf(text, sizeof text, "%s %s", net_wifi_is_sta() ? "STA" : "AP",
-                             net_wifi_ssid());
+            /* Через какую сеть пришёл этот клиент: мост в двух сразу. */
+            bool viaAp = net_wifi_is_ap_peer(peer.sin_addr.s_addr) || !net_wifi_is_sta();
+            int  n     = snprintf(text, sizeof text, "%s %s", viaAp ? "AP" : "STA",
+                                  viaAp ? CONFIG_K57_AP_SSID : net_wifi_ssid());
             if (n > K57_DATA_MAX) {
                 n = K57_DATA_MAX;
             }
@@ -436,6 +438,34 @@ static void tcp_task(void *arg)
     }
 }
 
+/* Поиск моста: на "K57?" - "K57! <MAC>" тому, кто спросил (net_proto.h). */
+static void disc_task(void *arg)
+{
+    (void)arg;
+    int s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    struct sockaddr_in a = {
+        .sin_family      = AF_INET,
+        .sin_port        = htons(K57_DISC_PORT),
+        .sin_addr.s_addr = htonl(INADDR_ANY),
+    };
+    if (s < 0 || bind(s, (struct sockaddr *)&a, sizeof a) < 0) {
+        ESP_LOGW(TAG, "поиск моста: порт %d не открылся", K57_DISC_PORT);
+        vTaskDelete(NULL);
+        return;
+    }
+    for (;;) {
+        char               buf[16];
+        struct sockaddr_in from;
+        socklen_t          fl = sizeof from;
+        int n = recvfrom(s, buf, sizeof buf, 0, (struct sockaddr *)&from, &fl);
+        if (n >= 4 && memcmp(buf, K57_DISC_ASK, 4) == 0) {
+            char ans[32];
+            int  m = snprintf(ans, sizeof ans, "%s %s", K57_DISC_ANS, net_wifi_mac());
+            sendto(s, ans, m, 0, (struct sockaddr *)&from, fl);
+        }
+    }
+}
+
 void net_link_start(void)
 {
     /* 10 мест по 1,4 кБ: на шаг 6 мс приходится до двух (TCP и UDP), так что
@@ -447,6 +477,7 @@ void net_link_start(void)
     xTaskCreatePinnedToCore(out_task, "net_out", 3072, NULL, 6, NULL, NET_CORE);
     xTaskCreatePinnedToCore(udp_task, "net_udp", 3072, NULL, 5, NULL, NET_CORE);
     xTaskCreatePinnedToCore(tcp_task, "net_tcp", 4096, NULL, 5, NULL, NET_CORE);
+    xTaskCreatePinnedToCore(disc_task, "net_disc", 2560, NULL, 3, NULL, NET_CORE);
 }
 
 bool net_link_tcp_send(const uint8_t *p, int n)

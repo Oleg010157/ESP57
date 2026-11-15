@@ -294,14 +294,16 @@ input.txt { font: inherit; padding: 7px 10px; border: 1px solid var(--line); bor
 <section id="br">
   <h2>Мост</h2>
   <div class="kv" id="brKv"></div>
-  <h2>Роутер</h2>
-  <p class="note">Своя сеть K57 есть всегда. Роутер - вдобавок: через него мост виден из дома, по адресу в строке
-    «Роутер» выше или по имени <b>k57.local</b> (в Motor_Control - строка host= в link.ini). Имя и пароль хранятся
-    в самом мосте, не в прошивке. Для живой ленты нужен сигнал не слабее −65 дБм.</p>
+  <h2>Роутеры</h2>
+  <p class="note">Своя сеть K57 есть всегда. Роутер - вдобавок: через него мост виден из дома или с работы. Мост
+    помнит до четырёх роутеров и, включившись, сам входит в тот, что рядом; пароль каждого вводится один раз и
+    хранится в самом мосте, не в прошивке. Motor_Control находит мост в любой из этих сетей сам. Для телефона адрес
+    моста лучше закрепить в роутере - по MAC из строки «Роутер». Для живой ленты нужен сигнал не слабее −65 дБм.</p>
+  <div id="rSaved"></div>
   <div class="row"><input id="rSsid" class="txt" list="rList" placeholder="Имя сети роутера" autocomplete="off">
     <datalist id="rList"></datalist><button class="act" id="rScan">Найти сети</button></div>
   <div class="row"><input id="rPass" class="txt" type="password" placeholder="Пароль роутера" autocomplete="new-password">
-    <button class="act" id="rSet">Подключить</button><button class="act stop" id="rForget">Забыть роутер</button></div>
+    <button class="act" id="rSet">Запомнить и подключить</button></div>
   <p id="rNote" class="note"></p>
   <h2>Обновить прошивку моста</h2>
   <p class="note">Файл <b>esp32_bridge.bin</b> из ESP32_BRIDGE\build. Новая прошивка сначала пробная: не поднимется за минуту - мост сам вернётся к прежней.</p>
@@ -390,11 +392,14 @@ function showState(s) {
   const fresh = s.age >= 0 && s.age < 3000;
   // Чей сеанс
   const hs = $("hSess");
-  // Сеанс - «Подключить» в Motor_Control; без него страница «только смотрит»
-  // (команда 344: ключи и уставки не трогает), даже если Motor_Control открыт.
-  if (s.session) { hs.textContent = "сеанс Motor_Control открыт"; hs.className = "chip ok"; }
+  // Кто управляет. Сеанс - «Подключить» в Motor_Control: пока он открыт,
+  // страница только показывает. Без сеанса мост держит прибор командой 344
+  // (ключи и уставки она не трогает), а управлять можно со страницы - с
+  // паролем. «Только смотрим» здесь было до управления со страницы и вводило
+  // в заблуждение (15.11.2026).
+  if (s.session) { hs.textContent = "управляет Motor_Control"; hs.className = "chip ok"; }
   else if (s.watch) {
-    hs.textContent = "только смотрим" + (s.pult ? " (Motor_Control подключён, сеанс закрыт)" : " (Motor_Control не подключён)");
+    hs.textContent = pass() ? "управление со страницы" : "просмотр: для управления войдите паролем";
     hs.className = "chip";
   }
   else { hs.textContent = "нет данных"; hs.className = "chip warn"; }
@@ -496,14 +501,21 @@ async function loadBbox() {
 async function loadBridge() {
   let b;
   try { b = await getJson("/api/bridge"); } catch (x) { return; }
-  const A = b.ap || {}, R = b.router || {};
-  if (!$("rSsid").value && document.activeElement !== $("rSsid") && R.ssid) $("rSsid").value = R.ssid;
+  const A = b.ap || {}, R = b.router || {}, saved = R.saved || [];
+  $("rSaved").innerHTML = saved.length ? saved.map(n =>
+    `<div class="row"><span class="chip${n === R.ssid && R.state === 2 ? " ok" : ""}">${esc(n)}</span>` +
+    `<button class="act stop rf" data-n="${escAttr(n)}">Забыть</button></div>`).join("") :
+    `<p class="note">Роутеров не запомнено - только своя сеть K57.</p>`;
+  $("rSaved").querySelectorAll(".rf").forEach(x => x.onclick = () => {
+    if (confirm(`Забыть роутер ${x.dataset.n}?`)) rSend({forget: x.dataset.n});
+  });
   const kv = [
     ["Прошивка", b.version],
     ["Своя точка", `${A.ssid}, ${A.ip}, подключено ${A.clients}`],
-    ["Роутер", !R.ssid ? "не задан" : `${R.ssid}: ${R_STATE[R.state] || "?"}` +
+    ["Роутер", !saved.length ? "не задан" : (R.ssid ? R.ssid + ": " : "") + (R_STATE[R.state] || "?") +
       (R.state === 2 ? `, адрес ${R.ip}, сигнал ${R.rssi} дБм${R.rssi < -67 ? " - слабо для живой ленты" : ""}, канал ${R.ch}` :
-       R.state === 3 && R.reason ? ` - ${R_REASON[R.reason] || "причина " + R.reason}` : "")],
+       R.state === 3 && R.reason ? ` - ${R_REASON[R.reason] || "причина " + R.reason}` : "") +
+      (R.mac ? `; MAC моста ${R.mac}` : "")],
     ["Обмен с прибором", `посылок ${b.packets}, пропусков ${b.seqGap}, перезапусков SPI ${b.resets}`],
     ["Motor_Control", b.pult ? "подключён" : "нет"],
     ["Свободно памяти", b.heap + " кБ"],
@@ -527,14 +539,14 @@ $("rScan").onclick = async () => {
     $("rNote").textContent = `Найдено сетей: ${j.list.length}. Выберите в поле имени.`;
   } catch (e) { $("rNote").textContent = "Мост не ответил."; }
 };
-async function rSend(ssid, rpass) {
+async function rSend(form) {
   const p = pass_ => btoa(unescape(encodeURIComponent("k57:" + pass_)));
   if (!pass()) { $("rNote").textContent = "Сначала войдите паролем на вкладке «Инвертор»."; return; }
   try {
     const r = await fetch("/api/wifi", {method: "POST", headers: {Authorization: "Basic " + p(pass()),
-      "Content-Type": "application/x-www-form-urlencoded"}, body: new URLSearchParams({ssid, pass: rpass}).toString()});
+      "Content-Type": "application/x-www-form-urlencoded"}, body: new URLSearchParams(form).toString()});
     const t = await r.text();
-    $("rNote").textContent = r.ok ? t + (ssid ? " - строка «Роутер» выше обновится через несколько секунд." : "") :
+    $("rNote").textContent = r.ok ? t + (form.ssid ? " - строка «Роутер» выше обновится через несколько секунд." : "") :
       r.status === 401 ? "Неверный пароль." : "Не принято: " + t;
     if (r.ok) $("rPass").value = "";
   } catch (e) { $("rNote").textContent = "Мост не ответил."; }
@@ -543,9 +555,8 @@ async function rSend(ssid, rpass) {
 $("rSet").onclick = () => {
   const ssid = $("rSsid").value.trim();
   if (!ssid) { $("rNote").textContent = "Впишите имя сети или нажмите «Найти сети»."; return; }
-  rSend(ssid, $("rPass").value);
+  rSend({ssid, pass: $("rPass").value});
 };
-$("rForget").onclick = () => { if (confirm("Забыть роутер? Останется только своя сеть K57.")) rSend("", ""); };
 
 $("uGo").onclick = () => {
   const f = $("uFile").files[0];
