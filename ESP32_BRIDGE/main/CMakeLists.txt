@@ -33,6 +33,7 @@ idf_component_register(
         "fwup.c"
         "panic_note.c"
         "ehist.c"
+        "ssdp.c"
     EMBED_TXTFILES
         "page/index.html"
         "../../bin/ErrorCodes.h"

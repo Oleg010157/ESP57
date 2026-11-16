@@ -33,6 +33,7 @@
 #include "bstore.h"
 #include "fwup.h"
 #include "ehist.h"
+#include "ssdp.h"
 #include "panic_note.h"
 #include "web.h"
 #include "live.h"
@@ -113,6 +114,7 @@ void app_main(void)
 
     net_wifi_start(); /* ждёт: сеть или своя точка доступа */
     net_link_start();
+    ssdp_start();     /* значок «K57» в Проводнике Windows */
     ESP_LOGI(TAG, "сеть: %s %s, TCP %d, UDP %d, имя %s.local",
              net_wifi_is_sta() ? "подключён, адрес" : "точка доступа, адрес",
              net_wifi_ip(), K57_TCP_PORT, K57_UDP_PORT, K57_MDNS_HOST);

@@ -509,9 +509,13 @@ async function loadBridge() {
   $("rSaved").querySelectorAll(".rf").forEach(x => x.onclick = () => {
     if (confirm(`Забыть роутер ${x.dataset.n}?`)) rSend({forget: x.dataset.n});
   });
+  const M = b.me || {};
   const kv = [
+    // Через какую сеть зашли ВЫ - мост в двух сразу (16.11.2026).
+    ["Вы зашли", !M.ip ? "?" : M.viaAp ? `напрямую через сеть K57, ваш адрес ${M.ip}` :
+      `через роутер${R.ssid ? " " + R.ssid : ""}, ваш адрес ${M.ip}, адрес моста ${R.ip || "?"}`],
     ["Прошивка", b.version],
-    ["Своя точка", `${A.ssid}, ${A.ip}, подключено ${A.clients}`],
+    ["Сеть K57", `адрес моста ${A.ip}, подключено устройств: ${A.clients}`],
     ["Роутер", !saved.length ? "не задан" : (R.ssid ? R.ssid + ": " : "") + (R_STATE[R.state] || "?") +
       (R.state === 2 ? `, адрес ${R.ip}, сигнал ${R.rssi} дБм${R.rssi < -67 ? " - слабо для живой ленты" : ""}, канал ${R.ch}` :
        R.state === 3 && R.reason ? ` - ${R_REASON[R.reason] || "причина " + R.reason}` : "") +

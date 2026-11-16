@@ -32,6 +32,7 @@
  *   POST /api/f28stop      остановить прошивку - с паролем
  *   GET /api/ehist?from=H&to=H  почасовая история энергии (ehist.h): записи
  *                          по 12 байт - час, отдано, принято, младшим вперёд
+ *   GET /upnp.xml          описание моста для Проводника Windows (ssdp.c)
  *   POST /api/time?t=UTC   время браузера - мосту и прибору (live.h), без
  *                          пароля: страницу смотрят и не входя
  *   GET /api/f28[?ask=1]   образ в мосте, ход прошивки; ask - спросить у
@@ -45,12 +46,14 @@
 #include <string.h>
 
 #include "esp_heap_caps.h"
+#include "lwip/sockets.h"
 #include "esp_http_server.h"
 
 #include "bbox.h"
 #include "bstore.h"
 #include "fwup.h"
 #include "ehist.h"
+#include "ssdp.h"
 #include "live.h"
 #include "net_link.h"
 #include "net_wifi.h"
@@ -254,8 +257,29 @@ static esp_err_t bridge_get(httpd_req_t *req)
     net_wifi_status_t w;
     net_wifi_status(&w);
 
+    /* Кто спрашивает и через какую сеть: мост в двух сразу, и по одной
+     * странице этого не понять (замечание оператора, 16.11.2026). */
+    char                    me[16] = "";
+    bool                    viaAp  = false;
+    struct sockaddr_storage ss;
+    socklen_t               pl = sizeof ss;
+    if (getpeername(httpd_req_to_sockfd(req), (struct sockaddr *)&ss, &pl) == 0) {
+        struct in_addr a = {0};
+        if (ss.ss_family == AF_INET) {
+            a = ((struct sockaddr_in *)&ss)->sin_addr;
+        } else if (ss.ss_family == AF_INET6) {
+            /* Сервер слушает IPv6, и клиент IPv4 приходит как ::ffff:a.b.c.d. */
+            a.s_addr = ((struct sockaddr_in6 *)&ss)->sin6_addr.un.u32_addr[3];
+        }
+        if (a.s_addr != 0) {
+            inet_ntoa_r(a, me, sizeof me);
+            viaAp = net_wifi_is_ap_peer(a.s_addr);
+        }
+    }
+
     json_begin(req);
-    out(req, "{\"ap\":{\"ssid\":");
+    out(req, "{\"me\":{\"ip\":\"%s\",\"viaAp\":%s},", me, viaAp ? "true" : "false");
+    out(req, "\"ap\":{\"ssid\":");
     out_str(req, w.apSsid);
     out(req, ",\"ip\":\"%s\",\"clients\":%d},\"router\":{\"ssid\":", w.apIp, w.apClients);
     out_str(req, w.routerSsid);
@@ -607,6 +631,27 @@ static esp_err_t wifiscan_get(httpd_req_t *req)
     return out_end(req);
 }
 
+/* Описание моста для Проводника Windows (ssdp.c). Адрес страницы - тот, по
+ * которому спросили описание: мост в двух сетях сразу. */
+static esp_err_t upnp_get(httpd_req_t *req)
+{
+    char host[40] = "192.168.4.1";
+    httpd_req_get_hdr_value_str(req, "Host", host, sizeof host);
+    httpd_resp_set_type(req, "text/xml; charset=utf-8");
+    s_len = 0;
+    out(req, "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+             "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
+             "<specVersion><major>1</major><minor>0</minor></specVersion>"
+             "<device><deviceType>urn:schemas-upnp-org:device:Basic:1</deviceType>"
+             "<friendlyName>K57 - WiFi-мост прибора</friendlyName>"
+             "<manufacturer>K57</manufacturer><modelName>K57 WiFi bridge</modelName>"
+             "<modelDescription>Страница прибора K57</modelDescription>");
+    out(req, "<serialNumber>%s</serialNumber><UDN>%s</UDN>"
+             "<presentationURL>http://%s/</presentationURL></device></root>",
+        net_wifi_mac(), ssdp_uuid(), host);
+    return out_end(req);
+}
+
 static esp_err_t time_post(httpd_req_t *req)
 {
     char q[24], v[16];
@@ -693,6 +738,7 @@ void web_page_register(httpd_handle_t srv)
         {.uri = "/api/f28stop", .method = HTTP_POST, .handler = f28stop_post},
         {.uri = "/api/time", .method = HTTP_POST, .handler = time_post},
         {.uri = "/api/ehist", .method = HTTP_GET, .handler = ehist_get},
+        {.uri = "/upnp.xml", .method = HTTP_GET, .handler = upnp_get},
         {.uri = "/api/wifi", .method = HTTP_POST, .handler = wifi_post},
         {.uri = "/api/wifiscan", .method = HTTP_GET, .handler = wifiscan_get},
         {.uri = "/api/f28", .method = HTTP_GET, .handler = f28_get},
