@@ -16,6 +16,10 @@
  * Перехват - обёрткой линкера вокруг esp_panic_handler (main/CMakeLists.txt,
  * --wrap): сам обработчик паники ESP-IDF не трогаем, он работает дальше как
  * работал.
+ *
+ * 16.11.2026 паника «переполнен стек» (vApplicationStackOverflowHook) - а чей,
+ * не видно: имя задачи ESP-IDF печатает только в COM-порт. Теперь и оно в
+ * записи: вторая обёртка, вокруг самого vApplicationStackOverflowHook.
  */
 #include <stdio.h>
 #include <string.h>
@@ -37,10 +41,22 @@ typedef struct {
     uint32_t magic;
     uint32_t core, exc, cause, vaddr, n;
     uint32_t pc[PN_DEPTH];
+    char     task[16]; /* чей стек переполнен, иначе "" */
 } pn_t;
 
 static RTC_NOINIT_ATTR pn_t s_pn;
 static char                s_text[200];
+static char                s_ovf[16]; /* обычная память: после перезапуска пусто */
+
+void __real_vApplicationStackOverflowHook(void *task, char *name);
+
+void IRAM_ATTR __wrap_vApplicationStackOverflowHook(void *task, char *name)
+{
+    for (int i = 0; i < (int)sizeof s_ovf - 1 && name && name[i]; i++) {
+        s_ovf[i] = name[i];
+    }
+    __real_vApplicationStackOverflowHook(task, name);
+}
 
 void __real_esp_panic_handler(panic_info_t *info);
 
@@ -55,6 +71,7 @@ void IRAM_ATTR __wrap_esp_panic_handler(panic_info_t *info)
     s_pn.cause = f ? (uint32_t)f->exccause : 0;
     s_pn.vaddr = f ? (uint32_t)f->excvaddr : 0;
     s_pn.n     = 0;
+    memcpy(s_pn.task, s_ovf, sizeof s_pn.task);
     if (f) {
         esp_backtrace_frame_t bt = {
             .pc = (uint32_t)f->pc, .sp = (uint32_t)f->a1, .next_pc = (uint32_t)f->a0, .exc_frame = f};
@@ -79,6 +96,10 @@ void panic_note_init(void)
                            (unsigned long)s_pn.vaddr);
         for (uint32_t i = 0; i < s_pn.n && len > 0 && len < (int)sizeof s_text; i++) {
             len += snprintf(s_text + len, sizeof s_text - len, " 0x%08lx", (unsigned long)s_pn.pc[i]);
+        }
+        s_pn.task[sizeof s_pn.task - 1] = 0;
+        if (s_pn.task[0] && len > 0 && len < (int)sizeof s_text) {
+            snprintf(s_text + len, sizeof s_text - len, ", переполнен стек задачи %s", s_pn.task);
         }
         ESP_LOGW("panic", "прошлый перезапуск - паника: %s", s_text);
     }

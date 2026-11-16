@@ -4,6 +4,29 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Прибор K57</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="K57">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#ffffff">
+<script>
+// Тема: «как в системе» или своя - выбор кнопкой в шапке, запоминается в этом
+// браузере. Ставится до отрисовки, чтобы страница не мигала светлой.
+try { const t = localStorage.getItem("k57theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+// Ошибка скрипта - красной строкой в шапке: у телефона консоли нет, а страница
+// без скрипта выглядит живой, только кнопки молчат (16.11.2026, iPhone).
+window.addEventListener("error", e => {
+  const h = document.querySelector("header");
+  if (!h || document.getElementById("jsErr")) return;
+  const b = document.createElement("span");
+  b.id = "jsErr"; b.className = "chip bad";
+  b.textContent = "ошибка страницы: " + e.message + " (строка " + e.lineno + ")";
+  h.appendChild(b);
+});
+</script>
 <!--
   Страница прибора K57 из WiFi-моста. Вшита в прошивку моста
   (ESP32_BRIDGE/main/web_page.c), данные берёт запросами /api/*.
@@ -18,10 +41,16 @@
   --accent: #1f6fd1; --ok: #1e8e4e; --warn: #c27a00; --bad: #c8322b;
   --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
 }
+/* Тёмная - по системе, если в шапке не выбрана светлая, или выбрана явно. */
+:root { color-scheme: light; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #15181c; --card: #1e2227; --fg: #e6e9ec; --muted: #9aa3ab; --line: #2e343b;
+  :root:not([data-theme=light]) { color-scheme: dark; --bg: #15181c; --card: #1e2227; --fg: #e6e9ec;
+          --muted: #9aa3ab; --line: #2e343b;
           --accent: #5aa2ff; --ok: #3fbf74; --warn: #e0a030; --bad: #ff6b62; }
 }
+:root[data-theme=dark] { color-scheme: dark; --bg: #15181c; --card: #1e2227; --fg: #e6e9ec;
+          --muted: #9aa3ab; --line: #2e343b;
+          --accent: #5aa2ff; --ok: #3fbf74; --warn: #e0a030; --bad: #ff6b62; }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; } /* иначе .row с display:flex его перебивает */
 body { margin: 0; background: var(--bg); color: var(--fg);
@@ -55,6 +84,7 @@ td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .wrap { overflow-x: auto; }
 .cur { color: var(--bad); font-weight: 600; }
 .dim { color: var(--muted); }
+#hTheme { margin-left: auto; cursor: pointer; background: none; font: inherit; font-size: 13px; }
 button.act, input[type=file], input[type=password] { font: inherit; }
 button.act { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
 button.act:disabled { opacity: .5; cursor: default; }
@@ -114,7 +144,8 @@ input.txt { font: inherit; padding: 7px 10px; border: 1px solid var(--line); bor
 /* Энергия: отдано и принято - первые два цвета эталонной палитры (синий,
    оранжевый), пара проверена на различимость, и при дальтонизме тоже. */
 :root { --s1: #2a78d6; --s2: #eb6834; }
-@media (prefers-color-scheme: dark) { :root { --s1: #3987e5; --s2: #d95926; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme=light]) { --s1: #3987e5; --s2: #d95926; } }
+:root[data-theme=dark] { --s1: #3987e5; --s2: #d95926; }
 .elegend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 4px 0 8px; color: var(--muted); }
 .elegend b { color: var(--fg); font-variant-numeric: tabular-nums; }
 .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
@@ -147,6 +178,7 @@ input.txt { font: inherit; padding: 7px 10px; border: 1px solid var(--line); bor
   <span id="hGrid" class="chip">…</span>
   <span id="hLamp" class="lamp" title="текущих ошибок нет"></span>
   <span id="hClock" class="chip dim"></span>
+  <button id="hTheme" class="chip" type="button"></button>
 </header>
 <nav>
   <button data-t="inv" class="on">Инвертор</button>
@@ -166,10 +198,12 @@ input.txt { font: inherit; padding: 7px 10px; border: 1px solid var(--line); bor
   <p id="invNote" class="note"></p>
   <div class="auth" id="authBox">
     <span id="authOk" hidden>Пароль сохранён в этом браузере · <a href="#" id="authForget">забыть</a></span>
-    <span id="authAsk" class="row" style="margin:0">
-      <input type="password" id="cPass" placeholder="Пароль управления (по умолчанию - пароль сети K57)" autocomplete="current-password">
-      <button class="act" id="authGo">Войти</button>
-    </span>
+    <form id="authAsk" class="row" style="margin:0" action="#">
+      <input type="password" id="cPass" placeholder="Пароль управления (по умолчанию - пароль сети K57)"
+             autocomplete="current-password" enterkeyhint="go">
+      <button class="act" id="authGo" type="submit">Войти</button>
+      <span id="authRes"></span>
+    </form>
   </div>
   <div class="panel">
     <div class="prow">
@@ -318,6 +352,29 @@ input.txt { font: inherit; padding: 7px 10px; border: 1px solid var(--line); bor
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
+
+// Тема: авто (как в системе) -> тёмная -> светлая -> авто.
+const THEMES = [["", "◐ авто"], ["dark", "☾ тёмная"], ["light", "☀ светлая"]];
+function themeShow() {
+  const t = document.documentElement.dataset.theme || "";
+  const i = Math.max(0, THEMES.findIndex(x => x[0] === t));
+  $("hTheme").textContent = THEMES[i][1];
+  $("hTheme").title = "Тема страницы: " + (t ? "своя" : "как в системе") + ". Нажать - сменить";
+  const dark = t === "dark" || (!t && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.querySelector('meta[name="theme-color"]').content = dark ? "#1e2227" : "#ffffff";
+}
+$("hTheme").onclick = () => {
+  const t = document.documentElement.dataset.theme || "";
+  const next = THEMES[(THEMES.findIndex(x => x[0] === t) + 1) % THEMES.length][0];
+  if (next) document.documentElement.dataset.theme = next; else delete document.documentElement.dataset.theme;
+  try { next ? localStorage.setItem("k57theme", next) : localStorage.removeItem("k57theme"); } catch (e) {}
+  themeShow();
+};
+{ // старый Safari (до iOS 14) знает только addListener
+  const mq = matchMedia("(prefers-color-scheme: dark)");
+  mq.addEventListener ? mq.addEventListener("change", themeShow) : mq.addListener(themeShow);
+}
+themeShow();
 const S16 = v => v > 32767 ? v - 65536 : v;
 // Автомат подключения к сети, gt.State (grid_tie.h). «Мостом» прошивка зовёт
 // силовой мост инвертора - ключи; на странице это «инвертор», чтобы не путать
@@ -1012,13 +1069,22 @@ async function authCheck(v) {
     return r.status !== 401;
   } catch (e) { return null; } // мост не ответил - ни да, ни нет
 }
-$("authGo").onclick = async () => {
+// Вход - и кнопкой, и с клавиатуры. На iPhone «Готово» только прячет
+// клавиатуру, и казалось, что пароль не принят (16.11.2026): поэтому вход и по
+// уходу из поля, а ответ - тут же, у поля, а не ниже в панели.
+let authBusy = false;
+async function authGo() {
   const v = $("cPass").value;
+  if (!v || authBusy) return;
+  authBusy = true;
+  $("authRes").textContent = "проверяю…";
   const ok = await authCheck(v);
-  if (ok) { pw = v; store(v); $("cPass").value = ""; authShow(true); $("cRes").textContent = ""; }
-  else $("cRes").textContent = ok === null ? "Мост не ответил." : "Неверный пароль.";
-};
-$("cPass").onkeydown = e => { if (e.key === "Enter") $("authGo").click(); };
+  authBusy = false;
+  if (ok) { pw = v; store(v); $("cPass").value = ""; authShow(true); $("authRes").textContent = ""; $("cRes").textContent = ""; }
+  else $("authRes").textContent = ok === null ? "Мост не ответил." : "Неверный пароль.";
+}
+$("authAsk").onsubmit = e => { e.preventDefault(); $("cPass").blur(); authGo(); };
+$("cPass").onchange = authGo;
 $("authForget").onclick = e => { e.preventDefault(); pw = ""; store(""); authShow(false); };
 (async () => {
   const v = stored();
@@ -1118,7 +1184,8 @@ function showCtl(s) {
   const lock = s.session || !fresh;
   lastW = fresh ? s.w : null;
   const set = lastSet = s.set || {};
-  document.querySelectorAll("#inv button, #inv input.num, #pEn").forEach(x => x.disabled = lock);
+  // кроме «Войти»: пароль от прибора не зависит (16.11.2026 - кнопка была серой)
+  document.querySelectorAll("#inv button:not(#authGo), #inv input.num, #pEn").forEach(x => x.disabled = lock);
 
   const on = fresh && (s.w[14] & 1);
   $("pKeys").textContent = !fresh ? "ключи: ?" : (on ? "ключи открыты" : "ключи закрыты");

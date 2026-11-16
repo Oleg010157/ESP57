@@ -33,11 +33,15 @@ idf_component_register(
         "fwup.c"
         "panic_note.c"
         "ehist.c"
-        "ssdp.c"
     EMBED_TXTFILES
         "page/index.html"
         "../../bin/ErrorCodes.h"
         "${K57_TABLES_TXT}"
+        "page/manifest.json"
+    EMBED_FILES
+        "page/icon-192.png"
+        "page/icon-512.png"
+        "page/apple-touch-icon.png"
     INCLUDE_DIRS
         "."
     REQUIRES
@@ -62,3 +66,4 @@ idf_component_register(
 
 # След паники (panic_note.c): обёртка вокруг обработчика паники ESP-IDF.
 target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=esp_panic_handler")
+target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=vApplicationStackOverflowHook")

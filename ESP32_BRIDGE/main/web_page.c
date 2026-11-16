@@ -32,7 +32,6 @@
  *   POST /api/f28stop      остановить прошивку - с паролем
  *   GET /api/ehist?from=H&to=H  почасовая история энергии (ehist.h): записи
  *                          по 12 байт - час, отдано, принято, младшим вперёд
- *   GET /upnp.xml          описание моста для Проводника Windows (ssdp.c)
  *   POST /api/time?t=UTC   время браузера - мосту и прибору (live.h), без
  *                          пароля: страницу смотрят и не входя
  *   GET /api/f28[?ask=1]   образ в мосте, ход прошивки; ask - спросить у
@@ -53,7 +52,6 @@
 #include "bstore.h"
 #include "fwup.h"
 #include "ehist.h"
-#include "ssdp.h"
 #include "live.h"
 #include "net_link.h"
 #include "net_wifi.h"
@@ -65,6 +63,14 @@ extern const char page_start[] asm("_binary_index_html_start");
 extern const char page_end[] asm("_binary_index_html_end");
 extern const char codes_start[] asm("_binary_ErrorCodes_h_start");
 extern const char codes_end[] asm("_binary_ErrorCodes_h_end");
+extern const char man_start[] asm("_binary_manifest_json_start");
+extern const char man_end[] asm("_binary_manifest_json_end");
+extern const char ic192_start[] asm("_binary_icon_192_png_start");
+extern const char ic192_end[] asm("_binary_icon_192_png_end");
+extern const char ic512_start[] asm("_binary_icon_512_png_start");
+extern const char ic512_end[] asm("_binary_icon_512_png_end");
+extern const char apple_start[] asm("_binary_apple_touch_icon_png_start");
+extern const char apple_end[] asm("_binary_apple_touch_icon_png_end");
 
 /* Обработчики идут по одному - сервер однопоточный, - буфер общий. */
 static char s_buf[1024];
@@ -126,6 +132,33 @@ static esp_err_t codes_get(httpd_req_t *req)
     /* Без кэша: описания правят, а браузер держал бы старые час (было так). */
     httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
     return httpd_resp_send(req, codes_start, codes_end - codes_start - 1);
+}
+
+/* Значок и имя страницы как приложения (Edge, Chrome, «На экран Домой»).
+   manifest.json вшит как текст - с завершающим нулём, его не отдавать. */
+static const struct {
+    const char *uri, *type;
+    const char *start, *end;
+    int         txt;
+} s_files[] = {
+    {"/manifest.json", "application/manifest+json", man_start, man_end, 1},
+    {"/icon-192.png", "image/png", ic192_start, ic192_end, 0},
+    {"/favicon.ico", "image/png", ic192_start, ic192_end, 0},
+    {"/icon-512.png", "image/png", ic512_start, ic512_end, 0},
+    {"/apple-touch-icon.png", "image/png", apple_start, apple_end, 0},
+    {"/apple-touch-icon-precomposed.png", "image/png", apple_start, apple_end, 0},
+};
+
+static esp_err_t file_get(httpd_req_t *req)
+{
+    for (size_t i = 0; i < sizeof s_files / sizeof s_files[0]; i++) {
+        if (strcmp(req->uri, s_files[i].uri) == 0) {
+            httpd_resp_set_type(req, s_files[i].type);
+            httpd_resp_set_hdr(req, "Cache-Control", "max-age=86400");
+            return httpd_resp_send(req, s_files[i].start, s_files[i].end - s_files[i].start - s_files[i].txt);
+        }
+    }
+    return httpd_resp_send_404(req);
 }
 
 static esp_err_t state_get(httpd_req_t *req)
@@ -631,27 +664,6 @@ static esp_err_t wifiscan_get(httpd_req_t *req)
     return out_end(req);
 }
 
-/* Описание моста для Проводника Windows (ssdp.c). Адрес страницы - тот, по
- * которому спросили описание: мост в двух сетях сразу. */
-static esp_err_t upnp_get(httpd_req_t *req)
-{
-    char host[40] = "192.168.4.1";
-    httpd_req_get_hdr_value_str(req, "Host", host, sizeof host);
-    httpd_resp_set_type(req, "text/xml; charset=utf-8");
-    s_len = 0;
-    out(req, "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-             "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
-             "<specVersion><major>1</major><minor>0</minor></specVersion>"
-             "<device><deviceType>urn:schemas-upnp-org:device:Basic:1</deviceType>"
-             "<friendlyName>K57 - WiFi-мост прибора</friendlyName>"
-             "<manufacturer>K57</manufacturer><modelName>K57 WiFi bridge</modelName>"
-             "<modelDescription>Страница прибора K57</modelDescription>");
-    out(req, "<serialNumber>%s</serialNumber><UDN>%s</UDN>"
-             "<presentationURL>http://%s/</presentationURL></device></root>",
-        net_wifi_mac(), ssdp_uuid(), host);
-    return out_end(req);
-}
-
 static esp_err_t time_post(httpd_req_t *req)
 {
     char q[24], v[16];
@@ -738,12 +750,15 @@ void web_page_register(httpd_handle_t srv)
         {.uri = "/api/f28stop", .method = HTTP_POST, .handler = f28stop_post},
         {.uri = "/api/time", .method = HTTP_POST, .handler = time_post},
         {.uri = "/api/ehist", .method = HTTP_GET, .handler = ehist_get},
-        {.uri = "/upnp.xml", .method = HTTP_GET, .handler = upnp_get},
         {.uri = "/api/wifi", .method = HTTP_POST, .handler = wifi_post},
         {.uri = "/api/wifiscan", .method = HTTP_GET, .handler = wifiscan_get},
         {.uri = "/api/f28", .method = HTTP_GET, .handler = f28_get},
     };
     for (size_t i = 0; i < sizeof u / sizeof u[0]; i++) {
         httpd_register_uri_handler(srv, &u[i]);
+    }
+    for (size_t i = 0; i < sizeof s_files / sizeof s_files[0]; i++) {
+        const httpd_uri_t f = {.uri = s_files[i].uri, .method = HTTP_GET, .handler = file_get};
+        httpd_register_uri_handler(srv, &f);
     }
 }
