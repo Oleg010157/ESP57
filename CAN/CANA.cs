@@ -349,8 +349,14 @@ namespace ICDIBasic
                 timer_tick.Enabled = true; // Начинает функционировать основной таимер
                 debugToolStripMenuItem.Enabled = true; // Включаем меню debug
                 гToolStripMenuItem.Enabled = true; // GRAPH == Enabled
-                btnStartStop.Visible = true;
 
+                // Кнопка «Пуск» не показывается (16.11.2026): она от двухмоторного
+                // стенда. PUSK() в приборе открывает ключи ОБОИХ мостов мимо
+                // панели инвертора, а включает его теперь «Вкл.» (GridTieUi.cs,
+                // только АИН-1). Да и подтверждения не дождаться: sbit приходит
+                // в кадре 140 словом 2 и ложится в ccs.shr, а sbit_check()
+                // зовёт только кадр 116, которого прошивка больше не шлёт.
+                // «Стоп» при подключении уходит по-прежнему - прибор в покое.
                 StopAin();
                 установкиДвигателяToolStripMenuItem.Enabled = false;
                 cBox_Gain_Limit.Checked = true;
