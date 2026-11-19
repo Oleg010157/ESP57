@@ -22,13 +22,7 @@ Examples:
 
 ## Step 1 — Locate AGENTS.md files
 
-Find the CCS `ai/boards/` directory dynamically:
-
-```bash
-find /Users/a0792138/ti -name "CCS.md" -path "*/ai/CCS.md" 2>/dev/null | head -1 | xargs dirname
-```
-
-This returns the `ai/` root. Board files are at `ai/boards/<BOARD-NAME>/AGENTS.md`.
+Board files are at `{ccs-resources-ai-dir}/boards/<BOARD-NAME>/AGENTS.md`.
 
 For each board (LP + all BPs):
 - Found → mark **RESOLVED**

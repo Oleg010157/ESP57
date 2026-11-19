@@ -1,6 +1,70 @@
+/*
+ * TEXAS INSTRUMENTS TEXT FILE LICENSE
+ *
+ * Copyright (c) 2026 Texas Instruments Incorporated
+ *
+ * All rights reserved not granted herein.
+ *
+ * Limited License.
+ *
+ * Texas Instruments Incorporated grants a world-wide, royalty-free, non-exclusive
+ * license under copyrights and patents it now or hereafter owns or controls to
+ * make, have made, use, import, offer to sell and sell ("Utilize") this software
+ * subject to the terms herein. With respect to the foregoing patent license, such
+ * license is granted solely to the extent that any such patent is necessary to
+ * Utilize the software alone. The patent license shall not apply to any
+ * combinations which include this software, other than combinations with devices
+ * manufactured by or for TI ("TI Devices"). No hardware patent is licensed
+ * hereunder.
+ *
+ * Redistributions must preserve existing copyright notices and reproduce this
+ * license (including the above copyright notice and the disclaimer and (if
+ * applicable) source code license limitations below) in the documentation and/or
+ * other materials provided with the distribution
+ *
+ *
+ * Redistribution and use in binary form, without modification, are permitted
+ * provided that the following conditions are met:
+ *
+ * * No reverse engineering, decompilation, or disassembly of this software is
+ * permitted with respect to any software provided in binary form.
+ *
+ * * any redistribution and use are licensed by TI for use only with TI Devices.
+ *
+ * * Nothing shall obligate TI to provide you with source code for the software
+ * licensed and provided to you in object code.
+ *
+ * If software source code is provided to you, modification and redistribution of
+ * the source code are permitted provided that the following conditions are met:
+ *
+ * * any redistribution and use of the source code, including any resulting
+ * derivative works, are licensed by TI for use only with TI Devices.
+ *
+ * * any redistribution and use of any object code compiled from the source code
+ * and any resulting derivative works, are licensed by TI for use only with TI
+ * Devices.
+ *
+ * Neither the name of Texas Instruments Incorporated nor the names of its suppliers
+ * may be used to endorse or promote products derived from this software without
+ * specific prior written permission.
+ *
+ * DISCLAIMER.
+ *
+ * THIS SOFTWARE IS PROVIDED BY TI AND TI"S LICENSORS "AS IS" AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+ * EVENT SHALL TI AND TI"S LICENSORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 // write_cnt.js
 //
-// Combines memory chunks read via the debug MCP readMemory tool into a
+// Combines memory chunks read from the target through a debug session into a
 // binary .cnt file for use with tiarmprofdata / c29profdata merge.
 //
 // Background:
@@ -23,7 +87,7 @@
 //   to know how many bytes belong to each section.
 //
 // Why this script exists:
-//   The debug MCP readMemory tool has a 1024-byte limit per call, so large
+//   A debug session's memory read may be limited in size per call, so large
 //   counter sections must be read in multiple chunks.  Rather than embedding
 //   hundreds of hex values inline in a shell command (which risks truncation
 //   at the shell's command-line length limit), the agent writes each chunk to
@@ -31,10 +95,13 @@
 //   assemble all the pieces into the final binary .cnt file.
 //
 // Input format:
-//   Each JSON file must contain a JSON array of hex byte strings exactly as
-//   returned by the readMemory tool's "values" field, e.g.:
-//     ["01","00","ff","3a","00","00","00","00",...]
-//   The strings are two hex digits each (no "0x" prefix).
+//   Each file holds either
+//     - a JSON array of hex byte strings, e.g. a CCS readMemory "values" field:
+//         ["01","00","ff","3a","00","00","00","00",...]
+//       The strings are two hex digits each (no "0x" prefix); or
+//     - plain hex text, e.g. a GDB/MI -data-read-memory-bytes "contents" field:
+//         0100ff3a00000000...
+//       Whitespace is ignored.
 //
 // Usage:
 //   node write_cnt.js --output <output.cnt> \
@@ -42,10 +109,10 @@
 //       [--mcdc <mcdc.json>]
 //
 //   --output  Required. Path for the output .cnt binary file.
-//   --chunk   Path to a JSON file containing one readMemory "values" array.
+//   --chunk   Path to a file holding one chunk's bytes (see Input format).
 //             Repeat this flag for each chunk, in address order.
 //             All chunks are concatenated in the order they are listed.
-//   --mcdc    Path to a JSON file containing the __llvm_prf_bits section bytes.
+//   --mcdc    Path to a file holding the __llvm_prf_bits section bytes.
 //             This is appended after all counter chunks.  Omit if -fmcdc was
 //             not used (the symbols __start___llvm_prf_bits /
 //             __stop___llvm_prf_bits will not exist in that case).
@@ -78,9 +145,9 @@ function parseArgs() {
             opts.output = args[++i];
 
         } else if (arg === "--chunk" && i + 1 < args.length) {
-            // Each --chunk argument names one JSON file from a single readMemory
-            // call.  Multiple chunks cover a counter section larger than the
-            // 1024-byte readMemory limit.  They are appended in listing order,
+            // Each --chunk argument names one file from a single memory read.
+            // Multiple chunks cover a counter section larger than one read
+            // allows.  They are appended in listing order,
             // so the caller must list them in ascending address order.
             opts.chunks.push(args[++i]);
 
@@ -109,29 +176,33 @@ function parseArgs() {
 }
 
 // =============================================================================
-// Hex JSON file reader
+// Hex file reader
 // =============================================================================
 //
-// Reads a JSON file produced by the agent (containing a readMemory "values"
-// array) and converts it to a Node.js Buffer of raw bytes.
-//
-// The "values" array from readMemory looks like:
-//   ["01","00","ff","3a","00","00","00","00"]
-// where each string is exactly two hex digits representing one byte.
+// Reads a file produced by the agent and converts it to a Node.js Buffer of
+// raw bytes.  Two formats are accepted (see Input format above):
+//   ["01","00","ff","3a"]   — JSON array, one two-digit hex string per byte
+//   0100ff3a                — plain hex text, whitespace ignored
 
 function readHexFile(filePath) {
-    // Read the JSON text from disk
-    const raw = fs.readFileSync(filePath, "utf-8");
+    const raw = fs.readFileSync(filePath, "utf-8").trim();
 
-    // Parse the JSON — we expect an array of hex-string elements
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) {
-        throw new Error(filePath + ": expected a JSON array of hex strings");
+    if (raw.startsWith("[")) {
+        // JSON array of hex-string elements
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr)) {
+            throw new Error(filePath + ": expected a JSON array of hex strings");
+        }
+        // Convert each "ff" hex string to the integer 255, then wrap in a Buffer.
+        return Buffer.from(arr.map((h) => { return parseInt(h, 16); }));
     }
 
-    // Convert each "ff" hex string to the integer 255, then wrap in a Buffer.
-    // parseInt(h, 16) converts a hex string to an integer (base 16).
-    return Buffer.from(arr.map((h) => { return parseInt(h, 16); }));
+    // Plain hex text: strip whitespace, then decode two digits per byte
+    const hex = raw.replace(/\s+/g, "");
+    if (!/^([0-9a-fA-F]{2})*$/.test(hex)) {
+        throw new Error(filePath + ": expected a JSON array or an even-length hex string");
+    }
+    return Buffer.from(hex, "hex");
 }
 
 // =============================================================================
@@ -149,8 +220,8 @@ let totalCntBytes = 0;
 
 // -----------------------------------------------------------------------
 // Process counter section chunks (--chunk flags)
-// Each chunk corresponds to one readMemory call that covered up to 1024
-// bytes of the __llvm_prf_cnts section.  Chunks must be listed in
+// Each chunk corresponds to one memory read that covered part of the
+// __llvm_prf_cnts section.  Chunks must be listed in
 // ascending address order so the bytes are concatenated correctly.
 // -----------------------------------------------------------------------
 for (let i = 0; i < opts.chunks.length; i++) {
