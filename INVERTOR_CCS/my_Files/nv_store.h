@@ -10,6 +10,7 @@
 #ifndef NV_STORE_H_
 #define NV_STORE_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 
 // Прочитать историю и начать новую сессию. Зовётся один раз при старте, до
@@ -26,5 +27,9 @@ void NvStore_requestClear(void);
 // Поставить на запись счётчики энергии (energy.h): маска по ENERGY_*. Можно и
 // из прерывания.
 void NvStore_requestEnergy(uint16_t mask);
+
+// Номер сессии взят из памяти. Нет - память не ответила при старте, номер
+// временный (1), и его даст мост: bridge_store.h.
+bool NvStore_sessionOk(void);
 
 #endif /* NV_STORE_H_ */

@@ -2179,6 +2179,7 @@ void cmd_MBOX28(uint16_t data1, uint16_t data2, uint16_t data3, uint16_t cmd)
 
         // Копия настройки в мосте и восстановление из неё. Разбор и ответы -
         // my_Files/bridge_store.h.
+        case BST_CMD_SESSION:
         case BST_CMD_SEND:
         case BST_CMD_WORDS:
         case BST_CMD_APPLY:

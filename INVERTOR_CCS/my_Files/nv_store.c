@@ -57,12 +57,15 @@
 //
 //   nvFailed     - 1: память не отвечает, запись прекращена до перезагрузки,
 //                  поднят код NV_NoAnswer (56). Прибор работает, история только в ОЗУ;
+//   nvSessionOk  - 1: номер сессии прочитан из памяти и записан обратно. 0 - номер
+//                  временный, его даст мост (bridge_store.h);
 //   nvBlank      - 1: при старте не нашлось заголовка, память заполнена заново;
 //   nvBadRecords - сколько записей при старте не прошли проверку CRC;
 //   nvWrites     - сколько записей истории записано за эту сессию;
 //   dbgNvRaise   - записать сюда код аварии: поднять её из фона. Для проверки.
 //
 volatile uint16_t nvFailed     = 0;
+volatile uint16_t nvSessionOk  = 0;
 volatile uint16_t nvBlank      = 0;
 volatile uint16_t nvBadRecords = 0;
 volatile uint32_t nvWrites     = 0;
@@ -531,6 +534,13 @@ void NvStore_init(void)
 
     if (!nv_header() || !nv_history() || !nv_energy() || !nv_session())
         nv_fail();
+    else
+        nvSessionOk = 1U;
+}
+
+bool NvStore_sessionOk(void)
+{
+    return nvSessionOk != 0U;
 }
 
 //--------------------------------------------------------------------------------

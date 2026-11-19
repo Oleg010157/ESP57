@@ -23,7 +23,7 @@ namespace ICDIBasic
      */
     public partial class Form1
     {
-        private readonly ToolStripMenuItem _storeMenu = new ToolStripMenuItem("Журнал и копия настройки (WiFi-мост)…");
+        private readonly ToolStripMenuItem _storeMenu = new ToolStripMenuItem("Журнал событий и запасная копия настройки (WiFi-мост)…");
         private BridgeStoreForm _storeFrm;
 
         private void BridgeStore_InitMenu(ToolStripMenuItem parent)
@@ -157,8 +157,8 @@ namespace ICDIBasic
             _link = link;
             _cmd = cmd;
 
-            Text = "Журнал и копия настройки - WiFi-мост";
-            Size = new Size(860, 460);
+            Text = "Хранится в WiFi-мосте: журнал событий прибора и запасная копия его настройки";
+            Size = new Size(860, 500);
             StartPosition = FormStartPosition.CenterParent;
             Font = new Font("Microsoft Sans Serif", 10F);
 
@@ -181,7 +181,7 @@ namespace ICDIBasic
         //-------------------------------------------------------------------
         private TabPage BuildJournalTab()
         {
-            var page = new TabPage("Журнал событий");
+            var page = new TabPage("Журнал событий прибора");
             _list.View = View.Details;
             _list.FullRowSelect = true;
             _list.Dock = DockStyle.Fill;
@@ -214,8 +214,21 @@ namespace ICDIBasic
             page.Controls.Add(_list);
             page.Controls.Add(_jStatus);
             page.Controls.Add(bar);
+            page.Controls.Add(Hint(
+                "Каждое событие прибора отдельной строкой, по порядку - около 3800 последних. " +
+                "Журнал ведёт WiFi-мост; история аварий в самом приборе от него не зависит."));
             return page;
         }
+
+        // Строка сверху вкладки: что здесь и зачем - по названию не понять.
+        private static Label Hint(string text) => new Label
+        {
+            Text = text,
+            Dock = DockStyle.Top,
+            Height = 44,
+            Padding = new Padding(4, 4, 4, 0),
+            ForeColor = SystemColors.GrayText,
+        };
 
         private void Send(uint id, byte[] data = null)
         {
@@ -235,7 +248,8 @@ namespace ICDIBasic
             _list.BeginUpdate();
             _list.Items.Clear();
             var seqs = rows.Select(r => BitConverter.ToUInt32(r, 0)).ToList();
-            var utcs = rows.Select(r => BitConverter.ToUInt32(r, 4)).ToList();
+            // Время с меткой «от включения» для соседей - не время.
+            var utcs = rows.Select(r => RealUtc(BitConverter.ToUInt32(r, 4))).ToList();
             var sess = rows.Select(r => (uint)BitConverter.ToUInt16(r, 10)).ToList();
             // Новые сверху: смотрят обычно, что было последним.
             for (int i = rows.Count - 1; i >= 0; i--)
@@ -245,7 +259,9 @@ namespace ICDIBasic
                 ushort code = BitConverter.ToUInt16(r, 8), ses = BitConverter.ToUInt16(r, 10);
                 ushort cnt = BitConverter.ToUInt16(r, 12);
                 var it = new ListViewItem(seq.ToString());
-                it.SubItems.Add(utc != 0 ? TimeText(utc) : BlackBoxClient.ApproxTimeText(i, seqs, utcs, sess));
+                it.SubItems.Add(RealUtc(utc) != 0
+                    ? TimeText(utc)
+                    : BlackBoxClient.ApproxTimeText(i, seqs, utcs, sess) + UptimeNote(utc));
                 it.SubItems.Add(code.ToString());
                 it.SubItems.Add(_errText.TryGetValue(code, out var t) ? t : "код " + code);
                 it.SubItems.Add(ses.ToString());
@@ -258,9 +274,20 @@ namespace ICDIBasic
                             "повторы - строкой «ещё N раз»." + (lost > 0 ? $" Потеряно событий: {lost}." : "");
         }
 
+        // Событие раньше часов прибора: UTC = метка | секунды от включения.
+        // Мост пересчитывает такие строки сам, когда прибор узнал время
+        // (bridge_store.h, «время задним числом»); с меткой приходят только те,
+        // у чьей сессии время так и не появилось.
+        private const uint UtcUptime = 0x80000000;
+
+        private static uint RealUtc(uint utc) => (utc & UtcUptime) != 0 ? 0 : utc;
+
+        private static string UptimeNote(uint utc) =>
+            (utc & UtcUptime) != 0 ? $", {utc & ~UtcUptime} с от включения" : "";
+
         private static string TimeText(uint utc) =>
-            utc == 0
-                ? "время неизвестно"
+            RealUtc(utc) == 0
+                ? "время неизвестно" + UptimeNote(utc)
                 : DateTimeOffset.FromUnixTimeSeconds(utc).LocalDateTime.ToString("dd.MM.yyyy HH:mm:ss");
 
         private void SaveCsv()
@@ -297,7 +324,7 @@ namespace ICDIBasic
         //-------------------------------------------------------------------
         private TabPage BuildCopyTab()
         {
-            var page = new TabPage("Копия настройки");
+            var page = new TabPage("Запасная копия настройки");
             _copyText.Multiline = true;
             _copyText.ReadOnly = true;
             _copyText.ScrollBars = ScrollBars.Vertical;
@@ -314,6 +341,9 @@ namespace ICDIBasic
 
             page.Controls.Add(_copyText);
             page.Controls.Add(bar);
+            page.Controls.Add(Hint(
+                "Мост хранит копию калибровки АЦП, паспорта силовой части и коэффициентов регуляторов - " +
+                "чтобы перенести их на новую плату, если эту придётся заменить. Ниже - копия и то, что сейчас в приборе."));
             return page;
         }
 

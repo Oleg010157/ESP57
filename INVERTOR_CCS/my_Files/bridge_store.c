@@ -8,12 +8,15 @@
  *   bstEvLost    - событий не влезло в очередь (8 мест) до прохода фона;
  *   bstCopies    - копий настройки отдано;
  *   bstRestore   - итог последнего восстановления, CALIB_RESTORE_* (0 - принято);
- *                  0xFFFF - восстановления не было.
+ *                  0xFFFF - восстановления не было;
+ *   bstSesBridge - номер сессии, данный мостом; 0 - не давал (память цела или
+ *                  мост не ответил).
  */
 
 #include "board.h"
-#include "KSP.h" // Errors.h: CurrentSessionId
+#include "KSP.h" // Errors.h: CurrentSessionId, ErrHistory
 #include "calib_store.h"
+#include "nv_store.h"
 #include "wall_clock.h"
 #include "wifi_link.h"
 #include "myDCAN.h" // SendAck
@@ -28,13 +31,17 @@ volatile uint16_t bstEvents  = 0;
 volatile uint16_t bstEvLost  = 0;
 volatile uint16_t bstCopies  = 0;
 volatile uint16_t bstRestore = 0xFFFFU;
+volatile uint16_t bstSesBridge = 0;
 
 //---------------------------------------------------------------------------
 // События: из прерывания - в кольцо, из фона - мосту.
+//
+// Номер сессии ставится при отправке, а не в кольце: без памяти он до ответа
+// моста временный, и события до тех пор ждут в кольце (sesSettled).
 //---------------------------------------------------------------------------
 #define BST_EV_SLOTS 8U
 
-static uint16_t          evBuf[BST_EV_SLOTS][4];
+static uint16_t          evBuf[BST_EV_SLOTS][3]; // код, UTC мл., UTC ст.
 static volatile uint16_t evHead = 0, evTail = 0;
 
 void BridgeStore_onEvent(uint16_t code)
@@ -50,13 +57,85 @@ void BridgeStore_onEvent(uint16_t code)
     {
         uint32_t t = WallClock_now();
 
+        if (t == 0UL)
+        {
+            t = BST_UTC_UPTIME | (WallClock_uptime() & ~BST_UTC_UPTIME);
+        }
         evBuf[evHead][0] = code;
         evBuf[evHead][1] = (uint16_t)(t & 0xFFFFUL);
         evBuf[evHead][2] = (uint16_t)(t >> 16);
-        evBuf[evHead][3] = CurrentSessionId;
         evHead           = next;
     }
     __restore_interrupts(st);
+}
+
+//---------------------------------------------------------------------------
+// Сессия и время задним числом - bridge_store.h
+//---------------------------------------------------------------------------
+static volatile uint16_t helloDue    = 0;      // послать 0x7D4
+static uint16_t          helloSent   = 0;
+static uint32_t          helloAt     = 0;      // секунды от включения, когда послан
+static volatile uint16_t sesOffer    = 0;      // номер из команды 340, 0 - нет
+static uint16_t          sesSettled  = 0;      // события можно отдавать
+static uint16_t          markedSes   = 0;      // сессия событий без времени
+static uint16_t          markedSent  = 0;      // такие уходили мосту
+static uint16_t          anchorSent  = 0;
+
+static void send_hello(void)
+{
+    uint16_t w[2];
+
+    w[0] = CurrentSessionId;
+    w[1] = (uint16_t)((NvStore_sessionOk() ? 0U : BST_HELLO_NOMEM) |
+                      ((bstSesBridge != 0U) ? BST_HELLO_BRIDGE : 0U));
+    WifiLink_push(BST_ID_HELLO, w, 2U);
+}
+
+// Номер от моста - вместо временного. История в ОЗУ уже помечена временным
+// номером: переносим её на новый, иначе каждый код посчитался бы дважды.
+static void take_session(uint16_t ses)
+{
+    uint16_t st  = __disable_interrupts(); // RegisterSessionEvent - и из прерывания
+    uint16_t old = CurrentSessionId;
+    uint16_t i;
+
+    for (i = 0; i < ERR_BUFF_SIZE; i++)
+    {
+        if (ErrHistory[i].LastSessionId == old)
+        {
+            ErrHistory[i].LastSessionId = ses;
+        }
+    }
+    CurrentSessionId = ses;
+    __restore_interrupts(st);
+    bstSesBridge = ses;
+}
+
+static void send_event(const uint16_t *e)
+{
+    uint16_t w[4];
+    uint32_t t = ((uint32_t)e[2] << 16) | e[1];
+
+    if ((t & BST_UTC_UPTIME) != 0UL)
+    {
+        uint32_t boot = WallClock_bootUtc();
+
+        if (boot != 0UL)
+        {
+            t = boot + (t & ~BST_UTC_UPTIME); // время уже пришло - пересчитаем сами
+        }
+        else if (!markedSent)
+        {
+            markedSent = 1U;
+            markedSes  = CurrentSessionId;
+        }
+    }
+    w[0] = e[0];
+    w[1] = (uint16_t)(t & 0xFFFFUL);
+    w[2] = (uint16_t)(t >> 16);
+    w[3] = CurrentSessionId;
+    WifiLink_push(BST_ID_EVENT, w, 4U);
+    bstEvents++;
 }
 
 //---------------------------------------------------------------------------
@@ -134,8 +213,15 @@ void BridgeStore_cmd(uint16_t cmd, uint16_t d1, uint16_t d2, uint16_t d3)
 {
     switch (cmd)
     {
+    // Номер сессии от моста. Без ACK: шлёт его мост, ответ ему не нужен.
+    case BST_CMD_SESSION:
+        sesOffer = d1;
+        break;
+
+    // Копию просит и мост, поднявшись: заодно скажем ему свою сессию.
     case BST_CMD_SEND:
-        sendWhy = BST_WHY_ASKED;
+        sendWhy  = BST_WHY_ASKED;
+        helloDue = 1U;
         SendAck(d1, d2, d3, cmd);
         break;
 
@@ -161,20 +247,67 @@ void BridgeStore_cmd(uint16_t cmd, uint16_t d1, uint16_t d2, uint16_t d3)
 
 void BridgeStore_background(void)
 {
-    // События журнала
-    while (evTail != evHead)
-    {
-        WifiLink_push(BST_ID_EVENT, evBuf[evTail], 4U);
-        evTail = (uint16_t)((evTail + 1U) % BST_EV_SLOTS);
-        bstEvents++;
-    }
-
-    // Копия: при включении - как только мост ответил (раньше слать некуда),
-    // после каждого сохранения и по просьбе.
+    // Копия и сессия: при включении - как только мост ответил (раньше слать
+    // некуда); копия ещё после каждого сохранения и по просьбе.
     if (!bootSent && wifiLink.rxOk != 0UL)
     {
         bootSent = 1U;
         sendWhy  = BST_WHY_BOOT;
+        helloDue = 1U;
+    }
+
+    // Сессия
+    if (helloDue)
+    {
+        helloDue = 0U;
+        send_hello();
+        if (!helloSent)
+        {
+            helloSent = 1U;
+            helloAt   = WallClock_uptime();
+        }
+    }
+    if (sesOffer != 0U)
+    {
+        uint16_t ses = sesOffer;
+        sesOffer     = 0U;
+        // Номер из памяти главнее: мост даёт свой, только когда её нет. Дал
+        // уже - второй раз не берём, номер сессии не скачет.
+        if (!NvStore_sessionOk() && bstSesBridge == 0U)
+        {
+            take_session(ses);
+        }
+    }
+    if (!sesSettled &&
+        (NvStore_sessionOk() || bstSesBridge != 0U ||
+         (helloSent && (WallClock_uptime() - helloAt) >= BST_SES_WAIT_S)))
+    {
+        sesSettled = 1U;
+    }
+
+    // События журнала
+    while (sesSettled && evTail != evHead)
+    {
+        send_event(evBuf[evTail]);
+        evTail = (uint16_t)((evTail + 1U) % BST_EV_SLOTS);
+    }
+
+    // Время пришло, а мосту уже ушли события без него: привязка, по ней он
+    // их пересчитает. Одна на включение.
+    if (markedSent && !anchorSent)
+    {
+        uint32_t boot = WallClock_bootUtc();
+
+        if (boot != 0UL)
+        {
+            uint16_t w[3];
+
+            w[0] = markedSes;
+            w[1] = (uint16_t)(boot & 0xFFFFUL);
+            w[2] = (uint16_t)(boot >> 16);
+            WifiLink_push(BST_ID_TIME, w, 3U);
+            anchorSent = 1U;
+        }
     }
     if (calibSaveCount != lastSaveCount)
     {

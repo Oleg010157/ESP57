@@ -410,6 +410,12 @@ function fillTimes(rows, seq, utc, ses) {
 function whenAt(x) {
   return x.approx ? `<span class="approx" title="время неизвестно - взято у ближайшей записи">≈ ${when(x.t)}</span>` : when(x.t);
 }
+// Строка журнала раньше часов прибора: UTC = метка | секунды от включения
+// (bstore.h). Мост пересчитывает её сам, когда прибор узнал время; с меткой
+// остаются строки сессий, где время так и не появилось (19.11.2026).
+const UTC_UPTIME = 0x80000000;
+function realUtc(u) { return u >= UTC_UPTIME ? 0 : u; }
+function uptimeNote(u) { return u >= UTC_UPTIME ? `, ${u - UTC_UPTIME} с от включения` : ""; }
 function codeText(c) { return c === 65535 ? "пуск вручную" : (codes[c] || ("код " + c)); }
 async function getJson(u) { const r = await fetch(u, {cache: "no-store"}); if (!r.ok) throw new Error(r.status); return r.json(); }
 function tile(k, v, u, s) {
@@ -531,9 +537,9 @@ async function loadJournal() {
   try { j = await getJson("/api/journal?n=" + jN); } catch (x) { $("jNote").textContent = "журнал не прочитан"; return; }
   $("jNote").textContent = `Показано ${j.list.length} из ${j.rows}. Один код - не чаще раза в минуту, повторы - строкой «ещё N раз».`;
   $("jMore").disabled = j.list.length >= j.rows;
-  const tm = fillTimes(j.list, r => r[0], r => r[1], r => r[3]);
+  const tm = fillTimes(j.list, r => r[0], r => realUtc(r[1]), r => r[3]);
   $("jBody").innerHTML = j.list.map((r, i) => [r, tm[i]]).reverse().map(([[seq, utc, code, ses, cnt], t]) =>
-    `<tr${cnt ? ' class="dim"' : ""}><td class="n">${seq}</td><td class="n">${whenAt(t)}</td><td class="n">${code}</td>` +
+    `<tr${cnt ? ' class="dim"' : ""}><td class="n">${seq}</td><td class="n">${whenAt(t)}${uptimeNote(utc)}</td><td class="n">${code}</td>` +
     `<td>${esc(codeText(code))}</td><td class="n">${ses}</td><td>${cnt ? "ещё " + cnt + " раз за минуту" : ""}</td></tr>`).join("");
 }
 $("jMore").onclick = () => { jN += 1000; loadJournal(); };

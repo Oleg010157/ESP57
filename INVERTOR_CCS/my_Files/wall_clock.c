@@ -5,13 +5,15 @@
  *
  * Из окна Watch:
  *   wallTime - текущее UTC, секунды с 1970; 0 - время неизвестно;
- *   wallSets - сколько раз пульт присылал время.
+ *   wallSets - сколько раз пульт присылал время;
+ *   wallUp   - секунд от включения.
  */
 
 #include "wall_clock.h"
 
 volatile uint32_t wallTime = 0;
 volatile uint16_t wallSets = 0;
+volatile uint32_t wallUp   = 0;
 
 // Команда приходит и из прерывания MCAN, а тик - из фона: запрет прерываний
 // на время записи, чтобы тик не прибавил секунду к половине нового значения.
@@ -30,10 +32,26 @@ void WallClock_tick1s(void)
     {
         wallTime++;
     }
+    wallUp++;
     __restore_interrupts(st);
 }
 
 uint32_t WallClock_now(void)
 {
     return wallTime;
+}
+
+uint32_t WallClock_uptime(void)
+{
+    return wallUp;
+}
+
+// Под запретом прерываний: WallClock_set() может прийти из прерывания MCAN
+// между чтением времени и чтением секунд от включения.
+uint32_t WallClock_bootUtc(void)
+{
+    uint16_t st = __disable_interrupts();
+    uint32_t t  = (wallTime != 0UL) ? (wallTime - wallUp) : 0UL;
+    __restore_interrupts(st);
+    return t;
 }

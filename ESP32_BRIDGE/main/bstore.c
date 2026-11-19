@@ -40,7 +40,11 @@ static const char *TAG = "bstore";
 #define CAL_MAX_WORDS 64u
 #define CAL_HDR_WORDS 12u
 
+#define BST_CMD_SESSION 340u   /* прибору: номер сессии, когда своей памяти нет */
 #define BST_CMD_SEND  341u     /* прибору: прислать копию настройки */
+
+#define J_HELLO       0xFFFDu  /* в очереди задачи: не событие, а 0x7D4 */
+#define J_ANCHORS     32u      /* привязок времени в ОЗУ - последних по номеру */
 
 typedef struct __attribute__((packed)) {
     uint32_t seq;
@@ -83,6 +87,18 @@ static jrec_t s_buf[J_PER_SECTOR];
 
 static bstore_stat_t s_stat;
 
+/* Привязки времени (bstore.h): строка с номером seq говорит, что сессия
+ * session включилась в boot UTC. Только под s_lock: пишет задача журнала,
+ * читает bstore_walk из задач TCP и страницы. */
+typedef struct {
+    uint32_t seq;
+    uint32_t boot;
+    uint16_t session;
+} janchor_t;
+
+static janchor_t s_anc[J_ANCHORS];
+static uint32_t  s_anc_n;
+
 /* Копия настройки: собирается в задаче SPI, в NVS - своя задача. */
 static uint16_t      s_cal_hdr[CAL_HDR_WORDS];
 static uint16_t      s_cal_w[CAL_MAX_WORDS];
@@ -116,6 +132,55 @@ static uint32_t now_ms(void)
 }
 
 /*---------------------------------------------------------------------------
+ * Привязки времени - под s_lock
+ *---------------------------------------------------------------------------*/
+/* Полна - вытесняем самую старую: старые строки без неё останутся с меткой. */
+static void anc_add(uint32_t seq, uint16_t session, uint32_t boot)
+{
+    uint32_t at = s_anc_n;
+    if (s_anc_n < J_ANCHORS) {
+        s_anc_n++;
+    } else {
+        at = 0;
+        for (uint32_t i = 1; i < J_ANCHORS; i++) {
+            if ((int32_t)(s_anc[i].seq - s_anc[at].seq) < 0) {
+                at = i;
+            }
+        }
+        if ((int32_t)(seq - s_anc[at].seq) < 0) {
+            return;
+        }
+    }
+    s_anc[at] = (janchor_t){.seq = seq, .boot = boot, .session = session};
+}
+
+/* Время строки без часов: ближайшая следом привязка той же сессии. Следом
+ * нет - ближайшая перед: сводка «ещё N раз» ложится через минуту после
+ * повторов и может оказаться уже за привязкой. */
+static uint32_t anc_resolve(uint32_t seq, uint16_t session, uint32_t utc)
+{
+    const janchor_t *after = NULL, *before = NULL;
+    if ((utc & BST_UTC_UPTIME) == 0) {
+        return utc;
+    }
+    for (uint32_t i = 0; i < s_anc_n; i++) {
+        const janchor_t *a = &s_anc[i];
+        if (a->session != session) {
+            continue;
+        }
+        if ((int32_t)(a->seq - seq) > 0) {
+            if (after == NULL || (int32_t)(a->seq - after->seq) < 0) {
+                after = a;
+            }
+        } else if (before == NULL || (int32_t)(a->seq - before->seq) > 0) {
+            before = a;
+        }
+    }
+    const janchor_t *best = after != NULL ? after : before;
+    return best != NULL ? best->boot + (utc & ~BST_UTC_UPTIME) : utc;
+}
+
+/*---------------------------------------------------------------------------
  * Журнал во флеше - своя задача
  *---------------------------------------------------------------------------*/
 static uint32_t sec_addr(uint32_t s)
@@ -142,8 +207,12 @@ static void jwrite(uint16_t code, uint32_t utc, uint16_t session, uint16_t count
     }
     esp_partition_write(s_part, sec_addr(s_sector) + s_slot * 16u, &r, sizeof r);
     s_slot++;
-    s_rows_in[s_sector]++;
-    s_stat.rows++;
+    if (code == BST_CODE_TIME) {
+        anc_add(r.seq, session, utc); /* привязка - не строка журнала */
+    } else {
+        s_rows_in[s_sector]++;
+        s_stat.rows++;
+    }
     xSemaphoreGive(s_lock);
 
     s_seq++;
@@ -196,6 +265,7 @@ static void jscan(void)
 
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_stat.rows = 0;
+    s_anc_n     = 0;
     for (uint32_t s = 0; s < J_SECTORS; s++) {
         esp_partition_read(s_part, sec_addr(s), buf, sizeof s_buf);
         s_rows_in[s] = 0;
@@ -203,7 +273,11 @@ static void jscan(void)
             if (!rec_ok(&buf[i])) {
                 continue;
             }
-            s_rows_in[s]++;
+            if (buf[i].code == BST_CODE_TIME) {
+                anc_add(buf[i].seq, buf[i].session, buf[i].utc);
+            } else {
+                s_rows_in[s]++;
+            }
             if (!any || (int32_t)(buf[i].seq - best) > 0) {
                 best     = buf[i].seq;
                 s_sector = s;
@@ -240,8 +314,50 @@ static void jclear(void)
     s_stat.rows = 0;
     s_sector    = 0;
     s_slot      = 0;
+    s_anc_n     = 0;
     xSemaphoreGive(s_lock);
     memset(s_fold, 0, sizeof s_fold);
+}
+
+/*---------------------------------------------------------------------------
+ * Номер сессии прибора в NVS - задача журнала
+ *---------------------------------------------------------------------------*/
+static uint16_t next_session(uint16_t s)
+{
+    return (s == 0 || s == 0xFFFF) ? 1 : (uint16_t)(s + 1); /* ноль прибор не берёт */
+}
+
+static void hello(uint16_t session, uint16_t flags)
+{
+    nvs_handle_t h;
+    uint16_t     saved = 0;
+
+    if (nvs_open("k57", NVS_READWRITE, &h) != ESP_OK) {
+        return;
+    }
+    nvs_get_u16(h, "ses", &saved);
+    if ((flags & BST_HELLO_NOMEM) == 0) {
+        /* Номер из памяти прибора - запомнить: откажет память, продолжим с него. */
+        if (session != saved) {
+            nvs_set_u16(h, "ses", session);
+            nvs_commit(h);
+        }
+        s_stat.session  = session;
+        s_stat.sesGiven = false;
+    } else if ((flags & BST_HELLO_BRIDGE) == 0) {
+        /* Памяти нет, номера от моста у прибора ещё нет - дать следующий. */
+        uint16_t ses = next_session(saved);
+        nvs_set_u16(h, "ses", ses);
+        nvs_commit(h);
+        spi_link_send_cmd(BST_CMD_SESSION, ses, 0, 0);
+        s_stat.session  = ses;
+        s_stat.sesGiven = true;
+        ESP_LOGI(TAG, "у прибора нет памяти - дан номер сессии %u", ses);
+    } else {
+        s_stat.session  = session;
+        s_stat.sesGiven = true;
+    }
+    nvs_close(h);
 }
 
 /*---------------------------------------------------------------------------
@@ -300,7 +416,13 @@ static void store_task(void *arg)
     for (;;) {
         jev_t e;
         if (xQueueReceive(s_q, &e, pdMS_TO_TICKS(1000)) == pdTRUE) {
-            if (s_part != NULL) {
+            if (e.code == J_HELLO) {
+                hello(e.session, (uint16_t)e.utc);
+            } else if (s_part == NULL) {
+                /* журнала нет */
+            } else if (e.code == BST_CODE_TIME) {
+                jwrite(BST_CODE_TIME, e.utc, e.session, 0);
+            } else {
                 jevent(&e);
             }
         } else if (s_part != NULL) {
@@ -345,6 +467,28 @@ void bstore_frame(uint16_t id, const uint8_t *data, uint8_t len)
             };
             s_stat.events++;
             if (s_q == NULL || xQueueSend(s_q, &e, 0) != pdTRUE) {
+                s_stat.lost++;
+            }
+        }
+        break;
+
+    /* Сессия и привязка времени - через ту же очередь: NVS и флеш пишет
+     * задача журнала, а порядок с событиями сохраняется. */
+    case BST_ID_HELLO:
+        if (len >= 4 && s_q != NULL) {
+            jev_t e = {.code = J_HELLO, .session = le16(data), .utc = le16(data + 2)};
+            xQueueSend(s_q, &e, 0);
+        }
+        break;
+
+    case BST_ID_TIME:
+        if (len >= 6 && s_q != NULL) {
+            jev_t e = {
+                .code    = BST_CODE_TIME,
+                .session = le16(data),
+                .utc     = (uint32_t)le16(data + 2) | ((uint32_t)le16(data + 4) << 16),
+            };
+            if (xQueueSend(s_q, &e, 0) != pdTRUE) {
                 s_stat.lost++;
             }
         }
@@ -453,14 +597,15 @@ uint32_t bstore_walk(uint32_t skip, void (*cb)(const bstore_row_t *r, void *ctx)
         uint32_t s = (s_sector + k) % J_SECTORS;
         esp_partition_read(s_part, sec_addr(s), buf, sizeof s_buf);
         for (uint32_t i = 0; i < J_PER_SECTOR; i++) {
-            if (!rec_ok(&buf[i])) {
+            if (!rec_ok(&buf[i]) || buf[i].code == BST_CODE_TIME) {
                 continue;
             }
             if (rows++ < skip) {
                 continue;
             }
             bstore_row_t r = {
-                .seq = buf[i].seq, .utc = buf[i].utc, .code = buf[i].code,
+                .seq = buf[i].seq, .code = buf[i].code,
+                .utc = anc_resolve(buf[i].seq, buf[i].session, buf[i].utc),
                 .session = buf[i].session, .count = buf[i].count,
             };
             cb(&r, ctx);
