@@ -105,8 +105,11 @@ SECTIONS
    ramgs2 : > RAMGS0
 
    /* Runs in place - in a RAM build there is nothing to copy, so the
-      Ramfuncs* load/run symbols of the flash build are not needed. */
-   .TI.ramfunc : {} > RAMGS0, ALIGN(8)
+      Ramfuncs* load/run symbols of the flash build are not needed.
+      With -Ooff the section (0xe61) no longer fits the RAMGS0 headroom, so
+      it may be split: RAMGS0 and the RAMLS9 tail first, then the unused
+      RAMLS4/RAMLS3 (RAMLS0 is still left free for the CLA). */
+   .TI.ramfunc : {} >> RAMGS0 | RAMLS9 | RAMLS4 | RAMLS3, ALIGN(8)
 
    /* CLA specific sections */
    Cla1Prog        : > RAMLS1
