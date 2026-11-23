@@ -19,10 +19,10 @@
 
 | Что | Версия | Где стоит | Чем зафиксировано |
 |---|---|---|---|
-| CCStudio IDE | 21.0.0.00014 | `C:\TI\ccs2100` | `.ccsproject`: `ccsVersion 71.0.0` |
+| CCStudio IDE | 21.1.0.00012 | `C:\TI\ccs2110` | `.ccsproject`: `ccsVersion 71.0.0` |
 | C2000Ware | **26.01.00.00** | `C:\TI\C2000Ware_26_01_00_00` | `.cproject`: `C2000WARE:26.1.0.00`, плюс абсолютный путь к `.metadata/sdk.json` в строках 112 и 241 |
-| Компилятор C2000 | TI v25.11.1.LTS | `C:\TI\ccs2100\ccs\tools\compiler\ti-cgt-c2000_25.11.1.LTS` | `.cproject`: `toolVersion` |
-| SysConfig | 1.28.0 | `C:\TI\ccs2100\ccs\utils\sysconfig_1.28.0` | `.cproject`: `sysconfig:1.28.0` |
+| Компилятор C2000 | TI v25.11.1.LTS | `C:\TI\ccs2110\ccs\tools\compiler\ti-cgt-c2000_25.11.1.LTS` | `.cproject`: `toolVersion` |
+| SysConfig | 1.29.1 | `C:\TI\ccs2110\ccs\utils\sysconfig_1.29.1` | `.cproject`: `sysconfig:1.29.1` в `CPU1_RAM` и `CPU1_FLASH` |
 | Отладчик | XDS110 | — | `targetConfigs/TMS320F28P550SJ9_LaunchPad.ccxml` |
 
 Версия C2000Ware — самая болезненная привязка. Она вбита в `.cproject`
@@ -147,7 +147,7 @@ RAM, плюс не описана секция `.TI.ramfunc`. Конфигура
 
 ```bash
 cd CPU1_FLASH
-PATH="/c/TI/ccs2100/ccs/utils/bin:$PATH" gmake.exe all
+PATH="/c/TI/ccs2110/ccs/utils/bin:$PATH" gmake.exe all
 ```
 
 Результат — `CPU1_FLASH/invertor.out` и `invertor.map`.
@@ -166,7 +166,7 @@ PATH="/c/TI/ccs2100/ccs/utils/bin:$PATH" gmake.exe all
 |---|---|---|
 | папка проекта | `.project`, `.cproject`, `.ccsproject`, `.settings/`, `targetConfigs/`, `*.syscfg`, `*.cmd` | да |
 | `%LOCALAPPDATA%\Texas Instruments\CCS\.ccs-server\workspaces\<hash>\` | Eclipse-workspace: реестр проектов, индексы CDT | нет |
-| `%LOCALAPPDATA%\Texas Instruments\CCS\ccs2100\0\theia\` | настройки IDE, `recentworkspace.json`, доверенные папки | нет |
+| `%LOCALAPPDATA%\Texas Instruments\CCS\ccs2110\0\theia\` | настройки IDE, `recentworkspace.json`, доверенные папки | нет |
 | `~/ti/CCSTargetConfigurations` | ccxml вне проекта | нет, и не используется — см. выше |
 
 Ничего из второй половины восстанавливать вручную не нужно: она создаётся
