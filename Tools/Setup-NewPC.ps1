@@ -190,8 +190,14 @@ if (-not (Test-Path $gp)) {
              'extern[ \t]+Uint16[ \t]+RamfuncsRunStart;\r?\n'       +
              'extern[ \t]+Uint16[ \t]+RamfuncsRunEnd;\r?\n'         +
              'extern[ \t]+Uint16[ \t]+RamfuncsRunSize;\r?\n'
+    # Начиная с какой-то поставки 26.01 TI сам объявляет эти символы как
+    # uint16_t - ровно как SysConfig-ный device.h, так что конфликта #148 нет и
+    # обёртка не нужна (на этом ПК C2000Ware пришёл уже в таком виде).
+    $tiForm = '(?m)^extern[ \t]+uint16_t[ \t]+RamfuncsLoadStart;'
     if ($t -match '#ifndef[ \t]+_FLASH[\s\S]{0,200}?RamfuncsLoadStart') {
         Say "3. Ramfuncs*" "OK" ""
+    } elseif ($t -match $tiForm) {
+        Say "3. Ramfuncs*" "OK" "uint16_t уже в поставке TI, как в device.h"
     } elseif ($t -notmatch $block) {
         Say "3. Ramfuncs*" "ОШИБКА" "блок объявлений не распознан, править вручную"
         $script:Failed++
@@ -212,18 +218,23 @@ if (-not (Test-Path $gp)) {
 $bs      = [string][char]92
 $cfgDir  = Join-Path $env:LOCALAPPDATA 'clangd'
 $cfgPath = Join-Path $cfgDir 'config.yaml'
+# Папка репозитория на разных ПК называется по-разному (Work\K57, WorkToGo\ESP57),
+# поэтому кроме старого шаблона K5x матчим и имя текущей папки репозитория.
+$repoPat = '.*[/' + $bs + $bs + ']' + [regex]::Escape((Split-Path -Leaf $RepoRoot)) + '[/' + $bs + $bs + '].*'
 $yaml = @"
 If:
   PathMatch:
     - .*[Cc]2000[Ww]are.*
     - .*[/$bs$bs][Ww]ork[/$bs$bs]K5[0-9][/$bs$bs].*
+    - $repoPat
     - .*[/$bs$bs]ti[/$bs$bs]ccs.*
 CompileFlags:
   Add:
     - -D__TMS320C28XX__=1
 "@
 
-if ((Test-Path $cfgPath) -and ((Read-Text $cfgPath) -match '__TMS320C28XX__')) {
+if ((Test-Path $cfgPath) -and ((Read-Text $cfgPath) -match '__TMS320C28XX__') -and
+    (Read-Text $cfgPath).Contains($repoPat)) {
     Say "4. clangd config.yaml" "OK" ""
 } elseif (Need-Action) {
     if (-not (Test-Path $cfgDir)) { New-Item -ItemType Directory -Path $cfgDir -Force | Out-Null }

@@ -104,6 +104,11 @@ Backup:
 - C:\ti\C2000Ware_26_01_00_00\device_support\f28p55x\common\include\f28p55x_globalprototypes.h.bak
 Verification:
 - No error #148 for Ramfuncs* symbols when building CPU1_FLASH.
+Update 2026-11-23 (PC M4800, CCS 21.1): the C2000Ware 26.01 installed here already ships these six
+  declarations as "extern uint16_t Ramfuncs...;" (line 258, no .bak, file untouched since install) -
+  the same type as device.h, so there is no #148 and no wrap is needed. Tools\Setup-NewPC.ps1 now
+  reports this form as OK instead of "block not recognised". Seen with Uint16 on another PC, so TI
+  apparently re-spun the 26.01 package; the Uint16 branch of the script stays for those installs.
 
 Patch 4 (local clangd config - editor only, does not affect the build)
 File: %LOCALAPPDATA%\clangd\config.yaml  (C:\Users\<user>\AppData\Local\clangd\config.yaml)
