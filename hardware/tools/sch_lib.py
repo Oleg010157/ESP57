@@ -85,6 +85,18 @@ def lib_symbol(libfile, name):
             return copy.deepcopy(e)
     raise KeyError(name)
 
+def resolved_symbol(libfile, name):
+    """Символ из библиотеки; если он построен на другом (extends) - развернуть в полный."""
+    s = lib_symbol(libfile, name)
+    ext = find(s, "extends")
+    if not ext:
+        return s
+    base = resolved_symbol(libfile, str(ext[0][1]))
+    rename_symbol(base, name, name, str(base[1]))
+    for p in find(s, "property"):          # свойства потомка важнее
+        set_prop(base, str(p[1]), str(p[2]))
+    return base
+
 def rename_symbol(sym, newfull, newshort, oldshort):
     sym[1] = Q(newfull)
     for e in find(sym, "symbol"):
@@ -97,17 +109,17 @@ def set_prop(sym, key, val):
             e[2] = Q(val); return
     sym.append([ "property", Q(key), Q(val), ["at", 0, 0, 0], ["effects", ["font", ["size", 1.27, 1.27]], ["hide", "yes"]]])
 
-def pins_of(sym):
-    """{номер: (x, y, angle)} по всем единицам символа."""
+def pins_of(sym, unit=None):
+    """{номер: (x, y, angle)}. unit - номер секции многосекционного символа
+    (берутся выводы этой секции и общей, _0_); None - все секции."""
     out = {}
-    def walk(node):
-        for e in node:
-            if isinstance(e, list) and e and e[0] == "pin":
-                at = find(e, "at")[0]; num = find(e, "number")[0][1]
-                out[str(num)] = (float(at[1]), float(at[2]), float(at[3]) if len(at) > 3 else 0.0)
-            elif isinstance(e, list):
-                walk(e)
-    walk(sym)
+    for u in find(sym, "symbol"):
+        m = re.search(r"_(\d+)_\d+$", str(u[1]))
+        if unit is not None and m and int(m.group(1)) not in (0, unit):
+            continue
+        for e in find(u, "pin"):
+            at = find(e, "at")[0]; num = find(e, "number")[0][1]
+            out[str(num)] = (float(at[1]), float(at[2]), float(at[3]) if len(at) > 3 else 0.0)
     return out
 
 def rot(x, y, a):
@@ -150,13 +162,15 @@ class Sheet:
         self.items.append(["text", Q(s), ["exclude_from_sim", "no"], ["at", x, y, 0],
                            ["effects", self._font(size), ["justify", "left", "top"]], ["uuid", Q(U())]])
 
-    def place(self, lib_id, ref, value, fp, x, y, ang=0, nets=None, dnp=False, extra=None, fields=None):
+    def place(self, lib_id, ref, value, fp, x, y, ang=0, nets=None, dnp=False, extra=None, fields=None, unit=1):
         """Поставить символ и на каждый вывод - метку цепи (или «не подключено»).
         nets: {номер вывода: имя цепи | "!NC" | "@GND"/"@+12V" (символ питания)}."""
-        assert ref not in self.refs and ref not in ALL_REFS, "повтор обозначения " + ref
-        self.refs.add(ref); ALL_REFS.add(ref)
+        key = ref if unit == 1 else f"{ref}#{unit}"
+        assert key not in self.refs and key not in ALL_REFS, "повтор обозначения " + key
+        self.refs.add(key); ALL_REFS.add(key)
         sym = self.libs[lib_id]
-        pins = pins_of(sym)
+        multi = any(re.search(r"_([2-9])_\d+$", str(u[1])) for u in find(sym, "symbol"))
+        pins = pins_of(sym, unit if multi else None)
         props = [
             ["property", Q("Reference"), Q(ref), ["at", round((fields or {}).get("ref", (x + 3.81, y - 1.27))[0], 2),
              round((fields or {}).get("ref", (x + 3.81, y - 1.27))[1], 2), 0],
@@ -169,12 +183,12 @@ class Sheet:
         ]
         for k, v in (extra or {}).items():
             props.append(["property", Q(k), Q(v), ["at", x, y, 0], ["hide", "yes"], ["effects", self._font()]])
-        inst = ["symbol", ["lib_id", Q(lib_id)], ["at", x, y, ang], ["unit", 1],
+        inst = ["symbol", ["lib_id", Q(lib_id)], ["at", x, y, ang], ["unit", unit],
                 ["exclude_from_sim", "no"], ["in_bom", "yes"], ["on_board", "yes"],
                 ["dnp", "yes" if dnp else "no"], ["uuid", Q(U())]] + props
         inst += [["pin", Q(n), ["uuid", Q(U())]] for n in pins]
         inst.append(["instances", ["project", Q(self.project),
-                     ["path", Q(self.path), ["reference", Q(ref)], ["unit", 1]]]])
+                     ["path", Q(self.path), ["reference", Q(ref)], ["unit", unit]]]])
         self.items.append(inst)
         for n, net in (nets or {}).items():
             px, py, pa = pins[str(n)]

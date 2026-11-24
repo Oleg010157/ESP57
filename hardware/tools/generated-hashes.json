@@ -1,4 +1,7 @@
 {
+ "k57-power/batt_link.kicad_sch": "b74b3043feb1730dd0ad1c559352a3bb694f532e2cca7c85ba1390a2ea106689",
  "k57-power/bridge.kicad_sch": "5f864dfd90d8a5a275dc6bf881397d9eb08d0f8c44eb5f4ac5de7ef44710a249",
- "k57-power/drivers.kicad_sch": "b1871160fbdba99a9e4deb08b5939ecff3b879b0f562cca9605a93cd8ca256dc"
+ "k57-power/dc_link.kicad_sch": "8348b0f97d60f7678cedeba6a7f3453ca00504b739fba7fd1d7a627f5cda64ed",
+ "k57-power/drivers.kicad_sch": "b1871160fbdba99a9e4deb08b5939ecff3b879b0f562cca9605a93cd8ca256dc",
+ "k57-power/meas_48v.kicad_sch": "1d22f2b669bdc48853aa670a52106053535cf0fed7bcf562f221f509cf399619"
 }
