@@ -49,10 +49,7 @@ def irf100p218():
     return s
 
 os.makedirs(os.path.join(HW, "lib"), exist_ok=True)
-libtree = ["kicad_symbol_lib", ["version", 20241209], ["generator", Q("k57")], ["generator_version", Q("10.0")],
-           ucc27282(), irf100p218()]
-with open(os.path.join(HW, "lib", "k57.kicad_sym"), "w", encoding="utf-8") as f:
-    f.write(dump(libtree))
+upsert_lib(os.path.join(HW, "lib", "k57.kicad_sym"), [ucc27282(), irf100p218()])
 for prj in ["k57-power", "k57-control", "k57-ac"]:
     with open(os.path.join(HW, prj, "sym-lib-table"), "w", encoding="utf-8") as f:
         f.write('(sym_lib_table\n  (version 7)\n  (lib (name "k57")(type "KiCad")(uri "${KIPRJMOD}/../lib/k57.kicad_sym")(options "")(descr "Символы проекта K57"))\n)\n')

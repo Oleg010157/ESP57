@@ -122,6 +122,18 @@ def pins_of(sym, unit=None):
             out[str(num)] = (float(at[1]), float(at[2]), float(at[3]) if len(at) > 3 else 0.0)
     return out
 
+def upsert_lib(path, symbols):
+    """Добавить или заменить символы в библиотеке проекта, не трогая остальные."""
+    if os.path.exists(path):
+        tree = parse(open(path, encoding="utf-8").read())[0]
+    else:
+        tree = ["kicad_symbol_lib", ["version", 20241209], ["generator", Q("k57")], ["generator_version", Q("10.0")]]
+    names = {str(s[1]) for s in symbols}
+    tree[:] = [e for e in tree if not (isinstance(e, list) and e and e[0] == "symbol" and str(e[1]) in names)]
+    tree.extend(symbols)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(dump(tree))
+
 def rot(x, y, a):
     a = int(a) % 360
     return {0: (x, y), 90: (-y, x), 180: (-x, -y), 270: (y, -x)}[a]
@@ -188,6 +200,22 @@ class Sheet:
             ex = ex + side * tail
         self.power(name, ex, ey, 270 if name == "GND" else 90)
 
+    def hbus(self, points, net, up=True):
+        """Выводы, смотрящие вверх (или вниз), соединить горизонтальным проводником
+        на 2,54 мм выше (ниже) концов; на левом конце - символ питания или метка."""
+        dy = -2.54 if up else 2.54
+        pts = sorted(points)
+        y = pts[0][1] + dy
+        for (x, yy) in pts:
+            self.wire(x, yy, x, y)
+        self.wire(pts[0][0], y, pts[-1][0], y)
+        for (x, yy) in pts[1:-1]:
+            self.junction(x, y)
+        if net.startswith("@"):
+            self.power(net[1:], pts[0][0], y, 90 if up else 270)
+        else:
+            self.label(net, pts[0][0], y, 90 if up else 270)
+
     def noconnect(self, x, y):
         self.items.append(["no_connect", ["at", round(x, 3), round(y, 3)], ["uuid", Q(U())]])
 
@@ -224,6 +252,8 @@ class Sheet:
                      ["path", Q(self.path), ["reference", Q(ref)], ["unit", unit]]]])
         self.items.append(inst)
         for n, net in (nets or {}).items():
+            if net is None:                       # вывод соединяется отдельно (проводником)
+                continue
             px, py, pa = pins[str(n)]
             dx, dy = rot(px, py, ang)
             wx, wy = x + dx, y - dy               # Y в схеме направлен вниз
