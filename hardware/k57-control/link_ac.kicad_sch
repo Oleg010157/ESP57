@@ -1,1 +1,147 @@
-(kicad_sch (version 20250610) (generator "eeschema") (generator_version "10.0") (uuid "c5aaa674-717a-4cda-b50f-ebeba7cf4e53") (paper "A4") (title_block (title "K57 плата управления: Разъём к плате 230 В") (date "2026-11-24") (rev "0.1 структура") (comment 1 "МК, питание, приёмники 230 В, интерфейсы") (comment 2 "Техзадание: docs/k57-power-stage-spec-RU.md")) (lib_symbols) (hierarchical_label "GRID_CONT_EN" (shape input) (at 25.40 30.48 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "6018eabc-63e7-4968-a85b-1f2705b6bbd0")) (hierarchical_label "+12V" (shape passive) (at 25.40 35.56 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "0f2bff33-5b65-4aed-ab9a-8b8a6d9e3c09")) (hierarchical_label "+3V3A" (shape passive) (at 25.40 40.64 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "5b2fb8a2-c924-4b68-85c8-4fb803ab10b6")) (hierarchical_label "GND" (shape passive) (at 25.40 45.72 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "9c51bc27-1cf4-4f80-b277-ffb42d35ce4a")) (hierarchical_label "IB_P" (shape output) (at 25.40 50.80 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "073a81d8-3abb-4728-a1e9-09846dfb6636")) (hierarchical_label "IB_N" (shape output) (at 25.40 55.88 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "16bb96c0-faf0-4007-9151-cec9e3d4f41e")) (hierarchical_label "U220_P" (shape output) (at 25.40 60.96 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "69fb5ad7-baca-46a7-ad18-663f500c8c4e")) (hierarchical_label "U220_N" (shape output) (at 25.40 66.04 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "d59848a6-d0b9-4fd7-95ef-d3952cc838ee")) (hierarchical_label "USEC_P" (shape output) (at 25.40 71.12 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "bc49ad0f-f354-44c3-b20c-c409cf437c77")) (hierarchical_label "USEC_N" (shape output) (at 25.40 76.20 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "cdd61920-a6ee-4be9-a3de-a521818d49e2")) (text "Выводы листа (иерархические метки) — слева.\nСейчас лист пустой: это структура. Схема — следующим шагом." (exclude_from_sim no) (at 25.40 20.32 0) (effects (font (size 1.27 1.27)  ) (justify left top)) (uuid "5433eebb-8884-4778-b1db-5f5a68656b8c")) (text "РАЗЪЁМ К ПЛАТЕ 230 В (k57-ac, лист \"Разъём к плате управления\")\n\nСписок цепей обязан совпадать с ответным листом на k57-ac.\nВсе цепи этого разъёма - низковольтные: 230 В на k57-ac остаётся за\nизоляционным барьером (AMC3330, трансформатор тока).\n\n- Дифференциальные пары - соседними выводами, лучше витыми парами.\n- [?] Тип разъёма - при компоновке." (exclude_from_sim no) (at 106.68 30.48 0) (effects (font (size 1.27 1.27)  ) (justify left top)) (uuid "230e0bd3-d088-4540-9004-db8da6ff4501")) (embedded_fonts no))
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "c5aaa674-717a-4cda-b50f-ebeba7cf4e53")
+	(paper "A4")
+	(title_block
+		(title "K57 плата управления: Разъём к плате 230 В")
+		(date "2026-11-24")
+		(rev "0.1 структура")
+		(comment 1 "МК, питание, приёмники 230 В, интерфейсы")
+		(comment 2 "Техзадание: docs/k57-power-stage-spec-RU.md")
+	)
+	(lib_symbols)
+	(text "РАЗЪЁМ К ПЛАТЕ 230 В (k57-ac, лист \"Разъём к плате управления\")\n\nСписок цепей обязан совпадать с ответным листом на k57-ac.\nВсе цепи этого разъёма - низковольтные: 230 В на k57-ac остаётся за\nизоляционным барьером (AMC3330, трансформатор тока).\n\n- Дифференциальные пары - соседними выводами, лучше витыми парами.\n- [?] Тип разъёма - при компоновке."
+		(exclude_from_sim no)
+		(at 106.68 30.48 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "230e0bd3-d088-4540-9004-db8da6ff4501")
+	)
+	(text "Выводы листа (иерархические метки) — слева.\nСейчас лист пустой: это структура. Схема — следующим шагом."
+		(exclude_from_sim no)
+		(at 25.4 20.32 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "5433eebb-8884-4778-b1db-5f5a68656b8c")
+	)
+	(hierarchical_label "IB_P"
+		(shape output)
+		(at 25.4 50.8 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "073a81d8-3abb-4728-a1e9-09846dfb6636")
+	)
+	(hierarchical_label "+12V"
+		(shape passive)
+		(at 25.4 35.56 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "0f2bff33-5b65-4aed-ab9a-8b8a6d9e3c09")
+	)
+	(hierarchical_label "IB_N"
+		(shape output)
+		(at 25.4 55.88 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "16bb96c0-faf0-4007-9151-cec9e3d4f41e")
+	)
+	(hierarchical_label "+3V3A"
+		(shape passive)
+		(at 25.4 40.64 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "5b2fb8a2-c924-4b68-85c8-4fb803ab10b6")
+	)
+	(hierarchical_label "GRID_CONT_EN"
+		(shape input)
+		(at 25.4 30.48 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "6018eabc-63e7-4968-a85b-1f2705b6bbd0")
+	)
+	(hierarchical_label "U220_P"
+		(shape output)
+		(at 25.4 60.96 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "69fb5ad7-baca-46a7-ad18-663f500c8c4e")
+	)
+	(hierarchical_label "GND"
+		(shape passive)
+		(at 25.4 45.72 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "9c51bc27-1cf4-4f80-b277-ffb42d35ce4a")
+	)
+	(hierarchical_label "USEC_P"
+		(shape output)
+		(at 25.4 71.12 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "bc49ad0f-f354-44c3-b20c-c409cf437c77")
+	)
+	(hierarchical_label "USEC_N"
+		(shape output)
+		(at 25.4 76.2 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "cdd61920-a6ee-4be9-a3de-a521818d49e2")
+	)
+	(hierarchical_label "U220_N"
+		(shape output)
+		(at 25.4 66.04 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "d59848a6-d0b9-4fd7-95ef-d3952cc838ee")
+	)
+)

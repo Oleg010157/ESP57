@@ -117,3 +117,5 @@ _autosave-*
 
 # Python
 __pycache__/
+# локальная история правок KiCad 10
+.history/

@@ -1,1 +1,191 @@
-(kicad_sch (version 20250610) (generator "eeschema") (generator_version "10.0") (uuid "c440b53a-bbde-431d-ac9d-fcd7597bd59c") (paper "A4") (title_block (title "K57 плата управления: Интерфейсы") (date "2026-11-24") (rev "0.1 структура") (comment 1 "МК, питание, приёмники 230 В, интерфейсы") (comment 2 "Техзадание: docs/k57-power-stage-spec-RU.md")) (lib_symbols) (hierarchical_label "CAN_TX" (shape input) (at 25.40 30.48 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "0c93de0e-fbb4-4957-9375-23d06ce2dc1d")) (hierarchical_label "CAN_RX" (shape output) (at 25.40 35.56 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "5407808c-8f58-4215-b877-11c2a67ea48f")) (hierarchical_label "FRAM_CLK" (shape input) (at 25.40 40.64 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "36ddcbdc-ff48-46c4-96c8-ca915fd30aa0")) (hierarchical_label "FRAM_PICO" (shape input) (at 25.40 45.72 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "bc956b2f-e4c4-4353-b664-c4c30e4a5bb6")) (hierarchical_label "FRAM_POCI" (shape output) (at 25.40 50.80 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "41780d7a-0a22-4d6f-82ee-e1287fa3412d")) (hierarchical_label "FRAM_CS" (shape input) (at 25.40 55.88 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "6180e477-2f67-4510-8113-66783f240956")) (hierarchical_label "I2C_SDA" (shape bidirectional) (at 25.40 60.96 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "c52bf277-5a48-4f2b-908a-c2c7f00bb6c8")) (hierarchical_label "I2C_SCL" (shape input) (at 25.40 66.04 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "1855d4a7-ef27-4c24-8f22-cb861c79f9d5")) (hierarchical_label "SCOPE" (shape input) (at 25.40 71.12 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "43bc37cb-7265-49f7-87ec-054bfa122410")) (hierarchical_label "STROB" (shape input) (at 25.40 76.20 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "7a8db0c3-5df2-46ee-a04a-5e4af0d870dd")) (hierarchical_label "DAC_DBG" (shape input) (at 25.40 81.28 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "4f3d6f27-fa7e-408c-a283-7069fed8252d")) (hierarchical_label "+3V3" (shape passive) (at 25.40 86.36 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "41ec0726-6c43-4c5e-b26e-d9912c53ee85")) (hierarchical_label "+5V" (shape passive) (at 25.40 91.44 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "6fda022b-4663-4408-94c7-229fe4c53caa")) (hierarchical_label "GND" (shape passive) (at 25.40 96.52 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "80bdea1e-ee40-4d4c-ad36-e4a014e92bd9")) (text "Выводы листа (иерархические метки) — слева.\nСейчас лист пустой: это структура. Схема — следующим шагом." (exclude_from_sim no) (at 25.40 20.32 0) (effects (font (size 1.27 1.27)  ) (justify left top)) (uuid "7f8c385a-71aa-4506-9c78-5990d37b91c7")) (text "ИНТЕРФЕЙСЫ (техзадание 6.7)\n\n- CAN FD изолированный: ISO1044 (класс) + изолированный DC/DC 5 В на стороне\n  шины, разъём под PCAN. Изоляция - потому что земля ПК и минус АКБ на токах\n  150 А будут расходиться.\n- SPI FRAM FM25V02A на SPIB: журнал аварий, учёт энергии\n  (решение 02.11.2026, docs/eeprom-fram-comparison-RU.md).\n- I2C: НЕЗАПАЯННОЕ место под часы RV-3028 или MCP7940N и батарейку.\n- Контрольные точки под осциллограф: SCOPE, STROB, DAC_DBG (= DACA_OUT, A0).\n- ESP32-S3 - отдельный лист. JTAG - на листе \"МК\"." (exclude_from_sim no) (at 106.68 30.48 0) (effects (font (size 1.27 1.27)  ) (justify left top)) (uuid "5ed5f050-063a-4c24-89d0-0d81a97b40aa")) (embedded_fonts no))
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "c440b53a-bbde-431d-ac9d-fcd7597bd59c")
+	(paper "A4")
+	(title_block
+		(title "K57 плата управления: Интерфейсы")
+		(date "2026-11-24")
+		(rev "0.1 структура")
+		(comment 1 "МК, питание, приёмники 230 В, интерфейсы")
+		(comment 2 "Техзадание: docs/k57-power-stage-spec-RU.md")
+	)
+	(lib_symbols)
+	(text "ИНТЕРФЕЙСЫ (техзадание 6.7)\n\n- CAN FD изолированный: ISO1044 (класс) + изолированный DC/DC 5 В на стороне\n  шины, разъём под PCAN. Изоляция - потому что земля ПК и минус АКБ на токах\n  150 А будут расходиться.\n- SPI FRAM FM25V02A на SPIB: журнал аварий, учёт энергии\n  (решение 02.11.2026, docs/eeprom-fram-comparison-RU.md).\n- I2C: НЕЗАПАЯННОЕ место под часы RV-3028 или MCP7940N и батарейку.\n- Контрольные точки под осциллограф: SCOPE, STROB, DAC_DBG (= DACA_OUT, A0).\n- ESP32-S3 - отдельный лист. JTAG - на листе \"МК\"."
+		(exclude_from_sim no)
+		(at 106.68 30.48 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "5ed5f050-063a-4c24-89d0-0d81a97b40aa")
+	)
+	(text "Выводы листа (иерархические метки) — слева.\nСейчас лист пустой: это структура. Схема — следующим шагом."
+		(exclude_from_sim no)
+		(at 25.4 20.32 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "7f8c385a-71aa-4506-9c78-5990d37b91c7")
+	)
+	(hierarchical_label "CAN_TX"
+		(shape input)
+		(at 25.4 30.48 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "0c93de0e-fbb4-4957-9375-23d06ce2dc1d")
+	)
+	(hierarchical_label "I2C_SCL"
+		(shape input)
+		(at 25.4 66.04 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "1855d4a7-ef27-4c24-8f22-cb861c79f9d5")
+	)
+	(hierarchical_label "FRAM_CLK"
+		(shape input)
+		(at 25.4 40.64 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "36ddcbdc-ff48-46c4-96c8-ca915fd30aa0")
+	)
+	(hierarchical_label "FRAM_POCI"
+		(shape output)
+		(at 25.4 50.8 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "41780d7a-0a22-4d6f-82ee-e1287fa3412d")
+	)
+	(hierarchical_label "+3V3"
+		(shape passive)
+		(at 25.4 86.36 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "41ec0726-6c43-4c5e-b26e-d9912c53ee85")
+	)
+	(hierarchical_label "SCOPE"
+		(shape input)
+		(at 25.4 71.12 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "43bc37cb-7265-49f7-87ec-054bfa122410")
+	)
+	(hierarchical_label "DAC_DBG"
+		(shape input)
+		(at 25.4 81.28 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "4f3d6f27-fa7e-408c-a283-7069fed8252d")
+	)
+	(hierarchical_label "CAN_RX"
+		(shape output)
+		(at 25.4 35.56 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "5407808c-8f58-4215-b877-11c2a67ea48f")
+	)
+	(hierarchical_label "FRAM_CS"
+		(shape input)
+		(at 25.4 55.88 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "6180e477-2f67-4510-8113-66783f240956")
+	)
+	(hierarchical_label "+5V"
+		(shape passive)
+		(at 25.4 91.44 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "6fda022b-4663-4408-94c7-229fe4c53caa")
+	)
+	(hierarchical_label "STROB"
+		(shape input)
+		(at 25.4 76.2 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "7a8db0c3-5df2-46ee-a04a-5e4af0d870dd")
+	)
+	(hierarchical_label "GND"
+		(shape passive)
+		(at 25.4 96.52 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "80bdea1e-ee40-4d4c-ad36-e4a014e92bd9")
+	)
+	(hierarchical_label "FRAM_PICO"
+		(shape input)
+		(at 25.4 45.72 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "bc956b2f-e4c4-4353-b664-c4c30e4a5bb6")
+	)
+	(hierarchical_label "I2C_SDA"
+		(shape bidirectional)
+		(at 25.4 60.96 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "c52bf277-5a48-4f2b-908a-c2c7f00bb6c8")
+	)
+)

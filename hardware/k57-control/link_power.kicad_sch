@@ -1,1 +1,235 @@
-(kicad_sch (version 20250610) (generator "eeschema") (generator_version "10.0") (uuid "0e9de2bc-a649-44c6-ae71-697ccdb2b08d") (paper "A4") (title_block (title "K57 плата управления: Разъём к силовой плате") (date "2026-11-24") (rev "0.1 структура") (comment 1 "МК, питание, приёмники 230 В, интерфейсы") (comment 2 "Техзадание: docs/k57-power-stage-spec-RU.md")) (lib_symbols) (hierarchical_label "PWM1A" (shape input) (at 25.40 30.48 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "495226b9-7b74-4c69-95a8-811c72c95d5c")) (hierarchical_label "PWM1B" (shape input) (at 25.40 35.56 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "b897dcef-2305-405e-8082-4b90024fe1f4")) (hierarchical_label "PWM2A" (shape input) (at 25.40 40.64 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "820945a6-3031-4b98-b1f6-62d20e50e51d")) (hierarchical_label "PWM2B" (shape input) (at 25.40 45.72 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "8f58d11a-b092-4ee6-9535-7fa084f03ee8")) (hierarchical_label "DRV_EN" (shape input) (at 25.40 50.80 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "d6b50337-8d73-4d6b-97cd-e5c5053feb0a")) (hierarchical_label "PRECHARGE_EN" (shape input) (at 25.40 55.88 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "877fbf39-0224-4526-8f83-2683434d3929")) (hierarchical_label "CONTACTOR_EN" (shape input) (at 25.40 60.96 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "02a32492-e179-4924-812d-28ff4d262cb3")) (hierarchical_label "+12V" (shape passive) (at 25.40 66.04 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "599229e6-ef20-44ee-ae9b-7ad822d685ac")) (hierarchical_label "+3V3A" (shape passive) (at 25.40 71.12 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "26c0b8f0-496d-413d-8d54-31a4486b7fd5")) (hierarchical_label "VBIAS_1V65" (shape passive) (at 25.40 76.20 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "62ca9588-7e0f-410f-ba08-d68aa171774a")) (hierarchical_label "VREF_3V3" (shape passive) (at 25.40 81.28 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "01f6736c-703b-4c24-a913-81f48e732fea")) (hierarchical_label "GND" (shape passive) (at 25.40 86.36 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "cdb41f2e-c85a-4658-9e19-7bb2342f68d1")) (hierarchical_label "IA_OUT" (shape output) (at 25.40 91.44 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "54ecc51d-ec42-4b42-ad5d-c3cdffdd9806")) (hierarchical_label "IBAT_OUT" (shape output) (at 25.40 96.52 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "de61348e-0120-493f-9885-682f71bad3a4")) (hierarchical_label "UBAT_OUT" (shape output) (at 25.40 101.60 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "05846c2e-7f75-4260-bbf3-95e8ebdeaa93")) (hierarchical_label "UBATT_OUT" (shape output) (at 25.40 106.68 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "4cc828e1-82c0-4680-9592-04a1d90d62c9")) (hierarchical_label "NTC_OUT" (shape output) (at 25.40 111.76 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "7568a657-3bdb-41d1-98ee-dbbc2b30828f")) (hierarchical_label "VBAT_RAW" (shape output) (at 25.40 116.84 180) (effects (font (size 1.27 1.27)  ) (justify right)) (uuid "e3371c17-3e1e-4a2f-b3d2-6ae3cfa4935e")) (text "Выводы листа (иерархические метки) — слева.\nСейчас лист пустой: это структура. Схема — следующим шагом." (exclude_from_sim no) (at 25.40 20.32 0) (effects (font (size 1.27 1.27)  ) (justify left top)) (uuid "75b8980a-ff1a-4e48-bc68-2b05726cc9b0")) (text "РАЗЪЁМ К СИЛОВОЙ ПЛАТЕ (k57-power, лист \"Разъём к плате управления\")\n\nСписок цепей обязан совпадать с ответным листом на силовой плате.\n\n- Аналоговые сигналы - в парах с GND.\n- VBAT_RAW (до 60 В) - отдельным разъёмом.\n- [?] Тип разъёма - при компоновке." (exclude_from_sim no) (at 106.68 30.48 0) (effects (font (size 1.27 1.27)  ) (justify left top)) (uuid "3c905a67-97c7-46d9-8dd6-213a045119a4")) (embedded_fonts no))
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "0e9de2bc-a649-44c6-ae71-697ccdb2b08d")
+	(paper "A4")
+	(title_block
+		(title "K57 плата управления: Разъём к силовой плате")
+		(date "2026-11-24")
+		(rev "0.1 структура")
+		(comment 1 "МК, питание, приёмники 230 В, интерфейсы")
+		(comment 2 "Техзадание: docs/k57-power-stage-spec-RU.md")
+	)
+	(lib_symbols)
+	(text "РАЗЪЁМ К СИЛОВОЙ ПЛАТЕ (k57-power, лист \"Разъём к плате управления\")\n\nСписок цепей обязан совпадать с ответным листом на силовой плате.\n\n- Аналоговые сигналы - в парах с GND.\n- VBAT_RAW (до 60 В) - отдельным разъёмом.\n- [?] Тип разъёма - при компоновке."
+		(exclude_from_sim no)
+		(at 106.68 30.48 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "3c905a67-97c7-46d9-8dd6-213a045119a4")
+	)
+	(text "Выводы листа (иерархические метки) — слева.\nСейчас лист пустой: это структура. Схема — следующим шагом."
+		(exclude_from_sim no)
+		(at 25.4 20.32 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "75b8980a-ff1a-4e48-bc68-2b05726cc9b0")
+	)
+	(hierarchical_label "VREF_3V3"
+		(shape passive)
+		(at 25.4 81.28 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "01f6736c-703b-4c24-a913-81f48e732fea")
+	)
+	(hierarchical_label "CONTACTOR_EN"
+		(shape input)
+		(at 25.4 60.96 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "02a32492-e179-4924-812d-28ff4d262cb3")
+	)
+	(hierarchical_label "UBAT_OUT"
+		(shape output)
+		(at 25.4 101.6 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "05846c2e-7f75-4260-bbf3-95e8ebdeaa93")
+	)
+	(hierarchical_label "+3V3A"
+		(shape passive)
+		(at 25.4 71.12 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "26c0b8f0-496d-413d-8d54-31a4486b7fd5")
+	)
+	(hierarchical_label "PWM1A"
+		(shape input)
+		(at 25.4 30.48 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "495226b9-7b74-4c69-95a8-811c72c95d5c")
+	)
+	(hierarchical_label "UBATT_OUT"
+		(shape output)
+		(at 25.4 106.68 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "4cc828e1-82c0-4680-9592-04a1d90d62c9")
+	)
+	(hierarchical_label "IA_OUT"
+		(shape output)
+		(at 25.4 91.44 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "54ecc51d-ec42-4b42-ad5d-c3cdffdd9806")
+	)
+	(hierarchical_label "+12V"
+		(shape passive)
+		(at 25.4 66.04 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "599229e6-ef20-44ee-ae9b-7ad822d685ac")
+	)
+	(hierarchical_label "VBIAS_1V65"
+		(shape passive)
+		(at 25.4 76.2 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "62ca9588-7e0f-410f-ba08-d68aa171774a")
+	)
+	(hierarchical_label "NTC_OUT"
+		(shape output)
+		(at 25.4 111.76 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "7568a657-3bdb-41d1-98ee-dbbc2b30828f")
+	)
+	(hierarchical_label "PWM2A"
+		(shape input)
+		(at 25.4 40.64 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "820945a6-3031-4b98-b1f6-62d20e50e51d")
+	)
+	(hierarchical_label "PRECHARGE_EN"
+		(shape input)
+		(at 25.4 55.88 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "877fbf39-0224-4526-8f83-2683434d3929")
+	)
+	(hierarchical_label "PWM2B"
+		(shape input)
+		(at 25.4 45.72 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "8f58d11a-b092-4ee6-9535-7fa084f03ee8")
+	)
+	(hierarchical_label "PWM1B"
+		(shape input)
+		(at 25.4 35.56 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "b897dcef-2305-405e-8082-4b90024fe1f4")
+	)
+	(hierarchical_label "GND"
+		(shape passive)
+		(at 25.4 86.36 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "cdb41f2e-c85a-4658-9e19-7bb2342f68d1")
+	)
+	(hierarchical_label "DRV_EN"
+		(shape input)
+		(at 25.4 50.8 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "d6b50337-8d73-4d6b-97cd-e5c5053feb0a")
+	)
+	(hierarchical_label "IBAT_OUT"
+		(shape output)
+		(at 25.4 96.52 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "de61348e-0120-493f-9885-682f71bad3a4")
+	)
+	(hierarchical_label "VBAT_RAW"
+		(shape output)
+		(at 25.4 116.84 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "e3371c17-3e1e-4a2f-b3d2-6ae3cfa4935e")
+	)
+)
