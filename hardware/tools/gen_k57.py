@@ -4,6 +4,14 @@
 import os, sys, uuid, json, shutil
 
 OUT = sys.argv[1]
+
+# Защита: структура пишется только в пустые проекты. Если хоть на одном листе
+# уже есть компоненты - остановиться, иначе нарисованная схема пропадёт.
+for _dp, _dn, _fn in os.walk(OUT):
+    for _f in _fn:
+        if _f.endswith(".kicad_sch") and "(lib_id" in open(os.path.join(_dp, _f), encoding="utf-8").read():
+            raise SystemExit("СТОП: в " + os.path.join(_dp, _f) + " уже нарисована схема. "
+                             "Генератор структуры её сотрёт - не запускаю.")
 TEMPLATE_PRO = sys.argv[2]
 DATE = "2026-11-24"
 REV = "0.1 структура"

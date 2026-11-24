@@ -1,5 +1,33 @@
 # Мини-библиотека: чтение/запись S-выражений KiCad и сборка листа схемы.
-import re, uuid, copy, os
+import re, uuid, copy, os, json, hashlib
+
+# Отпечатки листов, которые записал скрипт. Если лист с тех пор поменяли
+# (например, поправили в KiCad), скрипт его не тронет.
+HASHES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "generated-hashes.json")
+
+def _digest(path):
+    return hashlib.sha256(open(path, "rb").read()).hexdigest()
+
+def _load():
+    try:
+        return json.load(open(HASHES, encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+
+def guard(path):
+    """Остановиться, если лист правили руками после прошлой генерации."""
+    if not os.path.exists(path):
+        return
+    key = os.path.basename(os.path.dirname(path)) + "/" + os.path.basename(path)
+    known = _load().get(key)
+    if known != _digest(path):
+        raise SystemExit("СТОП: лист " + key + " менялся после генерации (или записан не этим скриптом). "
+                         "Перезаписывать не буду, чтобы не стереть правки.")
+
+def remember(path):
+    key = os.path.basename(os.path.dirname(path)) + "/" + os.path.basename(path)
+    h = _load(); h[key] = _digest(path)
+    json.dump(h, open(HASHES, "w", encoding="utf-8"), indent=1, ensure_ascii=False, sort_keys=True)
 
 class Q(str):
     """Строка, которую при записи нужно взять в кавычки."""
@@ -193,5 +221,7 @@ class Sheet:
               ["comment", 1, Q(comment)], ["comment", 2, Q("Техзадание: docs/k57-power-stage-spec-RU.md")]]
         root = ["kicad_sch", ["version", 20250610], ["generator", Q("eeschema")], ["generator_version", Q("10.0")],
                 ["uuid", Q(sheet_uuid)], ["paper", Q(self.paper)], tb, ["lib_symbols"] + libsyms] + self.items + [["embedded_fonts", "no"]]
+        guard(fname)
         with open(fname, "w", encoding="utf-8") as f:
             f.write(dump(root))
+        remember(fname)

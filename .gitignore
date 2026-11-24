@@ -114,3 +114,6 @@ fp-info-cache
 ~*.lck
 *.lck
 _autosave-*
+
+# Python
+__pycache__/
