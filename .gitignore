@@ -119,3 +119,6 @@ _autosave-*
 __pycache__/
 # локальная история правок KiCad 10
 .history/
+# отчёты проверки kicad-cli
+*-erc.rpt
+*-drc.rpt
