@@ -155,6 +155,39 @@ class Sheet:
         self.items.append(["wire", ["pts", ["xy", round(x1, 3), round(y1, 3)], ["xy", round(x2, 3), round(y2, 3)]],
                            ["stroke", ["width", 0], ["type", "default"]], ["uuid", Q(U())]])
 
+    def junction(self, x, y):
+        self.items.append(["junction", ["at", round(x, 3), round(y, 3)], ["diameter", 0],
+                           ["color", 0, 0, 0, 0], ["uuid", Q(U())]])
+
+    def pin_xy(self, lib_id, x, y, ang, num, unit=None):
+        """Координаты конца вывода символа, поставленного в (x, y) с поворотом ang."""
+        px, py, pa = pins_of(self.libs[lib_id], unit)[str(num)]
+        dx, dy = rot(px, py, ang)
+        return x + dx, y - dy
+
+    def bus_power(self, name, points, side, offset=5.08, tail=0.0):
+        """Соединить выводы points (концы выводов) коротким отводом вбок и общей
+        вертикальной шиной, на конце шины - один символ питания.
+        side: -1 - шина левее выводов, +1 - правее; tail - доп. отвод шины вбок."""
+        xs = points[0][0] + side * offset
+        pts = sorted(points, key=lambda p: p[1])
+        for (x, y) in pts:
+            self.wire(x, y, xs, y)
+        for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+            self.wire(xs, y1, xs, y2)
+        for (x, y) in pts[1:-1]:
+            self.junction(xs, y)
+        if name == "GND":
+            ex, ey = xs, pts[-1][1]
+        else:
+            ex, ey = xs, pts[0][1]
+        if len(pts) > 1:
+            self.junction(ex, ey)
+        if tail:
+            self.wire(ex, ey, ex + side * tail, ey)
+            ex = ex + side * tail
+        self.power(name, ex, ey, 270 if name == "GND" else 90)
+
     def noconnect(self, x, y):
         self.items.append(["no_connect", ["at", round(x, 3), round(y, 3)], ["uuid", Q(U())]])
 

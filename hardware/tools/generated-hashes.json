@@ -11,5 +11,7 @@
  "k57-power/bridge.kicad_sch": "5f864dfd90d8a5a275dc6bf881397d9eb08d0f8c44eb5f4ac5de7ef44710a249",
  "k57-power/dc_link.kicad_sch": "8348b0f97d60f7678cedeba6a7f3453ca00504b739fba7fd1d7a627f5cda64ed",
  "k57-power/drivers.kicad_sch": "b1871160fbdba99a9e4deb08b5939ecff3b879b0f562cca9605a93cd8ca256dc",
+ "k57-power/k57-power.kicad_sch": "4b25534b9549a1f9ed9f1a47ff98cdfafde51145766d7693c1ee6a35985883ef",
+ "k57-power/link_ctrl.kicad_sch": "ed95646a7ed8b6f70fcb0fcecf77bd6b75c3f9cc162fdbf59128b817f6edadce",
  "k57-power/meas_48v.kicad_sch": "1d22f2b669bdc48853aa670a52106053535cf0fed7bcf562f221f509cf399619"
 }
