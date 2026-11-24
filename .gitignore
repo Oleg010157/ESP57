@@ -104,3 +104,13 @@ bin/Wscope/WScopeE.ini
 # Адрес выдаёт роутер, у каждой сети свой.
 /bin/Debug/link.ini
 /bin/Release/link.ini
+
+# === KiCad (hardware/) ===
+# Резервные копии, кэш и личные настройки окна - не часть проекта.
+*-backups/
+*.kicad_prl
+fp-info-cache
+\#auto_saved_files\#
+~*.lck
+*.lck
+_autosave-*
