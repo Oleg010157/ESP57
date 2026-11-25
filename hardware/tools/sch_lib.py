@@ -128,9 +128,11 @@ def upsert_lib(path, symbols):
         tree = parse(open(path, encoding="utf-8").read())[0]
     else:
         tree = ["kicad_symbol_lib", ["version", 20241209], ["generator", Q("k57")], ["generator_version", Q("10.0")]]
-    names = {str(s[1]) for s in symbols}
-    tree[:] = [e for e in tree if not (isinstance(e, list) and e and e[0] == "symbol" and str(e[1]) in names)]
-    tree.extend(symbols)
+    new = {str(s[1]): s for s in symbols}
+    for i, e in enumerate(tree):                 # замена на том же месте: порядок в файле не прыгает
+        if isinstance(e, list) and e and e[0] == "symbol" and str(e[1]) in new:
+            tree[i] = new.pop(str(e[1]))
+    tree.extend(new.values())
     with open(path, "w", encoding="utf-8") as f:
         f.write(dump(tree))
 
@@ -235,11 +237,11 @@ class Sheet:
         pins = pins_of(sym, unit if multi else None)
         props = [
             ["property", Q("Reference"), Q(ref), ["at", round((fields or {}).get("ref", (x + 3.81, y - 1.27))[0], 2),
-             round((fields or {}).get("ref", (x + 3.81, y - 1.27))[1], 2), 0]]
+             round((fields or {}).get("ref", (x + 3.81, y - 1.27))[1], 2), (360 - int(ang)) % 360]]
             + ([["hide", "yes"]] if ref.startswith("#") else [])          # #FLG, #PWR - служебные, не показываем
             + [["effects",self._font()] + ([] if (fields or {}).get("just") == "center" else [["justify", (fields or {}).get("just", "left")]])],
             ["property", Q("Value"), Q(value), ["at", round((fields or {}).get("val", (x + 3.81, y + 1.27))[0], 2),
-             round((fields or {}).get("val", (x + 3.81, y + 1.27))[1], 2), 0],
+             round((fields or {}).get("val", (x + 3.81, y + 1.27))[1], 2), (360 - int(ang)) % 360],
              ["effects", self._font()] + ([] if (fields or {}).get("just") == "center" else [["justify", (fields or {}).get("just", "left")]])],
             ["property", Q("Footprint"), Q(fp), ["at", x, y, 0], ["hide", "yes"], ["effects", self._font()]],
             ["property", Q("Datasheet"), Q(""), ["at", x, y, 0], ["hide", "yes"], ["effects", self._font()]],

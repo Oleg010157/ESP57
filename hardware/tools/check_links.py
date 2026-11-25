@@ -8,7 +8,8 @@ HW = sys.argv[1]
 CLI = r"C:\Program Files\KiCad\10.0\bin\kicad-cli.exe"
 # (плата, разъём) <-> (плата, разъём)
 PAIRS = [(("k57-power", "J601"), ("k57-control", "J501")),
-         (("k57-power", "J602"), ("k57-control", "J502"))]
+         (("k57-power", "J602"), ("k57-control", "J502")),
+         (("k57-ac", "J401"), ("k57-control", "J801"))]
 
 def pin_nets(board):
     out = os.path.join(tempfile.gettempdir(), f"k57_{board}.net")

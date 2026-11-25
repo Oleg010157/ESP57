@@ -16,6 +16,14 @@ assert sorted(POWER_LINK) == list(range(1, 41))
 # Питание платы управления от АКБ: силовая J602 <-> управления J502, 2 контакта
 VBAT_LINK = {1: "VBAT_RAW", 2: "GND"}
 
+# Шлейф «плата 230 В J401 <-> плата управления J801», IDC 2x8, прямой кабель.
+# На плоском кабеле провода идут подряд по номерам: каждая дифференциальная пара - два соседних
+# провода (2-3, 5-6, 8-9), между парами и вокруг них - земля.
+AC_LINK = {1: "GND", 2: "IB_P", 3: "IB_N", 4: "GND", 5: "U220_P", 6: "U220_N", 7: "GND",
+           8: "USEC_P", 9: "USEC_N", 10: "GND", 11: "GRID_CONT_EN", 12: "GND",
+           13: "+3V3A", 14: "GND", 15: "+12V", 16: "+12V"}
+assert sorted(AC_LINK) == list(range(1, 17))
+
 POWER_NETS = ("GND", "+12V", "+5V", "+3V3")
 
 def place_idc(sh, conn_lib, ref, value, fp, cx, cy, pinmap, fields=None):
@@ -33,4 +41,5 @@ def place_idc(sh, conn_lib, ref, value, fp, cx, cy, pinmap, fields=None):
     sh.place(conn_lib, ref, value, fp, cx, cy, nets=nets, fields=fields)
     for (net, odd), pins in sorted(groups.items()):
         pts = [sh.pin_xy(conn_lib, cx, cy, 0, p) for p in pins]
-        sh.bus_power(net, pts, -1 if odd else +1, tail=27.94 if (odd and net == "GND") else 0.0)
+        # нечётная сторона: шины уводим влево - подальше от меток соседних контактов
+        sh.bus_power(net, pts, -1 if odd else +1, tail=(27.94 if net == "GND" else 12.7) if odd else 0.0)

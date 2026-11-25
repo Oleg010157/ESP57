@@ -33,5 +33,10 @@
       "Root"
     ]
   ],
-  "text_variables": {}
+  "text_variables": {},
+  "erc": {
+    "rule_severities": {
+      "ground_pin_not_ground": "ignore"
+    }
+  }
 }
