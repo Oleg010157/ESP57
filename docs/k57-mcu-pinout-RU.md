@@ -87,7 +87,7 @@ VDDA — 34, VSSA — 33.
 | GRID_CONT_EN — сетевой контактор | GPIO59 | 92 | выход | [!] новый |
 | CAN_TX | GPIO4 | 75 | MCANA_TX | так же |
 | CAN_RX | GPIO5 | 89 | MCANA_RX | так же |
-| SPI_PICO → ESP32-S3 | GPIO8 | 74 | SPIA_PICO | так же |
+| SPI_PICO → ESP32-S3 | GPIO8 | 74 | SPIA_PICO, через 33 Ом у вывода (R36): GPIO8 — вывод рядом с PMM, выброс в минус на нём может сбросить МК (SPRSP85D, Table 6-3) | так же |
 | SPI_CLK → ESP32-S3 | GPIO9 | 90 | SPIA_CLK | так же |
 | SPI_POCI ← ESP32-S3 | GPIO10 | 93 | SPIA_POCI | так же |
 | SPI_CS → ESP32-S3 | GPIO11 | 52 | выход (программный CS) | так же |
