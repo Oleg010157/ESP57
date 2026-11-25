@@ -44,24 +44,12 @@ for net, shape in [("IA_OUT", "input"), ("IBAT_OUT", "input"), ("UBAT_OUT", "inp
         sh.label(net, 27.94, y, 0)
     y += 7.62
 
-# Распиновка 2x20: нечётные - сигналы, чётные - земля. На плоском шлейфе провода идут
-# 1, 2, 3, 4...: каждый сигнал оказывается между двумя проводами земли.
-PINS = {9: "PWM1A", 11: "PWM1B", 13: "PWM2A", 15: "PWM2B",
-        17: "DRV_EN", 19: "PRECHARGE_EN", 21: "CONTACTOR_EN",
-        23: "IA_OUT", 25: "IBAT_OUT", 27: "UBAT_OUT", 29: "UBATT_OUT", 31: "NTC_OUT",
-        33: "+3V3A", 35: "VBIAS_1V5", 37: "VREF_3V0", 39: "!NC", 40: "!NC"}
+# Распиновка - общая для обеих плат: k57_links.POWER_LINK
+from k57_links import POWER_LINK, place_idc
 CONN = "Connector_Generic:Conn_02x20_Odd_Even"
 CX, CY = 177.8, 101.6
-sh.place(CONN, "J601", "К плате управления (IDC 2x20)",
-         "Connector_IDC:IDC-Header_2x20_P2.54mm_Vertical", CX, CY,
-         nets={str(k): v for k, v in PINS.items()},
-         fields={"ref": (CX, 45.72), "val": (CX, 48.26), "just": "center"})
-P = lambda n: sh.pin_xy(CONN, CX, CY, 0, n)
-# питание и земля разъёма - короткие отводы в общую шину, по одному символу на шину
-sh.bus_power("+12V", [P(1), P(3)], -1)
-sh.bus_power("+12V", [P(2), P(4)], +1)
-sh.bus_power("GND", [P(5), P(7)], -1, tail=27.94)
-sh.bus_power("GND", [P(n) for n in range(6, 39, 2)], +1)
+place_idc(sh, CONN, "J601", "К плате управления (IDC 2x20)", "Connector_IDC:IDC-Header_2x20_P2.54mm_Vertical",
+          CX, CY, POWER_LINK, fields={"ref": (CX, 45.72), "val": (CX, 48.26), "just": "center"})
 # питание платы управления от АКБ - отдельный разъём, подальше от сигналов 3,3 В
 sh.place("Connector:Screw_Terminal_01x02", "J602", "VBAT_RAW к плате управления",
          "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal", 297.18, 76.2,
