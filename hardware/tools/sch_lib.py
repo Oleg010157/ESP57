@@ -200,7 +200,7 @@ class Sheet:
             ex = ex + side * tail
         self.power(name, ex, ey, 270 if name == "GND" else 90)
 
-    def hbus(self, points, net, up=True):
+    def hbus(self, points, net, up=True, label_at="left"):
         """Выводы, смотрящие вверх (или вниз), соединить горизонтальным проводником
         на 2,54 мм выше (ниже) концов; на левом конце - символ питания или метка."""
         dy = -2.54 if up else 2.54
@@ -211,10 +211,11 @@ class Sheet:
         self.wire(pts[0][0], y, pts[-1][0], y)
         for (x, yy) in pts[1:-1]:
             self.junction(x, y)
+        ex = pts[0][0] if label_at == "left" else pts[-1][0]
         if net.startswith("@"):
-            self.power(net[1:], pts[0][0], y, 90 if up else 270)
+            self.power(net[1:], ex, y, 90 if up else 270)
         else:
-            self.label(net, pts[0][0], y, 90 if up else 270)
+            self.label(net, ex, y, 90 if up else 270)
 
     def noconnect(self, x, y):
         self.items.append(["no_connect", ["at", round(x, 3), round(y, 3)], ["uuid", Q(U())]])
@@ -234,8 +235,9 @@ class Sheet:
         pins = pins_of(sym, unit if multi else None)
         props = [
             ["property", Q("Reference"), Q(ref), ["at", round((fields or {}).get("ref", (x + 3.81, y - 1.27))[0], 2),
-             round((fields or {}).get("ref", (x + 3.81, y - 1.27))[1], 2), 0],
-             ["effects", self._font()] + ([] if (fields or {}).get("just") == "center" else [["justify", (fields or {}).get("just", "left")]])],
+             round((fields or {}).get("ref", (x + 3.81, y - 1.27))[1], 2), 0]]
+            + ([["hide", "yes"]] if ref.startswith("#") else [])          # #FLG, #PWR - служебные, не показываем
+            + [["effects",self._font()] + ([] if (fields or {}).get("just") == "center" else [["justify", (fields or {}).get("just", "left")]])],
             ["property", Q("Value"), Q(value), ["at", round((fields or {}).get("val", (x + 3.81, y + 1.27))[0], 2),
              round((fields or {}).get("val", (x + 3.81, y + 1.27))[1], 2), 0],
              ["effects", self._font()] + ([] if (fields or {}).get("just") == "center" else [["justify", (fields or {}).get("just", "left")]])],
@@ -251,6 +253,8 @@ class Sheet:
         inst.append(["instances", ["project", Q(self.project),
                      ["path", Q(self.path), ["reference", Q(ref)], ["unit", unit]]]])
         self.items.append(inst)
+        nums_shown = not any(len(p) > 1 and (p[1] == "hide" or p[1] == ["hide", "yes"])
+                             for p in find(sym, "pin_numbers"))
         for n, net in (nets or {}).items():
             if net is None:                       # вывод соединяется отдельно (проводником)
                 continue
@@ -264,6 +268,11 @@ class Sheet:
                 self.power(net[1:], wx, wy, out)
             else:
                 lab_ang = {0: 0, 90: 90, 180: 180, 270: 270}[int(out)]
+                if nums_shown:
+                    # номер вывода виден - метку отодвигаем проводником 2,54 мм, иначе «20VISO»
+                    sx, sy = {0: (2.54, 0), 180: (-2.54, 0), 90: (0, -2.54), 270: (0, 2.54)}[int(out)]
+                    self.wire(wx, wy, wx + sx, wy + sy)
+                    wx, wy = wx + sx, wy + sy
                 self.label(net, wx, wy, lab_ang)
 
     def power(self, name, x, y, out_dir=270):
@@ -302,3 +311,35 @@ class Sheet:
         with open(fname, "w", encoding="utf-8") as f:
             f.write(dump(root))
         remember(fname)
+
+
+# ---------------------------------------------------------------- общие приёмы расстановки
+HIER_X = 40.64      # иерархические метки: правый край; длинные имена не выходят за рамку листа
+
+def hier_block(sh, specs, power_nets, x=HIER_X, y0=30.48, step=7.62):
+    """Иерархические метки столбиком; каждая коротким проводником к локальной метке
+    или к символу питания. Порядок строк: сигналы, плюсовые шины (стрелка и подпись - вверх),
+    земля последней (символ и подпись - вниз): так подписи соседних строк не сталкиваются."""
+    rank = lambda s: 2 if s[0] == "GND" else (1 if s[0] in power_nets else 0)
+    specs = sorted(specs, key=rank)          # sorted устойчива: внутри группы порядок сохраняется
+    y = y0
+    for net, shape in specs:
+        sh.hlabel(net, shape, x, y)
+        if net in power_nets:
+            sh.wire(x, y, x + 15.24, y)
+            sh.power(net, x + 15.24, y, 270 if net == "GND" else 90)
+        else:
+            sh.wire(x, y, x + 7.62, y)
+            sh.label(net, x + 7.62, y, 0)
+        y += step
+
+def flag(sh, net, x, y, ref):
+    """Флажок питания: символ PWR_FLAG, под ним проводник 5,08 мм и символ питания или метка.
+    Подписи флажка - над ним, подпись цепи - под проводником: друг на друга не налезают."""
+    sh.place("power:PWR_FLAG", ref, "PWR_FLAG", "", x, y, nets={"1": None},
+             fields={"ref": (x, y - 8.89), "val": (x, y - 6.35), "just": "center"})
+    sh.wire(x, y, x, y + 5.08)
+    if net.startswith("@"):
+        sh.power(net[1:], x, y + 5.08, 270)
+    else:
+        sh.label(net, x, y + 5.08, 270)

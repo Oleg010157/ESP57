@@ -76,17 +76,10 @@ def new_sheet(fname):
     sh.add_lib("power:+12V", std("power", "+12V"))
     return sh
 
-def hier_block(sh, specs, x=20.32, y0=30.48, step=7.62):
+import sch_lib
+def hier_block(sh, specs):
     """Иерархические метки слева; каждая проводком к локальной метке или символу питания."""
-    y = y0
-    for net, shape in specs:
-        sh.hlabel(net, shape, x, y)
-        sh.wire(x, y, x + 7.62, y)
-        if net in ("GND", "+12V"):
-            sh.power(net, x + 7.62, y, 270 if net == "GND" else 90)
-        else:
-            sh.label(net, x + 7.62, y, 0)
-        y += step
+    sch_lib.hier_block(sh, specs, ("GND", "+12V"))
 
 R0603, R1206 = "Resistor_SMD:R_0603_1608Metric", "Resistor_SMD:R_1206_3216Metric"
 C0603, C0805, C1206, C1210 = ("Capacitor_SMD:C_0603_1608Metric", "Capacitor_SMD:C_0805_2012Metric",

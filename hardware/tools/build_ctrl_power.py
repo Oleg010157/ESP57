@@ -47,15 +47,7 @@ for lid, sym in {"Device:R": lib("Device", "R"), "Device:C": lib("Device", "C"),
 upsert_lib(os.path.join(HW, "lib", "k57.kicad_sym"), [LM5013])
 
 POWER = {"GND", "+12V", "+5V", "+3V3"}
-y = 30.48
-for net, shape in HIER:
-    sh.hlabel(net, shape, 20.32, y)
-    sh.wire(20.32, y, 27.94, y)
-    if net in POWER:
-        sh.power(net, 27.94, y, 270 if net == "GND" else 90)
-    else:
-        sh.label(net, 27.94, y, 0)
-    y += 7.62
+hier_block(sh, HIER, POWER)
 
 R0603, R0805 = "Resistor_SMD:R_0603_1608Metric", "Resistor_SMD:R_0805_2012Metric"
 C0603, C0805, C1206, C1210 = ("Capacitor_SMD:C_0603_1608Metric", "Capacitor_SMD:C_0805_2012Metric",
@@ -63,7 +55,8 @@ C0603, C0805, C1206, C1210 = ("Capacitor_SMD:C_0603_1608Metric", "Capacitor_SMD:
 TP = "TestPoint:TestPoint_Loop_D2.50mm_Drill1.0mm"
 CEN = {"just": "center"}
 def fc(x, y):
-    return {"ref": (x, y - 13.97), "val": (x, y + 15.24), "just": "center"}
+    # обе подписи - над корпусом: под корпусом символы земли выводов GND/PAD
+    return {"ref": (x, y - 16.51), "val": (x, y - 13.97), "just": "center"}
 
 # ============ 1. VBAT_RAW (40-60 В) -> 12 В: LM5013, типовая схема TI 48 -> 12 В (SNVSCB3, рис. 9-1)
 X1, Y1 = 152.4, 81.28
@@ -74,14 +67,14 @@ sh.place("Diode:SMAJ60A", "D201", "SMBJ60A", "Diode_SMD:D_SMB", 63.5, 63.5, nets
          fields={"ref": (63.5, 58.42), "val": (63.5, 68.58), "just": "center"})
 sh.place("Device:C_Polarized", "C201", "47uF 100V", "Capacitor_SMD:CP_Elec_10x10.5", 83.82, 63.5,
          nets={"1": "VBAT_RAW", "2": "@GND"})
-sh.place("Device:C", "C202", "2.2uF 100V X7R", C1210, 99.06, 63.5, nets={"1": "VBAT_RAW", "2": "@GND"})
-sh.place("Device:C", "C203", "2.2uF 100V X7R", C1210, 114.3, 63.5, nets={"1": "VBAT_RAW", "2": "@GND"})
+sh.place("Device:C", "C202", "2.2uF 100V X7R", C1210, 101.6, 63.5, nets={"1": "VBAT_RAW", "2": "@GND"})
+sh.place("Device:C", "C203", "2.2uF 100V X7R", C1210, 121.92, 63.5, nets={"1": "VBAT_RAW", "2": "@GND"})
 sh.place("Device:R", "R201", "576k", R0805, 99.06, 99.06, nets={"1": "VBAT_RAW", "2": "EN_12V"})
 sh.place("Device:R", "R202", "30.1k", R0603, 99.06, 121.92, nets={"1": "EN_12V", "2": "@GND"})
 sh.place("Device:R", "R203", "100k", R0603, 119.38, 121.92, nets={"1": "RON_12V", "2": "@GND"})
 sh.place("Device:C", "C204", "2.2nF 50V X7R", C0603, 187.96, 53.34, nets={"1": "BST_12V", "2": "SW_12V"})
 sh.place("Device:D_Schottky", "D202", "SS510 (100V 5A)", "Diode_SMD:D_SMC", 205.74, 106.68,
-         nets={"1": "SW_12V", "2": "@GND"}, fields={"ref": (205.74, 101.6), "val": (205.74, 111.76), "just": "center"})
+         nets={"1": "SW_12V", "2": "@GND"}, fields={"ref": (205.74, 99.06), "val": (205.74, 101.6), "just": "center"})
 sh.place("Device:L", "L201", "33uH Isat>=4.5A", "Inductor_SMD:L_Bourns_SRP1038C_10.0x10.0mm", 220.98, 71.12,
          nets={"1": "SW_12V", "2": "@+12V"})
 sh.place("Device:R", "R204", "453k", R0603, 246.38, 99.06, nets={"1": "@+12V", "2": "FB_12V"})
@@ -126,7 +119,7 @@ sh.place("Device:C", "C223", "10uF 10V X7R", C0805, 373.38, 223.52, nets={"1": "
 sh.place("Device:FerriteBead_Small", "FB201", "600R@100MHz", "Inductor_SMD:L_0603_1608Metric", 342.9, 246.38,
          nets={"1": "@+3V3", "2": "+3V3A"})
 sh.place("Device:C", "C224", "10uF 10V X7R", C0805, 360.68, 259.08, nets={"1": "+3V3A", "2": "@GND"})
-sh.place("Device:C", "C225", "100nF", C0603, 373.38, 259.08, nets={"1": "+3V3A", "2": "@GND"})
+sh.place("Device:C", "C225", "100nF", C0603, 383.54, 259.08, nets={"1": "+3V3A", "2": "@GND"})
 X4, Y4 = 335.28, 81.28
 sh.place("Reference_Voltage:REF2030", "U204", "REF2030AIDDCR", "Package_TO_SOT_SMD:SOT-23-5", X4, Y4,
          nets={"4": "@+5V", "3": "@+5V", "2": "@GND", "5": "VREF_3V0", "1": "VBIAS_1V5"}, fields=fc(X4, Y4))
@@ -140,8 +133,7 @@ for i, (ref, net) in enumerate([("TP201", "@+12V"), ("TP202", "@+5V"), ("TP203",
     sh.place("Connector:TestPoint", ref, net.lstrip("@"), TP, 101.6 + i * 22.86, 279.4, nets={"1": net},
              fields={"ref": (101.6 + i * 22.86, 270.51), "val": (101.6 + i * 22.86, 273.05), "just": "center"})
 for i, net in enumerate(["@+12V", "@+5V", "+3V3A", "@GND", "VBAT_RAW"]):
-    sh.place("power:PWR_FLAG", f"#FLG2{i + 1:02d}", "PWR_FLAG", "", 289.56 + i * 17.78, 279.4, nets={"1": net},
-             fields={"ref": (289.56 + i * 17.78, 273.05), "val": (289.56 + i * 17.78, 275.59), "just": "center"})
+    flag(sh, net, 289.56 + i * 17.78, 276.86, f"#FLG2{i + 1:02d}")
 
 sh.text("ПИТАНИЕ ПЛАТЫ УПРАВЛЕНИЯ\n"
         "1) VBAT_RAW 40-60 В (с силовой платы, после предохранителя F301) -> 12 В: U201 LM5013 (100 В, 3,5 А).\n"

@@ -122,15 +122,7 @@ for lid, (lb, nm) in {"Device:R": ("Device", "R"), "Device:C": ("Device", "C"),
 sh.add_lib("k57:TMS320F28P550SJ9PZ", MCU)
 
 POWER = {"GND", "+3V3"}
-y = 30.48
-for net, shape in HIER:
-    sh.hlabel(net, shape, 20.32, y)
-    sh.wire(20.32, y, 27.94, y)
-    if net in POWER:
-        sh.power(net, 27.94, y, 270 if net == "GND" else 90)
-    else:
-        sh.label(net, 27.94, y, 0)
-    y += 6.35
+hier_block(sh, HIER, POWER)
 
 R0603, C0603, C0805 = "Resistor_SMD:R_0603_1608Metric", "Capacitor_SMD:C_0603_1608Metric", "Capacitor_SMD:C_0805_2012Metric"
 
@@ -219,7 +211,7 @@ sh.place("Connector_Generic:Conn_02x07_Odd_Even", "J1", "Отладка cJTAG (�
          "Connector_PinHeader_1.27mm:PinHeader_2x07_P1.27mm_Vertical", 469.9, 190.5,
          nets={"1": "!NC", "2": "TMS", "3": "@GND", "4": "TCK", "5": "@GND", "6": "!NC", "7": "!NC",
                "8": "!NC", "9": "@GND", "10": "DBG_RST", "11": "@GND", "12": "SCI_RX", "13": "@GND", "14": "SCI_TX"},
-         fields={"ref": (469.9, 177.8), "val": (469.9, 180.34), "just": "center"})
+         fields={"ref": (469.9, 172.72), "val": (469.9, 175.26), "just": "center"})
 sh.place("Device:R", "R35", "0", R0603, 431.8, 215.9, dnp=True, nets={"1": "DBG_RST", "2": "XRSn"})
 
 sh.text("МИКРОКОНТРОЛЛЕР U1 - TMS320F28P550SJ9, LQFP-100 (PZ)\n"

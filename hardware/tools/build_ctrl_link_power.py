@@ -34,15 +34,7 @@ for lid, sym in {"power:GND": lib("power", "GND"), "power:+12V": lib("power", "+
                  "Connector:Screw_Terminal_01x02": lib("Connector", "Screw_Terminal_01x02")}.items():
     sh.add_lib(lid, sym)
 
-y = 30.48
-for net, shape in HIER:
-    sh.hlabel(net, shape, 20.32, y)
-    sh.wire(20.32, y, 27.94, y)
-    if net in ("GND", "+12V"):
-        sh.power(net, 27.94, y, 270 if net == "GND" else 90)
-    else:
-        sh.label(net, 27.94, y, 0)
-    y += 7.62
+hier_block(sh, HIER, ("GND", "+12V"))
 
 CX, CY = 177.8, 101.6
 place_idc(sh, CONN, "J501", "К силовой плате (IDC 2x20)", "Connector_IDC:IDC-Header_2x20_P2.54mm_Vertical",

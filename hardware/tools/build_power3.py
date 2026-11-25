@@ -30,19 +30,11 @@ for lid, (lb, nm) in {"power:GND": ("power", "GND"), "power:+12V": ("power", "+1
                       "Connector:Screw_Terminal_01x02": ("Connector", "Screw_Terminal_01x02")}.items():
     sh.add_lib(lid, lib(lb, nm))
 
-y = 30.48
-for net, shape in [("IA_OUT", "input"), ("IBAT_OUT", "input"), ("UBAT_OUT", "input"), ("UBATT_OUT", "input"),
+hier_block(sh, [("IA_OUT", "input"), ("IBAT_OUT", "input"), ("UBAT_OUT", "input"), ("UBATT_OUT", "input"),
                    ("NTC_OUT", "input"), ("VBAT_RAW", "input"), ("GND", "passive"),
                    ("PWM1A", "output"), ("PWM1B", "output"), ("PWM2A", "output"), ("PWM2B", "output"),
                    ("DRV_EN", "output"), ("PRECHARGE_EN", "output"), ("CONTACTOR_EN", "output"),
-                   ("+12V", "passive"), ("+3V3A", "passive"), ("VBIAS_1V5", "passive"), ("VREF_3V0", "passive")]:
-    sh.hlabel(net, shape, 20.32, y)
-    sh.wire(20.32, y, 27.94, y)
-    if net in ("GND", "+12V"):
-        sh.power(net, 27.94, y, 270 if net == "GND" else 90)
-    else:
-        sh.label(net, 27.94, y, 0)
-    y += 7.62
+                   ("+12V", "passive"), ("+3V3A", "passive"), ("VBIAS_1V5", "passive"), ("VREF_3V0", "passive")], ("GND", "+12V"))
 
 # Распиновка - общая для обеих плат: k57_links.POWER_LINK
 from k57_links import POWER_LINK, place_idc
@@ -56,8 +48,7 @@ sh.place("Connector:Screw_Terminal_01x02", "J602", "VBAT_RAW к плате уп�
          nets={"1": "VBAT_RAW", "2": "@GND"})
 # Питание приходит с другой платы: флажки говорят проверке схемы, что цепи запитаны
 for i, net in enumerate(["@+12V", "@GND", "+3V3A", "VBIAS_1V5", "VREF_3V0"]):
-    sh.place("power:PWR_FLAG", f"#FLG{601 + i}", "PWR_FLAG", "", 284.48 + i * 17.78, 127.0, nets={"1": net},
-             fields={"ref": (284.48 + i * 17.78, 120.65), "val": (284.48 + i * 17.78, 123.19), "just": "center"})
+    flag(sh, net, 284.48 + i * 17.78, 124.46, f"#FLG{601 + i}")
 sh.text("РАЗЪЁМ К ПЛАТЕ УПРАВЛЕНИЯ (k57-control, лист \"Разъём к силовой плате\")\n"
         "J601 - IDC 2x20, шаг 2,54 мм, плоский шлейф. Нечётные контакты - сигналы, чётные - земля:\n"
         "  каждый сигнал на шлейфе идёт между двумя проводами земли.\n"

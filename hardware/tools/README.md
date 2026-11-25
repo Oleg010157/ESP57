@@ -25,12 +25,29 @@
 |---|---|
 | `gen_k57.py` | Структура (ревизия 0.1): три проекта, верхние листы с блоками, пустые листы с выводами |
 | `build_power.py` | Листы «Драйверы» и «Мост» платы k57-power, библиотека `hardware/lib/k57.kicad_sym`, файлы `sym-lib-table` |
+| `build_power2.py` | Листы «Подключение АКБ», «Звено», «Измерения 48 В» платы k57-power |
+| `build_power3.py` | Лист «Разъём к плате управления» платы k57-power |
+| `build_ctrl_mcu.py` | Символ МК F28P550 (все 100 выводов) и лист «МК» платы k57-control |
+| `build_ctrl_power.py` | Лист «Питание» платы k57-control |
+| `build_ctrl_esp.py` | Лист «ESP32-S3» |
+| `build_ctrl_if.py` | Лист «Интерфейсы» (CAN, FRAM, часы, контрольные точки) |
+| `build_ctrl_link_power.py` | Лист «Разъём к силовой плате» платы k57-control |
+| `k57_links.py` | Распиновка шлейфов между платами - одна на обе стороны |
 | `sch_lib.py` | Общая часть: чтение и запись файлов KiCad, расстановка символов, защита от перезаписи |
+
+Проверки (ничего не меняют, только сообщают):
+
+| Скрипт | Что проверяет |
+|---|---|
+| `check_links.py` | На ответных разъёмах двух плат - одни и те же цепи на каждом контакте |
+| `check_overlaps.py` | Надписи на листах не налезают друг на друга (через выгрузку в PDF) |
 
 Запуск (для Claude):
 
 ```
 python -I hardware/tools/build_power.py hardware "C:/Program Files/KiCad/10.0/share/kicad/symbols"
+python -I hardware/tools/check_links.py hardware
+python -I hardware/tools/check_overlaps.py <папка с pymupdf> hardware/k57-power/k57-power.kicad_sch v
 kicad-cli sch erc k57-power.kicad_sch
 kicad-cli sch export netlist k57-power.kicad_sch
 ```

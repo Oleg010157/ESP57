@@ -35,16 +35,10 @@ def new_sheet(fname, extra_libs):
         sh.add_lib(lid, lib(lb, nm))
     return sh
 
-def hier_block(sh, specs, x=20.32, y0=30.48, step=7.62):
-    y = y0
-    for net, shape in specs:
-        sh.hlabel(net, shape, x, y)
-        sh.wire(x, y, x + 7.62, y)
-        if net in ("GND", "+12V"):
-            sh.power(net, x + 7.62, y, 270 if net == "GND" else 90)
-        else:
-            sh.label(net, x + 7.62, y, 0)
-        y += step
+import sch_lib
+def hier_block(sh, specs):
+    """Иерархические метки слева; каждая проводком к локальной метке или символу питания."""
+    sch_lib.hier_block(sh, specs, ("GND", "+12V"))
 
 R0603, R0805, R1206, R2512 = ("Resistor_SMD:R_0603_1608Metric", "Resistor_SMD:R_0805_2012Metric",
                               "Resistor_SMD:R_1206_3216Metric", "Resistor_SMD:R_2512_6332Metric")
@@ -167,9 +161,16 @@ def current_channel(n, y, hi_net, lo_net, sense_p_side, out_net, title):
     sh.place("Device:C", f"C{n + 1}", "100nF", C0603, 167.64, y - 12.7, dnp=True,
              nets={"1": f"{title}_INP", "2": f"{title}_INN"})
     sh.place("Amplifier_Current:INA240A1PW", u, "INA240A1PW", "Package_SO:TSSOP-8_4.4x3mm_P0.65mm", 205.74, y,
-             nets={"2": f"{title}_INP", "3": f"{title}_INN", "1": "@GND", "4": "@GND", "5": "+3V3A",
-                   "6": "VBIAS_1V5", "7": "VBIAS_1V5", "8": f"{title}_AMP"},
+             nets={"2": f"{title}_INP", "3": f"{title}_INN", "1": None, "4": None, "5": "+3V3A",
+                   "6": None, "7": None, "8": f"{title}_AMP"},
              fields={"ref": (215.9, y - 8.89), "val": (215.9, y + 10.16), "just": "left"})
+    PI = lambda k: sh.pin_xy("Amplifier_Current:INA240A1PW", 205.74, y, 0, k)
+    # GND (1 и 4 - в одной точке) отводим влево, REF1/REF2 - перемычкой с меткой справа:
+    # три соседних вывода с шагом 2,54 мм иначе дают слипшиеся подписи
+    gx, gy = PI(4)
+    sh.wire(gx, gy, gx, gy + 2.54); sh.wire(gx, gy + 2.54, gx - 5.08, gy + 2.54)
+    sh.power("GND", gx - 5.08, gy + 2.54, 270)
+    sh.hbus([PI(6), PI(7)], "VBIAS_1V5", up=False, label_at="right")
     sh.place("Device:C", f"C{n + 2}", "100nF", C0603, 236.22, y - 15.24, nets={"1": "+3V3A", "2": "@GND"})
     sh.place("Device:C", f"C{n + 3}", "100nF", C0603, 254.0, y - 15.24, nets={"1": "VBIAS_1V5", "2": "@GND"})
     sh.place("Device:R", f"R{n + 4}", "47", R0603, 236.22, y + 10.16, nets={"1": f"{title}_AMP", "2": out_net})
@@ -181,8 +182,12 @@ sh.place("Mechanical:MountingHole_Pad", "J502", "BAT- АКБ", M8, 81.28, 142.24
 
 # делители напряжения и NTC + буферы TLV9064
 def divider(n, y, src, node):
-    sh.place("Device:R", f"R{n + 1}", "120k 0.1%", R1206, 299.72, y, nets={"1": src, "2": f"{node}_M"})
-    sh.place("Device:R", f"R{n + 2}", "120k 0.1%", R1206, 299.72, y + 25.4, nets={"1": f"{node}_M", "2": node})
+    sh.place("Device:R", f"R{n + 1}", "120k 0.1%", R1206, 299.72, y, nets={"1": src, "2": None})
+    sh.place("Device:R", f"R{n + 2}", "120k 0.1%", R1206, 299.72, y + 25.4, nets={"1": None, "2": node})
+    # средняя точка - проводником, метка поперёк (две вертикальные метки упирались друг в друга)
+    (xa, ya), (xb, yb) = sh.pin_xy("Device:R", 299.72, y, 0, 2), sh.pin_xy("Device:R", 299.72, y + 25.4, 0, 1)
+    sh.wire(xa, ya, xb, yb)
+    sh.label(f"{node}_M", xa, (ya + yb) / 2, 0)
     sh.place("Device:R", f"R{n + 3}", "10k 0.1%", R0603, 312.42, y + 43.18, nets={"1": node, "2": "@GND"})
     sh.place("Device:C", f"C{n + 1}", "4.7nF C0G", C0603, 327.66, y + 43.18, nets={"1": node, "2": "@GND"})
 
@@ -203,7 +208,10 @@ for unit, (inp, amp, out, y) in enumerate([("UBAT_DIV", "UBAT_BUF", "UBAT_OUT", 
     sh.place("Device:R", f"R5{unit + 1}4", "47", R0603, 383.54, y + 12.7, nets={"1": amp, "2": out})
 # секция D - не используется: повторитель с входом на земле
 sh.place(OPA, "U521", "TLV9064IPWR", OFP, 360.68, 223.52, unit=4,
-         fields={"ref": (360.68, 215.9), "val": (360.68, 231.14), "just": "center"}, nets={"12": "@GND", "13": "OPA_D", "14": "OPA_D"})
+         fields={"ref": (360.68, 215.9), "val": (360.68, 231.14), "just": "center"}, nets={"12": None, "13": "OPA_D", "14": "OPA_D"})
+gx, gy = sh.pin_xy(OPA, 360.68, 223.52, 0, 12, unit=4)     # земля входа - подальше от метки OPA_D
+sh.wire(gx, gy, gx - 12.7, gy)
+sh.power("GND", gx - 12.7, gy, 270)
 sh.place(OPA, "U521", "TLV9064IPWR", OFP, 386.08, 223.52, unit=5, nets={"4": "+3V3A", "11": "@GND"})
 sh.place("Device:C", "C551", "100nF", C0603, 403.86, 223.52, nets={"1": "+3V3A", "2": "@GND"})
 sh.text("ИЗМЕРЕНИЯ 48 В (техзадание 6.5)\n"

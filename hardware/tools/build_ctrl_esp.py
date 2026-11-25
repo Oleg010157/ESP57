@@ -37,15 +37,7 @@ for lid, sym in {"Device:R": lib("Device", "R"), "Device:C": lib("Device", "C"),
     sh.add_lib(lid, sym)
 
 POWER = {"GND", "+5V"}
-y = 30.48
-for net, shape in HIER:
-    sh.hlabel(net, shape, 20.32, y)
-    sh.wire(20.32, y, 27.94, y)
-    if net in POWER:
-        sh.power(net, 27.94, y, 270 if net == "GND" else 90)
-    else:
-        sh.label(net, 27.94, y, 0)
-    y += 7.62
+hier_block(sh, HIER, POWER)
 
 R0603, C0603, C0805, C1206 = ("Resistor_SMD:R_0603_1608Metric", "Capacitor_SMD:C_0603_1608Metric",
                               "Capacitor_SMD:C_0805_2012Metric", "Capacitor_SMD:C_1206_3216Metric")
@@ -76,13 +68,13 @@ sh.place("Device:C", "C304", "10uF 10V X7R", C0805, 251.46, 76.2, nets={"1": "+3
 sh.place("Device:C", "C305", "100nF", C0603, 266.7, 76.2, nets={"1": "+3V3_ESP", "2": "@GND"})
 # EN: 10 кОм + 1 мкФ (задержка запуска по рекомендации Espressif) и кнопка
 sh.place("Device:R", "R301", "10k", R0603, 162.56, 88.9, nets={"1": "+3V3_ESP", "2": "ESP_EN"})
-sh.place("Device:C", "C306", "1uF 16V", C0603, 162.56, 116.84, nets={"1": "ESP_EN", "2": "@GND"})
+sh.place("Device:C", "C306", "1uF 16V", C0603, 147.32, 116.84, nets={"1": "ESP_EN", "2": "@GND"})
 sh.place("Switch:SW_Push", "SW301", "EN (сброс ESP32)", "Button_Switch_SMD:SW_SPST_TL3342", 180.34, 116.84,
-         nets={"1": "ESP_EN", "2": "@GND"}, fields=fc(180.34, 116.84, -5.08, 5.08))
+         nets={"1": "ESP_EN", "2": "@GND"}, fields=fc(180.34, 116.84, -10.16, -7.62))
 # BOOT: GPIO0 на землю при включении - режим прошивки
 sh.place("Device:R", "R302", "10k", R0603, 147.32, 88.9, nets={"1": "+3V3_ESP", "2": "ESP_BOOT"})
 sh.place("Switch:SW_Push", "SW302", "BOOT", "Button_Switch_SMD:SW_SPST_TL3342", 180.34, 147.32,
-         nets={"1": "ESP_BOOT", "2": "@GND"}, fields=fc(180.34, 147.32, -5.08, 5.08))
+         nets={"1": "ESP_BOOT", "2": "@GND"}, fields=fc(180.34, 147.32, -10.16, -7.62))
 # SPI: подтяжка CS (ведомый не выбран, пока F28 стартует), 33 Ом на выходе MISO
 sh.place("Device:R", "R303", "10k", R0603, 147.32, 165.1, nets={"1": "+3V3_ESP", "2": "SPI_CS"})
 sh.place("Device:R", "R304", "33", R0603, 162.56, 190.5, nets={"1": "ESP_MISO", "2": "SPI_POCI"})
@@ -100,7 +92,7 @@ sh.place("Device:R", "R305", "5.1k", R0603, 373.38, 160.02, nets={"1": "CC1", "2
 sh.place("Device:R", "R306", "5.1k", R0603, 386.08, 160.02, nets={"1": "CC2", "2": "@GND"})
 sh.place("Power_Protection:USBLC6-2SC6", "U303", "USBLC6-2SC6", "Package_TO_SOT_SMD:SOT-23-6", 299.72, 172.72,
          nets={"1": "USB_C_DP", "6": "USB_DP", "3": "USB_C_DN", "4": "USB_DN", "2": "@GND", "5": "@+5V"},
-         fields=fc(299.72, 172.72, -10.16, 12.7))
+         fields={"ref": (303.53, 162.56), "val": (303.53, 165.1), "just": "left"})   # сбоку от +5V, не над ним
 
 sh.text("ESP32-S3 - МОСТ SPI <-> WiFi (техзадание 6.7.2)\n"
         "U302 ESP32-S3-WROOM-1-N8 (антенна на модуле). [?] -1U с разъёмом, если корпус металлический.\n"
