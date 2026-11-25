@@ -192,6 +192,9 @@ sh.place("Device:FerriteBead_Small", "FB1", "600R@100MHz", "Inductor_SMD:L_0603_
          nets={"1": "@+3V3", "2": "VDDA"})
 sh.place("power:PWR_FLAG", "#FLG01", "PWR_FLAG", "", CX + 10 * 20.32, CY - 7.62, nets={"1": "VDD_1V2"},
          fields={"ref": (CX + 203.2, CY - 13.97), "val": (CX + 203.2, CY - 11.43), "just": "center"})
+# VDDA питается через бусину (пассивный элемент) - флажок для проверки схемы
+sh.place("power:PWR_FLAG", "#FLG02", "PWR_FLAG", "", CX + 11 * 20.32, CY - 7.62, nets={"1": "VDDA"},
+         fields={"ref": (CX + 223.52, CY - 13.97), "val": (CX + 223.52, CY - 11.43), "just": "center"})
 
 # сброс: 2,2 кОм к 3,3 В, 100 нФ, кнопка
 sh.place("Device:R", "R31", "2.2k", R0603, 381.0, 63.5, nets={"1": "@+3V3", "2": "XRSn"})

@@ -1,11 +1,11 @@
 {
  "k57-control/ac_receivers.kicad_sch": "5000fe70398467f01387f79edd97b78de23390aa949176c5e92b8b755bd341e9",
  "k57-control/esp32.kicad_sch": "1ed10c1ade9daaf5568ab6226d9a97adbfd2c67e5ba567d6388ae2ed14eaeeba",
- "k57-control/interfaces.kicad_sch": "673c7cab0ce25495190c6d2d02aba98fd92db31ca0498affa3242f3384a6bcff",
+ "k57-control/interfaces.kicad_sch": "6bd16bd0a5260f49c037cec96a7a4e8789ea82a334fd3155e2a28ef24274d621",
  "k57-control/k57-control.kicad_sch": "c6ca664770da1ff596cba06c8bd114cefa863145f4012c47a1106a289e85ae82",
  "k57-control/link_ac.kicad_sch": "60779ca7041be223b6141b889446ffe392d2ed8a29054e2ab0e47093e42453ee",
  "k57-control/link_power.kicad_sch": "008e934e829f0879b8a817f882df54a2696c9cbfa9501c3d3537e246adbc31bb",
- "k57-control/mcu.kicad_sch": "dfb7a19eac637db800b287cb8ec09f64aae6cbbbfc005ab85baabbff2967cde3",
+ "k57-control/mcu.kicad_sch": "64ecea3b8ba5748ce030de4115fb78be4e0b2d2c33d6bb05cd315e0c730eef4a",
  "k57-control/power.kicad_sch": "ed8790fab7124b4e4aa71b8ef4b0bebc800ea35dcecba454be871efc2c99e11b",
  "k57-power/batt_link.kicad_sch": "c1e96691fee17629a8d36bcff9f18b6bcd084d557b2527bfd79fd1ab82c9c110",
  "k57-power/bridge.kicad_sch": "5f864dfd90d8a5a275dc6bf881397d9eb08d0f8c44eb5f4ac5de7ef44710a249",
