@@ -144,7 +144,7 @@ sh = new_sheet(F, {"Device:R_Shunt": ("Device", "R_Shunt"), "Amplifier_Current:I
                    "power:+3V3": ("power", "+3V3")})
 # своё питание аналоговой части: +3V3A приходит иерархической меткой
 hier_block(sh, [("PHASE_B", "passive"), ("DC_POS", "passive"), ("BAT_POS", "passive"), ("GND", "passive"),
-                ("+3V3A", "passive"), ("VBIAS_1V65", "passive"), ("VREF_3V3", "passive"),
+                ("+3V3A", "passive"), ("VBIAS_1V5", "passive"), ("VREF_3V0", "passive"),
                 ("IA_OUT", "output"), ("IBAT_OUT", "output"), ("UBAT_OUT", "output"),
                 ("UBATT_OUT", "output"), ("NTC_OUT", "output")])
 SHUNT_FP = ""   # [?] посадочное место шунта 5930 с четырёхпроводным подключением - создать по документации Bourns
@@ -168,10 +168,10 @@ def current_channel(n, y, hi_net, lo_net, sense_p_side, out_net, title):
              nets={"1": f"{title}_INP", "2": f"{title}_INN"})
     sh.place("Amplifier_Current:INA240A1PW", u, "INA240A1PW", "Package_SO:TSSOP-8_4.4x3mm_P0.65mm", 205.74, y,
              nets={"2": f"{title}_INP", "3": f"{title}_INN", "1": "@GND", "4": "@GND", "5": "+3V3A",
-                   "6": "VBIAS_1V65", "7": "VBIAS_1V65", "8": f"{title}_AMP"},
+                   "6": "VBIAS_1V5", "7": "VBIAS_1V5", "8": f"{title}_AMP"},
              fields={"ref": (215.9, y - 8.89), "val": (215.9, y + 10.16), "just": "left"})
     sh.place("Device:C", f"C{n + 2}", "100nF", C0603, 236.22, y - 15.24, nets={"1": "+3V3A", "2": "@GND"})
-    sh.place("Device:C", f"C{n + 3}", "100nF", C0603, 254.0, y - 15.24, nets={"1": "VBIAS_1V65", "2": "@GND"})
+    sh.place("Device:C", f"C{n + 3}", "100nF", C0603, 254.0, y - 15.24, nets={"1": "VBIAS_1V5", "2": "@GND"})
     sh.place("Device:R", f"R{n + 4}", "47", R0603, 236.22, y + 10.16, nets={"1": f"{title}_AMP", "2": out_net})
 
 current_channel(500, 50.8, "PHASE_B", "XFMR_B", 1, "IA_OUT", "IA")
@@ -188,7 +188,7 @@ def divider(n, y, src, node):
 
 divider(520, 38.1, "DC_POS", "UBAT_DIV")
 divider(530, 101.6, "BAT_POS", "UBATT_DIV")
-sh.place("Device:R", "R541", "10k 0.1%", R0603, 299.72, 167.64, nets={"1": "VREF_3V3", "2": "NTC_DIV"})
+sh.place("Device:R", "R541", "10k 0.1%", R0603, 299.72, 167.64, nets={"1": "VREF_3V0", "2": "NTC_DIV"})
 sh.place("Connector_Generic:Conn_01x02", "J503", "NTC радиатора 10k B3950", JST2, 284.48, 190.5,
          nets={"1": "NTC_DIV", "2": "@GND"})
 sh.place("Device:C", "C541", "100nF", C0603, 325.12, 182.88, nets={"1": "NTC_DIV", "2": "@GND"})
@@ -209,14 +209,14 @@ sh.place("Device:C", "C551", "100nF", C0603, 403.86, 223.52, nets={"1": "+3V3A",
 sh.text("ИЗМЕРЕНИЯ 48 В (техзадание 6.5)\n"
         "Ia: шунт R501 0,2 мОм между PHASE_B и клеммой трансформатора J501 (XFMR_B) + U501 INA240A1 (x20).\n"
         "iBat: шунт R511 между клеммой J502 (BAT-) и GND + U511 INA240A1. GND платы - минус звена.\n"
-        "  REF1/REF2 = VBIAS_1V65 от REF2033 на плате управления: нуль и шкала АЦП от одной опоры.\n"
-        "  Шкала +-250 А -> 1,65 +- 1,0 В. R502/R503 (0 Ом) и C501 (не запаивать) - место под фильтр.\n"
+        "  REF1/REF2 = VBIAS_1V5 от REF2030 на плате управления: нуль и шкала АЦП от одной опоры.\n"
+        "  Шкала +-250 А -> 1,5 +- 1,0 В. R502/R503 (0 Ом) и C501 (не запаивать) - место под фильтр.\n"
         "  Знак тока задаёт прошивка (gt.iSign); измерительные выводы шунтов - отдельными дорожками.\n"
         "  [?] Посадочное место шунта 5930 с четырёхпроводным подключением - создать.\n"
         "uBat (звено, после контактора) и uBatt (клеммы АКБ): 2 x 120 кОм + 10 кОм 0,1 %, 75 В -> 3,0 В,\n"
         "  4,7 нФ (~3,5 кГц) + повторитель U521 (TLV9064): сигнал по кабелю идёт с низким сопротивлением.\n"
         "  uBat идёт и на компаратор защиты от перенапряжения (CMPSS1 на плате управления).\n"
-        "NTC радиатора 10 кОм B3950 (J503): делитель от VREF_3V3, повторитель. Секция D U521 не используется.\n"
+        "NTC радиатора 10 кОм B3950 (J503): делитель от VREF_3V0, повторитель. Секция D U521 не используется.\n"
         "Выходы - через 47 Ом к разъёму; RC перед АЦП - на плате управления.", 81.28, 238.76)
 sh.write(os.path.join(PDIR, F), "K57 силовая плата: Измерения 48 В", COMMENT, file_uuid(F))
 print("ok")

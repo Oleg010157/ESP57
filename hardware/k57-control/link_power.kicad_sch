@@ -34,7 +34,7 @@
 		)
 		(uuid "75b8980a-ff1a-4e48-bc68-2b05726cc9b0")
 	)
-	(hierarchical_label "VREF_3V3"
+	(hierarchical_label "VREF_3V0"
 		(shape passive)
 		(at 25.4 81.28 180)
 		(effects
@@ -122,7 +122,7 @@
 		)
 		(uuid "599229e6-ef20-44ee-ae9b-7ad822d685ac")
 	)
-	(hierarchical_label "VBIAS_1V65"
+	(hierarchical_label "VBIAS_1V5"
 		(shape passive)
 		(at 25.4 76.2 180)
 		(effects

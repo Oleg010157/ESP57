@@ -103,7 +103,8 @@ ROOT = str(find(root, "uuid")[0][1])
 SHEET = {str([p[2] for p in find(sh, "property") if p[1] == "Sheetfile"][0]): str(find(sh, "uuid")[0][1])
          for sh in find(root, "sheet")}
 old = parse(open(os.path.join(PDIR, F), encoding="utf-8").read())[0]
-HIER = [(str(h[1]), str(find(h, "shape")[0][1])) for h in find(old, "hierarchical_label")]
+# +3V3A больше не вход листа МК: VDDA питается от того же 3,3 В, что VDDIO (рекомендация TI)
+HIER = [(str(h[1]), str(find(h, "shape")[0][1])) for h in find(old, "hierarchical_label") if str(h[1]) != "+3V3A"]
 FILE_UUID = str(find(old, "uuid")[0][1])
 
 def lib(libname, name):
@@ -115,7 +116,8 @@ for lid, (lb, nm) in {"Device:R": ("Device", "R"), "Device:C": ("Device", "C"),
                       "Connector_Generic:Conn_02x07_Odd_Even": ("Connector_Generic", "Conn_02x07_Odd_Even"),
                       "Connector_Generic:Conn_01x02": ("Connector_Generic", "Conn_01x02"),
                       "power:GND": ("power", "GND"), "power:+3V3": ("power", "+3V3"),
-                      "power:PWR_FLAG": ("power", "PWR_FLAG")}.items():
+                      "power:PWR_FLAG": ("power", "PWR_FLAG"),
+                      "Device:FerriteBead_Small": ("Device", "FerriteBead_Small")}.items():
     sh.add_lib(lid, lib(lb, nm))
 sh.add_lib("k57:TMS320F28P550SJ9PZ", MCU)
 
@@ -142,8 +144,8 @@ NET = {79: "PWM1A", 78: "PWM1B", 77: "PWM2A", 76: "PWM2B",
        69: "XTAL_X1", 68: "XTAL_X2",
        40: "IA_ADC", 39: "IB_ADC", 17: "IBAT_ADC", 14: "UBAT_ADC", 36: "UBATT_ADC",
        19: "U220_ADC", 22: "USEC_ADC", 28: "NTC_ADC", 23: "DACA",
-       24: "VREF_3V3", 25: "VREF_3V3", 26: "@GND", 27: "@GND",
-       3: "@+3V3", 70: "@+3V3", 88: "@+3V3", 34: "+3V3A", 4: "VDD_1V2", 71: "VDD_1V2", 87: "VDD_1V2",
+       24: "VREF_3V0", 25: "VREF_3V0", 26: "@GND", 27: "@GND",
+       3: "@+3V3", 70: "@+3V3", 88: "@+3V3", 34: "VDDA", 4: "VDD_1V2", 71: "VDD_1V2", 87: "VDD_1V2",
        5: "@GND", 45: "@GND", 72: "@GND", 86: "@GND", 33: "@GND", 73: "@GND",
        2: "XRSn", 62: "TMS", 60: "TCK", 63: "SCI_RX", 61: "SCI_TX",
        56: "BOOT_GPIO24", 64: "BOOT_GPIO32"}
@@ -179,12 +181,15 @@ sh.place("Device:R", "R36", "33", R0603, 330.2, 96.52, nets={"1": "SPI_PICO_MCU"
 CX, CY = 190.5, 330.2
 caps = [("C21", "100nF", C0603, "@+3V3"), ("C22", "100nF", C0603, "@+3V3"), ("C23", "100nF", C0603, "@+3V3"),
         ("C24", "10uF 10V X7R", C0805, "@+3V3"),
-        ("C25", "2.2uF 10V X7R", C0603, "+3V3A"), ("C26", "100nF", C0603, "+3V3A"),
-        ("C27", "2.2uF 10V X7R", C0603, "VREF_3V3"),
+        ("C25", "2.2uF 10V X7R", C0603, "VDDA"), ("C26", "100nF", C0603, "VDDA"),
+        ("C27", "2.2uF 10V X7R", C0603, "VREF_3V0"),
         ("C28", "4.7uF 10V X7R", C0805, "VDD_1V2"), ("C29", "4.7uF 10V X7R", C0805, "VDD_1V2"),
         ("C30", "4.7uF 10V X7R", C0805, "VDD_1V2")]
 for i, (ref, val, fp, net) in enumerate(caps):
     sh.place("Device:C", ref, val, fp, CX + i * 20.32, CY, nets={"1": net, "2": "@GND"})
+# VDDA - от того же 3,3 В, что VDDIO, через ферритовую бусину (SPRSP85D: 3,3-В шины - от одного источника)
+sh.place("Device:FerriteBead_Small", "FB1", "600R@100MHz", "Inductor_SMD:L_0603_1608Metric", CX + 101.6, CY - 20.32,
+         nets={"1": "@+3V3", "2": "VDDA"})
 sh.place("power:PWR_FLAG", "#FLG01", "PWR_FLAG", "", CX + 10 * 20.32, CY - 7.62, nets={"1": "VDD_1V2"},
          fields={"ref": (CX + 203.2, CY - 13.97), "val": (CX + 203.2, CY - 11.43), "just": "center"})
 
@@ -217,9 +222,10 @@ sh.place("Device:R", "R35", "0", R0603, 431.8, 215.9, dnp=True, nets={"1": "DBG_
 sh.text("МИКРОКОНТРОЛЛЕР U1 - TMS320F28P550SJ9, LQFP-100 (PZ)\n"
         "Распределение выводов - docs/k57-mcu-pinout-RU.md. Имена выводов в символе - как в документации TI (SPRSP85D).\n"
         "Аналоговые входы: 100 Ом + 1 нФ C0G у самого вывода (R11-R18, C11-C18). DACA (A0) -> 100 Ом -> DAC_DBG.\n"
-        "Питание (SPRSP85D, Pin Attributes): VDDIO - 0,1 мкФ на вывод (C21-C23) + 10 мкФ; VDDA - 2,2 мкФ (C25) + 100 нФ;\n"
+        "Питание (SPRSP85D, Pin Attributes): VDDIO - 0,1 мкФ на вывод (C21-C23) + 10 мкФ; VDDA - 2,2 мкФ (C25) + 100 нФ,\n"
+        "  VDDA от того же 3,3 В через ферритовую бусину FB1 (TI: 3,3-В шины МК - от одного источника);\n"
         "  VDD 1,2 В от встроенного регулятора (VREGENZ на землю): все три вывода соединить, 10-22 мкФ - 3 x 4,7 мкФ (C28-C30);\n"
-        "  VREFHI <- REF2033 3,3 В, 2,2 мкФ к VREFLO (C27). PWR_FLAG на VDD_1V2: её питает встроенный регулятор.\n"
+        "  VREFHI <- REF2030 3,0 В, 2,2 мкФ к VREFLO (C27). PWR_FLAG на VDD_1V2: её питает встроенный регулятор.\n"
         "  Нарастание 3,3 В: не быстрее 100 мВ/мкс (защита от статики). Медленнее 20 мВ/мкс - XRSn может дёрнуться,\n"
         "  это безвредно (SPRSP85D, Supply Slew Rate): XRSn у нас не сбрасывает другие микросхемы.\n"
         "R36 33 Ом - GPIO8 (74) рядом с PMM: гасит выбросы в минус на линии SPI (SPRSP85D, Table 6-3).\n"

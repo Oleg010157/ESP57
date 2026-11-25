@@ -1,17 +1,17 @@
 {
- "k57-control/ac_receivers.kicad_sch": "7c0fe3f3354b3e359000549c50c950c8aecbeea02f74951f033681cca3744437",
+ "k57-control/ac_receivers.kicad_sch": "5000fe70398467f01387f79edd97b78de23390aa949176c5e92b8b755bd341e9",
  "k57-control/esp32.kicad_sch": "891d089c08952966059e75ea7a526b53122da5dbb6236866432405e80d2a325e",
  "k57-control/interfaces.kicad_sch": "673c7cab0ce25495190c6d2d02aba98fd92db31ca0498affa3242f3384a6bcff",
- "k57-control/k57-control.kicad_sch": "3507778a25669f2e3b9236728a37a3e0bf3de2f5ccd0bbaf8d86000b0f856e6e",
+ "k57-control/k57-control.kicad_sch": "c6ca664770da1ff596cba06c8bd114cefa863145f4012c47a1106a289e85ae82",
  "k57-control/link_ac.kicad_sch": "60779ca7041be223b6141b889446ffe392d2ed8a29054e2ab0e47093e42453ee",
- "k57-control/link_power.kicad_sch": "b520f4b88e27043335846a3ea9d7ce6e92319ba87eb0c450c08e3ec0bf9344e6",
- "k57-control/mcu.kicad_sch": "33c1e05f3a1b684114cc9f285080040c21da7e612bb32bdcfa05f2653c55dc58",
- "k57-control/power.kicad_sch": "56121fca5683d59f690b31e8feaef70c080e94283cc6da2090a9c9cc55275e33",
- "k57-power/batt_link.kicad_sch": "b74b3043feb1730dd0ad1c559352a3bb694f532e2cca7c85ba1390a2ea106689",
+ "k57-control/link_power.kicad_sch": "008e934e829f0879b8a817f882df54a2696c9cbfa9501c3d3537e246adbc31bb",
+ "k57-control/mcu.kicad_sch": "dfb7a19eac637db800b287cb8ec09f64aae6cbbbfc005ab85baabbff2967cde3",
+ "k57-control/power.kicad_sch": "ed8790fab7124b4e4aa71b8ef4b0bebc800ea35dcecba454be871efc2c99e11b",
+ "k57-power/batt_link.kicad_sch": "c1e96691fee17629a8d36bcff9f18b6bcd084d557b2527bfd79fd1ab82c9c110",
  "k57-power/bridge.kicad_sch": "5f864dfd90d8a5a275dc6bf881397d9eb08d0f8c44eb5f4ac5de7ef44710a249",
- "k57-power/dc_link.kicad_sch": "8348b0f97d60f7678cedeba6a7f3453ca00504b739fba7fd1d7a627f5cda64ed",
+ "k57-power/dc_link.kicad_sch": "a29d250ee9c15ffa5afb22d42126228b306d36c7d4dd4dc45b628854c15738de",
  "k57-power/drivers.kicad_sch": "b1871160fbdba99a9e4deb08b5939ecff3b879b0f562cca9605a93cd8ca256dc",
- "k57-power/k57-power.kicad_sch": "4b25534b9549a1f9ed9f1a47ff98cdfafde51145766d7693c1ee6a35985883ef",
- "k57-power/link_ctrl.kicad_sch": "ed95646a7ed8b6f70fcb0fcecf77bd6b75c3f9cc162fdbf59128b817f6edadce",
- "k57-power/meas_48v.kicad_sch": "1d22f2b669bdc48853aa670a52106053535cf0fed7bcf562f221f509cf399619"
+ "k57-power/k57-power.kicad_sch": "5a3cb0f8203e73665e9b107270a1aa3cec1f530c7f5592bfce14c29b7f041d88",
+ "k57-power/link_ctrl.kicad_sch": "e59048f72c9ab39ca17c54212e3b96a92100ceef47bc65c94235237c1c1c5412",
+ "k57-power/meas_48v.kicad_sch": "ec5c48c01bf009a55808d266efe287d80761cc218dbd35bcd503af15968c5526"
 }
