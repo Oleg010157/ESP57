@@ -226,7 +226,7 @@ class Sheet:
         self.items.append(["text", Q(s), ["exclude_from_sim", "no"], ["at", x, y, 0],
                            ["effects", self._font(size), ["justify", "left", "top"]], ["uuid", Q(U())]])
 
-    def place(self, lib_id, ref, value, fp, x, y, ang=0, nets=None, dnp=False, extra=None, fields=None, unit=1):
+    def place(self, lib_id, ref, value, fp, x, y, ang=0, nets=None, dnp=False, extra=None, fields=None, unit=1, offboard=False):
         """Поставить символ и на каждый вывод - метку цепи (или «не подключено»).
         nets: {номер вывода: имя цепи | "!NC" | "@GND"/"@+12V" (символ питания)}."""
         key = ref if unit == 1 else f"{ref}#{unit}"
@@ -235,21 +235,28 @@ class Sheet:
         sym = self.libs[lib_id]
         multi = any(re.search(r"_([2-9])_\d+$", str(u[1])) for u in find(sym, "symbol"))
         pins = pins_of(sym, unit if multi else None)
+        # подписи всегда горизонтальные: KiCad складывает угол подписи с углом символа.
+        # При повороте на 180 KiCad переворачивает выравнивание - меняем left/right местами заранее.
+        fa = {90: 270, 270: 90}.get(int(ang) % 360, 0)
+        jst = (fields or {}).get("just", "left")
+        if int(ang) % 360 == 180:
+            jst = {"left": "right", "right": "left"}.get(jst, jst)
+        jl = [] if jst == "center" else [["justify", jst]]
+        fref = (fields or {}).get("ref", (x + 3.81, y - 1.27))
+        fval = (fields or {}).get("val", (x + 3.81, y + 1.27))
         props = [
-            ["property", Q("Reference"), Q(ref), ["at", round((fields or {}).get("ref", (x + 3.81, y - 1.27))[0], 2),
-             round((fields or {}).get("ref", (x + 3.81, y - 1.27))[1], 2), (360 - int(ang)) % 360]]
+            ["property", Q("Reference"), Q(ref), ["at", round(fref[0], 2), round(fref[1], 2), fa]]
             + ([["hide", "yes"]] if ref.startswith("#") else [])          # #FLG, #PWR - служебные, не показываем
-            + [["effects",self._font()] + ([] if (fields or {}).get("just") == "center" else [["justify", (fields or {}).get("just", "left")]])],
-            ["property", Q("Value"), Q(value), ["at", round((fields or {}).get("val", (x + 3.81, y + 1.27))[0], 2),
-             round((fields or {}).get("val", (x + 3.81, y + 1.27))[1], 2), (360 - int(ang)) % 360],
-             ["effects", self._font()] + ([] if (fields or {}).get("just") == "center" else [["justify", (fields or {}).get("just", "left")]])],
+            + [["effects", self._font()] + jl],
+            ["property", Q("Value"), Q(value), ["at", round(fval[0], 2), round(fval[1], 2), fa],
+             ["effects", self._font()] + jl],
             ["property", Q("Footprint"), Q(fp), ["at", x, y, 0], ["hide", "yes"], ["effects", self._font()]],
             ["property", Q("Datasheet"), Q(""), ["at", x, y, 0], ["hide", "yes"], ["effects", self._font()]],
         ]
         for k, v in (extra or {}).items():
             props.append(["property", Q(k), Q(v), ["at", x, y, 0], ["hide", "yes"], ["effects", self._font()]])
         inst = ["symbol", ["lib_id", Q(lib_id)], ["at", x, y, ang], ["unit", unit],
-                ["exclude_from_sim", "no"], ["in_bom", "yes"], ["on_board", "yes"],
+                ["exclude_from_sim", "no"], ["in_bom", "no" if offboard else "yes"], ["on_board", "no" if offboard else "yes"],  # offboard: деталь на шасси - не на плату и не в закупку
                 ["dnp", "yes" if dnp else "no"], ["uuid", Q(U())]] + props
         inst += [["pin", Q(n), ["uuid", Q(U())]] for n in pins]
         inst.append(["instances", ["project", Q(self.project),

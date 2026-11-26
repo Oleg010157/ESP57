@@ -137,9 +137,9 @@ sh = new_sheet(F, {"Device:R_Shunt": ("Device", "R_Shunt"), "Amplifier_Current:I
                    "Connector_Generic:Conn_01x02": ("Connector_Generic", "Conn_01x02"),
                    "power:+3V3": ("power", "+3V3")})
 # своё питание аналоговой части: +3V3A приходит иерархической меткой
-hier_block(sh, [("PHASE_B", "passive"), ("DC_POS", "passive"), ("BAT_POS", "passive"), ("GND", "passive"),
+hier_block(sh, [("DC_POS", "passive"), ("BAT_POS", "passive"), ("GND", "passive"),
                 ("+3V3A", "passive"), ("VBIAS_1V5", "passive"), ("VREF_3V0", "passive"),
-                ("IA_OUT", "output"), ("IBAT_OUT", "output"), ("UBAT_OUT", "output"),
+                ("IBAT_OUT", "output"), ("UBAT_OUT", "output"),
                 ("UBATT_OUT", "output"), ("NTC_OUT", "output")])
 SHUNT_FP = ""   # [?] посадочное место шунта 5930 с четырёхпроводным подключением - создать по документации Bourns
 
@@ -175,8 +175,7 @@ def current_channel(n, y, hi_net, lo_net, sense_p_side, out_net, title):
     sh.place("Device:C", f"C{n + 3}", "100nF", C0603, 254.0, y - 15.24, nets={"1": "VBIAS_1V5", "2": "@GND"})
     sh.place("Device:R", f"R{n + 4}", "47", R0603, 236.22, y + 10.16, nets={"1": f"{title}_AMP", "2": out_net})
 
-current_channel(500, 50.8, "PHASE_B", "XFMR_B", 1, "IA_OUT", "IA")
-sh.place("Mechanical:MountingHole_Pad", "J501", "XFMR_B", M6, 81.28, 76.2, nets={"1": "XFMR_B"})
+# канал Ia (шунт R501, U501) - на листе «Мост», в выходе плеча B: так виден путь тока
 current_channel(510, 116.84, "BAT_NEG", "@GND", 4, "IBAT_OUT", "IBAT")
 sh.place("Mechanical:MountingHole_Pad", "J502", "BAT- АКБ", M8, 81.28, 142.24, nets={"1": "BAT_NEG"})
 
@@ -215,10 +214,10 @@ sh.power("GND", gx - 12.7, gy, 270)
 sh.place(OPA, "U521", "TLV9064IPWR", OFP, 386.08, 223.52, unit=5, nets={"4": "+3V3A", "11": "@GND"})
 sh.place("Device:C", "C551", "100nF", C0603, 403.86, 223.52, nets={"1": "+3V3A", "2": "@GND"})
 sh.text("ИЗМЕРЕНИЯ 48 В (техзадание 6.5)\n"
-        "Ia: шунт R501 0,2 мОм между PHASE_B и клеммой трансформатора J501 (XFMR_B) + U501 INA240A1 (x20).\n"
-        "iBat: шунт R511 между клеммой J502 (BAT-) и GND + U511 INA240A1. GND платы - минус звена.\n"
+        "Ia: шунт R501 и U501 - на листе «Мост», в выходе плеча B (виден путь тока).\n"
+        "iBat: шунт R511 между клеммой J502 (BAT-) и GND + U511 INA240A1 (x20). GND платы - минус звена.\n"
         "  REF1/REF2 = VBIAS_1V5 от REF2030 на плате управления: нуль и шкала АЦП от одной опоры.\n"
-        "  Шкала +-250 А -> 1,5 +- 1,0 В. R502/R503 (0 Ом) и C501 (не запаивать) - место под фильтр.\n"
+        "  Шкала +-250 А -> 1,5 +- 1,0 В. R512/R513 (0 Ом) и C511 (не запаивать) - место под фильтр.\n"
         "  Знак тока задаёт прошивка (gt.iSign); измерительные выводы шунтов - отдельными дорожками.\n"
         "  [?] Посадочное место шунта 5930 с четырёхпроводным подключением - создать.\n"
         "uBat (звено, после контактора) и uBatt (клеммы АКБ): 2 x 120 кОм + 10 кОм 0,1 %, 75 В -> 3,0 В,\n"
