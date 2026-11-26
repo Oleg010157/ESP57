@@ -12,11 +12,11 @@
  "k57-control/link_power.kicad_sch": "08d0cb06323ee815db289ef3e7e4b366c0d6034af8aa4af847d5482adc5de163",
  "k57-control/mcu.kicad_sch": "9c0b77b1a1fa39b603939197114a8d64ac7bc3316f0e46769698d8d3fa6b4db1",
  "k57-control/power.kicad_sch": "00d8cf6823dc1142141ef30547f66c534cd7864659f51670b86ad72ca56b4766",
- "k57-power/batt_link.kicad_sch": "d1a5a5ce9682f998a5f0fd09e2d5a847d475c8c89ecbb2417d46a306f9cd44de",
- "k57-power/bridge.kicad_sch": "c9dad15523aa2aa4f6ea4a3b952f489221c35f75e63aa3d56c04c7354f5e0368",
- "k57-power/dc_link.kicad_sch": "0302e6d4b8ea90ed53613d655aab27281cb656bc7e343af8ada401516255890d",
- "k57-power/drivers.kicad_sch": "0e45d9bcdb44ce48eaffa1d4b02cec0885e5d71c464a4280e3e2b0698d9efa1a",
- "k57-power/k57-power.kicad_sch": "52dda5449cf445785fe72a59f951b39d05e2248158401cfb6fded859a9577c6e",
- "k57-power/link_ctrl.kicad_sch": "b6efd011d9ce78121d0cd99cf5f204f050e0623515680e3f0c557fbce2a6b4a5",
- "k57-power/meas_48v.kicad_sch": "ad2a49417ee4a4b32861ff03e9489a001cc35730dbc33b17bb202758ee1e96a1"
+ "k57-power/batt_link.kicad_sch": "d1b25d412f9eba67548590e40db970cb6e63c0eb9cf0de34694058b759c25b0b",
+ "k57-power/bridge.kicad_sch": "03e480cae55cf805c67b45e3a5b7c7d1184d5000aa5ef68705f868a54be4f270",
+ "k57-power/dc_link.kicad_sch": "05e01ad1831642fa958e5560d4fa9706842f66bfe5772d2fd0ae9c0129df24b2",
+ "k57-power/drivers.kicad_sch": "6e53fbf5d0bf56f2e0886d59a894ec61a27682958df3201ddf32446fcb437fb8",
+ "k57-power/k57-power.kicad_sch": "4d060cb9216a69d188e5836bed280618ce3bd0bdb6e2babc8833de81c04df616",
+ "k57-power/link_ctrl.kicad_sch": "affb4b0dac634357bfd2b6d7802e0270cad88ee2bc9bb0324f9e7e5b38b25f02",
+ "k57-power/meas_48v.kicad_sch": "26b0a24e223cc17b73dc8bf91917e1bb349b2724581763a1843be1c59a562c8c"
 }
