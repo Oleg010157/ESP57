@@ -173,9 +173,11 @@ class Sheet:
         self.items.append(["junction", ["at", round(x, 3), round(y, 3)], ["diameter", 0],
                            ["color", 0, 0, 0, 0], ["uuid", Q(U())]])
 
-    def pin_xy(self, lib_id, x, y, ang, num, unit=None):
-        """Координаты конца вывода символа, поставленного в (x, y) с поворотом ang."""
+    def pin_xy(self, lib_id, x, y, ang, num, unit=None, mirror=None):
+        """Координаты конца вывода символа, поставленного в (x, y) с поворотом ang (и зеркалом "y")."""
         px, py, pa = pins_of(self.libs[lib_id], unit)[str(num)]
+        if mirror == "y":
+            px = -px
         dx, dy = rot(px, py, ang)
         return x + dx, y - dy
 
@@ -226,7 +228,7 @@ class Sheet:
         self.items.append(["text", Q(s), ["exclude_from_sim", "no"], ["at", x, y, 0],
                            ["effects", self._font(size), ["justify", "left", "top"]], ["uuid", Q(U())]])
 
-    def place(self, lib_id, ref, value, fp, x, y, ang=0, nets=None, dnp=False, extra=None, fields=None, unit=1, offboard=False):
+    def place(self, lib_id, ref, value, fp, x, y, ang=0, nets=None, dnp=False, extra=None, fields=None, unit=1, offboard=False, mirror=None):
         """Поставить символ и на каждый вывод - метку цепи (или «не подключено»).
         nets: {номер вывода: имя цепи | "!NC" | "@GND"/"@+12V" (символ питания)}."""
         key = ref if unit == 1 else f"{ref}#{unit}"
@@ -255,7 +257,8 @@ class Sheet:
         ]
         for k, v in (extra or {}).items():
             props.append(["property", Q(k), Q(v), ["at", x, y, 0], ["hide", "yes"], ["effects", self._font()]])
-        inst = ["symbol", ["lib_id", Q(lib_id)], ["at", x, y, ang], ["unit", unit],
+        assert mirror in (None, "y") and (mirror is None or int(ang) == 0), "зеркало - только \"y\" без поворота"
+        inst = ["symbol", ["lib_id", Q(lib_id)], ["at", x, y, ang]] + ([["mirror", "y"]] if mirror else []) + [["unit", unit],
                 ["exclude_from_sim", "no"], ["in_bom", "no" if offboard else "yes"], ["on_board", "no" if offboard else "yes"],  # offboard: деталь на шасси - не на плату и не в закупку
                 ["dnp", "yes" if dnp else "no"], ["uuid", Q(U())]] + props
         inst += [["pin", Q(n), ["uuid", Q(U())]] for n in pins]
@@ -268,6 +271,8 @@ class Sheet:
             if net is None:                       # вывод соединяется отдельно (проводником)
                 continue
             px, py, pa = pins[str(n)]
+            if mirror == "y":                     # зеркало слева-направо: x и направление вывода отражаются
+                px, pa = -px, (180 - pa) % 360
             dx, dy = rot(px, py, ang)
             wx, wy = x + dx, y - dy               # Y в схеме направлен вниз
             out = (pa + ang + 180) % 360          # направление наружу от корпуса

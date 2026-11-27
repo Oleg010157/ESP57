@@ -1,9 +1,9 @@
 {
- "k57-ac/grid_switch.kicad_sch": "ae7903abdf73aee29ace6dd37719c86040f7bc2282a52322da88bb0d20a00996",
+ "k57-ac/grid_switch.kicad_sch": "17c0137052b598e737bb2b004cefe80efda9bb614bb7942d8939910f592b7852",
  "k57-ac/k57-ac.kicad_sch": "e793738780526cc491dace12f38fc4ce3e86897ae42a733b12859764211fd18b",
- "k57-ac/link_ctrl.kicad_sch": "141a13c1d63a4c5851430101eb280dfb39be07f30fc8e5829c3eccc34982db6c",
- "k57-ac/meas_230v.kicad_sch": "ff5e8f1c5a96240cde824401657f93942e4b31c8d4704ff6d59d1812d5db079a",
- "k57-ac/sine_filter.kicad_sch": "30cc2b0661540f333cf8238001a935273c18a4465c3c2d2790d43cc0b446b1c0",
+ "k57-ac/link_ctrl.kicad_sch": "1dbc64863b83d7b884c2108bbd96338ff51164b72c2a4fd2ca384d3b65c165a0",
+ "k57-ac/meas_230v.kicad_sch": "d924d018536c8b5c1bf9db3e421c94553866b1f0726235a0e56a970055e36a77",
+ "k57-ac/sine_filter.kicad_sch": "ff854c7344d3890d7239e530670f0436a62fcd92885fa084a5f482a221c08f1d",
  "k57-control/ac_receivers.kicad_sch": "d91b6efe655a470e58518af476ca4f7d7df90ad9abc514dd0e255b08178db610",
  "k57-control/esp32.kicad_sch": "61daa31e3c3d4dd0222fc15608db826be6e7bb1e6223c9c9081c96959c2e9899",
  "k57-control/interfaces.kicad_sch": "cd72bb96d3d8f8dffa101c0eed702ffc232b3663313680da63e93ff0b83646a6",

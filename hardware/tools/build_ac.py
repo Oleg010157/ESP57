@@ -92,22 +92,46 @@ POWER = ("GND", "+12V")
 # ================================================================ лист «Синус-фильтр»
 F = "sine_filter.kicad_sch"
 HIER, FU = hier_of(F)
-sh = new_sheet(F, {TERM: ("Connector", "Screw_Terminal_01x02")})
+sh = new_sheet(F, {TERM: ("Connector", "Screw_Terminal_01x02"), "Device:L": ("Device", "L")})
 hier_block(sh, sheet_pins(F), POWER)
-sh.place(TERM, "J101", "Вторичка трансформатора (L1 - его рассеяние)", TB2, 101.6, 101.6,
-         nets={"1": "XS_L", "2": "OUT_N"}, fields={"ref": (101.6, 91.44), "val": (101.6, 93.98), "just": "center"})
-for i, ref in enumerate(("C101", "C102")):
-    sh.place("Device:C", ref, "1uF X2 310VAC", "Capacitor_THT:C_Rect_L26.5mm_W10.5mm_P22.50mm_MKS4",
-             160.02 + i * 25.4, 101.6, nets={"1": "XS_L", "2": "C_DAMP"})
-sh.place("Device:R", "R101", "8.2 10W", "Resistor_THT:R_Axial_Power_L48.0mm_W12.5mm_P55.88mm", 172.72, 132.08,
-         nets={"1": "C_DAMP", "2": "OUT_N"}, extra={"Part": "проволочный или керамический, 10 Вт"})
-sh.place(TERM, "J102", "К дросселю L2 (на шасси)", TB2, 254.0, 101.6,
-         nets={"1": "XS_L", "2": "OUT_L"}, fields={"ref": (254.0, 91.44), "val": (254.0, 93.98), "just": "center"})
+YL, YD, YO, YN = 101.6, 116.84, 127.0, 139.7     # линия L (до L2), узел демпфирования, OUT_L, OUT_N
+# J101 - вторичка трансформатора; отражён, чтобы выводы смотрели вправо: 1 (L) сверху, 2 (N) снизу
+sh.place(TERM, "J101", "Вторичка трансформатора (L1 - его рассеяние)", TB2, 91.44, YL, mirror="y",
+         nets={"1": None, "2": None}, fields={"ref": (91.44, YL - 10.16), "val": (91.44, YL - 7.62), "just": "center"})
+xj1, yj1 = sh.pin_xy(TERM, 91.44, YL, 0, 1, mirror="y")
+xj2, yj2 = sh.pin_xy(TERM, 91.44, YL, 0, 2, mirror="y")
+sh.wire(xj2, yj2, xj2 + 5.08, yj2); sh.wire(xj2 + 5.08, yj2, xj2 + 5.08, YN)
+sh.label("XS_L", xj1 + 10.16, YL, 0)
+# C = C101 + C102 между L и узлом демпфирования, R101 - от узла к N
+XC1, XC2, XR, XL2, XJ2 = 160.02, 185.42, 172.72, 215.9, 233.68
+for ref, x in (("C101", XC1), ("C102", XC2)):
+    sh.place("Device:C", ref, "1uF X2 310VAC", "Capacitor_THT:C_Rect_L26.5mm_W10.5mm_P22.50mm_MKS4", x, 109.22,
+             nets={"1": None, "2": None})
+    sh.wire(x, 105.41, x, YL); sh.wire(x, 113.03, x, YD)
+sh.wire(XC1, YD, XC2, YD); sh.junction(XR, YD)
+sh.place("Device:R", "R101", "8.2 10W", "Resistor_THT:R_Axial_Power_L48.0mm_W12.5mm_P55.88mm", XR, YO,
+         nets={"1": None, "2": None}, extra={"Part": "проволочный или керамический, 10 Вт"})
+sh.wire(XR, YD, XR, YO - 3.81); sh.wire(XR, YO + 3.81, XR, YN)
+# J102 - клеммы дросселя L2 на шасси; L2 нарисован между XS_L и OUT_L (на плату и в закупку не входит)
+sh.place(TERM, "J102", "К дросселю L2 (1 - начало, 2 - конец)", TB2, XJ2 + 5.08, YL,
+         nets={"1": None, "2": None}, fields={"ref": (XJ2 + 5.08, YL - 10.16), "val": (XJ2 + 5.08, YL - 7.62), "just": "center"})
+sh.place("Device:L", "L101", "L2 1,5 мГн (шасси)", "", XL2, 114.3, offboard=True, nets={"1": None, "2": None},
+         fields={"ref": (XL2 - 3.81, 113.03), "val": (XL2 - 3.81, 115.57), "just": "right"})
+sh.wire(xj1, yj1, XJ2, YL)
+for x in (XC1, XC2, XL2):
+    sh.junction(x, YL)
+sh.wire(XL2, YL, XL2, 110.49); sh.wire(XL2, 118.11, XL2, YO)
+sh.wire(XJ2, YL + 2.54, XJ2 - 5.08, YL + 2.54); sh.wire(XJ2 - 5.08, YL + 2.54, XJ2 - 5.08, YO)
+sh.wire(XL2, YO, XJ2 + 15.24, YO); sh.junction(XJ2 - 5.08, YO)
+sh.label("OUT_L", XJ2 + 15.24, YO, 0)
+sh.wire(xj2 + 5.08, YN, XJ2 + 15.24, YN); sh.junction(XR, YN)
+sh.label("OUT_N", XJ2 + 15.24, YN, 0)
 sh.text("СИНУС-ФИЛЬТР LCL (техзадание 6.8) - и для режима АИН, и для работы на сеть\n"
         "L1 - рассеяние трансформатора, отдельного дросселя нет. [?] Требование к трансформатору: 3-5 мГн к вторичке.\n"
         "C = C101 + C102 = 2 мкФ, плёнка X2 310 В~ (класс WIMA MKP-X2, шаг 22,5 мм). R101 8,2 Ом 10 Вт - демпфирование\n"
         "  резонанса (~1/(3*w*C)); пульсации 10 кГц греют его на ~4 Вт. Конденсатор разряжается через обмотку трансформатора.\n"
-        "L2 - сетевой дроссель 1,5 мГн, 13-15 А действующих, на шасси: J102.1 - начало, J102.2 - конец.\n"
+        "L2 - сетевой дроссель 1,5 мГн, 13-15 А действующих, на шасси (клеммы J102): на схеме показан между XS_L и OUT_L,\n"
+        "  на плату и в закупку не входит.\n"
         "OUT_L / OUT_N - выход после всего фильтра: к реле сети и к датчику uSec (лист «Измерения 230 В»).\n"
         "[?] Номиналы - проверить моделью, когда будет трансформатор. ЭМС-фильтр (150 кГц - 30 МГц) - не нарисован.\n"
         "Всё на листе - под сетевым напряжением: зазоры и пути утечки - как для 230 В.", 63.5, 165.1)
@@ -268,12 +292,20 @@ def amc_channel(n, Y, hot, cold, outp, outn, flag_ref):
 amc_channel(310, 101.6, "GRID_L", "GRID_N", "U220_P", "U220_N", "#FLG301")
 amc_channel(330, 223.52, "OUT_L", "OUT_N", "USEC_P", "USEC_N", "#FLG302")
 # Ib: нагрузка трансформатора тока - всегда на месте, даже без шлейфа (ТТ без нагрузки опасен)
-XI = 434.34
-sh.place("Device:R", "R301", "24.9 0.1%", R1206, XI, 76.2, nets={"1": "IB_CT_P", "2": "IB_CT_N"})
-sh.place("Diode:SMAJ5.0CA", "D301", "SMAJ5.0CA", "Diode_SMD:D_SMA", XI + 17.78, 76.2, ang=90,
-         nets={"2": "IB_CT_P", "1": "IB_CT_N"}, fields={"ref": (XI + 20.32, 74.93), "val": (XI + 20.32, 77.47), "just": "left"})
-sh.place("Device:R", "R302", "49.9", R0603, XI + 40.64, 76.2, nets={"1": "IB_CT_P", "2": "IB_P"})
-sh.place("Device:R", "R303", "49.9", R0603, XI + 55.88, 76.2, nets={"1": "IB_CT_N", "2": "IB_N"})
+XI, YP, YNI = 434.34, 66.04, 86.36
+sh.label("IB_CT_P", XI - 10.16, YP, 180); sh.label("IB_CT_N", XI - 10.16, YNI, 180)
+sh.place("Device:R", "R301", "24.9 0.1%", R1206, XI, (YP + YNI) / 2, nets={"1": None, "2": None},
+         fields={"ref": (XI - 3.81, 74.93), "val": (XI - 3.81, 77.47), "just": "right"})
+sh.place("Diode:SMAJ5.0CA", "D301", "SMAJ5.0CA", "Diode_SMD:D_SMA", XI + 10.16, (YP + YNI) / 2, ang=90,
+         nets={"2": None, "1": None}, fields={"ref": (XI + 13.97, 74.93), "val": (XI + 13.97, 77.47), "just": "left"})
+XR2 = XI + 33.02
+for yy, ref, net in ((YP, "R302", "IB_P"), (YNI, "R303", "IB_N")):
+    sh.wire(XI - 10.16, yy, XR2 - 3.81, yy)
+    sh.place("Device:R", ref, "49.9", R0603, XR2, yy, ang=90, nets={"1": None, "2": net},
+             fields={"ref": (XR2, yy - 3.81), "val": (XR2, yy + 3.81), "just": "center"})
+for x in (XI, XI + 10.16):
+    sh.wire(x, YP, x, 72.39); sh.wire(x, 80.01, x, YNI)
+    sh.junction(x, YP); sh.junction(x, YNI)
 sh.text("ИЗМЕРЕНИЯ 230 В (техзадание 6.5): U220 - сеть (после реле со стороны сети), uSec - выход после синус-фильтра\n"
         "U311, U331 - AMC3330: усиленная изоляция, свой изолированный DC/DC - питания со стороны 230 В не нужно (SBASA34B).\n"
         "  Делитель 4 x 1 МОм + 10 кОм: 400 В пик -> 1,0 В на входе (линейный диапазон ±1 В, ограничение ±1,25 В = 500 В).\n"
