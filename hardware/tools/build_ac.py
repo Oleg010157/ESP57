@@ -120,26 +120,59 @@ sh = new_sheet(F, {"k57:ALFG2PF12": REL, "k57:CT_1000": CT, TERM: ("Connector", 
                    "Transistor_FET:AO3400A": ("Transistor_FET", "AO3400A"), "Diode:1N4148W": ("Diode", "1N4148W"),
                    "Device:Varistor": ("Device", "Varistor")})
 hier_block(sh, sheet_pins(F), POWER)
-sh.place("k57:CT_1000", "T201", "ТТ 1:1000 [?]", "Transformer_THT:Transformer_Zeming_ZMCT103C", 129.54, 101.6,
-         nets={"1": "IB_CT_P", "2": "IB_CT_N"})
-for i, (ref, a, b) in enumerate((("K201", "OUT_L", "GRID_L"), ("K202", "OUT_N", "GRID_N"))):
-    x = 190.5 + i * 50.8
-    sh.place("k57:ALFG2PF12", ref, "ALFG2PF12", "Relay_THT:Relay_SPST_Panasonic_ALFG_FormA", x, 101.6,
-             nets={"11": a, "14": b, "A1": "@+12V", "A2": "COIL_N"},
-             fields={"ref": (x + 12.7, 99.06), "val": (x + 12.7, 101.6), "just": "left"})
-    sh.place("Diode:1N4148W", f"D20{i + 1}", "1N4148W", "Diode_SMD:D_SOD-123", x - 20.32, 76.2, ang=270,
-             nets={"1": "@+12V", "2": "COIL_N"}, fields={"ref": (x - 17.78, 74.93), "val": (x - 17.78, 77.47), "just": "left"})
-sh.place("Transistor_FET:AO3400A", "Q201", "AO3400A", "Package_TO_SOT_SMD:SOT-23", 218.44, 152.4,
-         nets={"1": "GATE_K", "3": "COIL_N", "2": "@GND"}, fields={"ref": (223.52, 151.13), "val": (223.52, 153.67), "just": "left"})
-sh.place("Device:R", "R201", "100", R0603, 180.34, 160.02, ang=90, nets={"1": "GRID_CONT_EN", "2": "GATE_K"},
-         fields={"ref": (180.34, 156.21), "val": (180.34, 163.83), "just": "center"})
-sh.place("Device:R", "R202", "100k", R0603, 205.74, 172.72, nets={"1": "GATE_K", "2": "@GND"})
-sh.place("Device:C", "C201", "10uF 25V X7R", C1206, 147.32, 152.4, nets={"1": "@+12V", "2": "@GND"})
-sh.place("Device:Varistor", "RV201", "S20K275", "Varistor:RV_Disc_D21.5mm_W5.1mm_P10mm", 309.88, 101.6,
-         nets={"1": "GRID_L", "2": "GRID_N"})
-sh.place(TERM, "J201", "Сеть / нагрузка (через внешний автомат)", TB2, 350.52, 101.6,
-         nets={"1": "GRID_L", "2": "GRID_N"}, fields={"ref": (350.52, 91.44), "val": (350.52, 93.98), "just": "center"})
+YL, YN, KX = 114.3, 165.1, 165.1           # линии L и N, реле - в одну колонку
+XS, XG = 88.9, 177.8                        # начало линий (метки OUT_L/OUT_N), начало сетевой стороны
+# трансформатор тока: провод OUT_L проходит через окно - линия L нарисована сквозь символ
+sh.place("k57:CT_1000", "T201", "ТТ 1:1000 [?]", "Transformer_THT:Transformer_Zeming_ZMCT103C", 127.0, YL,
+         nets={"1": "IB_CT_P", "2": "IB_CT_N"}, fields={"ref": (127.0, YL - 10.16), "val": (127.0, YL - 7.62), "just": "center"})
+for i, (yl, ref, dref, src, dst) in enumerate(((YL, "K201", "D201", "OUT_L", "GRID_L"), (YN, "K202", "D202", "OUT_N", "GRID_N"))):
+    ky = yl - 5.08
+    sh.place("k57:ALFG2PF12", ref, "ALFG2PF12", "Relay_THT:Relay_SPST_Panasonic_ALFG_FormA", KX, ky, ang=270,
+             nets={"11": None, "14": None, "A1": None, "A2": None},
+             fields={"ref": (KX + 15.24, ky - 1.27), "val": (KX + 15.24, ky + 1.27), "just": "left"})
+    sh.label(src, XS, yl, 180)
+    sh.wire(XS, yl, KX - 7.62, yl)                                    # вход контакта (11)
+    sh.wire(KX + 7.62, yl + 2.54, XG, yl + 2.54); sh.wire(XG, yl + 2.54, XG, yl)   # выход контакта (14)
+    sh.label(dst, XG + 12.7, yl, 0)
+    # катушка: A1 - к +12V, A2 - к ключу Q201; диод - прямо на выводах катушки
+    yd = yl - 20.32
+    sh.place("Diode:1N4148W", dref, "1N4148W", "Diode_SMD:D_SOD-123", KX, yd, ang=180, nets={"1": None, "2": None},
+             fields={"ref": (KX, yd - 6.35), "val": (KX, yd - 3.81), "just": "center"})
+    sh.wire(KX - 7.62, ky - 5.08, KX - 7.62, yd); sh.wire(KX - 7.62, yd, KX - 3.81, yd)
+    sh.wire(KX + 7.62, ky - 5.08, KX + 7.62, yd); sh.wire(KX + 7.62, yd, KX + 3.81, yd)
+    sh.wire(KX + 7.62, yd, KX + 7.62, yd - 5.08); sh.power("+12V", KX + 7.62, yd - 5.08, 90)
+    sh.junction(KX + 7.62, yd)
+    if i == 0:
+        YC = yl - 30.48                                               # COIL_N: от A2 к стоку Q201
+        sh.wire(KX - 7.62, yd, KX - 7.62, YC); sh.wire(KX - 7.62, YC, 142.24, YC)
+        sh.label("COIL_N", 147.32, YC, 0)
+    else:
+        sh.wire(KX - 7.62, yd, KX - 7.62, yd - 5.08); sh.label("COIL_N", KX - 7.62, yd - 5.08, 90)
+    sh.junction(KX - 7.62, yd)
+# ключ катушек
+QY = YL - 25.4
+sh.place("Transistor_FET:AO3400A", "Q201", "AO3400A", "Package_TO_SOT_SMD:SOT-23", 139.7, QY,
+         nets={"1": None, "2": "@GND", "3": None}, fields={"ref": (144.78, QY - 1.27), "val": (144.78, QY + 1.27), "just": "left"})
+sh.place("Device:R", "R201", "100", R0603, 127.0, QY, ang=90, nets={"1": "GRID_CONT_EN", "2": None},
+         fields={"ref": (127.0, QY - 3.81), "val": (127.0, QY + 3.81), "just": "center"})
+sh.wire(130.81, QY, 134.62, QY)
+sh.place("Device:R", "R202", "100k", R0603, 132.08, QY + 6.35, nets={"1": None, "2": "@GND"},
+         fields={"ref": (128.27, QY + 8.89), "val": (128.27, QY + 11.43), "just": "right"})
+sh.wire(132.08, QY, 132.08, QY + 2.54); sh.junction(132.08, QY)
+sh.place("Device:C", "C201", "10uF 25V X7R", C1206, 195.58, QY, nets={"1": "@+12V", "2": "@GND"})
+# сетевая сторона: варистор между L и N, клеммы J201
+XRV, XJL, XJN = 210.82, 238.76, 233.68
+sh.place("Device:Varistor", "RV201", "S20K275", "Varistor:RV_Disc_D21.5mm_W5.1mm_P10mm", XRV, 139.7, nets={"1": None, "2": None})
+sh.wire(XRV, 135.89, XRV, YL); sh.wire(XRV, 143.51, XRV, YN)
+sh.wire(XG, YL, XJL, YL); sh.junction(XRV, YL)
+sh.wire(XG, YN, XJN, YN); sh.junction(XRV, YN)
+JY = 139.7
+sh.place(TERM, "J201", "Сеть / нагрузка (через внешний автомат)", TB2, 248.92, JY, nets={"1": None, "2": None},
+         fields={"ref": (246.38, JY - 7.62), "val": (246.38, JY - 5.08), "just": "left"})
+sh.wire(XJL, YL, XJL, JY); sh.wire(XJL, JY, 243.84, JY)
+sh.wire(XJN, YN, XJN, JY + 2.54); sh.wire(XJN, JY + 2.54, 243.84, JY + 2.54)
 sh.text("СЕТЕВОЙ КОНТАКТОР И ЗАЩИТА (техзадание 6.6)\n"
+        "Линия L: OUT_L (после синус-фильтра) -> окно ТТ T201 -> контакт K201 -> GRID_L -> J201. Линия N - так же через K202.\n"
         "K201 (L) и K202 (N) - реле Panasonic LF-G ALFG2PF12: 22 А, зазор контактов 1,8 мм, сделаны для солнечных инверторов.\n"
         "  Разрываются оба провода. Катушки 12 В соединены параллельно, включает их Q201 по GRID_CONT_EN (GPIO59).\n"
         "  R202 держит Q201 закрытым при сбросе МК и без шлейфа: реле по умолчанию разомкнуты. D201/D202 - на выбег катушек.\n"
@@ -160,46 +193,80 @@ sh = new_sheet(F, {"Isolator_Analog:AMC3330": ("Isolator_Analog", "AMC3330"),
 hier_block(sh, sheet_pins(F), POWER)
 AMC = "Isolator_Analog:AMC3330"
 
-def amc_channel(n, y, hot, cold, outp, outn, t, flag_ref):
-    """Канал напряжения на AMC3330: делитель 4 x 1 МОм + 10 кОм, развязка по SBASA34B (рис. 7-5)."""
+def amc_channel(n, Y, hot, cold, outp, outn, flag_ref):
+    """Канал напряжения на AMC3330 проводами: делитель 4 x 1 МОм + 10 кОм, развязка по SBASA34B (рис. 7-5).
+    Высокая сторона (слева) - под напряжением своей цепи; cold - её N, к нему HGND, INN, DCDC_HGND."""
     XA = 254.0
-    u = f"U{n + 1}"
-    sh.place(AMC, u, "AMC3330DWE", "Package_SO:SOIC-16W_7.5x10.3mm_P1.27mm", XA, y,
-             nets={"1": f"{t}_HDC", "3": f"{t}_HDC", "2": cold, "7": cold, "8": cold, "4": "!NC",
-                   "5": f"{t}_HLDO", "6": f"{t}_INP", "9": "@GND", "15": "@GND", "12": f"{t}_VDD",
-                   "13": f"{t}_LDC", "16": f"{t}_LDC", "11": f"{t}_OP", "10": f"{t}_ON", "14": "!NC"},
-             fields={"ref": (XA - 17.78, y - 22.86), "val": (XA - 17.78, y - 20.32), "just": "left"})
-    # делитель: четыре резистора подряд, соединены проводниками; 400 В пик -> 1,0 В
-    xs = [106.68 + i * 10.16 for i in range(4)]
-    yd = y - 30.48
+    sh.place(AMC, f"U{n + 1}", "AMC3330DWE", "Package_SO:SOIC-16W_7.5x10.3mm_P1.27mm", XA, Y,
+             nets={"4": "!NC", "14": "!NC", "9": "@GND", "2": cold,
+                   **{k: None for k in ("1", "3", "5", "6", "7", "8", "10", "11", "12", "13", "15", "16")}},
+             fields={"ref": (XA - 12.7, Y - 22.86), "val": (XA - 12.7, Y - 20.32), "just": "left"})
+    P = lambda k: sh.pin_xy(AMC, XA, Y, 0, k)
+    (x1, y1), (x3, y3), (x5, y5), (x6, y6), (x7, y7), (x8, y8) = P(1), P(3), P(5), P(6), P(7), P(8)
+    # DCDC_OUT (1) и HLDO_IN (3) - вместе; 1 мкФ + 1 нФ + 100 нФ к HGND (конденсаторы над линией)
+    XJ = XA - 30.48
+    sh.wire(x3, y3, XJ, y3); sh.wire(XJ, y3, XJ, y1)
+    hdc = [XA - 43.18, XA - 55.88, XA - 68.58]
+    sh.wire(x1, y1, hdc[-1], y1); sh.junction(XJ, y1)
+    for (ref, val, fp), x in zip([(f"C{n + 2}", "1uF", C0603), (f"C{n + 3}", "1nF", C0603), (f"C{n + 4}", "100nF", C0603)], hdc):
+        sh.place("Device:C", ref, val, fp, x, y1 - 3.81, ang=180, nets={"1": None, "2": cold})
+        if x != hdc[-1]:
+            sh.junction(x, y1)
+    # HLDO_OUT (5): 100 нФ NP0 + 1 нФ к HGND
+    hl = [XA - 76.2, XA - 91.44]
+    sh.wire(x5, y5, hl[-1], y5)
+    for (ref, val, fp), x in zip([(f"C{n + 5}", "100nF NP0", C1206), (f"C{n + 6}", "1nF", C1206)], hl):
+        sh.place("Device:C", ref, val, fp, x, y5 - 3.81, ang=180, nets={"1": None, "2": cold})
+    sh.junction(hl[0], y5)
+    # INP (6): делитель 4 x 1 МОм от hot, 10 кОм и 1 нФ к INN (7); INN = HGND = cold
+    XR5, XC1, XCOLD = XA - 30.48, XA - 38.1, XA - 50.8
+    xs = [XA - 106.68 + i * 10.16 for i in range(4)]
     for i, x in enumerate(xs):
-        nets = {"1": hot if i == 0 else None, "2": f"{t}_INP" if i == 3 else None}
-        sh.place("Device:R", f"R{n + 1 + i}", "1M 1%", R1206, x, yd, ang=90, nets=nets,
-                 fields={"ref": (x, yd - 3.81), "val": (x, yd + 3.81), "just": "center"})
+        sh.place("Device:R", f"R{n + 1 + i}", "1M 1%", R1206, x, y6, ang=90,
+                 nets={"1": hot if i == 0 else None, "2": None},
+                 fields={"ref": (x, y6 + 3.81), "val": (x, y6 + 6.35), "just": "center"})
     for xa, xb in zip(xs, xs[1:]):
-        sh.wire(xa + 3.81, yd, xb - 3.81, yd)
-    sh.place("Device:R", f"R{n + 5}", "10k 0.1%", R0603, 160.02, y - 15.24, nets={"1": f"{t}_INP", "2": cold})
-    sh.place("Device:C", f"C{n + 1}", "1nF C0G", C0603, 175.26, y - 15.24, nets={"1": f"{t}_INP", "2": cold})
-    # высокая сторона: DC/DC 1 мкФ + 1 нФ, вход HLDO 100 нФ, выход HLDO 100 нФ NP0 + 1 нФ
-    for i, (ref, val, fp, net) in enumerate([(f"C{n + 2}", "1uF 25V X7R", C0603, f"{t}_HDC"),
-                                             (f"C{n + 3}", "1nF X7R", C0603, f"{t}_HDC"),
-                                             (f"C{n + 4}", "100nF X7R", C0603, f"{t}_HDC"),
-                                             (f"C{n + 5}", "100nF NP0", C1206, f"{t}_HLDO"),
-                                             (f"C{n + 6}", "1nF X7R", C1206, f"{t}_HLDO")]):
-        sh.place("Device:C", ref, val, fp, 106.68 + i * 20.32, y + 30.48, nets={"1": net, "2": cold})
-    # низкая сторона: вход DC/DC 100 нФ, VDD 1 нФ + 1 мкФ, бусина от +3V3A
-    for i, (ref, val, fp, net) in enumerate([(f"C{n + 7}", "100nF X7R", C0603, f"{t}_LDC"),
-                                             (f"C{n + 8}", "1nF X7R", C1206, f"{t}_VDD"),
-                                             (f"C{n + 9}", "1uF 25V X7R", C1206, f"{t}_VDD")]):
-        sh.place("Device:C", ref, val, fp, 304.8 + i * 20.32, y + 30.48, nets={"1": net, "2": "@GND"})
-    sh.place("Device:FerriteBead_Small", f"FB{n + 1}", "BLM15HD182SH1", "Inductor_SMD:L_0402_1005Metric",
-             304.8, y - 25.4, nets={"1": "+3V3A", "2": f"{t}_VDD"})
-    flag(sh, f"{t}_VDD", 289.56, y - 33.02, flag_ref)       # VDD за бусиной: питание приходит со шлейфа
-    sh.place("Device:R", f"R{n + 6}", "49.9", R0603, 337.82, y - 7.62, nets={"1": f"{t}_OP", "2": outp})
-    sh.place("Device:R", f"R{n + 7}", "49.9", R0603, 353.06, y - 7.62, nets={"1": f"{t}_ON", "2": outn})
+        sh.wire(xa + 3.81, y6, xb - 3.81, y6)
+    sh.wire(xs[-1] + 3.81, y6, x6, y6)
+    sh.place("Device:R", f"R{n + 5}", "10k 0.1%", R0603, XR5, y6 + 3.81, nets={"1": None, "2": None})
+    sh.place("Device:C", f"C{n + 1}", "1nF C0G", C0603, XC1, y6 + 3.81, nets={"1": None, "2": None},
+             fields={"ref": (XC1 - 3.81, y6 + 2.54), "val": (XC1 - 3.81, y6 + 5.08), "just": "right"})
+    sh.junction(XR5, y6); sh.junction(XC1, y6)
+    sh.wire(x7, y7, XCOLD, y7); sh.junction(XR5, y7); sh.junction(XC1, y7)
+    sh.label(cold, XCOLD, y7, 180)
+    # HGND (8) - снизу к линии INN
+    sh.wire(x8, y8, x8, y8 + 2.54); sh.wire(x8, y8 + 2.54, XA - 20.32, y8 + 2.54); sh.wire(XA - 20.32, y8 + 2.54, XA - 20.32, y7)
+    sh.junction(XA - 20.32, y7)
+    # низкая сторона: LDO_OUT (13) и DCDC_IN (16) вместе, 100 нФ до DCDC_GND (15)
+    (x13, y13), (x16, y16), (x15, y15), (x11, y11), (x10, y10), (x12, y12) = P(13), P(16), P(15), P(11), P(10), P(12)
+    XC7 = XA + 25.4
+    sh.wire(x13, y13, XC7, y13)
+    sh.wire(x16, y16, XC7 - 2.54, y16); sh.wire(XC7 - 2.54, y16, XC7 - 2.54, y13); sh.junction(XC7 - 2.54, y13)
+    sh.place("Device:C", f"C{n + 7}", "100nF", C0603, XC7, y13 + 3.81, nets={"1": None, "2": None})
+    sh.wire(x15, y15, XC7 + 5.08, y15); sh.junction(XC7, y15)
+    sh.power("GND", XC7 + 5.08, y15, 270)
+    # выходы через 49,9 Ом на кабель
+    XRO = XA + 38.1
+    for (xo, yo), ref, net, fy in (((x11, y11), f"R{n + 6}", outp, (-6.35, -3.81)), ((x10, y10), f"R{n + 7}", outn, (3.81, 6.35))):
+        sh.wire(xo, yo, XRO - 3.81, yo)
+        sh.place("Device:R", ref, "49.9", R0603, XRO, yo, ang=90, nets={"1": None, "2": net},
+                 fields={"ref": (XRO, yo + fy[0]), "val": (XRO, yo + fy[1]), "just": "center"})
+    # VDD (12): вверх к линии питания, 1 нФ + 1 мкФ к GND, бусина от +3V3A, флажок питания
+    YV = Y - 27.94
+    sh.wire(x12, y12, x12, YV)
+    XB = XA + 53.34
+    sh.wire(x12, YV, XB - 2.54, YV)
+    sh.place("power:PWR_FLAG", flag_ref, "PWR_FLAG", "", XA + 15.24, YV, nets={"1": None},
+             fields={"ref": (XA + 15.24, YV - 7.62), "val": (XA + 15.24, YV - 5.08), "just": "center"})
+    sh.junction(XA + 15.24, YV)
+    for (ref, val, fp), x in zip([(f"C{n + 8}", "1nF", C1206), (f"C{n + 9}", "1uF", C1206)], (XA + 30.48, XA + 43.18)):
+        sh.place("Device:C", ref, val, fp, x, YV + 3.81, nets={"1": None, "2": "@GND"})
+        sh.junction(x, YV)
+    sh.place("Device:FerriteBead_Small", f"FB{n + 1}", "BLM15HD182SH1", "Inductor_SMD:L_0402_1005Metric", XB, YV, ang=270,
+             nets={"1": "+3V3A", "2": None}, fields={"ref": (XB, YV - 7.62), "val": (XB, YV - 5.08), "just": "center"})
 
-amc_channel(310, 101.6, "GRID_L", "GRID_N", "U220_P", "U220_N", "U220", "#FLG301")
-amc_channel(330, 223.52, "OUT_L", "OUT_N", "USEC_P", "USEC_N", "USEC", "#FLG302")
+amc_channel(310, 101.6, "GRID_L", "GRID_N", "U220_P", "U220_N", "#FLG301")
+amc_channel(330, 223.52, "OUT_L", "OUT_N", "USEC_P", "USEC_N", "#FLG302")
 # Ib: нагрузка трансформатора тока - всегда на месте, даже без шлейфа (ТТ без нагрузки опасен)
 XI = 434.34
 sh.place("Device:R", "R301", "24.9 0.1%", R1206, XI, 76.2, nets={"1": "IB_CT_P", "2": "IB_CT_N"})
@@ -213,7 +280,7 @@ sh.text("ИЗМЕРЕНИЯ 230 В (техзадание 6.5): U220 - сеть (
         "  Ток делителя 100 мкА при 400 В - предел TI. Резисторы 1206 по 100 В каждый. [?] Для выбросов - резисторы\n"
         "  на высокое напряжение (класс Vishay CRHV) или MELF.\n"
         "  1 нФ C0G на входе (рис. 7-2): 10 мкс задержки, одинаково в обоих каналах - U220 и uSec сравниваются без сдвига.\n"
-        "  Развязка - по рисунку 7-5 и табл. 7-3: VDD 1 нФ + 1 мкФ, DC/DC 100 нФ / 1 мкФ + 1 нФ, HLDO 100 нФ и 100 нФ NP0 + 1 нФ.\n"
+        "  Развязка (X7R 25-50 В, 100 нФ на HLDO - NP0) - по рис. 7-5 и табл. 7-3: VDD 1 нФ + 1 мкФ, DC/DC 100 нФ / 1 мкФ + 1 нФ, HLDO 100 нФ и 100 нФ NP0 + 1 нФ.\n"
         "  INN, HGND, DCDC_HGND - на нижний вывод резистора 10 кОм (N своей цепи). DIAG не используется.\n"
         "  Выход: дифференциальный, усиление 2 (±2 В при ±400 В), синфазное 1,44 В; 49,9 Ом на кабель.\n"
         "  Питание 3,3 В (+3V3A со шлейфа) через бусину на каждый AMC3330: до 41 мА на корпус.\n"

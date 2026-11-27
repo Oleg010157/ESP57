@@ -38,13 +38,39 @@ for lid, sym in {"Device:R": lib("Device", "R"), "Device:C": lib("Device", "C"),
                  "k57:LM5013DDA": LM5013,
                  "Regulator_Switching:LMR33630ADDA": lib("Regulator_Switching", "LMR33630ADDA"),
                  "Regulator_Linear:TLV75733PDRV": lib("Regulator_Linear", "TLV75733PDRV"),
-                 "Reference_Voltage:REF2030": lib("Reference_Voltage", "REF2030"),
                  "Connector:TestPoint": lib("Connector", "TestPoint"),
                  "power:GND": lib("power", "GND"), "power:+12V": lib("power", "+12V"),
                  "power:+5V": lib("power", "+5V"), "power:+3V3": lib("power", "+3V3"),
                  "power:PWR_FLAG": lib("power", "PWR_FLAG")}.items():
     sh.add_lib(lid, sym)
-upsert_lib(os.path.join(HW, "lib", "k57.kicad_sym"), [LM5013])
+def ref2030_symbol():
+    """REF2030 крупнее, чем в библиотеке KiCad: там подписи выводов налезают на значок внутри корпуса.
+    Номера и назначение выводов - те же (SOT-23-5: 1 VBIAS, 2 GND, 3 EN, 4 IN, 5 VREF)."""
+    name = "REF2030"
+    st = ["stroke", ["width", 0.254], ["type", "default"]]
+    body = ["symbol", Q(name + "_0_1"),
+            ["rectangle", ["start", -7.62, 5.08], ["end", 7.62, -5.08], st, ["fill", ["type", "background"]]]]
+    unit = ["symbol", Q(name + "_1_1")]
+    for num, nm, typ, x, y, a in [("4", "IN", "power_in", -2.54, 7.62, 270), ("2", "GND", "power_in", -2.54, -7.62, 90),
+                                  ("3", "EN", "input", -10.16, 0, 0), ("5", "VREF", "power_out", 10.16, 2.54, 180),
+                                  ("1", "VBIAS", "power_out", 10.16, -2.54, 180)]:
+        unit.append(["pin", typ, "line", ["at", x, y, a], ["length", 2.54],
+                     ["name", Q(nm), ["effects", ["font", ["size", 1.27, 1.27]]]],
+                     ["number", Q(num), ["effects", ["font", ["size", 1.27, 1.27]]]]])
+    def prop(k, v, at, hide=True):
+        p = ["property", Q(k), Q(v), ["at"] + at, ["effects", ["font", ["size", 1.27, 1.27]]]]
+        if hide: p.insert(4, ["hide", "yes"])
+        return p
+    return ["symbol", Q(name), ["pin_names", ["offset", 0.762]],
+            ["exclude_from_sim", "no"], ["in_bom", "yes"], ["on_board", "yes"],
+            prop("Reference", "U", [0, 7.62, 0], False), prop("Value", name, [0, -10.16, 0], False),
+            prop("Footprint", "Package_TO_SOT_SMD:SOT-23-5", [0, 0, 0]),
+            prop("Datasheet", "https://www.ti.com/lit/ds/symlink/ref2030.pdf", [0, 0, 0]),
+            prop("Description", "Опорное напряжение 3,0 В и 1,5 В (VREF, VBIAS), SOT-23-5", [0, 0, 0]),
+            body, unit]
+REF = ref2030_symbol()
+upsert_lib(os.path.join(HW, "lib", "k57.kicad_sym"), [LM5013, REF])
+sh.add_lib("k57:REF2030", REF)
 
 POWER = {"GND", "+12V", "+5V", "+3V3"}
 hier_block(sh, HIER, POWER)
@@ -254,10 +280,10 @@ XS4 = 345.44
 ti[XS4] += 0; tg[XS4] += 0
 sh.power("+5V", XS4, YI4, 90)
 sh.power("GND", XS4, YG4, 270)
-sh.place("Reference_Voltage:REF2030", "U204", "REF2030AIDDCR", "Package_TO_SOT_SMD:SOT-23-5", X4, Y4,
+sh.place("k57:REF2030", "U204", "REF2030AIDDCR", "Package_TO_SOT_SMD:SOT-23-5", X4, Y4,
          nets={"1": None, "2": None, "3": None, "4": None, "5": None},
          fields={"ref": (X4 + 10.16, Y4 - 7.62), "val": (X4 + 10.16, Y4 - 5.08), "just": "left"})
-P4 = lambda n: sh.pin_xy("Reference_Voltage:REF2030", X4, Y4, 0, n)
+P4 = lambda n: sh.pin_xy("k57:REF2030", X4, Y4, 0, n)
 vcap("Device:C", "C231", "1uF 16V", C0603, 355.6, YI4, YG4, yc=86.36); ti[355.6] += 1; tg[355.6] += 1
 (xi, yi), (xe, ye), (xg, yg), (xr, yr), (xbias, ybias) = P4(4), P4(3), P4(2), P4(5), P4(1)
 sh.wire(xi, yi, xi, YI4); ti[xi] += 1                         # IN - сверху к +5V
